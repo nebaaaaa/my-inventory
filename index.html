@@ -1,0 +1,2755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEBA ERP - Multi-Shop Console</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary: #0f172a;
+            --secondary: #1e293b;
+            --accent: #2563eb;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --warning: #d97706;
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --border: #e2e8f0;
+            --text: #334155;
+            --text-light: #64748b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+        
+        /* Global Viewport Anchoring */
+        html, body { background: var(--bg); color: var(--text); display: flex; -webkit-text-size-adjust: 100%; height: 100vh; height: 100dvh; overflow: hidden; }
+
+        /* Sidebar Navigation Layout */
+        aside#sidebar { width: 280px; background: var(--primary); color: white; display: flex; flex-direction: column; justify-content: space-between; height: 100vh; height: 100dvh; border-right: 1px solid rgba(255,255,255,0.05); transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2000; flex-shrink: 0; position: relative; }
+        aside#sidebar.collapsed { margin-left: -280px; }
+        aside#sidebar.collapsed::after { content: ''; position: absolute; top: 0; bottom: 0; right: -20px; width: 20px; z-index: 2001; cursor: ew-resize; }
+        aside#sidebar.collapsed:hover { transform: translateX(280px); box-shadow: 4px 0 25px rgba(0,0,0,0.5); }
+
+        .brand { padding: 24px; font-size: 16px; font-weight: 700; letter-spacing: 1px; border-bottom: 1px solid rgba(255,255,255,0.1); text-align: center; color: #f59e0b; }
+        nav { flex: 1; padding: 16px 0; overflow-y: auto; }
+        nav button { width: 100%; border: none; background: none; color: #94a3b8; padding: 12px 24px; text-align: left; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s; }
+        nav button:hover, nav button.active { background: var(--secondary); color: white; border-left: 4px solid var(--accent); }
+        .aside-footer { padding: 12px 12px 22px 12px; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid rgba(255,255,255,0.1); background: #0b0f19; justify-content: space-between; }
+        .footer-buttons { display: flex; gap: 6px; }
+
+        /* Main Body Workspaces */
+        main { flex: 1 1 0%; min-width: 0; display: flex; flex-direction: column; overflow: hidden; position: relative; height: 100vh; height: 100dvh; }
+        header { background: var(--surface); padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-shrink: 0; }
+        
+        .header-left, .header-right { display: flex; align-items: center; gap: 16px; }
+        .menu-toggle-btn { background: none; border: none; font-size: 20px; color: var(--primary); cursor: pointer; padding: 6px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: background 0.2s; position: relative; }
+        .menu-toggle-btn:hover { background: #f1f5f9; }
+        
+        .content-area { padding: 24px; overflow-y: auto; overflow-x: hidden; flex: 1; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+        .view-panel { display: none; width: 100%; }
+        .view-panel.active { display: block; }
+
+        /* Form Controls & Tables */
+        h2 { margin-bottom: 16px; color: var(--primary); font-size: 20px; border-bottom: 2px solid var(--border); padding-bottom: 6px; }
+        .card { background: var(--surface); padding: 24px; border-radius: 8px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.04); margin-bottom: 24px; overflow-x: auto; width: 100%; }
+        .form-group { margin-bottom: 16px; display: inline-block; margin-right: 16px; vertical-align: top; }
+        .filter-panel { background: #f1f5f9; padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; border: 1px solid var(--border); }
+        .filter-panel .form-group { margin-bottom: 0; }
+        label { display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: var(--text-light); text-transform: uppercase; }
+        input, select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 4px; font-size: 14px; outline: none; min-width: 180px; background: white; max-width: 100%; }
+        input:focus, select:focus { border-color: var(--accent); }
+        
+        button.btn { background: var(--accent); color: white; border: none; padding: 9px 18px; border-radius: 4px; font-size: 13px; cursor: pointer; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        button.btn-danger { background: var(--danger); }
+        button.btn-success { background: var(--success); }
+        button.btn-warning { background: var(--warning); }
+        button.btn-excel { background: #16a34a; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        button.btn-small { padding: 4px 8px; font-size: 11px; margin-right: 4px; margin-bottom: 4px; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; text-align: left; white-space: nowrap; }
+        th, td { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; }
+        th { background: #f1f5f9; color: var(--primary); font-weight: 600; }
+        tr:hover { background: #f8fafc; }
+        .num { text-align: right; font-family: monospace; font-size: 14px; }
+        .total-row { font-weight: bold; background: #f8fafc; border-top: 2px solid var(--primary); }
+
+        /* Dashboard Metrics */
+        .dashboard-filter-container { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-bottom: 20px; background: var(--surface); padding: 12px; border-radius: 8px; border: 1px solid var(--border); }
+        .dashboard-filter-bar { display: flex; flex-wrap: wrap; gap: 4px; background: #e2e8f0; padding: 4px; border-radius: 6px; width: fit-content; }
+        .filter-btn { background: transparent; border: none; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 4px; color: var(--text); }
+        .filter-btn.active { background: var(--surface); color: var(--accent); box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+        
+        .grid-5 { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .metric-box { background: var(--surface); padding: 16px; border-radius: 8px; border: 1px solid var(--border); border-top: 4px solid var(--accent); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+        .metric-box:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .metric-box.success { border-top-color: var(--success); }
+        .metric-box.danger { border-top-color: var(--danger); }
+        .metric-title { font-size: 11px; text-transform: uppercase; color: var(--text-light); font-weight: 700; display: flex; justify-content: space-between; }
+        .metric-title::after { content: '🔍 Details'; font-size: 9px; color: var(--accent); font-weight: normal; }
+        .metric-value { font-size: 18px; font-weight: 700; margin-top: 6px; font-family: monospace; color: var(--primary); }
+
+        /* Notification & Modals */
+        #notif-badge { position: absolute; top: -2px; right: -2px; background: #dc2626; color: white; border-radius: 50px; padding: 2px 6px; font-size: 10px; font-weight: bold; display: none; }
+        .notif-panel { display: none; position: absolute; top: 70px; right: 24px; width: 340px; background: white; border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); z-index: 4000; max-height: 400px; overflow-y: auto; flex-direction: column; }
+        .notif-panel.active { display: flex; }
+        .notif-item { padding: 14px; border-bottom: 1px solid var(--border); }
+        .notif-item.unread { background: #f0f8ff; }
+        .notif-title { font-weight: bold; font-size: 13px; color: var(--primary); margin-bottom: 2px; }
+        .notif-time { font-size: 11px; color: var(--text-light); margin-bottom: 6px; }
+        .notif-msg { font-size: 12px; color: var(--text); }
+        .notif-details { font-size: 11px; color: var(--text-light); background: #f1f5f9; padding: 8px; margin-top: 8px; border-radius: 4px; white-space: pre-wrap; font-family: monospace; }
+        
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; align-items: center; justify-content: center; }
+        .modal-overlay.active { display: flex; }
+        .modal-box { background: var(--surface); max-width: 700px; width: 90%; padding: 24px; border-radius: 8px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.15); }
+        .modal-body { margin-top: 16px; font-size: 13px; background: #f8fafc; padding: 12px; border: 1px solid var(--border); border-radius: 4px; max-height: 350px; overflow-y: auto; color: var(--text); }
+        .audit-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-left: 6px; text-transform: uppercase; }
+        .badge-edited { background: #fef3c7; color: #d97706; }
+        .price-trace { font-weight: 600; color: var(--accent); }
+
+        /* Sync Status UI */
+        .sync-status { text-align: center; font-size: 11px; font-weight: bold; padding: 6px; border-radius: 4px; background: rgba(255,255,255,0.05); color: #10b981; }
+        
+        /* Modern Scroll Buttons */
+        .chart-scroll-wrap { position: relative; width: 100%; }
+        .graph-btn { position: absolute; top: 50%; transform: translateY(-50%); z-index: 10; background: var(--primary); color: white; border: none; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2); transition: all 0.2s; opacity: 0.7; }
+        .graph-btn:hover { opacity: 1; transform: translateY(-50%) scale(1.1); }
+        .graph-btn.left-btn { left: -18px; }
+        .graph-btn.right-btn { right: -18px; }
+
+        @media (max-width: 768px) {
+            aside#sidebar { position: absolute; height: 100vh; height: 100dvh; box-shadow: 2px 0 10px rgba(0,0,0,0.3); }
+            aside#sidebar.collapsed::after { display: none; }
+            aside#sidebar.collapsed:hover { transform: none; }
+            .form-group { display: block; margin-right: 0; width: 100%; }
+            input, select, textarea { width: 100%; min-width: 100%; font-size: 16px !important; }
+            .filter-panel .form-group { margin-bottom: 12px; }
+            #page-title { font-size: 16px; }
+            #clock { display: none; }
+            .notif-panel { width: 90%; right: 5%; }
+            .graph-btn { display: none; } /* Hide overlay buttons on mobile */
+        }
+        /* ===== Auth screen background ===== */
+        #auth-overlay, #reset-password-overlay {
+            background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%) !important;
+        }
+        .auth-brand-mark-fixed {
+            position: absolute; top: 28px; left: 32px; z-index: 3;
+            font-size: 20px; font-weight: 800; letter-spacing: 0.5px;
+        }
+        .auth-brand-mark-fixed .accent { color: #6366f1; }
+        .auth-brand-mark-fixed .dark { color: #0f172a; }
+        .auth-bg-chart { position: absolute; top: 50%; left: 0; width: 100%; height: 420px; transform: translateY(-50%); z-index: 0; pointer-events: none; }
+        .auth-welcome-heading { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px 0; text-align: center; }
+        .auth-welcome-subtitle { font-size: 14px; color: #64748b; text-align: center; margin: 0 0 22px 0; }
+        .auth-footer-note { position: absolute; bottom: 20px; left: 0; width: 100%; text-align: center; font-size: 12px; color: #94a3b8; z-index: 1; }
+        @media (max-width: 480px) {
+            .auth-brand-mark-fixed { font-size: 16px; top: 18px; left: 18px; }
+        }
+    </style>
+</head>
+<body onclick="closeNotifPanelOutside(event)">
+
+    <!-- ===================== SIGN IN / SIGN UP SCREEN ===================== -->
+    <div id="auth-overlay" style="position:fixed; inset:0; z-index:5000; display:flex; align-items:center; justify-content:center; padding:16px; overflow:hidden;">
+        <div class="auth-brand-mark-fixed"><span class="accent">MY</span> <span class="dark">INVENTORY</span></div>
+
+        <svg class="auth-bg-chart" viewBox="0 0 1200 400" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <polyline points="0,340 90,336 180,260 270,150 360,120 450,135 540,110 630,190 720,165 810,230 900,270 990,310 1080,330 1200,345" fill="none" stroke="#818cf8" stroke-width="4" opacity="0.30"/>
+            <polyline points="0,345 90,344 180,320 270,290 360,282 450,288 540,282 630,296 720,306 810,320 900,336 990,346 1080,352 1200,358" fill="none" stroke="#fca5a5" stroke-width="4" opacity="0.30"/>
+        </svg>
+
+        <div class="modal-box" style="max-width:410px; width:100%; position:relative; z-index:2;">
+            <h1 class="auth-welcome-heading">Welcome</h1>
+            <p class="auth-welcome-subtitle">Let's make informed decisions for your business.</p>
+            <div id="auth-error" style="display:none; background:#fee2e2; color:var(--danger); font-size:13px; padding:10px; border-radius:4px; margin-bottom:14px;"></div>
+
+            <!-- SIGN IN VIEW -->
+            <div id="auth-signin-view">
+                <p style="font-size:13px; color:var(--text-light); margin-bottom:20px;">Sign in to your shop.</p>
+                <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
+                    <label>Email</label>
+                    <input type="email" id="signin-email" style="width:100%;" placeholder="you@example.com">
+                </div>
+                <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
+                    <label>Password</label>
+                    <div style="position:relative;">
+                        <input type="password" id="signin-password" style="width:100%; padding-right:40px;" placeholder="Your password">
+                        <button type="button" onclick="togglePasswordVisibility('signin-password', this)" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:16px; padding:4px;"><svg viewBox="0 0 576 512" width="18" height="18" style="display:block;"><path fill="#1e293b" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#ffffff"/><circle cx="288" cy="256" r="38" fill="#1e293b"/></svg></button>
+                    </div>
+                </div>
+                <button class="btn" style="width:100%; margin-top:6px;" onclick="handleSignIn()">Sign In</button>
+                <p style="text-align:center; font-size:13px; margin-top:12px;"><a href="#" onclick="handleForgotPassword(); return false;" style="color:var(--text-light);">Forgot password?</a></p>
+                <p style="text-align:center; font-size:13px; margin-top:4px; color:var(--text-light);">Don't have a shop account yet? <a href="#" onclick="showAuthView('signup'); return false;" style="color:var(--primary); font-weight:600;">Create one</a></p>
+            </div>
+
+            <!-- CREATE ACCOUNT VIEW -->
+            <div id="auth-signup-view" style="display:none;">
+                <p style="font-size:13px; color:var(--text-light); margin-bottom:20px;">Create a new shop account.</p>
+                <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
+                    <label>Shop / Business Name</label>
+                    <input type="text" id="auth-business-name" style="width:100%;" placeholder="e.g. Kebede Electrical Supplies">
+                </div>
+                <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
+                    <label>Phone Number</label>
+                    <input type="tel" id="auth-phone" style="width:100%;" placeholder="e.g. 0911 234 567">
+                </div>
+                <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
+                    <label>Email</label>
+                    <input type="email" id="auth-email" style="width:100%;" placeholder="you@example.com">
+                </div>
+                <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
+                    <label>Password</label>
+                    <div style="position:relative;">
+                        <input type="password" id="auth-password" style="width:100%; padding-right:40px;" placeholder="At least 6 characters">
+                        <button type="button" onclick="togglePasswordVisibility('auth-password', this)" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:16px; padding:4px;"><svg viewBox="0 0 576 512" width="18" height="18" style="display:block;"><path fill="#1e293b" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#ffffff"/><circle cx="288" cy="256" r="38" fill="#1e293b"/></svg></button>
+                    </div>
+                </div>
+                <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
+                    <label>Confirm Password</label>
+                    <div style="position:relative;">
+                        <input type="password" id="auth-password-confirm" style="width:100%; padding-right:40px;" placeholder="Re-enter your password">
+                        <button type="button" onclick="togglePasswordVisibility('auth-password-confirm', this)" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:16px; padding:4px;"><svg viewBox="0 0 576 512" width="18" height="18" style="display:block;"><path fill="#1e293b" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#ffffff"/><circle cx="288" cy="256" r="38" fill="#1e293b"/></svg></button>
+                    </div>
+                </div>
+                <button class="btn btn-success" style="width:100%; margin-top:6px;" onclick="handleSignUp()">Create Account</button>
+                <p style="text-align:center; font-size:13px; margin-top:16px; color:var(--text-light);">Already have an account? <a href="#" onclick="showAuthView('signin'); return false;" style="color:var(--primary); font-weight:600;">Sign in</a></p>
+            </div>
+
+            <div id="auth-loading" style="display:none; text-align:center; margin-top:14px; font-size:12px; color:var(--text-light);">Working, please wait...</div>
+        </div>
+
+        <div class="auth-footer-note">&copy; 2026 MY INVENTORY. All rights reserved.</div>
+    </div>
+
+    <!-- ===================== SET NEW PASSWORD SCREEN (after clicking reset email link) ===================== -->
+    <div id="reset-password-overlay" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:5000; align-items:center; justify-content:center; padding:16px;">
+        <div class="modal-box" style="max-width:400px; width:100%;">
+            <p style="font-size:13px; color:var(--text-light); margin-bottom:20px;">Choose a new password for your account.</p>
+            <div id="reset-error" style="display:none; background:#fee2e2; color:var(--danger); font-size:13px; padding:10px; border-radius:4px; margin-bottom:14px;"></div>
+            <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
+                <label>New Password</label>
+                <div style="position:relative;">
+                    <input type="password" id="reset-new-password" style="width:100%; padding-right:40px;" placeholder="At least 6 characters">
+                    <button type="button" onclick="togglePasswordVisibility('reset-new-password', this)" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; padding:4px;"><svg viewBox="0 0 576 512" width="18" height="18" style="display:block;"><path fill="#1e293b" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#ffffff"/><circle cx="288" cy="256" r="38" fill="#1e293b"/></svg></button>
+                </div>
+            </div>
+            <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
+                <label>Confirm New Password</label>
+                <div style="position:relative;">
+                    <input type="password" id="reset-new-password-confirm" style="width:100%; padding-right:40px;" placeholder="Re-enter your new password">
+                    <button type="button" onclick="togglePasswordVisibility('reset-new-password-confirm', this)" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; padding:4px;"><svg viewBox="0 0 576 512" width="18" height="18" style="display:block;"><path fill="#1e293b" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#ffffff"/><circle cx="288" cy="256" r="38" fill="#1e293b"/></svg></button>
+                </div>
+            </div>
+            <button class="btn btn-success" style="width:100%; margin-top:6px;" onclick="handleSetNewPassword()">Set New Password</button>
+            <div id="reset-loading" style="display:none; text-align:center; margin-top:14px; font-size:12px; color:var(--text-light);">Working, please wait...</div>
+        </div>
+    </div>
+
+    <!-- ===================== FIRST-TIME ONBOARDING SCREEN ===================== -->
+    <div id="onboarding-overlay" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:5000; align-items:center; justify-content:center; padding:16px;">
+        <div class="modal-box" style="max-width:480px; width:100%;">
+            <h2 style="color:var(--primary); margin-bottom:12px;">Welcome! Let's set up your shop.</h2>
+            <p style="font-size:13px; color:var(--text-light); margin-bottom:16px;">If you already have a NEBA ERP backup file (a <code>.json</code> file exported using the "Backup" button), upload it now to bring your existing data over. Otherwise, just start fresh with an empty shop.</p>
+            <div class="form-group" style="display:block; width:100%; margin-bottom:16px;">
+                <label>Upload Backup File (optional)</label>
+                <input type="file" id="onboarding-file" accept=".json" style="width:100%;">
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn" style="flex:1;" onclick="finishOnboarding(true)">Import This File</button>
+                <button class="btn" style="flex:1; background:#475569;" onclick="finishOnboarding(false)">Start Fresh (Skip)</button>
+            </div>
+            <div id="onboarding-loading" style="display:none; text-align:center; margin-top:14px; font-size:12px; color:var(--text-light);">Importing your data, please wait...</div>
+        </div>
+    </div>
+
+    <!-- ===================== ACCOUNT INACTIVE SCREEN ===================== -->
+    <div id="inactive-overlay" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:5000; align-items:center; justify-content:center; text-align:center; padding:24px;">
+        <div>
+            <h2 style="color:var(--primary);">Account Inactive</h2>
+            <p style="margin-top:12px; color:var(--text-light); max-width:360px;">Your subscription is currently inactive. Please contact your provider to renew access.</p>
+            <button class="btn" style="margin-top:20px;" onclick="handleSignOut()">Sign Out</button>
+        </div>
+    </div>
+
+    <div id="app-shell" style="display:none; flex:1; min-width:0; height:100vh; height:100dvh;">
+    <aside id="sidebar">
+        <div>
+            <div class="brand" id="shop-brand-name">NEBA ERP</div>
+            <nav>
+                <button onclick="switchView('dashboard')" class="active" id="nav-dashboard">📊 Dashboard Analytics</button>
+                <button onclick="switchView('inventory')" id="nav-inventory">📦 Inventory Ledger</button>
+                <button onclick="switchView('sales')" id="nav-sales">💰 Sales Recording</button>
+                <button onclick="switchView('purchase')" id="nav-purchase">🛒 Purchase Recording</button>
+                <button onclick="switchView('expenses')" id="nav-expenses">💸 Expense Recording</button>
+                <button onclick="switchView('coa')" id="nav-coa">📋 Chart of Accounts</button>
+                <button onclick="switchView('journal')" id="nav-journal">✍️ Journal Entries</button>
+                <button onclick="switchView('ledger')" id="nav-ledger">📖 General Ledger Book</button>
+                <button onclick="switchView('statements')" id="nav-statements">🏦 Financial Statements</button>
+            </nav>
+        </div>
+        <div class="aside-footer">
+            <button class="btn btn-excel" onclick="openExportHub()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                Download Excel Report
+            </button>
+            <div class="footer-buttons">
+                <button class="btn" onclick="handleSignOut()" style="padding: 8px; font-size: 11px; flex:1; background:#2563eb; color:white;">🚪 Sign Out</button>
+                <button class="btn btn-warning" onclick="exportBackupData()" style="padding: 8px; font-size: 11px; flex:1;">💾 Backup</button>
+                <button class="btn" onclick="importBackupData()" style="padding: 8px; font-size: 11px; flex:1; background:#475569;">📂 Restore</button>
+                <button class="btn btn-danger" onclick="factoryReset()" style="padding: 8px; font-size: 11px; flex:1; background:#dc2626;">⚠️ Reset</button>
+            </div>
+            <div id="cloud-sync-status" class="sync-status">🟢 Cloud Synced</div>
+        </div>
+    </aside>
+
+    <main>
+        <header>
+            <div class="header-left">
+                <button class="menu-toggle-btn" onclick="toggleSidebar()">☰</button>
+                <h1 id="page-title">Real-Time Core Workspace</h1>
+            </div>
+            <div class="header-right">
+                <span id="offline-dot" title="You're offline — changes are saved on this device and will sync once reconnected" style="display:none; width:8px; height:8px; border-radius:50%; background:#f59e0b; margin-right:4px;"></span>
+                <div id="clock" style="color: var(--text-light); font-weight: 500; font-size: 13px;"></div>
+                <button class="menu-toggle-btn" onclick="switchView('trash')" title="System Trash">🗑️</button>
+                <button class="menu-toggle-btn" id="bell-btn" onclick="toggleNotifications(event)" title="Notifications">
+                    🔔 <span id="notif-badge">0</span>
+                </button>
+            </div>
+        </header>
+
+        <div class="notif-panel" id="notif-dropdown" onclick="event.stopPropagation()">
+            <div style="padding:12px; border-bottom: 2px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                <strong>System Alerts</strong>
+                <button class="btn-small btn" onclick="clearAllNotifications()">Clear All</button>
+            </div>
+            <div id="notif-list"></div>
+        </div>
+
+        <div class="content-area">
+
+            <div id="view-dashboard" class="view-panel active">
+                <div class="dashboard-filter-container">
+                    <div class="dashboard-filter-bar">
+                        <button class="filter-btn active" id="f-all" onclick="changePeriod('all')">All-Time</button>
+                        <button class="filter-btn" id="f-today" onclick="changePeriod('today')">Today</button>
+                        <button class="filter-btn" id="f-week" onclick="changePeriod('week')">This Week</button>
+                        <button class="filter-btn" id="f-month" onclick="changePeriod('month')">This Month</button>
+                        <button class="filter-btn" id="f-year" onclick="changePeriod('year')">This Year</button>
+                        <button class="filter-btn" id="f-custom" onclick="changePeriod('custom')">Custom Range</button>
+                    </div>
+                    <div class="custom-range-box">
+                        <label style="display:inline; margin-bottom:0;">From:</label>
+                        <input type="date" id="dash-start-date" onchange="triggerCustomDateFilter()" style="min-width:auto;">
+                        <label style="display:inline; margin-bottom:0;">To:</label>
+                        <input type="date" id="dash-end-date" onchange="triggerCustomDateFilter()" style="min-width:auto;">
+                    </div>
+                </div>
+
+                <div class="grid-5">
+                    <div class="metric-box" onclick="launchDrillDown('revenue')"><div class="metric-title">Total Revenue</div><div class="metric-value" id="m-revenue">ETB 0.00</div></div>
+                    <div class="metric-box danger" onclick="launchDrillDown('cogs')"><div class="metric-title">Cost of Goods Sold</div><div class="metric-value" id="m-cogs">ETB 0.00</div></div>
+                    <div class="metric-box success" onclick="launchDrillDown('gross')"><div class="metric-title">Gross Profit</div><div class="metric-value" id="m-gross">ETB 0.00</div></div>
+                    <div class="metric-box danger" onclick="launchDrillDown('expenses')"><div class="metric-title">Total Expenses</div><div class="metric-value" id="m-expenses">ETB 0.00</div></div>
+                    <div class="metric-box success" style="background: #f0fdf4;" onclick="launchDrillDown('net')"><div class="metric-title">Net Profit</div><div class="metric-value" id="m-net">ETB 0.00</div></div>
+                </div>
+
+                <div class="card">
+                    <h3>Liquid Capital Asset Positions</h3>
+                    <p style="margin-top: 10px; font-size: 14px; color: var(--text-light);">
+                        Liquid Vault Balance (Cash & Banks): <strong id="dash-cash-sum" style="color: var(--primary);">ETB 0.00</strong> | 
+                        Inventory Assets (FIFO cost basis): <strong id="dash-stock-sum" style="color: var(--primary);">ETB 0.00</strong>
+                    </p>
+                </div>
+                
+                <div class="card" id="analytics-module" style="background: #f8fafc; border: none; padding: 0;">
+                    <div style="background: linear-gradient(135deg, #1e293b, #0f172a); padding: 24px; border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; color: white;">
+                        <h2 style="margin: 0; border: none; color: white; font-size: 22px; font-weight: 600;">Deep Sales Analytics</h2>
+                        <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center;">
+                            <div class="form-group" style="margin: 0; display:flex; gap:8px; align-items:center;">
+                                <label style="margin:0; color: #94a3b8;">Start Date:</label>
+                                <input type="date" id="analytics-start" onchange="renderDeepAnalytics()" style="min-width: 130px; padding: 8px 12px; border-radius: 6px; border: 1px solid #475569; background: #334155; color: white;">
+                            </div>
+                            <div class="form-group" style="margin: 0; display:flex; gap:8px; align-items:center;">
+                                <label style="margin:0; color: #94a3b8;">End Date:</label>
+                                <input type="date" id="analytics-end" onchange="renderDeepAnalytics()" style="min-width: 130px; padding: 8px 12px; border-radius: 6px; border: 1px solid #475569; background: #334155; color: white;">
+                            </div>
+                            <div class="form-group" style="margin: 0; display:flex; gap:8px; align-items:center; border-left: 2px solid #475569; padding-left: 16px;">
+                                <label style="margin:0; color: #94a3b8;">Grouping:</label>
+                                <select id="history-group-by" onchange="renderDeepAnalytics()" style="min-width: 110px; padding: 8px 12px; border-radius: 6px; border: 1px solid #475569; background: #334155; color: white;">
+                                    <option value="week">By Week</option>
+                                    <option value="month">By Month</option>
+                                    <option value="year">By Year</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="padding: 24px; background: white; border-radius: 0 0 12px 12px; border: 1px solid var(--border); border-top: none; box-shadow: 0 4px 15px rgba(0,0,0,0.03);">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-bottom: 32px;">
+                            
+                            <div style="background: #ffffff; padding: 20px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.06);">
+                                <canvas id="chart-top-items"></canvas>
+                            </div>
+                            <div style="background: #ffffff; padding: 20px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.06);">
+                                <canvas id="chart-bottom-items"></canvas>
+                            </div>
+                            
+                            <div class="chart-scroll-wrap" style="grid-column: 1 / -1; background: #ffffff; padding: 20px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.06);">
+                                <h3 style="margin:0 0 14px 0; font-size:16px; font-weight:600; color:#0f172a;">Revenue &amp; Profit History</h3>
+                                <button class="graph-btn left-btn" onclick="document.getElementById('scroll-revprof').scrollBy({left: -400, behavior: 'smooth'})">◀</button>
+                                <button class="graph-btn right-btn" onclick="document.getElementById('scroll-revprof').scrollBy({left: 400, behavior: 'smooth'})">▶</button>
+                                <div id="scroll-revprof" style="overflow-x: auto; overflow-y: hidden; scroll-behavior: smooth; width: 100%; white-space: nowrap; padding-bottom: 8px;">
+                                    <div id="container-revprof" style="height: 350px; display: inline-block;">
+                                        </div>
+                                </div>
+                            </div>
+
+                            <div style="background: #ffffff; padding: 20px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.06); grid-column: 1 / -1; max-width: 600px; margin: 0 auto; width: 100%;">
+                                <canvas id="chart-sales-type"></canvas>
+                            </div>
+                        </div>
+
+                        <h3 style="color: var(--primary); margin-bottom: 12px; font-size: 18px;">Item Performance Matrix (Velocity & Margins)</h3>
+                        <div style="overflow-x: auto; margin-top: 8px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid var(--border);">
+                            <table style="margin-top: 0; width: 100%; border-collapse: separate; border-spacing: 0;">
+                                <thead style="background: linear-gradient(to right, #f8fafc, #f1f5f9);">
+                                    <tr>
+                                        <th onclick="sortAnalysisTable('desc')" style="cursor:pointer; padding: 14px; border-bottom: 2px solid #cbd5e1;" title="Sort by Name">Product Item ↕</th>
+                                        <th onclick="sortAnalysisTable('speed')" style="cursor:pointer; padding: 14px; border-bottom: 2px solid #cbd5e1;" title="Sort by Speed Category">Velocity ↕</th>
+                                        <th class="num" onclick="sortAnalysisTable('freq')" style="cursor:pointer; padding: 14px; border-bottom: 2px solid #cbd5e1;" title="Sort by Invoicing Frequency">Txn Freq ↕</th>
+                                        <th class="num" onclick="sortAnalysisTable('qty')" style="cursor:pointer; padding: 14px; border-bottom: 2px solid #cbd5e1;" title="Sort by Total Volume Sold">Qty Sold ↕</th>
+                                        <th class="num" onclick="sortAnalysisTable('rev')" style="cursor:pointer; padding: 14px; border-bottom: 2px solid #cbd5e1;" title="Sort by Revenue">Gross Revenue ↕</th>
+                                        <th class="num" onclick="sortAnalysisTable('profit')" style="cursor:pointer; padding: 14px; border-bottom: 2px solid #cbd5e1;" title="Sort by Gross Profit">Gross Profit ↕</th>
+                                        <th class="num" onclick="sortAnalysisTable('margin')" style="cursor:pointer; padding: 14px; border-bottom: 2px solid #cbd5e1;" title="Sort by Unit Profit Margin">Unit Margin (%) ↕</th>
+                                        <th class="num" onclick="sortAnalysisTable('roi')" style="cursor:pointer; padding: 14px; border-bottom: 2px solid #cbd5e1;" title="Sort by ROI">Total ROI (%) ↕</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="item-performance-tbody" style="background: white;"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-inventory" class="view-panel">
+                <div class="card">
+                    <h2 id="inv-title">Define New Core Product Profile</h2>
+                    <form id="inventory-def-form" onsubmit="handleDefineProduct(event)">
+                        <input type="hidden" id="edit-index" value="">
+                        <div class="form-group"><label>Product Category Group</label><input type="text" id="p-category" list="category-list" required autocomplete="off"><datalist id="category-list"></datalist></div>
+                        <div class="form-group"><label>Product Description / Name Identifier</label><input type="text" id="p-desc" required></div>
+                        <div class="form-group" style="padding-top: 22px;"><button type="submit" class="btn" id="inv-btn">Define Product</button><button type="button" class="btn btn-warning" id="inv-cancel" style="display:none;" onclick="resetProductForm()">Cancel</button></div>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h2>Live Perpetual Master Stock Matrix</h2>
+                    <div class="filter-panel">
+                        <div class="form-group"><label>Search Category</label><input type="text" id="inv-filter-category" placeholder="Filter category..." oninput="renderPerpetualInventoryTable()"></div>
+                        <div class="form-group"><label>Search Name</label><input type="text" id="inv-filter-name" placeholder="Filter name..." oninput="renderPerpetualInventoryTable()"></div>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr><th>Category</th><th>Item Specification / Name</th><th class="num">Qty On Hand</th><th class="num">Cost Layers FIFO (ETB)</th><th class="num">Selling Price (ETB)</th><th class="num">Total Asset (ETB)</th><th style="text-align: center;">Actions</th></tr>
+                        </thead>
+                        <tbody id="inventory-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="view-sales" class="view-panel">
+                <div class="card">
+                    <h2>Record Direct Customer Sale Transaction</h2>
+                    <form id="sales-form" onsubmit="handlePostSale(event)">
+                        <div class="form-group"><label>Posting Date</label><input type="date" id="sale-date" required></div>
+                        <div class="form-group"><label>Customer Name</label><input type="text" id="sale-customer" list="customer-list" placeholder="Blank defaults to Walk-in" onfocus="syncCustomerList()"><datalist id="customer-list"></datalist></div>
+                        <div class="form-group">
+                            <label>Search & Select Item To Sell</label>
+                            <input type="text" id="sale-item" list="sale-item-list" onchange="autoPopulateSalePrice()" placeholder="Type to filter..." style="min-width: 300px;" required autocomplete="off">
+                            <datalist id="sale-item-list"></datalist>
+                        </div>
+                        <div class="form-group"><label>Quantity Dispatched</label><input type="number" id="sale-qty" min="1" value="1" required></div>
+                        <div class="form-group"><label>Unit Selling Price (ETB)</label><input type="number" id="sale-price" step="0.01" min="0.01" required></div>
+                        <div class="form-group">
+                            <label>Destination Channel</label>
+                            <select id="sale-channel"><option value="Cash">Cash</option><option value="Mobile banking">Mobile banking</option><option value="Accounts receivable">Accounts receivable</option></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Sales Classification Type</label>
+                            <div style="display:flex; gap:6px;">
+                                <select id="sale-type" style="flex:1;">
+                                    <option value="Walk in">Walk in</option>
+                                    <option value="Proforma">Proforma</option>
+                                    <option value="Customer">Customer</option>
+                                    <option value="Tender">Tender</option>
+                                </select>
+                                <button type="button" class="btn" style="padding:0 14px;" onclick="addNewSaleType()" title="Add a new sales type">+</button>
+                            </div>
+                        </div>
+                        <div class="form-group" style="padding-top: 22px;"><button type="submit" class="btn" style="background:var(--success);">Post Sale</button></div>
+                    </form>
+                </div>
+                
+                <div class="card">
+                    <h2>Sales Transaction History Log</h2>
+                    <div class="filter-panel">
+                        <div class="form-group"><label>Filter Date</label><input type="date" id="sale-log-filter-date" onchange="renderSalesLogTable()"></div>
+                        <div class="form-group"><label>Customer</label><input type="text" id="sale-log-filter-customer" placeholder="Search..." oninput="renderSalesLogTable()"></div>
+                        <div class="form-group"><label>Product</label><input type="text" id="sale-log-filter-item" placeholder="Search..." oninput="renderSalesLogTable()"></div>
+                        <div class="form-group"><label>Channel</label><select id="sale-log-filter-channel" onchange="renderSalesLogTable()"><option value="">-- All --</option><option value="Cash">Cash</option><option value="Mobile banking">Mobile banking</option><option value="Accounts receivable">Accounts receivable</option></select></div>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr><th>Date</th><th>Customer Name</th><th>Product Item</th><th class="num">Quantity</th><th class="num">Unit Price</th><th class="num">Total</th><th>Channel / Status / Type</th><th style="text-align:center;">Action</th></tr>
+                        </thead>
+                        <tbody id="sales-log-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="view-purchase" class="view-panel">
+                <div class="card">
+                    <h2>Record Direct Stock Inward Purchase Transaction</h2>
+                    <form id="purchase-form" onsubmit="handlePostPurchase(event)">
+                        <div class="form-group"><label>Posting Date</label><input type="date" id="pur-date" required></div>
+                        <div class="form-group"><label>Supplier Name</label><input type="text" id="pur-supplier" list="supplier-list" placeholder="e.g., Global Distributors" required onfocus="syncSupplierList()"><datalist id="supplier-list"></datalist></div>
+                        <div class="form-group">
+                            <label>Search & Select Target Profile</label>
+                            <input type="text" id="pur-item" list="pur-item-list" placeholder="Type to filter..." style="min-width: 300px;" required autocomplete="off">
+                            <datalist id="pur-item-list"></datalist>
+                        </div>
+                        <div class="form-group"><label>Quantity</label><input type="number" id="pur-qty" min="1" value="1" required></div>
+                        <div class="form-group"><label>Unit Cost Price (ETB)</label><input type="number" id="pur-price" step="0.01" min="0.01" required></div>
+                        <div class="form-group"><label>Set Selling Price (Optional)</label><input type="number" id="pur-selling-price" step="0.01" placeholder="Leave blank to skip"></div>
+                        <div class="form-group">
+                            <label>Sourcing Channel</label>
+                            <select id="pur-channel"><option value="Cash">Cash</option><option value="Mobile banking">Mobile banking</option><option value="Accounts payable">Accounts payable</option></select>
+                        </div>
+                        <div class="form-group" style="padding-top: 22px;"><button type="submit" class="btn">Commit Purchase</button></div>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h2>Purchase Inward Procurement Log</h2>
+                    <div class="filter-panel">
+                        <div class="form-group"><label>Filter Date</label><input type="date" id="pur-log-filter-date" onchange="renderPurchaseLogTable()"></div>
+                        <div class="form-group"><label>Supplier</label><input type="text" id="pur-log-filter-supplier" placeholder="Search..." oninput="renderPurchaseLogTable()"></div>
+                        <div class="form-group"><label>Product</label><input type="text" id="pur-log-filter-item" placeholder="Search..." oninput="renderPurchaseLogTable()"></div>
+                        <div class="form-group"><label>Channel</label><select id="pur-log-filter-channel" onchange="renderPurchaseLogTable()"><option value="">-- All --</option><option value="Cash">Cash</option><option value="Mobile banking">Mobile banking</option><option value="Accounts payable">Accounts payable</option></select></div>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr><th>Date</th><th>Supplier Name</th><th>Product Item</th><th class="num">Quantity</th><th class="num">Unit Cost</th><th class="num">Total</th><th>Channel / Status</th><th style="text-align:center;">Action</th></tr>
+                        </thead>
+                        <tbody id="purchase-log-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="view-expenses" class="view-panel">
+                <div class="card">
+                    <h2>Log Overhead / Operational Expense Charges</h2>
+                    <form id="expense-form" onsubmit="handlePostExpense(event)">
+                        <div class="form-group"><label>Posting Date</label><input type="date" id="exp-date" required></div>
+                        <div class="form-group"><label>Allocation Account</label><select id="exp-target"></select></div>
+                        <div class="form-group"><label>Value Charge (ETB)</label><input type="number" id="exp-amount" step="0.01" min="0.01" required></div>
+                        <div class="form-group"><label>Settlement Channel</label><select id="exp-source"><option value="Cash">Cash</option><option value="Mobile banking">Mobile banking</option><option value="Accounts payable">Accounts payable</option></select></div>
+                        <div class="form-group"><label>Memo Detail Reference</label><input type="text" id="exp-memo" placeholder="e.g., May Bills" required></div>
+                        <div class="form-group" style="padding-top: 22px;"><button type="submit" class="btn btn-danger">Book Expense</button></div>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h2>Expense Ledger Distribution Log</h2>
+                    <table>
+                        <thead><tr><th>Date</th><th>Expense Account</th><th>Memo Context</th><th class="num">Charge (ETB)</th><th>Channel</th><th style="text-align:center;">Action</th></tr></thead>
+                        <tbody id="expense-log-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="view-trash" class="view-panel">
+                <div class="card">
+                    <h2>System Trash Bin</h2>
+                    <p style="font-size: 13px; color: var(--text-light); margin-bottom:16px;">Deleted records are held here for 30 days before permanent deletion. Restoring an item recalculates its inventory and ledger balances.</p>
+                    <table>
+                        <thead><tr><th>Date Deleted</th><th>Record Type</th><th>Data Details</th><th style="text-align:center;">Action</th></tr></thead>
+                        <tbody id="trash-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="view-coa" class="view-panel">
+                <div class="card">
+                    <h2>System Chart of Accounts Standard Topology</h2>
+                    <table>
+                        <thead><tr><th>Classification</th><th>Sub-Account Level</th><th>Code</th><th>Individual Account Title</th><th>Statement</th><th>Normal Balance</th></tr></thead>
+                        <tbody id="coa-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="view-journal" class="view-panel">
+                <div class="card">
+                    <h2>Post Direct Double-Entry Accounting Manual Voucher</h2>
+                    <form id="journal-form" onsubmit="handleManualVoucher(event)">
+                        <div class="form-group"><label>Voucher Date</label><input type="date" id="jv-date" required></div>
+                        <div class="form-group"><label>Reference Memo</label><input type="text" id="jv-desc" required></div><br>
+                        <div class="form-group"><label>Debit Account Target</label><select id="jv-dr-acc" required></select></div>
+                        <div class="form-group"><label>Debit Amount</label><input type="number" id="jv-dr-amt" step="0.01" required></div><br>
+                        <div class="form-group"><label>Credit Account Target</label><select id="jv-cr-acc" required></select></div>
+                        <div class="form-group"><label>Credit Amount</label><input type="number" id="jv-cr-amt" step="0.01" required></div>
+                        <div class="form-group" style="padding-top: 22px;"><button type="submit" class="btn">Commit Double Entry</button></div>
+                    </form>
+                </div>
+                <div class="card">
+                    <h2>Universal Historical General Journal Ledger Book</h2>
+                    <div class="form-group"><label>Ethiopian Accounting Period</label><select id="jv-ethiopian-filter" class="ethiopian-period-select" onchange="updateEthiopianPeriod(this.value)"></select></div>
+                    <table>
+                        <thead><tr><th>Date</th><th>Reference ID</th><th>Account Criteria</th><th class="num">Debit Target (ETB)</th><th class="num">Credit Target (ETB)</th></tr></thead>
+                        <tbody id="journal-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="view-ledger" class="view-panel">
+                <div class="card">
+                    <div class="form-group"><label>Select Target Account Card</label><select id="ledger-filter" onchange="renderGeneralLedgerCards()"></select></div>
+                    <div class="form-group"><label>Ethiopian Accounting Period</label><select id="led-ethiopian-filter" class="ethiopian-period-select" onchange="updateEthiopianPeriod(this.value)"></select></div>
+                </div>
+                <div class="card">
+                    <h2>Account T-Ledger Transaction Cards</h2>
+                    <table>
+                        <thead><tr><th>Date</th><th>Voucher Context</th><th class="num">Debit Charge</th><th class="num">Credit Charge</th><th class="num">Running Balance</th></tr></thead>
+                        <tbody id="ledger-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="view-statements" class="view-panel">
+                <div style="margin-bottom: 20px; display: flex; flex-wrap:wrap; gap: 10px;">
+                    <button class="btn" onclick="buildReports('trial')">Trial Balance Sheet</button>
+                    <button class="btn" onclick="buildReports('income')">Income Statement (Profit & Loss)</button>
+                    <button class="btn" onclick="buildReports('balance')">Statement of Financial Position (Balance Sheet)</button>
+                </div>
+                <div class="form-group" style="margin-bottom:16px;"><label>Ethiopian Accounting Period</label><select id="stmt-ethiopian-filter" class="ethiopian-period-select" onchange="updateEthiopianPeriod(this.value)"></select></div>
+                <div class="card" id="statement-output-panel"></div>
+            </div>
+
+        </div>
+    </main>
+    </div>
+
+    <div id="audit-modal" class="modal-overlay" onclick="closeAuditModal()">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <h3 id="modal-title" style="color:var(--primary);">System Dialogue Frame</h3>
+            <div class="modal-body" id="modal-body-content"></div>
+            <div style="margin-top: 20px; text-align: right;"><button class="btn btn-danger btn-small" onclick="closeAuditModal()">Dismiss Frame</button></div>
+        </div>
+    </div>
+
+    <div id="export-modal" class="modal-overlay" onclick="closeExportHub()">
+        <div class="modal-box" onclick="event.stopPropagation()" style="max-width: 500px;">
+            <h3 style="color:var(--primary); margin-bottom:12px;">📊 Advanced Excel Export Hub</h3>
+            <p style="font-size: 13px; color: var(--text-light); margin-bottom: 20px;">Download structured binary XLSX files directly from your offline base.</p>
+            
+            <div class="form-group" style="width:100%;">
+                <label>Target Data Module</label>
+                <select id="export-module" style="width:100%;" onchange="updateExportColumns()">
+                    <option value="inventory">Inventory Master List</option>
+                    <option value="sales">Sales Transactions Log</option>
+                    <option value="purchase">Purchase Procurements Log</option>
+                    <option value="expenses">Operating Expenses Log</option>
+                    <option value="journal">General Journal Entries</option>
+                </select>
+            </div>
+            <div class="form-group" style="width:100%;">
+                <label>Timeframe Limit</label>
+                <select id="export-scope" style="width:100%;">
+                    <option value="all">All-Time Archive</option>
+                    <option value="7">Last 7 Days</option>
+                    <option value="30">Last 30 Days</option>
+                </select>
+            </div>
+            <div class="form-group" style="width:100%;">
+                <label>Select Columns to Include</label>
+                <div id="export-columns-container" style="display:flex; flex-wrap:wrap; gap:8px; max-height: 120px; overflow-y:auto; background:#f8fafc; padding:12px; border:1px solid var(--border); border-radius:4px;">
+                    </div>
+            </div>
+            
+            <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end;">
+                <button class="btn btn-warning" onclick="closeExportHub()">Cancel</button>
+                <button class="btn btn-excel" id="export-trigger-btn" onclick="executeExcelExport()" style="width:auto;">Download .xlsx</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- MASTER ACCOUNTS ---
+        const BASE_CHART_OF_ACCOUNTS = [
+            { main: "Assets", sub: "Current Assets", stmt: "balance sheet", code: "1010", name: "Cash", normal: "Debit" },
+            { main: "Assets", sub: "Current Assets", stmt: "balance sheet", code: "1020", name: "Mobile banking", normal: "Debit" },
+            { main: "Assets", sub: "Current Assets", stmt: "balance sheet", code: "1200", name: "Inventory", normal: "Debit" },
+            { main: "Assets", sub: "Current Assets", stmt: "balance sheet", code: "1300", name: "Accounts receivable", normal: "Debit" },
+            { main: "Liabilities", sub: "Current Liabilities", stmt: "balance sheet", code: "2010", name: "Accounts payable", normal: "Credit" },
+            { main: "Liabilities", sub: "Current Liabilities", stmt: "balance sheet", code: "2020", name: "Loan", normal: "Credit" },
+            { main: "Equity", sub: "Equity", stmt: "balance sheet", code: "3010", name: "Equity Base Capital", normal: "Credit" },
+            { main: "Revenue", sub: "Revenue", stmt: "income statement", code: "4010", name: "Sales Operations", normal: "Credit" },
+            { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "5010", name: "Cost of Goods Sold", normal: "Debit" },
+            { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "6010", name: "Utility/Overhead", normal: "Debit" },
+            { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "6020", name: "Salary", normal: "Debit" },
+            { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "6030", name: "Tax/Vat", normal: "Debit" },
+            { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "6040", name: "Transport/Fuel", normal: "Debit" }
+        ];
+        // Base list of accounts. (Custom per-tenant accounts are no longer editable via the UI.)
+        let CHART_OF_ACCOUNTS_MAP = [...BASE_CHART_OF_ACCOUNTS];
+        function rebuildChartOfAccounts() {
+            CHART_OF_ACCOUNTS_MAP = BASE_CHART_OF_ACCOUNTS.concat(state.customAccounts || []);
+        }
+
+        const CHANNEL_ACCOUNT_CODES = { "Cash": "1010", "Mobile banking": "1020", "Accounts receivable": "1300", "Accounts payable": "2010" };
+
+        // =====================================================================
+        // SUPABASE CONFIGURATION
+        // Paste your own Project URL and anon public key here (Supabase
+        // Dashboard -> Project Settings -> API). See BEGINNER_SETUP_GUIDE.md.
+        // =====================================================================
+        const SUPABASE_URL = "https://xhgucdgiloxoetklrjzy.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhoZ3VjZGdpbG94b2V0a2xyanp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwOTQ0NTgsImV4cCI6MjA5ODY3MDQ1OH0.m9pERq10LSyCoDBly1GJQKKEfFMKfHEPJEnPfxS_BYw";
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let currentTenantId = null;
+        let currentTenantName = '';
+        let pendingCloudSync = false; // true when a change couldn't reach Supabase yet because we were offline
+
+        // ---------------------------------------------------------------
+        // OFFLINE RESILIENCE
+        // Supabase remains the one true source of data at all times. This
+        // local cache exists ONLY so the app can still open and show your
+        // last-known data when there's no connection — it is never treated
+        // as authoritative, and is overwritten every time we successfully
+        // talk to Supabase.
+        // ---------------------------------------------------------------
+        function cacheStateLocally() {
+            if (!currentTenantId) return;
+            try {
+                localStorage.setItem('neba_erp_offline_cache_' + currentTenantId, JSON.stringify({
+                    businessName: currentTenantName,
+                    state: state,
+                    savedAt: new Date().toISOString()
+                }));
+            } catch (e) { /* storage full or unavailable — safe to ignore, this is only a convenience cache */ }
+        }
+
+        function loadCachedStateLocally() {
+            if (!currentTenantId) return null;
+            try {
+                const raw = localStorage.getItem('neba_erp_offline_cache_' + currentTenantId);
+                return raw ? JSON.parse(raw) : null;
+            } catch (e) { return null; }
+        }
+
+        function looksLikeNetworkError(err) {
+            if (!navigator.onLine) return true;
+            const msg = (err && (err.message || err.error_description || String(err))) || '';
+            return /failed to fetch|networkerror|load failed|network request failed/i.test(msg);
+        }
+
+        function updateOfflineBanner() {
+            const dot = document.getElementById('offline-dot');
+            if (!dot) return;
+            dot.style.display = navigator.onLine ? 'none' : 'inline-block';
+        }
+
+        window.addEventListener('offline', () => {
+            updateOfflineBanner();
+            const ind = document.getElementById('cloud-sync-status');
+            if (ind) { ind.style.color = '#f59e0b'; ind.innerHTML = '🟠 Offline — saved on this device'; }
+        });
+        window.addEventListener('online', () => {
+            updateOfflineBanner();
+            if (pendingCloudSync) writeChain = writeChain.then(() => drainQueueOnReconnect());
+        });
+        updateOfflineBanner(); // set correct state immediately on page load, even before login
+
+        let state = {
+            currentFilter: 'all', customStart: '', customEnd: '', categories: [],
+            ethiopianFilter: 'all', customAccounts: [], saleTypes: [],
+            inventory: [], journal: [], salesLog: [], purchaseLog: [], expenseLog: [],
+            trash: [], notifications: []
+        };
+        
+        let analysisItemArr = [];
+        let currentAnalysisSort = { col: 'rev', asc: false };
+
+        // ---------------------------------------------------------------
+        // RETRY HELPER — wraps any Supabase call with exponential backoff
+        // (1s, 2s, 4s, 8s) so a flaky connection doesn't silently drop data.
+        // ---------------------------------------------------------------
+        async function withRetry(fn, maxRetries = 4) {
+            let delay = 1000;
+            for (let attempt = 0; attempt <= maxRetries; attempt++) {
+                const result = await fn();
+                if (!result || !result.error) return result;
+                if (attempt === maxRetries) throw result.error;
+                await new Promise(r => setTimeout(r, delay));
+                delay *= 2;
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // AUTHENTICATION
+        // ---------------------------------------------------------------
+        function showAuthError(msg) {
+            const el = document.getElementById('auth-error');
+            el.innerText = msg; el.style.display = 'block';
+        }
+        function setAuthLoading(on) {
+            document.getElementById('auth-loading').style.display = on ? 'block' : 'none';
+        }
+
+        function showAuthView(view) {
+            document.getElementById('auth-error').style.display = 'none';
+            document.getElementById('auth-signin-view').style.display = view === 'signin' ? 'block' : 'none';
+            document.getElementById('auth-signup-view').style.display = view === 'signup' ? 'block' : 'none';
+        }
+
+        const EYE_OPEN_SVG = '<svg viewBox="0 0 576 512" width="18" height="18" style="display:block;"><path fill="#1e293b" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#ffffff"/><circle cx="288" cy="256" r="38" fill="#1e293b"/></svg>';
+        const EYE_CLOSED_SVG = '<svg viewBox="0 0 576 512" width="18" height="18" style="display:block;"><path fill="#1e293b" d="M572.5 238.1a274.5 274.5 0 0 0-58.5-76.4L488 188.6a208.3 208.3 0 0 1 45.7 63.6c-1.8 3.9-4.4 8.9-7.9 14.6C481.7 344.9 391.5 400 288 400a222.1 222.1 0 0 1-45.6-4.7l-32 32A277.7 277.7 0 0 0 288 448c123.2 0 230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM99.5 273.9a231.3 231.3 0 0 1-8-14.9 208 208 0 0 1 46.4-64.4C170.6 165.6 226.5 144 288 144a222 222 0 0 1 45.9 4.8l35-35A276.9 276.9 0 0 0 288 96C164.8 96 57.7 172.8 3.5 302.1a48.2 48.2 0 0 0 0 35.8 274.6 274.6 0 0 0 58.9 76.9l35-35a231.1 231.1 0 0 1-30.9-30.9c-3.5-5.7-6.1-10.7-7.9-14.6z"/><path fill="#1e293b" d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l528 416c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L38.8 5.1z"/></svg>';
+
+        function togglePasswordVisibility(inputId, btn) {
+            const input = document.getElementById(inputId);
+            const showing = input.type === 'text';
+            input.type = showing ? 'password' : 'text';
+            btn.innerHTML = showing ? EYE_OPEN_SVG : EYE_CLOSED_SVG;
+        }
+
+        async function handleSignUp() {
+            const bizName = document.getElementById('auth-business-name').value.trim();
+            const phone = document.getElementById('auth-phone').value.trim();
+            const email = document.getElementById('auth-email').value.trim();
+            const password = document.getElementById('auth-password').value;
+            const passwordConfirm = document.getElementById('auth-password-confirm').value;
+            document.getElementById('auth-error').style.display = 'none';
+            if (!bizName) return showAuthError('Please enter your shop / business name.');
+            if (!phone) return showAuthError('Please enter a phone number.');
+            if (!email || !password) return showAuthError('Please enter an email and password.');
+            if (password.length < 6) return showAuthError('Password must be at least 6 characters.');
+            if (password !== passwordConfirm) return showAuthError('Passwords do not match. Please re-type them.');
+
+            setAuthLoading(true);
+            const { data, error } = await supabaseClient.auth.signUp({ email, password });
+            if (error) { setAuthLoading(false); return showAuthError(error.message); }
+
+            const { error: tErr } = await supabaseClient.from('tenants').insert({
+                id: data.user.id,
+                business_name: bizName,
+                phone: phone,
+                categories: [],
+                custom_accounts: [],
+                subscription_status: 'trial'
+            });
+            setAuthLoading(false);
+            if (tErr) return showAuthError('Account created, but shop setup failed: ' + tErr.message);
+
+            if (!data.session) {
+                return showAuthError('Account created! Check your email to confirm your address, then sign in below.');
+            }
+            await onLoginSuccess(data.user, true);
+        }
+
+        async function handleSignIn() {
+            const email = document.getElementById('signin-email').value.trim();
+            const password = document.getElementById('signin-password').value;
+            document.getElementById('auth-error').style.display = 'none';
+            if (!email || !password) return showAuthError('Please enter your email and password.');
+
+            setAuthLoading(true);
+            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            setAuthLoading(false);
+            if (error) return showAuthError(error.message);
+            await onLoginSuccess(data.user, false);
+        }
+
+        async function handleSignOut() {
+            await supabaseClient.auth.signOut();
+            location.reload();
+        }
+
+        async function onLoginSuccess(user, isNewSignup) {
+            currentTenantId = user.id;
+            loadOfflineQueue();
+            document.getElementById('auth-overlay').style.display = 'none';
+
+            const { data: tenant, error } = await supabaseClient.from('tenants').select('*').eq('id', currentTenantId).single();
+
+            if (error || !tenant) {
+                const cached = loadCachedStateLocally();
+                if (looksLikeNetworkError(error) && cached) {
+                    // No connection right now — open with last-known data instead of signing out.
+                    currentTenantName = cached.businessName || 'Your Shop';
+                    document.getElementById('shop-brand-name').innerText = currentTenantName.toUpperCase();
+                    state = cached.state;
+                    if (!state.saleTypes) state.saleTypes = [];
+                    rebuildChartOfAccounts();
+                    return bootApp(true);
+                }
+                alert('Could not load your shop account. Please try signing in again.');
+                return handleSignOut();
+            }
+            if (tenant.subscription_status === 'inactive') {
+                document.getElementById('inactive-overlay').style.display = 'flex';
+                return;
+            }
+
+            currentTenantName = tenant.business_name;
+            state.categories = tenant.categories || [];
+            state.customAccounts = tenant.custom_accounts || [];
+            state.saleTypes = tenant.sale_types || [];
+            rebuildChartOfAccounts();
+            document.getElementById('shop-brand-name').innerText = currentTenantName.toUpperCase();
+
+            const { count } = await supabaseClient.from('inventory_items').select('id', { count: 'exact', head: true }).eq('tenant_id', currentTenantId);
+            const hasAnyData = (count || 0) > 0;
+
+            if (isNewSignup && !hasAnyData) {
+                document.getElementById('onboarding-overlay').style.display = 'flex';
+                return;
+            }
+            await bootApp();
+        }
+
+        async function finishOnboarding(doImport) {
+            if (doImport) {
+                const fileInput = document.getElementById('onboarding-file');
+                const file = fileInput.files[0];
+                if (!file) { alert('Please choose a file first, or click "Start Fresh" instead.'); return; }
+                document.getElementById('onboarding-loading').style.display = 'block';
+                try {
+                    const text = await file.text();
+                    const imported = JSON.parse(text);
+                    applyImportedState(imported);
+                    await bulkReplaceAllData();
+                } catch (err) {
+                    document.getElementById('onboarding-loading').style.display = 'none';
+                    alert('That file could not be read. Please check it is a valid NEBA ERP backup .json file.');
+                    return;
+                }
+                document.getElementById('onboarding-loading').style.display = 'none';
+            }
+            document.getElementById('onboarding-overlay').style.display = 'none';
+            await bootApp();
+        }
+
+        function applyImportedState(imported) {
+            state.inventory = (imported.inventory || []).map(i => ({ ...i, id: i.id || crypto.randomUUID() }));
+            state.salesLog = imported.salesLog || [];
+            state.purchaseLog = imported.purchaseLog || [];
+            state.expenseLog = imported.expenseLog || [];
+            state.journal = imported.journal || [];
+            state.trash = imported.trash || [];
+            state.notifications = imported.notifications || [];
+            state.categories = imported.categories || state.categories;
+            state.customAccounts = imported.customAccounts || state.customAccounts || [];
+            state.saleTypes = imported.saleTypes || state.saleTypes || [];
+            rebuildChartOfAccounts();
+        }
+
+        async function handleForgotPassword() {
+            let email = document.getElementById('signin-email').value.trim();
+            if (!email) {
+                email = prompt('Enter the email address for your shop account:');
+                if (!email) return;
+                email = email.trim();
+            }
+            const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+                redirectTo: window.location.origin + window.location.pathname
+            });
+            if (error) return alert('Could not send reset email: ' + error.message);
+            alert('If an account exists for that email, a password reset link has been sent. Check your inbox (and spam folder).');
+        }
+
+        async function handleSetNewPassword() {
+            const pw = document.getElementById('reset-new-password').value;
+            const pwConfirm = document.getElementById('reset-new-password-confirm').value;
+            const errEl = document.getElementById('reset-error');
+            errEl.style.display = 'none';
+            if (!pw || pw.length < 6) { errEl.innerText = 'Password must be at least 6 characters.'; errEl.style.display = 'block'; return; }
+            if (pw !== pwConfirm) { errEl.innerText = 'Passwords do not match. Please re-type them.'; errEl.style.display = 'block'; return; }
+
+            document.getElementById('reset-loading').style.display = 'block';
+            const { data, error } = await supabaseClient.auth.updateUser({ password: pw });
+            document.getElementById('reset-loading').style.display = 'none';
+            if (error) { errEl.innerText = error.message; errEl.style.display = 'block'; return; }
+
+            document.getElementById('reset-password-overlay').style.display = 'none';
+            alert('Password updated successfully. You are now signed in.');
+            await onLoginSuccess(data.user, false);
+        }
+
+        // Fires automatically when the user arrives via a password-reset email link
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+            if (event === 'PASSWORD_RECOVERY') {
+                document.getElementById('auth-overlay').style.display = 'none';
+                document.getElementById('reset-password-overlay').style.display = 'flex';
+            }
+        });
+        // ---------------------------------------------------------------
+        // LOAD DATA FROM SUPABASE (runs once per session, after login)
+        // ---------------------------------------------------------------
+        async function loadStateFromSupabase() {
+            const tid = currentTenantId;
+            const [items, lots, sales, purchases, expenses, journal, trash, notifs] = await Promise.all([
+                supabaseClient.from('inventory_items').select('*').eq('tenant_id', tid),
+                supabaseClient.from('inventory_lots').select('*').eq('tenant_id', tid),
+                supabaseClient.from('sales_log').select('*').eq('tenant_id', tid),
+                supabaseClient.from('purchase_log').select('*').eq('tenant_id', tid),
+                supabaseClient.from('expense_log').select('*').eq('tenant_id', tid),
+                supabaseClient.from('journal_entries').select('*').eq('tenant_id', tid),
+                supabaseClient.from('trash').select('*').eq('tenant_id', tid),
+                supabaseClient.from('notifications').select('*').eq('tenant_id', tid).order('id', { ascending: false })
+            ]);
+
+            state.inventory = (items.data || []).map(i => ({
+                id: i.id, category: i.category, desc: i.desc, sellingPrice: parseFloat(i.selling_price) || 0,
+                history: i.history || [],
+                lots: (lots.data || []).filter(l => l.item_id === i.id).map(l => ({ id: l.id, qty: l.qty, cost: parseFloat(l.cost) }))
+            }));
+
+            state.salesLog = (sales.data || []).map(s => ({
+                id: s.id, date: s.date, customer: s.customer, desc: s.desc, qty: s.qty,
+                price: parseFloat(s.price), total: parseFloat(s.total), cogs: parseFloat(s.cogs),
+                channel: s.channel, type: s.type, paid: s.paid, paidChannel: s.paid_channel,
+                restorationLayers: s.restoration_layers || []
+            }));
+
+            state.purchaseLog = (purchases.data || []).map(p => ({
+                id: p.id, date: p.date, supplier: p.supplier, desc: p.desc, qty: p.qty,
+                cost: parseFloat(p.cost), total: parseFloat(p.total), channel: p.channel,
+                paid: p.paid, paidChannel: p.paid_channel
+            }));
+
+            state.expenseLog = (expenses.data || []).map(e => ({
+                id: e.id, date: e.date, target: e.target, amount: parseFloat(e.amount), source: e.source, memo: e.memo
+            }));
+
+            state.journal = (journal.data || []).map(j => ({ id: j.id, date: j.date, desc: j.desc, lines: j.lines || [] }));
+
+            state.trash = (trash.data || []).map(t => ({ id: t.id, type: t.type, data: t.data, deletedAt: t.deleted_at }));
+
+            state.notifications = (notifs.data || []).map(n => ({
+                id: n.id, title: n.title, msg: n.msg, details: n.details, date: n.date, read: n.read
+            }));
+        }
+
+        async function bootApp(loadedFromCache) {
+            document.getElementById('app-shell').style.display = 'flex';
+            updateOfflineBanner();
+
+            if (!loadedFromCache) {
+                document.getElementById('cloud-sync-status').innerHTML = '🟡 Loading your data...';
+                try {
+                    await loadStateFromSupabase();
+                    cacheStateLocally();
+                } catch (err) {
+                    console.error('Could not load from Supabase:', err);
+                    const cached = loadCachedStateLocally();
+                    if (looksLikeNetworkError(err) && cached) {
+                        state = cached.state;
+                        rebuildChartOfAccounts();
+                        loadedFromCache = true;
+                    } else {
+                        alert('Could not load your data. Please check your connection and refresh the page.');
+                        return;
+                    }
+                }
+            }
+
+            // 30-Day Trash Auto-Purge Protocol (checked once per login, skipped while offline)
+            if (!loadedFromCache) {
+                const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+                const now = Date.now();
+                const expired = state.trash.filter(t => (now - new Date(t.deletedAt).getTime()) >= thirtyDaysMs);
+                if (expired.length > 0) {
+                    state.trash = state.trash.filter(t => (now - new Date(t.deletedAt).getTime()) < thirtyDaysMs);
+                    expired.forEach(t => queueWrite({ kind: 'delete', table: 'trash', id: t.id }));
+                }
+            }
+
+            syncCategoriesDatalist();
+            syncSaleTypesDropdown();
+            populateEthiopianDropdowns();
+            populateExpenseAccountDropdown();
+            if (window.innerWidth <= 768) document.getElementById('sidebar').classList.add('collapsed');
+
+            updateNotifBadge();
+            if (navigator.onLine && offlineOpQueue.length > 0) {
+                writeChain = writeChain.then(() => drainQueueOnReconnect());
+            }
+            document.getElementById('cloud-sync-status').innerHTML = navigator.onLine ? '🟢 Cloud Synced' : '🟠 Offline — showing last-known data';
+            renderAnalyticalDashboards();
+        }
+
+        // ---------------------------------------------------------------
+        // ROW MAPPERS — convert local JS objects to the exact DB row shape
+        // ---------------------------------------------------------------
+        function toDbInventoryItem(i) {
+            return { id: i.id, tenant_id: currentTenantId, category: i.category, desc: i.desc, selling_price: i.sellingPrice, history: i.history || [] };
+        }
+        function toDbLot(itemId, l) {
+            return { id: l.id, tenant_id: currentTenantId, item_id: itemId, qty: l.qty, cost: l.cost };
+        }
+        function toDbSale(s) {
+            return { id: s.id, tenant_id: currentTenantId, date: s.date, customer: s.customer, desc: s.desc, qty: s.qty, price: s.price, total: s.total, cogs: s.cogs, channel: s.channel, type: s.type, paid: s.paid, paid_channel: s.paidChannel || null, restoration_layers: s.restorationLayers || [] };
+        }
+        function toDbPurchase(p) {
+            return { id: p.id, tenant_id: currentTenantId, date: p.date, supplier: p.supplier, desc: p.desc, qty: p.qty, cost: p.cost, total: p.total, channel: p.channel, paid: p.paid, paid_channel: p.paidChannel || null };
+        }
+        function toDbExpense(ex) {
+            return { id: ex.id, tenant_id: currentTenantId, date: ex.date, target: ex.target, amount: ex.amount, source: ex.source, memo: ex.memo };
+        }
+        function toDbJournal(j) {
+            return { id: j.id, tenant_id: currentTenantId, date: j.date, desc: j.desc, lines: j.lines };
+        }
+        function toDbTrash(t) {
+            return { id: t.id, tenant_id: currentTenantId, type: t.type, data: t.data, deleted_at: t.deletedAt };
+        }
+        function toDbNotification(n) {
+            return { id: n.id, tenant_id: currentTenantId, title: n.title, msg: n.msg, details: n.details, date: n.date, read: n.read };
+        }
+
+        // Compares an inventory item's lots before/after a mutation and emits
+        // exactly the insert/update/delete operations needed — this way every
+        // handler that touches lots (sales, purchases, restores, deletes)
+        // doesn't need to hand-track what changed; it just snapshots lots
+        // before mutating and calls this after.
+        function syncItemLots(item, beforeLots) {
+            const beforeMap = new Map(beforeLots.map(l => [l.id, l]));
+            const afterMap = new Map(item.lots.map(l => [l.id, l]));
+            beforeMap.forEach((lot, id) => {
+                if (!afterMap.has(id)) queueWrite({ kind: 'delete', table: 'inventory_lots', id });
+            });
+            afterMap.forEach((lot, id) => {
+                const before = beforeMap.get(id);
+                if (!before) {
+                    queueWrite({ kind: 'insert', table: 'inventory_lots', row: toDbLot(item.id, lot) });
+                } else if (before.qty !== lot.qty || before.cost !== lot.cost) {
+                    queueWrite({ kind: 'update', table: 'inventory_lots', id, patch: { qty: lot.qty, cost: lot.cost } });
+                }
+            });
+        }
+
+        // ---------------------------------------------------------------
+        // INCREMENTAL CLOUD WRITES
+        // Every user action sends only the specific row(s) it touched,
+        // instead of re-uploading whole tables. Writes are serialized
+        // (never overlap) and, if offline, queued on this device and
+        // sent in order the moment the connection returns.
+        // ---------------------------------------------------------------
+        let writeChain = Promise.resolve();
+        let offlineOpQueue = [];
+
+        function loadOfflineQueue() {
+            if (!currentTenantId) { offlineOpQueue = []; return; }
+            try {
+                const raw = localStorage.getItem('neba_erp_offline_queue_' + currentTenantId);
+                offlineOpQueue = raw ? JSON.parse(raw) : [];
+                if (offlineOpQueue.length > 0) pendingCloudSync = true;
+            } catch (e) { offlineOpQueue = []; }
+        }
+        function persistOfflineQueue() {
+            if (!currentTenantId) return;
+            try { localStorage.setItem('neba_erp_offline_queue_' + currentTenantId, JSON.stringify(offlineOpQueue)); } catch (e) {}
+        }
+
+        function setSyncIndicator(mode) {
+            const ind = document.getElementById('cloud-sync-status');
+            if (!ind) return;
+            if (mode === 'saving') { ind.style.color = '#f59e0b'; ind.innerHTML = '🟡 Saving to Cloud...'; }
+            else if (mode === 'synced') { ind.style.color = '#10b981'; ind.innerHTML = '🟢 Cloud Synced'; }
+            else if (mode === 'offline') { ind.style.color = '#f59e0b'; ind.innerHTML = '🟠 Offline — saved on this device'; }
+            else if (mode === 'failed') { ind.style.color = '#ef4444'; ind.innerHTML = '🔴 Save Failed'; }
+        }
+
+        async function performDbOp(op) {
+            if (op.kind === 'insert') {
+                await withRetry(() => supabaseClient.from(op.table).insert(op.row));
+            } else if (op.kind === 'update') {
+                await withRetry(() => supabaseClient.from(op.table).update(op.patch).eq('id', op.id));
+            } else if (op.kind === 'delete') {
+                await withRetry(() => supabaseClient.from(op.table).delete().eq('id', op.id));
+            } else if (op.kind === 'tenant_update') {
+                await withRetry(() => supabaseClient.from('tenants').update(op.patch).eq('id', currentTenantId));
+            } else if (op.kind === 'mark_all_notifications_read') {
+                await withRetry(() => supabaseClient.from('notifications').update({ read: true }).eq('tenant_id', currentTenantId).eq('read', false));
+            } else if (op.kind === 'clear_notifications') {
+                await withRetry(() => supabaseClient.from('notifications').delete().eq('tenant_id', currentTenantId));
+            }
+        }
+
+        async function drainOfflineQueueInline() {
+            while (offlineOpQueue.length > 0) {
+                const next = offlineOpQueue[0];
+                await performDbOp(next);
+                offlineOpQueue.shift();
+                persistOfflineQueue();
+            }
+            pendingCloudSync = false;
+        }
+
+        function queueWrite(op) {
+            writeChain = writeChain.then(() => sendOrQueue(op));
+            return writeChain;
+        }
+
+        async function sendOrQueue(op) {
+            cacheStateLocally(); // instant local safety copy of the latest state, regardless of connectivity
+
+            if (!navigator.onLine) {
+                offlineOpQueue.push(op);
+                persistOfflineQueue();
+                pendingCloudSync = true;
+                setSyncIndicator('offline');
+                updateOfflineBanner();
+                return;
+            }
+
+            setSyncIndicator('saving');
+            try {
+                if (offlineOpQueue.length > 0) await drainOfflineQueueInline(); // catch up on anything queued from an earlier offline spell first, in order
+                await performDbOp(op);
+                setSyncIndicator('synced');
+            } catch (err) {
+                console.error('Cloud write failed:', err);
+                if (looksLikeNetworkError(err)) {
+                    offlineOpQueue.push(op);
+                    persistOfflineQueue();
+                    pendingCloudSync = true;
+                    setSyncIndicator('offline');
+                    updateOfflineBanner();
+                } else {
+                    setSyncIndicator('failed');
+                    alert('We could not save your last change to the cloud. Please check your internet connection and try again.');
+                }
+            }
+        }
+
+        async function drainQueueOnReconnect() {
+            if (offlineOpQueue.length === 0) { pendingCloudSync = false; return; }
+            setSyncIndicator('saving');
+            try {
+                await drainOfflineQueueInline();
+                setSyncIndicator('synced');
+                cacheStateLocally();
+            } catch (err) {
+                console.error('Reconnect sync failed:', err);
+                setSyncIndicator(looksLikeNetworkError(err) ? 'offline' : 'failed');
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // BULK REPLACE — used ONLY for the two cases where the entire
+        // dataset genuinely changes at once: importing a backup file, and
+        // factory reset. Every regular user action uses queueWrite() above
+        // instead, which is far faster since it only sends what changed.
+        // ---------------------------------------------------------------
+        async function replaceTable(table, rows) {
+            await withRetry(() => supabaseClient.from(table).delete().eq('tenant_id', currentTenantId));
+            if (rows.length) await withRetry(() => supabaseClient.from(table).insert(rows));
+        }
+
+        async function bulkReplaceAllData() {
+            const tid = currentTenantId;
+            setSyncIndicator('saving');
+            try {
+                await withRetry(() => supabaseClient.from('tenants').update({ categories: state.categories, custom_accounts: state.customAccounts, sale_types: state.saleTypes }).eq('id', tid));
+
+                await withRetry(() => supabaseClient.from('inventory_lots').delete().eq('tenant_id', tid));
+                await withRetry(() => supabaseClient.from('inventory_items').delete().eq('tenant_id', tid));
+                if (state.inventory.length) {
+                    await withRetry(() => supabaseClient.from('inventory_items').insert(state.inventory.map(toDbInventoryItem)));
+                    let lots = [];
+                    state.inventory.forEach(i => (i.lots || []).forEach(l => lots.push(toDbLot(i.id, l))));
+                    if (lots.length) await withRetry(() => supabaseClient.from('inventory_lots').insert(lots));
+                }
+
+                await replaceTable('sales_log', state.salesLog.map(toDbSale));
+                await replaceTable('purchase_log', state.purchaseLog.map(toDbPurchase));
+                await replaceTable('expense_log', state.expenseLog.map(toDbExpense));
+                await replaceTable('journal_entries', state.journal.map(toDbJournal));
+                await replaceTable('trash', state.trash.map(toDbTrash));
+                await replaceTable('notifications', state.notifications.map(toDbNotification));
+
+                cacheStateLocally();
+                setSyncIndicator('synced');
+            } catch (err) {
+                console.error('Bulk save failed:', err);
+                setSyncIndicator(looksLikeNetworkError(err) ? 'offline' : 'failed');
+                alert('We could not save this to the cloud. Please check your internet connection and try again.');
+                throw err;
+            }
+        }
+
+        // --- EXPORT HUB LOGIC ---
+        const exportColsMap = {
+            inventory: ["Category", "Description", "Qty On Hand", "Selling Price", "Total Asset Value"],
+            sales: ["Date", "Customer Name", "Product Item", "Quantity", "Unit Price", "Total Amount", "Channel", "Paid Status"],
+            purchase: ["Date", "Supplier Name", "Product Item", "Quantity", "Unit Cost", "Total Amount", "Channel", "Paid Status"],
+            expenses: ["Date", "Expense Account", "Memo", "Charge (ETB)", "Channel"],
+            journal: ["Date", "Reference ID", "Memo Context", "Account", "Debit", "Credit"]
+        };
+
+        function openExportHub() { 
+            updateExportColumns(); 
+            document.getElementById('export-modal').style.display = "flex"; 
+        }
+        function closeExportHub() { document.getElementById('export-modal').style.display = "none"; }
+
+        function updateExportColumns() {
+            const mod = document.getElementById('export-module').value;
+            const container = document.getElementById('export-columns-container');
+            container.innerHTML = '';
+            exportColsMap[mod].forEach(col => {
+                container.innerHTML += `<label style="display:flex; align-items:center; gap:6px; text-transform:none; font-weight:normal; font-size:13px; width:45%;"><input type="checkbox" value="${col}" checked> ${col}</label>`;
+            });
+        }
+
+        function executeExcelExport() {
+            const mod = document.getElementById('export-module').value;
+            const scope = document.getElementById('export-scope').value;
+            const btn = document.getElementById('export-trigger-btn');
+            
+            const selectedCols = Array.from(document.querySelectorAll('#export-columns-container input:checked')).map(cb => cb.value);
+            if(selectedCols.length === 0) return alert("Please select at least one column to export.");
+
+            btn.innerText = "Processing...";
+            btn.disabled = true;
+
+            setTimeout(() => {
+                try {
+                    let sourceData = [];
+                    if (mod === 'inventory') sourceData = state.inventory;
+                    else if (mod === 'sales') sourceData = state.salesLog;
+                    else if (mod === 'purchase') sourceData = state.purchaseLog;
+                    else if (mod === 'expenses') sourceData = state.expenseLog;
+                    else if (mod === 'journal') sourceData = state.journal;
+
+                    // Filter Scope Timeframe
+                    if (scope !== 'all') {
+                        const daysAgo = parseInt(scope);
+                        const cutoff = new Date();
+                        cutoff.setDate(cutoff.getDate() - daysAgo);
+                        
+                        sourceData = sourceData.filter(item => {
+                            let dStr = item.date || new Date().toISOString(); 
+                            return new Date(dStr) >= cutoff;
+                        });
+                    }
+
+                    if (sourceData.length === 0) {
+                        alert("No data available in this module for the selected timeframe.");
+                        btn.innerText = "Download .xlsx"; btn.disabled = false; return;
+                    }
+
+                    // Map Standardized Keys
+                    let rawFlatData = [];
+                    if (mod === 'inventory') {
+                        rawFlatData = sourceData.map(i => ({
+                            "Category": i.category, "Description": i.desc,
+                            "Qty On Hand": i.lots.reduce((a,l)=>a+l.qty,0),
+                            "Selling Price": i.sellingPrice,
+                            "Total Asset Value": i.lots.reduce((a,l)=>a+(l.qty*l.cost),0)
+                        }));
+                    } else if (mod === 'sales') {
+                        rawFlatData = sourceData.map(s => ({
+                            "Date": s.date, "Customer Name": s.customer, "Product Item": s.desc,
+                            "Quantity": s.qty, "Unit Price": s.price, "Total Amount": s.total,
+                            "Channel": s.channel, "Paid Status": s.paid ? "Paid" : "Pending"
+                        }));
+                    } else if (mod === 'purchase') {
+                        rawFlatData = sourceData.map(p => ({
+                            "Date": p.date, "Supplier Name": p.supplier, "Product Item": p.desc,
+                            "Quantity": p.qty, "Unit Cost": p.cost, "Total Amount": p.total,
+                            "Channel": p.channel, "Paid Status": p.paid ? "Paid" : "Pending"
+                        }));
+                    } else if (mod === 'expenses') {
+                        rawFlatData = sourceData.map(e => ({
+                            "Date": e.date, "Expense Account": e.target, "Memo": e.memo,
+                            "Charge (ETB)": e.amount, "Channel": e.source
+                        }));
+                    } else if (mod === 'journal') {
+                        sourceData.forEach(j => {
+                            j.lines.forEach(l => {
+                                rawFlatData.push({
+                                    "Date": j.date, "Reference ID": j.id, "Memo Context": j.desc,
+                                    "Account": l.account, "Debit": l.dr, "Credit": l.cr
+                                });
+                            });
+                        });
+                    }
+
+                    // Prune unselected columns
+                    let filteredFlatData = rawFlatData.map(row => {
+                        let newRow = {};
+                        selectedCols.forEach(col => { if(row[col] !== undefined) newRow[col] = row[col]; });
+                        return newRow;
+                    });
+
+                    // Build SheetJS 
+                    const ws = XLSX.utils.json_to_sheet(filteredFlatData);
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, "Report Data");
+                    
+                    const timestamp = new Date().toISOString().slice(0,10);
+                    XLSX.writeFile(wb, `NEBA_${mod.toUpperCase()}_Report_${timestamp}.xlsx`);
+                    
+                    closeExportHub();
+                } catch(err) {
+                    alert("Export Engine Failed: " + err);
+                } finally {
+                    btn.innerText = "Download .xlsx";
+                    btn.disabled = false;
+                }
+            }, 100);
+        }
+
+        // --- NOTIFICATION ENGINE ---
+        function addNotification(title, msg, details = "") {
+            const notif = { id: Date.now(), title, msg, details, date: new Date().toLocaleString(), read: false };
+            state.notifications.unshift(notif);
+            queueWrite({ kind: 'insert', table: 'notifications', row: toDbNotification(notif) });
+            updateNotifBadge(); renderNotifications();
+        }
+
+        function toggleNotifications(e) {
+            if(e) e.stopPropagation();
+            const panel = document.getElementById('notif-dropdown');
+            panel.classList.toggle('active');
+            if(panel.classList.contains('active')) {
+                const hadUnread = state.notifications.some(n => !n.read);
+                state.notifications.forEach(n => n.read = true);
+                if (hadUnread) queueWrite({ kind: 'mark_all_notifications_read' });
+                updateNotifBadge(); renderNotifications();
+            }
+        }
+
+        function closeNotifPanelOutside(e) {
+            const panel = document.getElementById('notif-dropdown');
+            if(panel.classList.contains('active') && e.target.id !== 'bell-btn') panel.classList.remove('active');
+        }
+
+        function updateNotifBadge() {
+            const unread = state.notifications.filter(n => !n.read).length;
+            const badge = document.getElementById('notif-badge');
+            badge.innerText = unread; badge.style.display = unread > 0 ? 'block' : 'none';
+        }
+
+        function renderNotifications() {
+            const list = document.getElementById('notif-list'); list.innerHTML = '';
+            if(state.notifications.length === 0) {
+                list.innerHTML = `<div style="padding:16px; text-align:center; color:var(--text-light); font-size:12px;">No new alerts</div>`; return;
+            }
+            state.notifications.slice(0, 30).forEach(n => {
+                let det = n.details ? `<div class="notif-details">${n.details}</div>` : '';
+                list.innerHTML += `<div class="notif-item ${n.read?'':'unread'}"><div class="notif-title">${n.title}</div><div class="notif-time">${n.date}</div><div class="notif-msg">${n.msg}</div>${det}</div>`;
+            });
+        }
+
+        function clearAllNotifications() { state.notifications = []; queueWrite({ kind: 'clear_notifications' }); renderNotifications(); updateNotifBadge(); }
+
+        // --- UI ROUTING ---
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed'); }
+
+        function switchView(viewId) {
+            document.querySelectorAll('.view-panel').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById(`view-${viewId}`).classList.add('active');
+            let navBtn = document.getElementById(`nav-${viewId}`);
+            if(navBtn) navBtn.classList.add('active');
+            
+            const titles = {
+                dashboard: "Real-Time Enterprise Analytics", inventory: "Master Product Registry & Ledgers",
+                sales: "Direct Sales Recording Desk", purchase: "Stock Procurement Modules",
+                expenses: "Corporate Expense Processing", coa: "System Chart of Accounts Profile",
+                journal: "Double-Entry Account Postings", ledger: "Account Ledger Balance Audits",
+                statements: "Automated Statement Outputs", trash: "System Trash Archive"
+            };
+            document.getElementById('page-title').innerText = titles[viewId];
+            if (window.innerWidth <= 768) document.getElementById('sidebar').classList.add('collapsed');
+
+            if (viewId === 'dashboard') renderAnalyticalDashboards();
+            if (viewId === 'inventory') { resetProductForm(); renderPerpetualInventoryTable(); }
+            if (viewId === 'sales') { syncTransactionalProductDropdownOptions(); renderSalesLogTable(); }
+            if (viewId === 'purchase') { syncTransactionalProductDropdownOptions(); renderPurchaseLogTable(); }
+            if (viewId === 'expenses') renderExpenseLogTable();
+            if (viewId === 'coa') renderSystemCOAProfileLayouts();
+            if (viewId === 'journal') { prepVoucherInputTargetDropdowns(); renderHistoricalJournalsTable(); }
+            if (viewId === 'ledger') { prepLedgerDropdownFilterOptions(); renderGeneralLedgerCards(); }
+            if (viewId === 'statements') buildReports('trial');
+            if (viewId === 'trash') renderTrashTable();
+        }
+
+        async function factoryReset() {
+            if(confirm("WARNING 1: You are about to wipe the entire database clean. Are you absolutely sure?")) {
+                if(confirm("WARNING 2: This is irreversible. All data will be permanently deleted. Proceed?")) {
+                    let safetyInput = prompt("FINAL WARNING: Type the word 'DELETE' below to confirm full system wipe.");
+                    if(safetyInput === "DELETE") {
+                        state.inventory = []; state.salesLog = []; state.purchaseLog = []; state.expenseLog = [];
+                        state.journal = []; state.trash = []; state.notifications = [];
+                        await bulkReplaceAllData();
+                        location.reload();
+                    }
+                }
+            }
+        }
+
+        function syncCategoriesDatalist() {
+            const dl = document.getElementById('category-list'); dl.innerHTML = '';
+            state.categories.forEach(cat => { dl.innerHTML += `<option value="${cat}"></option>`; });
+        }
+
+        function syncSaleTypesDropdown() {
+            const sel = document.getElementById('sale-type');
+            if (!sel) return;
+            const defaults = ['Walk in', 'Proforma', 'Customer', 'Tender'];
+            const currentVal = sel.value;
+            let opts = defaults.map(d => `<option value="${d}">${d}</option>`);
+            (state.saleTypes || []).forEach(t => opts.push(`<option value="${t}">${t}</option>`));
+            sel.innerHTML = opts.join('');
+            if ([...sel.options].some(o => o.value === currentVal)) sel.value = currentVal;
+        }
+
+        function addNewSaleType() {
+            const val = prompt('Enter a new sales type (e.g. "Contractor", "Online Order"):');
+            if (!val) return;
+            const trimmed = val.trim();
+            if (!trimmed) return;
+            const sel = document.getElementById('sale-type');
+            if ([...sel.options].some(o => o.value.toLowerCase() === trimmed.toLowerCase())) {
+                sel.value = trimmed;
+                return;
+            }
+            state.saleTypes.push(trimmed);
+            syncSaleTypesDropdown();
+            sel.value = trimmed;
+            queueWrite({ kind: 'tenant_update', patch: { sale_types: state.saleTypes } });
+        }
+
+        function syncCustomerList() {
+            let dl = document.getElementById('customer-list');
+            let customers = [...new Set(state.salesLog.map(s => s.customer).filter(c => c && c !== 'Walk-in'))];
+            dl.innerHTML = customers.map(c => `<option value="${c}"></option>`).join('');
+        }
+
+        function syncSupplierList() {
+            let dl = document.getElementById('supplier-list');
+            let suppliers = [...new Set(state.purchaseLog.map(p => p.supplier).filter(s => s))];
+            dl.innerHTML = suppliers.map(s => `<option value="${s}"></option>`).join('');
+        }
+
+        // --- DASHBOARD / FILTERING ---
+        function changePeriod(range) {
+            state.currentFilter = range;
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`f-${range}`).classList.add('active');
+            if(range !== 'custom') {
+                document.getElementById('dash-start-date').value = ''; document.getElementById('dash-end-date').value = '';
+                state.customStart = ''; state.customEnd = '';
+            }
+            renderAnalyticalDashboards();
+        }
+
+        function triggerCustomDateFilter() {
+            state.currentFilter = 'custom';
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('f-custom').classList.add('active');
+            state.customStart = document.getElementById('dash-start-date').value;
+            state.customEnd = document.getElementById('dash-end-date').value;
+            renderAnalyticalDashboards();
+        }
+
+        function verifyChronologicalOverlap(txDateStr, rangeMode) {
+            if (!txDateStr) return false;
+            if (rangeMode === 'all') return true;
+            const txDate = new Date(txDateStr);
+            const baselineMidnight = new Date(new Date().setHours(0,0,0,0));
+            if(rangeMode === 'custom') {
+                if(!state.customStart || !state.customEnd) return true;
+                const start = new Date(state.customStart);
+                const end = new Date(state.customEnd); end.setHours(23,59,59,999);
+                return txDate.getTime() >= start.getTime() && txDate.getTime() <= end.getTime();
+            }
+            switch(rangeMode) {
+                case 'today': return txDate.getTime() >= baselineMidnight.getTime();
+                case 'week':
+                    const weekTrack = new Date(baselineMidnight); weekTrack.setDate(baselineMidnight.getDate() - baselineMidnight.getDay());
+                    return txDate.getTime() >= weekTrack.getTime();
+                case 'month': return txDate.getFullYear() === baselineMidnight.getFullYear() && txDate.getMonth() === baselineMidnight.getMonth();
+                case 'year': return txDate.getFullYear() === baselineMidnight.getFullYear();
+                default: return true;
+            }
+        }
+
+        function verifyEthiopianPeriod(dateStr) {
+            let filter = state.ethiopianFilter || 'all';
+            if (filter === 'all') return true;
+            if (!dateStr) return false;
+            let d = new Date(dateStr);
+            let year = d.getFullYear();
+            let month = d.getMonth() + 1; // 1-12
+            let day = d.getDate();
+
+            let fiscalStartYear = (month > 7 || (month === 7 && day >= 8)) ? year : year - 1;
+            let pStart, pEnd;
+
+            if (filter === 'annual') {
+                pStart = new Date(fiscalStartYear, 6, 8); 
+                pEnd = new Date(fiscalStartYear + 1, 6, 7); 
+            } else if (filter === 'h1') { 
+                pStart = new Date(fiscalStartYear, 6, 8);
+                pEnd = new Date(fiscalStartYear + 1, 0, 8);
+            } else if (filter === 'h2') { 
+                pStart = new Date(fiscalStartYear + 1, 0, 9);
+                pEnd = new Date(fiscalStartYear + 1, 6, 7);
+            } else if (filter === 'q1') { 
+                pStart = new Date(fiscalStartYear, 6, 8);
+                pEnd = new Date(fiscalStartYear, 9, 10);
+            } else if (filter === 'q2') { 
+                pStart = new Date(fiscalStartYear, 9, 11);
+                pEnd = new Date(fiscalStartYear + 1, 0, 8);
+            } else if (filter === 'q3') { 
+                pStart = new Date(fiscalStartYear + 1, 0, 9);
+                pEnd = new Date(fiscalStartYear + 1, 3, 8);
+            } else if (filter === 'q4') { 
+                pStart = new Date(fiscalStartYear + 1, 3, 9);
+                pEnd = new Date(fiscalStartYear + 1, 6, 7);
+            } else if (filter === '2y') {
+                pStart = new Date(d);
+                pStart.setFullYear(new Date().getFullYear() - 2);
+                pEnd = new Date();
+            } else if (filter === '3y') {
+                pStart = new Date(d);
+                pStart.setFullYear(new Date().getFullYear() - 3);
+                pEnd = new Date();
+            }
+            
+            if (pStart && pEnd) return d >= pStart && d <= pEnd;
+            return true;
+        }
+
+        function populateEthiopianDropdowns() {
+            let opts = `
+                <option value="all">All Historical Transactions</option>
+                <option value="annual">Annual Ethiopian Fiscal Cycle (Hamle 1 - Sene 30)</option>
+                <option value="h1">H1 (Hamle 1 - Tahsas 30)</option>
+                <option value="h2">H2 (Tir 1 - Sene 30)</option>
+                <option value="q1">Q1 (Hamle - Meskerem)</option>
+                <option value="q2">Q2 (Tekemt - Tahsas)</option>
+                <option value="q3">Q3 (Tir - Megabit)</option>
+                <option value="q4">Q4 (Miazia - Sene)</option>
+                <option value="2y">Moving 2-Year Horizon</option>
+                <option value="3y">Moving 3-Year Horizon</option>
+            `;
+            let els = document.querySelectorAll('.ethiopian-period-select');
+            els.forEach(el => { el.innerHTML = opts; el.value = state.ethiopianFilter || 'all'; });
+        }
+
+        function updateEthiopianPeriod(val) {
+            state.ethiopianFilter = val;
+            let els = document.querySelectorAll('.ethiopian-period-select');
+            els.forEach(el => el.value = val);
+            renderHistoricalJournalsTable();
+            renderGeneralLedgerCards();
+            if (document.getElementById('statement-output-panel').innerHTML.includes('Income Statement')) buildReports('income');
+            else if (document.getElementById('statement-output-panel').innerHTML.includes('Balance Sheet')) buildReports('balance');
+            else buildReports('trial');
+        }
+
+        function runAbsoluteAccountBalances() {
+            let sums = {}; CHART_OF_ACCOUNTS_MAP.forEach(a => sums[a.code] = 0);
+            state.journal.forEach(en => { 
+                if (verifyEthiopianPeriod(en.date)) {
+                    en.lines.forEach(li => { sums[li.account] += (li.dr - li.cr); }); 
+                }
+            });
+            CHART_OF_ACCOUNTS_MAP.forEach(a => { if(a.normal === "Credit") sums[a.code] = -sums[a.code]; });
+            return sums;
+        }
+
+        function renderAnalyticalDashboards() {
+            let p = state.currentFilter, r = 0, c = 0, e = 0;
+            state.journal.forEach(j => {
+                if (verifyChronologicalOverlap(j.date, p)) {
+                    j.lines.forEach(l => { if(l.account === "4010") r += l.cr; if(l.account === "5010") c += l.dr; if(["6010","6020","6030"].includes(l.account)) e += l.dr; });
+                }
+            });
+            document.getElementById('m-revenue').innerText = `ETB ${r.toLocaleString(undefined,{minimumFractionDigits:2})}`;
+            document.getElementById('m-cogs').innerText = `ETB ${c.toLocaleString(undefined,{minimumFractionDigits:2})}`;
+            document.getElementById('m-gross').innerText = `ETB ${(r-c).toLocaleString(undefined,{minimumFractionDigits:2})}`;
+            document.getElementById('m-expenses').innerText = `ETB ${e.toLocaleString(undefined,{minimumFractionDigits:2})}`;
+            document.getElementById('m-net').innerText = `ETB ${(r-c-e).toLocaleString(undefined,{minimumFractionDigits:2})}`;
+
+            let absoluteBalances = runAbsoluteAccountBalances();
+            let cashTotal = (absoluteBalances["1010"] || 0) + (absoluteBalances["1020"] || 0);
+            let invTotal = state.inventory.reduce((acc, item) => acc + item.lots.reduce((a,l)=>a+(l.qty*l.cost),0), 0);
+
+            document.getElementById('dash-cash-sum').innerText = `ETB ${cashTotal.toLocaleString(undefined,{minimumFractionDigits:2})}`;
+            document.getElementById('dash-stock-sum').innerText = `ETB ${invTotal.toLocaleString(undefined,{minimumFractionDigits:2})}`;
+            
+            renderDeepAnalytics();
+        }
+        
+        function getExact10Step(maxVal) {
+            if (maxVal <= 0) return { max: 100, step: 10 };
+            
+            let roughStep = maxVal / 10;
+            let mag = Math.pow(10, Math.floor(Math.log10(roughStep)));
+            let normStep = roughStep / mag;
+            
+            let niceStep;
+            if (normStep <= 1) niceStep = 1;
+            else if (normStep <= 2) niceStep = 2;
+            else if (normStep <= 2.5) niceStep = 2.5;
+            else if (normStep <= 5) niceStep = 5;
+            else niceStep = 10;
+
+            let step = niceStep * mag;
+            let optimalMax = step * 10;
+            
+            while (optimalMax < maxVal) {
+                if (niceStep === 1) niceStep = 2;
+                else if (niceStep === 2) niceStep = 2.5;
+                else if (niceStep === 2.5) niceStep = 5;
+                else if (niceStep === 5) niceStep = 10;
+                else niceStep += 5;
+                step = niceStep * mag;
+                optimalMax = step * 10;
+            }
+            return { max: optimalMax, step: step };
+        }
+
+        function getLocalYMD(d) {
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
+        
+        // --- DEEP ANALYTICS ENGINE ---
+        function renderDeepAnalytics(isSortingOnly = false) {
+            let aStart = document.getElementById('analytics-start').value;
+            let aEnd = document.getElementById('analytics-end').value;
+
+            let filteredSales = state.salesLog.filter(s => {
+                let p = s.date.split('-');
+                let d = new Date(p[0], p[1]-1, p[2]).getTime();
+                let pass = true;
+                if (aStart) {
+                    let sP = aStart.split('-');
+                    pass = pass && d >= new Date(sP[0], sP[1]-1, sP[2]).getTime();
+                }
+                if (aEnd) {
+                    let eP = aEnd.split('-');
+                    pass = pass && d <= new Date(eP[0], eP[1]-1, eP[2]).getTime();
+                }
+                return pass;
+            });
+
+            if (!isSortingOnly) {
+                let itemStats = {};
+                filteredSales.forEach(s => {
+                    if(!itemStats[s.desc]) itemStats[s.desc] = { desc: s.desc, qty: 0, rev: 0, cogs: 0, freq: 0 };
+                    itemStats[s.desc].qty += s.qty;
+                    itemStats[s.desc].rev += s.total;
+                    itemStats[s.desc].cogs += s.cogs;
+                    itemStats[s.desc].freq += 1; 
+                });
+
+                analysisItemArr = Object.values(itemStats).map(i => {
+                    i.profit = i.rev - i.cogs;
+                    i.roi = i.cogs > 0 ? (i.profit / i.cogs) * 100 : (i.profit > 0 ? 100 : 0);
+                    
+                    let unitSellingPrice = i.qty > 0 ? (i.rev / i.qty) : 0;
+                    let unitCostPrice = i.qty > 0 ? (i.cogs / i.qty) : 0;
+                    i.margin = unitSellingPrice > 0 ? ((unitSellingPrice - unitCostPrice) / unitSellingPrice) * 100 : 0;
+
+                    return i;
+                });
+
+                let sortFreq = [...analysisItemArr].sort((a,b) => b.freq - a.freq);
+                let totalItemsSold = sortFreq.length;
+                sortFreq.forEach((item, index) => {
+                    if(totalItemsSold === 0) item.speed = "N/A";
+                    else if(index < totalItemsSold * 0.3) item.speed = "Fast Moving";
+                    else if(index < totalItemsSold * 0.7) item.speed = "Medium Moving";
+                    else item.speed = "Slow Moving";
+                });
+            }
+
+            sortAnalysisTable(currentAnalysisSort.col, true); 
+
+            if (isSortingOnly) return; 
+
+            // Live Update Hack: Re-inject canvas to clean out dynamic wrappers entirely
+            if(window.dashCharts) { 
+                if(window.dashCharts.top) window.dashCharts.top.destroy();
+                if(window.dashCharts.bot) window.dashCharts.bot.destroy();
+                if(window.dashCharts.type) window.dashCharts.type.destroy();
+                if(window.dashCharts.revprofMain) window.dashCharts.revprofMain.destroy();
+            }
+            window.dashCharts = {};
+            document.getElementById('container-revprof').innerHTML = '<canvas id="chart-revprof-main"></canvas>';
+
+            Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+            Chart.defaults.color = '#64748b';
+
+            // 1. Top 10 Pie 
+            let top10Rev = [...analysisItemArr].sort((a,b) => b.rev - a.rev).slice(0, 10);
+            let ctxTop = document.getElementById('chart-top-items');
+            if(ctxTop) {
+                window.dashCharts.top = new Chart(ctxTop, {
+                    type: 'pie',
+                    data: {
+                        labels: top10Rev.map(i => i.desc),
+                        datasets: [{ label: 'Revenue', data: top10Rev.map(i => i.rev), backgroundColor: ['#3b82f6','#ef4444','#10b981','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#f97316','#06b6d4','#84cc16'], borderWidth: 2, borderColor: '#fff' }]
+                    },
+                    options: { maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: function(ctx){ let i = top10Rev[ctx.dataIndex]; return `Revenue: ETB ${i.rev.toFixed(2)} | Profit: ETB ${i.profit.toFixed(2)}`; } } }, title: {display:true, text:'Top 10 Items Proportion', color:'#0f172a', font:{size:16, weight:'600'}} } }
+                });
+            }
+
+            // 2. Bottom 10 Pie 
+            let bottom10Rev = [...analysisItemArr].sort((a,b) => a.rev - b.rev).slice(0, 10);
+            let ctxBot = document.getElementById('chart-bottom-items');
+            if(ctxBot) {
+                window.dashCharts.bot = new Chart(ctxBot, {
+                    type: 'pie',
+                    data: {
+                        labels: bottom10Rev.map(i => i.desc),
+                        datasets: [{ label: 'Revenue', data: bottom10Rev.map(i => i.rev), backgroundColor: ['#64748b','#94a3b8','#cbd5e1','#e2e8f0','#f1f5f9','#9ca3af','#d1d5db','#e5e7eb','#f3f4f6','#f9fafb'], borderWidth: 2, borderColor: '#fff' }]
+                    },
+                    options: { maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: function(ctx){ let i = bottom10Rev[ctx.dataIndex]; return `Revenue: ETB ${i.rev.toFixed(2)} | Profit: ETB ${i.profit.toFixed(2)}`; } } }, title: {display:true, text:'Top 10 Non-Performing Items', color:'#0f172a', font:{size:16, weight:'600'}} } }
+                });
+            }
+
+            // Timeline Aggregation
+            let timeAgg = document.getElementById('history-group-by') ? document.getElementById('history-group-by').value : 'week';
+            let timelineData = {};
+            
+            let minDate = new Date(), maxDate = new Date();
+            if (aStart && aEnd) {
+                let sP = aStart.split('-'); minDate = new Date(sP[0], sP[1]-1, sP[2]);
+                let eP = aEnd.split('-'); maxDate = new Date(eP[0], eP[1]-1, eP[2]);
+            } else if (filteredSales.length > 0) {
+                let ts = filteredSales.map(s => { let p = s.date.split('-'); return new Date(p[0], p[1]-1, p[2]).getTime(); });
+                minDate = new Date(Math.min(...ts)); 
+                maxDate = new Date(Math.max(...ts));
+            }
+            minDate.setHours(0,0,0,0); 
+            maxDate.setHours(23,59,59,999);
+
+            // Timeline Contextual Constraints
+            if (timeAgg === 'week') {
+                let day = minDate.getDay() || 7; 
+                minDate.setDate(minDate.getDate() - day + 1); 
+                day = maxDate.getDay() || 7;
+                maxDate.setDate(maxDate.getDate() + (7 - day)); 
+            } else if (timeAgg === 'month') {
+                minDate.setDate(1); 
+                maxDate.setMonth(maxDate.getMonth() + 1, 0); 
+            } else if (timeAgg === 'year') {
+                minDate.setMonth(0, 1); 
+                maxDate.setMonth(11, 31); 
+            }
+
+            let cD = new Date(minDate);
+            while(cD <= maxDate) {
+                let key;
+                if (timeAgg === 'year') { key = `${cD.getFullYear()}-${String(cD.getMonth()+1).padStart(2,'0')}`; } 
+                else { key = getLocalYMD(cD); }
+                
+                if(!timelineData[key]) timelineData[key] = { rev: 0, profit: 0, rawDate: new Date(cD) };
+                
+                if(timeAgg === 'year') { cD.setMonth(cD.getMonth() + 1); } 
+                else { cD.setDate(cD.getDate() + 1); }
+            }
+
+            filteredSales.forEach(s => {
+                let p = s.date.split('-');
+                let d = new Date(p[0], p[1]-1, p[2]);
+                let key;
+                if (timeAgg === 'year') { key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; } 
+                else { key = getLocalYMD(d); }
+                
+                if(timelineData[key]) {
+                    timelineData[key].rev += s.total;
+                    timelineData[key].profit += (s.total - s.cogs);
+                }
+            });
+            
+            let tKeys = Object.keys(timelineData).sort();
+            
+            // Generate Accurate X Labels
+            let displayLabels = tKeys.map(k => {
+                let dateObj = timelineData[k].rawDate;
+                if(timeAgg === 'week') return dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+                if(timeAgg === 'month') return dateObj.getDate().toString();
+                if(timeAgg === 'year') return dateObj.toLocaleDateString('en-US', { month: 'short' });
+                return k;
+            });
+
+            // Adjust Canvas Width
+            let pointsCount = tKeys.length;
+            let dynamicWidth = Math.max(800, pointsCount * (timeAgg==='month'?35:50)); 
+            document.getElementById('container-revprof').style.width = dynamicWidth + 'px';
+
+            // Custom 10-Step Y Axis calculations
+            let revArr = tKeys.map(k => timelineData[k].rev);
+            let profArr = tKeys.map(k => timelineData[k].profit);
+            
+            let maxRevData = Math.max(...revArr, 0);
+            let minRevData = Math.min(...revArr, 0);
+            
+            let maxProfData = Math.max(...profArr, 0);
+            let minProfData = Math.min(...profArr, 0);
+            
+            let revConfig = getExact10Step(maxRevData);
+            let profConfig = getExact10Step(maxProfData);
+
+            let revNegSteps = minRevData < 0 ? Math.ceil(Math.abs(minRevData) / revConfig.step) : 0;
+            let revMinLimit = -revNegSteps * revConfig.step;
+
+            let profNegSteps = minProfData < 0 ? Math.ceil(Math.abs(minProfData) / profConfig.step) : 0;
+            let profMinLimit = -profNegSteps * profConfig.step;
+
+            // Shared Y-Axis config (covers both Revenue and Profit ranges together)
+            let combinedMax = Math.max(maxRevData, maxProfData);
+            let combinedMin = Math.min(minRevData, minProfData);
+            let combinedConfig = getExact10Step(combinedMax);
+            let combinedNegSteps = combinedMin < 0 ? Math.ceil(Math.abs(combinedMin) / combinedConfig.step) : 0;
+            let combinedMinLimit = -combinedNegSteps * combinedConfig.step;
+
+            // 3. Revenue & Profit — combined, scrollable, color-separated
+            let ctxRevProf = document.getElementById('chart-revprof-main');
+            if(ctxRevProf) {
+                window.dashCharts.revprofMain = new Chart(ctxRevProf, {
+                    type: 'line',
+                    data: {
+                        labels: displayLabels,
+                        datasets: [
+                            { label: 'Revenue (ETB)', data: revArr, borderColor: '#2563eb', fill: 1, backgroundColor: 'rgba(37, 99, 235, 0.18)', tension:0.3, pointRadius: 0, pointHoverRadius: 0 },
+                            { label: 'Gross Profit (ETB)', data: profArr, borderColor: '#16a34a', fill: 'origin', backgroundColor: 'rgba(22, 163, 74, 0.22)', tension:0.3, pointRadius: 0, pointHoverRadius: 0 }
+                        ]
+                    },
+                    options: { 
+                        maintainAspectRatio: false, 
+                        interaction: { mode: 'index', intersect: false },
+                        // This uses the exact same cross-device event pipeline Chart.js
+                        // already uses for the pie chart's color-zone touch/hover, so it
+                        // works identically with mouse AND touch.
+                        onHover: (event, elements, chart) => {
+                            if (!elements || elements.length === 0) {
+                                chart.tooltip.setActiveElements([], { x: 0, y: 0 });
+                                chart.update();
+                                return;
+                            }
+                            const revItem = elements.find(e => e.datasetIndex === 0);
+                            const profItem = elements.find(e => e.datasetIndex === 1);
+                            const revVal = revItem ? chart.data.datasets[0].data[revItem.index] : null;
+                            const profVal = profItem ? chart.data.datasets[1].data[profItem.index] : null;
+                            const cursorVal = chart.scales.y.getValueForPixel(event.y);
+
+                            let activeEls = [];
+                            if (revVal !== null && profVal !== null) {
+                                if (cursorVal < profVal) activeEls = [profItem];
+                                else if (cursorVal < revVal) activeEls = [revItem];
+                            }
+                            chart.tooltip.setActiveElements(activeEls, { x: event.x, y: event.y });
+                            chart.update();
+                        },
+                        plugins: {
+                            legend: { display: true, position: 'top', align: 'end' },
+                            tooltip: {
+                                callbacks: { label: function(ctx){ return `${ctx.dataset.label}: ETB ${ctx.raw.toLocaleString(undefined,{minimumFractionDigits:2})}`; } }
+                            }
+                        }, 
+                        scales: { 
+                            y: { 
+                                min: combinedMinLimit, max: combinedConfig.max,
+                                ticks: {
+                                    stepSize: combinedConfig.step,
+                                    font: { size: 11 },
+                                    callback: function(value) {
+                                        const abs = Math.abs(value);
+                                        if (abs >= 1000000) return (value / 1000000).toLocaleString(undefined, {maximumFractionDigits: 1}) + 'M';
+                                        if (abs >= 1000) return (value / 1000).toLocaleString(undefined, {maximumFractionDigits: 1}) + 'k';
+                                        return value;
+                                    }
+                                },
+                                grid: { color: '#f1f5f9', drawBorder: false }
+                            },
+                            x: { grid: { display: false }, ticks: { color: '#64748b' } }
+                        } 
+                    }
+                });
+
+                // Default view = most recent data. Users can scroll left for history.
+                requestAnimationFrame(() => {
+                    const scrollBox = document.getElementById('scroll-revprof');
+                    if (scrollBox) scrollBox.scrollLeft = scrollBox.scrollWidth;
+                });
+            }
+
+            // 5. Sales Type Proportion
+            let typeStats = {};
+            filteredSales.forEach(s => {
+                let t = s.type || 'Walk in';
+                if(!typeStats[t]) typeStats[t] = { rev: 0, profit: 0 };
+                typeStats[t].rev += s.total;
+                typeStats[t].profit += (s.total - s.cogs);
+            });
+            let ctxType = document.getElementById('chart-sales-type');
+            if(ctxType) {
+                let tLabels = Object.keys(typeStats);
+                window.dashCharts.type = new Chart(ctxType, {
+                    type: 'doughnut',
+                    data: {
+                        labels: tLabels,
+                        datasets: [{ data: tLabels.map(l => typeStats[l].rev), backgroundColor: ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6'], borderWidth: 2, borderColor: '#fff' }]
+                    },
+                    options: { maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: function(ctx){ let k = tLabels[ctx.dataIndex]; return `Rev: ETB ${typeStats[k].rev.toFixed(2)} | Profit: ETB ${typeStats[k].profit.toFixed(2)}`; } } }, title: {display:true, text:'Revenue Proportion by Sales Type', color:'#0f172a', font:{size:16, weight:'600'}} } }
+                });
+            }
+        }
+        
+        function sortAnalysisTable(col, overrideToggle = false) {
+            if(!overrideToggle) {
+                if(currentAnalysisSort.col === col) currentAnalysisSort.asc = !currentAnalysisSort.asc;
+                else { currentAnalysisSort.col = col; currentAnalysisSort.asc = (col === 'desc' || col === 'speed'); }
+            }
+
+            analysisItemArr.sort((a,b) => {
+                let valA = a[col], valB = b[col];
+                if(typeof valA === 'string') return currentAnalysisSort.asc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                return currentAnalysisSort.asc ? valA - valB : valB - valA;
+            });
+
+            let tbody = document.getElementById('item-performance-tbody');
+            if(tbody) {
+                tbody.innerHTML = '';
+                if(analysisItemArr.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 24px; color: var(--text-light);">No data available for selected period.</td></tr>`;
+                    return;
+                }
+                analysisItemArr.forEach(i => {
+                    tbody.innerHTML += `<tr style="transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                        <td style="border-bottom: 1px solid #f1f5f9; padding: 12px 14px;"><strong>${i.desc}</strong></td>
+                        <td style="border-bottom: 1px solid #f1f5f9; padding: 12px 14px;"><span style="padding:4px 8px; border-radius:6px; font-size:11px; font-weight:700; background:${i.speed==='Fast Moving'?'#dcfce7':i.speed==='Medium Moving'?'#fef08a':'#fee2e2'}; color:${i.speed==='Fast Moving'?'#166534':i.speed==='Medium Moving'?'#854d0e':'#991b1b'};">${i.speed}</span></td>
+                        <td class="num" style="border-bottom: 1px solid #f1f5f9; padding: 12px 14px;">${i.freq}</td>
+                        <td class="num" style="border-bottom: 1px solid #f1f5f9; padding: 12px 14px;">${i.qty}</td>
+                        <td class="num" style="border-bottom: 1px solid #f1f5f9; padding: 12px 14px; font-weight:600; color:var(--primary);">${i.rev.toLocaleString(undefined,{minimumFractionDigits:2})}</td>
+                        <td class="num" style="border-bottom: 1px solid #f1f5f9; padding: 12px 14px; font-weight:600; color:var(--success);">${i.profit.toLocaleString(undefined,{minimumFractionDigits:2})}</td>
+                        <td class="num" style="border-bottom: 1px solid #f1f5f9; padding: 12px 14px;">${i.margin.toFixed(1)}%</td>
+                        <td class="num" style="border-bottom: 1px solid #f1f5f9; padding: 12px 14px;">${i.roi.toFixed(1)}%</td>
+                    </tr>`;
+                });
+            }
+        }
+
+        function launchDrillDown(metric) {
+            const mTitle = document.getElementById('modal-title');
+            const mContent = document.getElementById('modal-body-content');
+            let period = state.currentFilter;
+            let html = `<div><strong>Current Range Constraint:</strong> ${period.toUpperCase()} ${state.customStart ? `(${state.customStart} to ${state.customEnd})` : ''}</div><br>`;
+
+            if(metric === 'revenue') {
+                mTitle.innerText = "Drill-Down Matrix: Revenue Stream Invoices";
+                html += `<table><thead><tr><th>Date</th><th>Customer</th><th>Product Item</th><th class="num">Qty</th><th class="num">Price (ETB)</th><th class="num">Total</th></tr></thead><tbody>`;
+                let matches = state.salesLog.filter(s => verifyChronologicalOverlap(s.date, period)).sort((a,b) => new Date(b.date) - new Date(a.date));
+                if(matches.length === 0) html += `<tr><td colspan="6" style="text-align:center;">No recorded transaction lines in range.</td></tr>`;
+                matches.forEach(m => {
+                    html += `<tr><td>${m.date}</td><td>${m.customer}</td><td>${m.desc}</td><td class="num">${m.qty}</td><td class="num">${m.price.toFixed(2)}</td><td class="num"><strong>${m.total.toFixed(2)}</strong></td></tr>`;
+                });
+                html += `</tbody></table>`;
+            } 
+            else if(metric === 'cogs') {
+                mTitle.innerText = "Drill-Down Matrix: Cost of Goods Sold Distribution";
+                html += `<table><thead><tr><th>Date</th><th>Voucher ID</th><th>Context Reference</th><th class="num">Debit Value Charge (ETB)</th></tr></thead><tbody>`;
+                let cogsRows = [];
+                state.journal.forEach(j => {
+                    if(verifyChronologicalOverlap(j.date, period)) {
+                        j.lines.forEach(l => {
+                            if(l.account === '5010' && l.dr > 0) cogsRows.push({ date: j.date, id: j.id, desc: j.desc, dr: l.dr });
+                        });
+                    }
+                });
+                cogsRows.sort((a,b) => new Date(b.date) - new Date(a.date));
+                cogsRows.forEach(row => {
+                    html += `<tr><td>${row.date}</td><td><code>${row.id}</code></td><td>${row.desc}</td><td class="num">${row.dr.toFixed(2)}</td></tr>`;
+                });
+                html += `</tbody></table>`;
+            }
+            else if(metric === 'gross') {
+                mTitle.innerText = "Drill-Down Matrix: Gross Profit Synthesis Summary";
+                let revSum = 0, cogsSum = 0;
+                state.journal.forEach(j => {
+                    if(verifyChronologicalOverlap(j.date, period)) {
+                        j.lines.forEach(l => { if(l.account === '4010') revSum += l.cr; if(l.account === '5010') cogsSum += l.dr; });
+                    }
+                });
+                html += `<div style="font-size:14px; padding:10px; background:#f1f5f9; border-radius:4px;">Allocated Gross Operations Revenues: <strong>ETB ${revSum.toFixed(2)}</strong><br>Less Outbound Direct Cost of Goods Sold: <strong>ETB (${cogsSum.toFixed(2)})</strong><br><hr style="margin:8px 0; border-color:#cbd5e1;">Synthesized Margin Balance: <strong style="color:var(--success);">ETB ${(revSum - cogsSum).toFixed(2)}</strong></div>`;
+            }
+            else if(metric === 'expenses') {
+                mTitle.innerText = "Drill-Down Matrix: Booked Overheads Distribution";
+                html += `<table><thead><tr><th>Date</th><th>Allocation Account</th><th>Memo Reference Context</th><th class="num">Value (ETB)</th></tr></thead><tbody>`;
+                let matches = state.expenseLog.filter(e => verifyChronologicalOverlap(e.date, period)).sort((a,b) => new Date(b.date) - new Date(a.date));
+                if(matches.length === 0) html += `<tr><td colspan="4" style="text-align:center;">No operational expenses logged in range.</td></tr>`;
+                matches.forEach(m => {
+                    let nameMeta = CHART_OF_ACCOUNTS_MAP.find(c => c.code === m.target);
+                    html += `<tr><td>${m.date}</td><td>${m.target} - ${nameMeta?nameMeta.name:''}</td><td>${m.memo}</td><td class="num"><strong>${m.amount.toFixed(2)}</strong></td></tr>`;
+                });
+                html += `</tbody></table>`;
+            }
+            else if(metric === 'net') {
+                mTitle.innerText = "Drill-Down Matrix: Bottom Line Net Synthesis Review";
+                let r = 0, c = 0, e = 0;
+                state.journal.forEach(j => {
+                    if(verifyChronologicalOverlap(j.date, period)) {
+                        j.lines.forEach(l => { if(l.account === '4010') r += l.cr; if(l.account === '5010') c += l.dr; if(['6010','6020','6030'].includes(l.account)) e += l.dr; });
+                    }
+                });
+                html += `<div style="font-size:14px; padding:12px; background:#0f172a; color:white; border-radius:4px; font-family:monospace;">[+] Revenue Intake Total: ETB ${r.toFixed(2)}<br>[-] Cost of Sales Total: ETB (${c.toFixed(2)})<br>[-] Operating Expenses : ETB (${e.toFixed(2)})<br><hr style="margin:8px 0; border-color:rgba(255,255,255,0.2);">[=] Net Margin Inflow  : ETB ${(r - c - e).toFixed(2)}</div>`;
+            }
+            mContent.innerHTML = html; document.getElementById('audit-modal').style.display = "flex";
+        }
+        function closeAuditModal() { document.getElementById('audit-modal').style.display = "none"; }
+
+        // --- INVENTORY ---
+        function renderPerpetualInventoryTable() {
+            const tbody = document.getElementById('inventory-table-body'); tbody.innerHTML = '';
+            const cf = document.getElementById('inv-filter-category').value.toLowerCase().trim();
+            const nf = document.getElementById('inv-filter-name').value.toLowerCase().trim();
+
+            state.inventory.forEach((item, index) => {
+                if (cf && !item.category.toLowerCase().includes(cf)) return;
+                if (nf && !item.desc.toLowerCase().includes(nf)) return;
+
+                let tQ = item.lots.reduce((a, l) => a + l.qty, 0), tV = item.lots.reduce((a, l) => a + (l.qty * l.cost), 0);
+                
+                let activeStrings = [];
+                let lastPrice = null;
+                item.lots.forEach(lot => {
+                    if (lot.qty <= 0) return;
+                    if (lastPrice === null || Math.abs(lot.cost - lastPrice) > 0.001) {
+                        activeStrings.push(lot.cost.toFixed(2));
+                        lastPrice = lot.cost;
+                    }
+                });
+                let cL = activeStrings.join(' &rarr; ') || '0.00';
+                
+                let btns = `<button class="btn btn-small" onclick="initiateEditProductDefinition(${index})">Edit</button>
+                            <button class="btn btn-danger btn-small" onclick="executeVoidProductState(${index})">Delete</button>
+                            ${item.history&&item.history.length>0?`<button class="btn btn-warning btn-small" onclick="launchHistoryPopup(${index})">Logs</button>`:''}`;
+                
+                tbody.innerHTML += `<tr>
+                    <td><small>${item.category}</small></td>
+                    <td><strong>${item.desc}</strong>${item.history&&item.history.length>0?'<span class="audit-badge badge-edited">EDITED</span>':''}</td>
+                    <td class="num">${tQ}</td><td class="num price-trace">${cL}</td>
+                    <td class="num"><input type="number" step="0.01" style="min-width:100px; padding:4px; text-align:right;" value="${item.sellingPrice.toFixed(2)}" onchange="updateDirectSellingPrice(${index}, this.value)"></td>
+                    <td class="num"><strong>${tV.toFixed(2)}</strong></td>
+                    <td style="text-align:center;">${btns}</td>
+                </tr>`;
+            });
+        }
+
+        function updateDirectSellingPrice(idx, val) {
+            let num = parseFloat(val); state.inventory[idx].sellingPrice = isNaN(num)||num<0 ? 0 : num;
+            queueWrite({ kind: 'update', table: 'inventory_items', id: state.inventory[idx].id, patch: { selling_price: state.inventory[idx].sellingPrice } });
+            renderPerpetualInventoryTable();
+        }
+
+        function handleDefineProduct(e) {
+            e.preventDefault();
+            const idx = document.getElementById('edit-index').value, cat = document.getElementById('p-category').value.trim(), desc = document.getElementById('p-desc').value.trim();
+            if(!state.categories.includes(cat)) {
+                state.categories.push(cat); syncCategoriesDatalist();
+                queueWrite({ kind: 'tenant_update', patch: { categories: state.categories } });
+            }
+
+            if (idx === "") {
+                if (state.inventory.find(i => i.desc.toLowerCase()===desc.toLowerCase() && i.category.toLowerCase()===cat.toLowerCase())) {
+                    return alert(`Rejection: "${desc}" already exists inside "${cat}".`);
+                }
+                const newItem = { id: crypto.randomUUID(), category: cat, desc, sellingPrice: 0, lots: [], history: [] };
+                state.inventory.push(newItem);
+                queueWrite({ kind: 'insert', table: 'inventory_items', row: toDbInventoryItem(newItem) });
+                addNotification('Product Added', `Created new master item: [${cat}] ${desc}`);
+            } else {
+                let t = state.inventory[parseInt(idx)];
+                if (state.inventory.find((i, cur) => cur !== parseInt(idx) && i.desc.toLowerCase()===desc.toLowerCase() && i.category.toLowerCase()===cat.toLowerCase())) {
+                    return alert(`Rejection: Identical pairing already exists.`);
+                }
+                let oldDesc = t.desc, oldCat = t.category;
+                if(!t.history) t.history = [];
+                t.history.push(`[${new Date().toLocaleString()}] Replaced: [${t.category}] ${t.desc}`);
+                t.category = cat; t.desc = desc;
+                queueWrite({ kind: 'update', table: 'inventory_items', id: t.id, patch: { category: t.category, desc: t.desc, history: t.history } });
+                addNotification('Product Edited', `Item modified.`, `Original: [${oldCat}] ${oldDesc}\nUpdated: [${cat}] ${desc}`);
+            }
+            resetProductForm(); renderPerpetualInventoryTable();
+        }
+
+        function initiateEditProductDefinition(idx) {
+            let i = state.inventory[idx];
+            document.getElementById('edit-index').value = idx; document.getElementById('p-category').value = i.category; document.getElementById('p-desc').value = i.desc;
+            document.getElementById('inv-btn').innerText = "Apply Revisions"; document.getElementById('inv-cancel').style.display = "inline-block";
+        }
+
+        function resetProductForm() {
+            document.getElementById('inventory-def-form').reset(); document.getElementById('edit-index').value = "";
+            document.getElementById('inv-btn').innerText = "Define Product"; document.getElementById('inv-cancel').style.display = "none";
+        }
+
+        function launchHistoryPopup(idx) {
+            let i = state.inventory[idx];
+            document.getElementById('modal-title').innerText = `Audit Logs: ${i.desc}`;
+            document.getElementById('modal-body-content').innerText = i.history && i.history.length > 0 ? i.history.join('\n\n') : "No logs.";
+            document.getElementById('audit-modal').style.display = "flex";
+        }
+
+        function executeVoidProductState(idx) {
+            let item = state.inventory[idx];
+            const itemLabel = `[${item.category}] ${item.desc}`;
+            const hasSales = state.salesLog.some(s => s.desc === itemLabel);
+            if (hasSales) {
+                return alert(`"${item.desc}" cannot be deleted because it already has sales recorded against it. Products with sales history are kept in place to preserve accurate accounting records.`);
+            }
+            if(!confirm(`Move [${item.category}] ${item.desc} to System Trash?`)) return;
+            const trashEntry = { id: `INV-${Date.now()}`, type: 'inventory', data: item, deletedAt: new Date().toISOString() };
+            state.trash.push(trashEntry);
+            state.inventory.splice(idx, 1);
+            queueWrite({ kind: 'delete', table: 'inventory_items', id: item.id }); // cascades to inventory_lots automatically
+            queueWrite({ kind: 'insert', table: 'trash', row: toDbTrash(trashEntry) });
+            addNotification('Inventory Deleted', `[${item.category}] ${item.desc} moved to trash.`);
+            renderPerpetualInventoryTable();
+        }
+
+        function deletePurchase(id) {
+            const hasSalesFromThisBatch = state.salesLog.some(s => (s.restorationLayers || []).some(l => l.id === id));
+            if (hasSalesFromThisBatch) {
+                return alert("This purchase batch cannot be deleted because stock from it has already been sold. Deleting it would corrupt your sales history and cost records.");
+            }
+            if(!confirm("Warning 1: Void this Purchase?\nWarning 2: Stock will be instantly deducted. Proceed?")) return;
+            let idx = state.purchaseLog.findIndex(p => p.id === id); if(idx===-1) return;
+            let pur = state.purchaseLog[idx], jv = state.journal.find(j => j.id === id);
+
+            let item = state.inventory.find(i => `[${i.category}] ${i.desc}` === pur.desc || i.desc === pur.desc);
+            if (item) {
+                const beforeLots = item.lots.map(l => ({...l}));
+                let initialLen = item.lots.length;
+                let filteredLots = item.lots.filter(l => l.id !== id);
+                if (filteredLots.length < initialLen) {
+                    item.lots = filteredLots;
+                } else {
+                    let qToDeduct = pur.qty;
+                    for (let i = item.lots.length - 1; i >= 0; i--) {
+                        if (qToDeduct <= 0) break;
+                        if (item.lots[i].qty >= qToDeduct) {
+                            item.lots[i].qty -= qToDeduct;
+                            qToDeduct = 0;
+                        } else {
+                            qToDeduct -= item.lots[i].qty;
+                            item.lots[i].qty = 0;
+                        }
+                    }
+                    item.lots = item.lots.filter(l => l.qty > 0);
+                }
+                syncItemLots(item, beforeLots);
+            }
+
+            const removedJournalIds = state.journal.filter(j => j.id === id || j.desc.includes(`Payment Sent for Purchase ${id}`)).map(j => j.id);
+            state.trash.push({ id, type: 'purchase', data: pur, journal: jv, deletedAt: new Date().toISOString() });
+            state.journal = state.journal.filter(j => !removedJournalIds.includes(j.id));
+            state.purchaseLog.splice(idx, 1);
+
+            queueWrite({ kind: 'delete', table: 'purchase_log', id });
+            removedJournalIds.forEach(jid => queueWrite({ kind: 'delete', table: 'journal_entries', id: jid }));
+            queueWrite({ kind: 'insert', table: 'trash', row: toDbTrash(state.trash[state.trash.length - 1]) });
+
+            addNotification('Purchase Voided', `Inward log ${id} reversed and trashed.`, `Voided: ${pur.qty}x ${pur.desc} from ${pur.supplier}`);
+            renderPurchaseLogTable(); renderAnalyticalDashboards();
+        }
+
+        function deleteSale(id) {
+            if(!confirm("Warning 1: Void this Sale?\nWarning 2: Stock will be returned to inventory. Proceed?")) return;
+            let idx = state.salesLog.findIndex(s => s.id === id); if(idx===-1) return;
+            let sale = state.salesLog[idx], jv = state.journal.find(j => j.id === id);
+            
+            let item = state.inventory.find(i => `[${i.category}] ${i.desc}` === sale.desc);
+            if (item) {
+                const beforeLots = item.lots.map(l => ({...l}));
+                if (sale.restorationLayers) {
+                    sale.restorationLayers.forEach(layer => {
+                        let lot = item.lots.find(l => l.id === layer.id);
+                        if (lot) { lot.qty += layer.qty; }
+                        else { item.lots.splice(layer.index, 0, { id: layer.id, qty: layer.qty, cost: layer.cost }); }
+                    });
+                } else {
+                    item.lots.push({ id: 'LOT-'+Math.random().toString(36).substr(2,9), qty: sale.qty, cost: sale.cogs ? (sale.cogs/sale.qty) : 0 });
+                }
+                syncItemLots(item, beforeLots);
+            }
+
+            const removedJournalIds = state.journal.filter(j => j.id === id || j.desc.includes(`Payment Received for Sale ${id}`)).map(j => j.id);
+            state.trash.push({ id, type: 'sale', data: sale, journal: jv, deletedAt: new Date().toISOString() });
+            state.journal = state.journal.filter(j => !removedJournalIds.includes(j.id));
+            state.salesLog.splice(idx, 1);
+
+            queueWrite({ kind: 'delete', table: 'sales_log', id });
+            removedJournalIds.forEach(jid => queueWrite({ kind: 'delete', table: 'journal_entries', id: jid }));
+            queueWrite({ kind: 'insert', table: 'trash', row: toDbTrash(state.trash[state.trash.length - 1]) });
+
+            addNotification('Sale Voided', `Transaction ${id} reversed and trashed.`, `Voided: ${sale.qty}x ${sale.desc} to ${sale.customer}`);
+            renderSalesLogTable(); renderAnalyticalDashboards();
+        }
+
+        function deleteExpense(id) {
+            if(!confirm("Void this Operational Expense and reverse ledger impact?")) return;
+            let idx = state.expenseLog.findIndex(e => e.id === id); if(idx===-1) return;
+            let exp = state.expenseLog[idx], jv = state.journal.find(j => j.id === id);
+            
+            state.trash.push({ id, type: 'expense', data: exp, journal: jv, deletedAt: new Date().toISOString() });
+            state.journal = state.journal.filter(j => j.id !== id);
+            state.expenseLog.splice(idx, 1);
+
+            queueWrite({ kind: 'delete', table: 'expense_log', id });
+            queueWrite({ kind: 'delete', table: 'journal_entries', id });
+            queueWrite({ kind: 'insert', table: 'trash', row: toDbTrash(state.trash[state.trash.length - 1]) });
+
+            addNotification('Expense Voided', `Ledger entry ${id} trashed.`, `Voided: ETB ${exp.amount} for ${exp.memo}`);
+            renderExpenseLogTable(); renderAnalyticalDashboards();
+        }
+
+        function renderTrashTable() {
+            const tbody = document.getElementById('trash-table-body'); tbody.innerHTML = '';
+            if(state.trash.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-light);">-- Bin is empty --</td></tr>`; return;
+            }
+            state.trash.slice().reverse().forEach((t, i) => {
+                let actualIndex = state.trash.length - 1 - i;
+                let info = "";
+                if (t.type === 'inventory') info = `[${t.data.category}] ${t.data.desc}`;
+                else if (t.type === 'sale') info = `Sale: ${t.data.qty}x ${t.data.desc} to ${t.data.customer} for ETB ${t.data.total.toFixed(2)} (${t.data.channel})`;
+                else if (t.type === 'purchase') info = `Purchase: ${t.data.qty}x ${t.data.desc} from ${t.data.supplier} for ETB ${t.data.total.toFixed(2)} (${t.data.channel})`;
+                else if (t.type === 'expense') info = `Expense: ETB ${t.data.amount.toFixed(2)} for ${t.data.memo} (${t.data.source})`;
+
+                tbody.innerHTML += `<tr>
+                    <td>${new Date(t.deletedAt).toLocaleString()}</td><td style="text-transform:uppercase;">${t.type}</td>
+                    <td>${info}</td>
+                    <td style="text-align:center;"><button class="btn btn-success btn-small" onclick="restoreTrash(${actualIndex})">Restore Data</button></td>
+                </tr>`;
+            });
+        }
+
+        function restoreTrash(idx) {
+            let t = state.trash[idx];
+            if (t.type === 'inventory') {
+                state.inventory.push(t.data);
+                queueWrite({ kind: 'insert', table: 'inventory_items', row: toDbInventoryItem(t.data) });
+                if (t.data.lots && t.data.lots.length) {
+                    t.data.lots.forEach(l => queueWrite({ kind: 'insert', table: 'inventory_lots', row: toDbLot(t.data.id, l) }));
+                }
+                addNotification('Restored', `Item recovered from trash.`);
+            } 
+            else if (t.type === 'expense') {
+                state.expenseLog.push(t.data);
+                queueWrite({ kind: 'insert', table: 'expense_log', row: toDbExpense(t.data) });
+                if(t.journal) { state.journal.push(t.journal); queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(t.journal) }); }
+                addNotification('Restored', `Expense ledger recovered.`);
+            }
+            else if (t.type === 'purchase') {
+                let item = state.inventory.find(i => `[${i.category}] ${i.desc}` === t.data.desc || i.desc === t.data.desc);
+                if (!item) return alert("Original inventory profile deleted. Cannot safely restore.");
+                const beforeLots = item.lots.map(l => ({...l}));
+                item.lots.push({ id: t.data.id || 'LOT-'+Math.random().toString(36).substr(2,9), qty: t.data.qty, cost: t.data.cost });
+                syncItemLots(item, beforeLots);
+                state.purchaseLog.push(t.data);
+                queueWrite({ kind: 'insert', table: 'purchase_log', row: toDbPurchase(t.data) });
+                if(t.journal) { state.journal.push(t.journal); queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(t.journal) }); }
+                addNotification('Restored', `Purchase logic recovered.`);
+            }
+            else if (t.type === 'sale') {
+                let item = state.inventory.find(i => `[${i.category}] ${i.desc}` === t.data.desc);
+                if (!item) return alert("Original inventory profile deleted. Cannot restore.");
+                let tStock = item.lots.reduce((acc, l) => acc + l.qty, 0);
+                if (t.data.qty > tStock) return alert("Insufficient stock available right now to re-process this voided sale.");
+                
+                const beforeLots = item.lots.map(l => ({...l}));
+                let qToSell = t.data.qty;
+                while (qToSell > 0 && item.lots.length > 0) {
+                    let oldest = item.lots[0];
+                    if (oldest.qty > qToSell) { oldest.qty -= qToSell; qToSell = 0; } 
+                    else { qToSell -= oldest.qty; item.lots.shift(); }
+                }
+                syncItemLots(item, beforeLots);
+                state.salesLog.push(t.data);
+                queueWrite({ kind: 'insert', table: 'sales_log', row: toDbSale(t.data) });
+                if(t.journal) { state.journal.push(t.journal); queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(t.journal) }); }
+                addNotification('Restored', `Sale matrix recovered.`);
+            }
+            state.trash.splice(idx, 1);
+            queueWrite({ kind: 'delete', table: 'trash', id: t.id });
+            renderTrashTable();
+        }
+
+        function syncTransactionalProductDropdownOptions() {
+            const sList = document.getElementById('sale-item-list'), pList = document.getElementById('pur-item-list');
+            sList.innerHTML = ''; pList.innerHTML = '';
+            
+            state.inventory.forEach(i => {
+                let opt = `<option value="[${i.category}] ${i.desc}"></option>`;
+                sList.innerHTML += opt; pList.innerHTML += opt;
+            });
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('sale-date').value = today; document.getElementById('pur-date').value = today; document.getElementById('exp-date').value = today;
+            autoPopulateSalePrice();
+        }
+
+        function autoPopulateSalePrice() {
+            let comp = document.getElementById('sale-item').value;
+            let item = state.inventory.find(i => `[${i.category}] ${i.desc}` === comp);
+            document.getElementById('sale-price').value = item && item.sellingPrice ? item.sellingPrice : '';
+        }
+
+        function handlePostSale(e) {
+            e.preventDefault();
+            const date = document.getElementById('sale-date').value, cName = document.getElementById('sale-customer').value.trim()||"Walk-in";
+            const comp = document.getElementById('sale-item').value, qty = parseInt(document.getElementById('sale-qty').value);
+            const price = parseFloat(document.getElementById('sale-price').value), chan = document.getElementById('sale-channel').value;
+            const sType = document.getElementById('sale-type').value;
+
+            let item = state.inventory.find(i => `[${i.category}] ${i.desc}` === comp);
+            if(!item) return alert("Select a valid item string from the dropdown.");
+
+            const itemPurchases = state.purchaseLog.filter(p => p.desc === comp);
+            if (itemPurchases.length > 0) {
+                const earliestPurchaseDate = itemPurchases.reduce((min, p) => p.date < min ? p.date : min, itemPurchases[0].date);
+                if (date < earliestPurchaseDate) {
+                    return alert(`This sale is dated ${date}, but "${item.desc}" wasn't purchased into stock until ${earliestPurchaseDate}. Please correct the sale date.`);
+                }
+            }
+
+            let stock = item.lots.reduce((acc, l) => acc + l.qty, 0);
+            if (qty > stock) return alert(`Insufficient stock. Only ${stock} left.`);
+
+            let rev = qty * price, cogs = 0, q = qty;
+            let restorationLayers = [];
+            const beforeLots = item.lots.map(l => ({...l}));
+            for (let i = 0; i < item.lots.length; i++) {
+                if (q <= 0) break;
+                let o = item.lots[i];
+                if (o.qty <= 0) continue;
+                let taken = Math.min(q, o.qty);
+                cogs += taken * o.cost;
+                restorationLayers.push({ index: i, id: o.id, qty: taken, cost: o.cost });
+                o.qty -= taken;
+                q -= taken;
+            }
+            syncItemLots(item, beforeLots);
+
+            let id = `SL-${Date.now().toString().slice(-5)}`;
+            const newSale = { id, date, customer: cName, desc: comp, qty: qty, price, total: rev, cogs, channel: chan, type: sType, paid: false, restorationLayers };
+            const newJournal = {
+                id, date, desc: `Sale: ${qty}x ${item.desc} / Cust: ${cName}`,
+                lines: [ { account: CHANNEL_ACCOUNT_CODES[chan], dr: rev, cr: 0 }, { account: "4010", cr: rev, dr: 0 }, { account: "5010", dr: cogs, cr: 0 }, { account: "1200", cr: cogs, dr: 0 } ]
+            };
+            state.salesLog.push(newSale);
+            state.journal.push(newJournal);
+            queueWrite({ kind: 'insert', table: 'sales_log', row: toDbSale(newSale) });
+            queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(newJournal) });
+            e.target.reset(); syncTransactionalProductDropdownOptions(); renderSalesLogTable();
+            addNotification('Sale Executed', `Posted revenue: ETB ${rev.toFixed(2)}`, `Sold ${qty}x ${item.desc} to ${cName} via ${chan}`);
+        }
+
+        function markSalePaid(id) {
+            let sale = state.salesLog.find(s => s.id === id);
+            if(!sale || sale.paid) return;
+            let chan = prompt("Settle A/R Account.\nEnter receiving channel (1 for Cash, 2 for Mobile banking):");
+            if(chan !== "1" && chan !== "2") return alert("Invalid selection. Aborted.");
+            let selectedAcc = chan === "1" ? "1010" : "1020";
+            let channelName = chan === "1" ? "Cash" : "Mobile banking";
+
+            sale.paid = true;
+            sale.paidChannel = channelName;
+
+            const paymentJournal = {
+                id: `PMT-${Date.now().toString().slice(-5)}`,
+                date: new Date().toISOString().split('T')[0],
+                desc: `Payment Received for Sale ${id} via ${channelName}`,
+                lines: [ { account: selectedAcc, dr: sale.total, cr: 0 }, { account: "1300", cr: sale.total, dr: 0 } ]
+            };
+            state.journal.push(paymentJournal);
+            queueWrite({ kind: 'update', table: 'sales_log', id, patch: { paid: true, paid_channel: channelName } });
+            queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(paymentJournal) });
+            renderSalesLogTable(); renderAnalyticalDashboards();
+            addNotification('A/R Settled', `Payment Received for Sale ${id}`, `Received ETB ${sale.total.toFixed(2)} via ${channelName}`);
+        }
+
+        function renderSalesLogTable() {
+            const tbody = document.getElementById('sales-log-table-body');
+            const fD = document.getElementById('sale-log-filter-date').value, fC = document.getElementById('sale-log-filter-customer').value.toLowerCase().trim();
+            const fI = document.getElementById('sale-log-filter-item').value.toLowerCase().trim(), fCh = document.getElementById('sale-log-filter-channel').value;
+            let arr = state.salesLog.filter(s => (!fD || s.date===fD) && (!fC || s.customer.toLowerCase().includes(fC)) && (!fI || s.desc.toLowerCase().includes(fI)) && (!fCh || s.channel===fCh));
+            
+            if(arr.length===0) { tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">-- No logs --</td></tr>`; return; }
+            let rows = [];
+            arr.slice().sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(s => {
+                let statusStr = s.channel;
+                if(s.channel === 'Accounts receivable') statusStr += s.paid ? `<br><small style="color:var(--success)">[Paid: ${s.paidChannel}]</small>` : `<br><small style="color:var(--danger)">[Pending]</small>`;
+                let payBtn = (s.channel === 'Accounts receivable' && !s.paid) ? `<button class="btn btn-success btn-small" onclick="markSalePaid('${s.id}')">Mark Paid</button>` : '';
+                rows.push(`<tr><td>${s.date}</td><td>${s.customer}</td><td>${s.desc}</td><td class="num">${s.qty}</td><td class="num">${s.price.toFixed(2)}</td><td class="num"><strong>${s.total.toFixed(2)}</strong></td><td>${statusStr}<br><small style="color:var(--accent)">[${s.type || 'Walk in'}]</small></td><td style="text-align:center;">${payBtn}<button class="btn btn-danger btn-small" onclick="deleteSale('${s.id}')">Delete</button></td></tr>`);
+            });
+            tbody.innerHTML = rows.join('');
+        }
+
+        function handlePostPurchase(e) {
+            e.preventDefault();
+            const date = document.getElementById('pur-date').value, sup = document.getElementById('pur-supplier').value.trim();
+            const comp = document.getElementById('pur-item').value, qty = parseInt(document.getElementById('pur-qty').value);
+            const cost = parseFloat(document.getElementById('pur-price').value), spInput = document.getElementById('pur-selling-price').value;
+            const chan = document.getElementById('pur-channel').value;
+
+            let item = state.inventory.find(i => `[${i.category}] ${i.desc}` === comp);
+            if(!item) return alert("Select a valid item string.");
+
+            let id = `PR-${Date.now().toString().slice(-5)}`;
+            const newLot = { id: id, qty: qty, cost: cost };
+            item.lots.push(newLot);
+            let tot = qty * cost;
+            let priceChanged = false;
+            if (spInput !== "" && !isNaN(parseFloat(spInput))) { item.sellingPrice = parseFloat(spInput); priceChanged = true; }
+
+            const newPurchase = { id, date, supplier: sup, desc: comp, qty, cost, total: tot, channel: chan, paid: false };
+            const newJournal = {
+                id, date, desc: `Purchase: ${qty}x ${item.desc} / Supp: ${sup}`,
+                lines: [ { account: "1200", dr: tot, cr: 0 }, { account: CHANNEL_ACCOUNT_CODES[chan], cr: tot, dr: 0 } ]
+            };
+            state.purchaseLog.push(newPurchase);
+            state.journal.push(newJournal);
+            queueWrite({ kind: 'insert', table: 'purchase_log', row: toDbPurchase(newPurchase) });
+            queueWrite({ kind: 'insert', table: 'inventory_lots', row: toDbLot(item.id, newLot) });
+            queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(newJournal) });
+            if (priceChanged) queueWrite({ kind: 'update', table: 'inventory_items', id: item.id, patch: { selling_price: item.sellingPrice } });
+            e.target.reset(); syncTransactionalProductDropdownOptions(); renderPurchaseLogTable();
+            addNotification('Stock Purchased', `Added ${qty} units of ${item.desc}`, `Total Cost: ETB ${tot.toFixed(2)} via ${chan}`);
+        }
+
+        function markPurchasePaid(id) {
+            let pur = state.purchaseLog.find(p => p.id === id);
+            if(!pur || pur.paid) return;
+            let chan = prompt("Settle A/P Account.\nEnter payment source channel (1 for Cash, 2 for Mobile banking):");
+            if(chan !== "1" && chan !== "2") return alert("Invalid selection. Aborted.");
+            let selectedAcc = chan === "1" ? "1010" : "1020";
+            let channelName = chan === "1" ? "Cash" : "Mobile banking";
+
+            pur.paid = true;
+            pur.paidChannel = channelName;
+
+            const paymentJournal = {
+                id: `PMT-${Date.now().toString().slice(-5)}`,
+                date: new Date().toISOString().split('T')[0],
+                desc: `Payment Sent for Purchase ${id} via ${channelName}`,
+                lines: [ { account: "2010", dr: pur.total, cr: 0 }, { account: selectedAcc, cr: pur.total, dr: 0 } ]
+            };
+            state.journal.push(paymentJournal);
+            queueWrite({ kind: 'update', table: 'purchase_log', id, patch: { paid: true, paid_channel: channelName } });
+            queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(paymentJournal) });
+            renderPurchaseLogTable(); renderAnalyticalDashboards();
+            addNotification('A/P Settled', `Payment Sent for Purchase ${id}`, `Paid ETB ${pur.total.toFixed(2)} via ${channelName}`);
+        }
+
+        function renderPurchaseLogTable() {
+            const tbody = document.getElementById('purchase-log-table-body');
+            const fD = document.getElementById('pur-log-filter-date').value, fS = document.getElementById('pur-log-filter-supplier').value.toLowerCase().trim();
+            const fI = document.getElementById('pur-log-filter-item').value.toLowerCase().trim(), fCh = document.getElementById('pur-log-filter-channel').value;
+            let arr = state.purchaseLog.filter(p => (!fD || p.date===fD) && (!fS || p.supplier.toLowerCase().includes(fS)) && (!fI || p.desc.toLowerCase().includes(fI)) && (!fCh || p.channel===fCh));
+            
+            if(arr.length===0) { tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">-- No logs --</td></tr>`; return; }
+            let rows = [];
+            arr.slice().sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(p => {
+                let statusStr = p.channel;
+                if(p.channel === 'Accounts payable') statusStr += p.paid ? `<br><small style="color:var(--success)">[Paid: ${p.paidChannel}]</small>` : `<br><small style="color:var(--danger)">[Pending]</small>`;
+                let payBtn = (p.channel === 'Accounts payable' && !p.paid) ? `<button class="btn btn-success btn-small" onclick="markPurchasePaid('${p.id}')">Mark Paid</button>` : '';
+                rows.push(`<tr><td>${p.date}</td><td>${p.supplier}</td><td>${p.desc}</td><td class="num">${p.qty}</td><td class="num">${p.cost.toFixed(2)}</td><td class="num"><strong>${p.total.toFixed(2)}</strong></td><td>${statusStr}</td><td style="text-align:center;">${payBtn}<button class="btn btn-danger btn-small" onclick="deletePurchase('${p.id}')">Delete</button></td></tr>`);
+            });
+            tbody.innerHTML = rows.join('');
+        }
+
+        function handlePostExpense(e) {
+            e.preventDefault();
+            const date = document.getElementById('exp-date').value, tgt = document.getElementById('exp-target').value;
+            const amt = parseFloat(document.getElementById('exp-amount').value), src = document.getElementById('exp-source').value;
+            const memo = document.getElementById('exp-memo').value.trim();
+
+            let id = `EX-${Date.now().toString().slice(-5)}`;
+            const newExpense = { id, date, target: tgt, amount: amt, source: src, memo };
+            const newJournal = { id, date, desc: `Expense: ${memo}`, lines: [ { account: tgt, dr: amt, cr: 0 }, { account: CHANNEL_ACCOUNT_CODES[src], cr: amt, dr: 0 } ] };
+            state.expenseLog.push(newExpense);
+            state.journal.push(newJournal);
+            queueWrite({ kind: 'insert', table: 'expense_log', row: toDbExpense(newExpense) });
+            queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(newJournal) });
+            e.target.reset(); document.getElementById('exp-date').value = new Date().toISOString().split('T')[0]; renderExpenseLogTable();
+            addNotification('Expense Logged', `ETB ${amt.toFixed(2)} booked for ${memo}`, `Source: ${src}`);
+        }
+
+        function renderExpenseLogTable() {
+            const tbody = document.getElementById('expense-log-table-body');
+            if(state.expenseLog.length===0) { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">-- No logs --</td></tr>`; return; }
+            let rows = [];
+            state.expenseLog.slice().sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(ex => {
+                let m = CHART_OF_ACCOUNTS_MAP.find(c => c.code === ex.target);
+                rows.push(`<tr><td>${ex.date}</td><td>${ex.target} - ${m?m.name:''}</td><td>${ex.memo}</td><td class="num"><strong>${ex.amount.toFixed(2)}</strong></td><td>${ex.source}</td><td style="text-align:center;"><button class="btn btn-danger btn-small" onclick="deleteExpense('${ex.id}')">Delete</button></td></tr>`);
+            });
+            tbody.innerHTML = rows.join('');
+        }
+
+        function renderSystemCOAProfileLayouts() {
+            const tbody = document.getElementById('coa-table-body'); tbody.innerHTML = '';
+            CHART_OF_ACCOUNTS_MAP.forEach(a => { tbody.innerHTML += `<tr><td><strong>${a.main}</strong></td><td>${a.sub}</td><td><code>${a.code}</code></td><td><strong>${a.name}</strong></td><td style="text-transform:uppercase;font-size:11px;">${a.stmt}</td><td>${a.normal}</td></tr>`; });
+        }
+
+        function populateExpenseAccountDropdown() {
+            const sel = document.getElementById('exp-target'); if (!sel) return;
+            const prevVal = sel.value;
+            sel.innerHTML = '';
+            CHART_OF_ACCOUNTS_MAP.filter(a => a.main === 'Expenses').forEach(a => {
+                sel.innerHTML += `<option value="${a.code}">${a.name} (${a.code})</option>`;
+            });
+            if ([...sel.options].some(o => o.value === prevVal)) sel.value = prevVal;
+        }
+
+        function prepVoucherInputTargetDropdowns() {
+            const dr = document.getElementById('jv-dr-acc'), cr = document.getElementById('jv-cr-acc'); dr.innerHTML = ''; cr.innerHTML = '';
+            CHART_OF_ACCOUNTS_MAP.forEach(a => { let s = `<option value="${a.code}">${a.code} - ${a.name}</option>`; dr.innerHTML += s; cr.innerHTML += s; });
+            document.getElementById('jv-date').value = new Date().toISOString().split('T')[0];
+        }
+
+        function handleManualVoucher(e) {
+            e.preventDefault();
+            const date = document.getElementById('jv-date').value, desc = document.getElementById('jv-desc').value.trim();
+            const drAcc = document.getElementById('jv-dr-acc').value, drAmt = parseFloat(document.getElementById('jv-dr-amt').value);
+            const crAcc = document.getElementById('jv-cr-acc').value, crAmt = parseFloat(document.getElementById('jv-cr-amt').value);
+            if (drAmt !== crAmt) return alert("Unbalanced logic. Debits must equal Credits.");
+            const newJournal = { id: `JV-${Date.now().toString().slice(-4)}`, date, desc, lines: [ { account: drAcc, dr: drAmt, cr: 0 }, { account: crAcc, cr: crAmt, dr: 0 } ] };
+            state.journal.push(newJournal);
+            queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(newJournal) });
+            renderHistoricalJournalsTable(); e.target.reset(); prepVoucherInputTargetDropdowns(); addNotification('Journal Posted', 'Manual entry added.');
+        }
+
+        function renderHistoricalJournalsTable() {
+            const tbody = document.getElementById('journal-table-body');
+            let rows = [];
+            state.journal.slice().sort((a,b) => new Date(a.date) - new Date(b.date)).forEach(entry => {
+                if(!verifyEthiopianPeriod(entry.date)) return;
+                entry.lines.forEach((l, i) => {
+                    let m = CHART_OF_ACCOUNTS_MAP.find(a => a.code === l.account);
+                    rows.push(`<tr><td>${i===0?entry.date:''}</td><td>${i===0?`<strong>${entry.id}</strong><br><small>${entry.desc}</small>`:''}</td><td style="padding-left:${l.cr>0?'40px':'16px'}"><strong>${l.account}</strong> - ${m?m.name:''}</td><td class="num text-success">${l.dr>0?l.dr.toFixed(2):'-'}</td><td class="num text-danger">${l.cr>0?l.cr.toFixed(2):'-'}</td></tr>`);
+                });
+            });
+            tbody.innerHTML = rows.length ? rows.join('') : `<tr><td colspan="5" style="text-align:center;">-- No Logs --</td></tr>`;
+        }
+
+        function prepLedgerDropdownFilterOptions() {
+            const f = document.getElementById('ledger-filter');
+            let opts = [];
+            CHART_OF_ACCOUNTS_MAP.forEach(a => { opts.push(`<option value="${a.code}">${a.code} - ${a.name}</option>`); });
+            f.innerHTML = opts.join('');
+            renderGeneralLedgerCards();
+        }
+
+        function renderGeneralLedgerCards() {
+            const code = document.getElementById('ledger-filter').value, tbody = document.getElementById('ledger-table-body');
+            if(!code) { tbody.innerHTML = ''; return; }
+            let m = CHART_OF_ACCOUNTS_MAP.find(a => a.code === code), bal = 0, c = 0;
+            let rows = [];
+            state.journal.slice().sort((a,b) => new Date(a.date) - new Date(b.date)).forEach(en => {
+                if(!verifyEthiopianPeriod(en.date)) return;
+                en.lines.forEach(l => {
+                    if (l.account === code) {
+                        c++; let s = l.dr - l.cr; if(m.normal==="Credit") s = -s; bal += s;
+                        rows.push(`<tr><td>${en.date}</td><td><strong>${en.id}</strong> - ${en.desc}</td><td class="num">${l.dr>0?l.dr.toFixed(2):'-'}</td><td class="num">${l.cr>0?l.cr.toFixed(2):'-'}</td><td class="num"><strong>${bal.toFixed(2)}</strong></td></tr>`);
+                    }
+                });
+            });
+            tbody.innerHTML = c > 0 ? rows.join('') : `<tr><td colspan="5" style="text-align:center;">-- Empty Ledger --</td></tr>`;
+        }
+
+        function buildReports(type) {
+            const out = document.getElementById('statement-output-panel'); let bal = runAbsoluteAccountBalances();
+            if (type === 'trial') {
+                let d = 0, c = 0, s = `<h2>Trial Balance Verification</h2><table><thead><tr><th>Code</th><th>Name</th><th class="num">Debit</th><th class="num">Credit</th></tr></thead><tbody>`;
+                CHART_OF_ACCOUNTS_MAP.forEach(a => {
+                    let b = bal[a.code] || 0; if(b===0) return;
+                    if (a.normal==="Debit") { s += `<tr><td><code>${a.code}</code></td><td>${a.name}</td><td class="num">${b.toFixed(2)}</td><td class="num">-</td></tr>`; d+=b; } 
+                    else { s += `<tr><td><code>${a.code}</code></td><td>${a.name}</td><td class="num">-</td><td class="num">${b.toFixed(2)}</td></tr>`; c+=b; }
+                });
+                out.innerHTML = s + `<tr class="total-row"><td>TOTALS</td><td></td><td class="num">${d.toFixed(2)}</td><td class="num">${c.toFixed(2)}</td></tr></tbody></table>`;
+            } else if (type === 'income') {
+                let r = bal["4010"]||0, cgs = bal["5010"]||0, gp = r - cgs;
+                let u = bal["6010"]||0, sal = bal["6020"]||0, tx = bal["6030"]||0, ex = u+sal+tx, net = gp - ex;
+                out.innerHTML = `<h2>Income Statement</h2><table><tr style="background:#f1f5f9;"><td colspan="2"><strong>Revenues</strong></td></tr><tr><td style="padding-left:24px;">Sales (4010)</td><td class="num">${r.toFixed(2)}</td></tr><tr class="total-row"><td>Total Revenue</td><td class="num">${r.toFixed(2)}</td></tr><tr style="background:#f1f5f9;"><td colspan="2"><strong>Costs</strong></td></tr><tr><td style="padding-left:24px;">COGS (5010)</td><td class="num">(${cgs.toFixed(2)})</td></tr><tr class="total-row"><td>Gross Profit</td><td class="num">${gp.toFixed(2)}</td></tr><tr style="background:#f1f5f9;"><td colspan="2"><strong>Expenses</strong></td></tr><tr><td style="padding-left:24px;">Utility (6010)</td><td class="num">${u.toFixed(2)}</td></tr><tr><td style="padding-left:24px;">Salary (6020)</td><td class="num">${sal.toFixed(2)}</td></tr><tr><td style="padding-left:24px;">Taxes (6030)</td><td class="num">${tx.toFixed(2)}</td></tr><tr class="total-row"><td>Total Expenses</td><td class="num">(${ex.toFixed(2)})</td></tr><tr class="total-row" style="background:#f0fdf4;"><td>NET INCOME</td><td class="num text-success">${net.toFixed(2)}</td></tr></table>`;
+            } else if (type === 'balance') {
+                let csh = bal["1010"]||0, mb = bal["1020"]||0, ar = bal["1300"]||0, inv = state.inventory.reduce((acc, i)=>acc+i.lots.reduce((a,l)=>a+(l.qty*l.cost),0),0);
+                let ast = csh + mb + inv + ar, ap = bal["2010"]||0, eq = bal["3010"]||0;
+                let r = bal["4010"]||0, cgs = bal["5010"]||0, ex = (bal["6010"]||0)+(bal["6020"]||0)+(bal["6030"]||0), ret = r - cgs - ex;
+                out.innerHTML = `<h2>Balance Sheet</h2><table><thead><tr style="background:var(--secondary); color:white;"><th colspan="2">ASSETS</th></tr></thead><tbody><tr><td>Cash (1010)</td><td class="num">${csh.toFixed(2)}</td></tr><tr><td>Mobile banking (1020)</td><td class="num">${mb.toFixed(2)}</td></tr><tr><td>Inventory (1200)</td><td class="num">${inv.toFixed(2)}</td></tr><tr><td>Accounts receivable (1300)</td><td class="num">${ar.toFixed(2)}</td></tr><tr class="total-row" style="background:#e2e8f0;"><td>TOTAL ASSETS</td><td class="num">${ast.toFixed(2)}</td></tr><thead><tr style="background:var(--secondary); color:white;"><th colspan="2">LIABILITIES & EQUITY</th></tr></thead><tr><td>Accounts payable (2010)</td><td class="num">${ap.toFixed(2)}</td></tr><tr><td>Equity Capital (3010)</td><td class="num">${eq.toFixed(2)}</td></tr><tr><td>Retained Earnings</td><td class="num">${ret.toFixed(2)}</td></tr><tr class="total-row" style="background:#e2e8f0;"><td>TOTAL LIABILITIES & EQUITY</td><td class="num">${(ap+eq+ret).toFixed(2)}</td></tr></tbody></table>`;
+            }
+        }
+
+        function exportBackupData() {
+            let blob = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
+            let a = document.createElement('a'); a.setAttribute("href", blob); a.setAttribute("download", `NEBA_ELECTRICAL_ERP_BACKUP_${new Date().toISOString().split('T')[0]}.json`); a.click();
+        }
+
+        function importBackupData() {
+            let inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json';
+            inp.onchange = e => {
+                let r = new FileReader(); r.readAsText(e.target.files[0], 'UTF-8');
+                r.onload = async ev => {
+                    try {
+                        const imported = JSON.parse(ev.target.result);
+                        if (!confirm('This will REPLACE all current data for this shop with the contents of the backup file. Continue?')) return;
+                        applyImportedState(imported);
+                        await bulkReplaceAllData();
+                        alert("Restored Successfully.");
+                        location.reload();
+                    } catch(err) { alert("Invalid File."); }
+                }
+            }
+            inp.click();
+        }
+
+        setInterval(() => { const c = document.getElementById('clock'); if(c) c.innerText = new Date().toLocaleString(); }, 1000);
+
+        // ---------------------------------------------------------------
+        // SESSION CHECK — if the browser already has a signed-in session
+        // (returning visitor), skip straight past the login screen.
+        // ---------------------------------------------------------------
+        (async function initAuthGate() {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session) {
+                await onLoginSuccess(session.user, false);
+            }
+        })();
+
+        // Cache the app shell so it can still open with no internet connection.
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch((err) => console.warn('Service worker registration failed:', err));
+            });
+        }
+    </script>
+</body>
+</html>
