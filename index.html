@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MY INVENTORY</title>
+    <title>NEBA ERP - Multi-Shop Console</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -309,6 +309,7 @@
             </div>
             <button class="btn btn-success" style="width:100%; margin-top:6px;" onclick="completeBusinessSetup()">Finish Setup</button>
             <div id="biz-setup-loading" style="display:none; text-align:center; margin-top:14px; font-size:12px; color:var(--text-light);">Setting up your shop...</div>
+            <div style="text-align:center; margin-top:16px;"><a href="#" onclick="event.preventDefault(); handleSignOut();" style="font-size:12px; color:var(--text-light);">Not you? Sign out</a></div>
         </div>
     </div>
 
@@ -1974,7 +1975,12 @@
             } catch (err) {
                 console.error('Bulk save failed:', err);
                 setSyncIndicator(looksLikeNetworkError(err) ? 'offline' : 'failed');
-                alert('We could not save this to the cloud. Please check your internet connection and try again.');
+                if (looksLikeNetworkError(err)) {
+                    alert('We could not save this to the cloud. Please check your internet connection and try again.');
+                } else {
+                    alert('We could not save this to the cloud: ' + (err?.message || String(err)));
+                }
+                err.alreadyAlerted = true;
                 throw err;
             }
         }
@@ -4587,14 +4593,28 @@
             inp.onchange = e => {
                 let r = new FileReader(); r.readAsText(e.target.files[0], 'UTF-8');
                 r.onload = async ev => {
+                    let imported;
                     try {
-                        const imported = JSON.parse(ev.target.result);
-                        if (!confirm('This will REPLACE ALL current data for this shop — every branch, not just the one you\'re viewing — with the contents of the backup file. Continue?')) return;
+                        imported = JSON.parse(ev.target.result);
+                    } catch (err) {
+                        return alert("Invalid File — this doesn't look like a valid backup (.json) file.");
+                    }
+                    if (!confirm('This will REPLACE ALL current data for this shop — every branch, not just the one you\'re viewing — with the contents of the backup file. Continue?')) return;
+                    try {
                         applyImportedState(imported);
                         await bulkReplaceAllData();
                         alert("Restored Successfully.");
                         location.reload();
-                    } catch(err) { alert("Invalid File."); }
+                    } catch (err) {
+                        // bulkReplaceAllData already showed the specific reason
+                        // it failed (network vs. a real save error) — don't
+                        // pile a second, misleading "Invalid File" alert on top.
+                        // But if something else went wrong (e.g. the backup's
+                        // contents were malformed), the person still needs to
+                        // know — nothing above will have told them yet.
+                        console.error('Restore failed:', err);
+                        if (!err?.alreadyAlerted) alert("Could not restore this backup: " + (err?.message || String(err)));
+                    }
                 }
             }
             inp.click();
