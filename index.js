@@ -11,11 +11,13 @@
 // keep seeing the old app until the cache naturally expires.
 // =====================================================================
 
-const CACHE_NAME = 'neba-erp-shell-v4';
+const CACHE_NAME = 'neba-erp-shell-v5';
 
-const ASSETS_TO_CACHE = [
-  './',
-  './index.html',
+// The app itself — these MUST be cached or offline opening is impossible.
+const CORE_ASSETS = ['./', './index.html'];
+// Third-party libraries — nice to have cached, but a hiccup fetching one
+// of these should never be allowed to block the core assets above.
+const LIBRARY_ASSETS = [
   'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
   'https://cdn.jsdelivr.net/npm/chart.js',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
@@ -23,9 +25,14 @@ const ASSETS_TO_CACHE = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(ASSETS_TO_CACHE))
-      .catch(() => { /* fine if a CDN asset fails to pre-cache; it'll be cached on first successful fetch instead */ })
+    caches.open(CACHE_NAME).then(async (cache) => {
+      // Cache every asset individually (not cache.addAll, which is
+      // all-or-nothing — one failed fetch would silently wipe out the
+      // whole batch, including index.html itself).
+      const cacheOne = (url) => cache.add(url).catch((err) => console.warn('Pre-cache failed for', url, err));
+      await Promise.all(CORE_ASSETS.map(cacheOne));
+      await Promise.all(LIBRARY_ASSETS.map(cacheOne));
+    })
   );
   self.skipWaiting();
 });
@@ -54,7 +61,16 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         })
-        .catch(() => cached); // offline and not cached yet — nothing more we can do for this request
+        .catch(async () => {
+          if (cached) return cached;
+          // Offline, nothing cached under this exact URL — for a page
+          // navigation, fall back to the cached app shell itself rather
+          // than letting the browser show its own "no internet" page.
+          if (event.request.mode === 'navigate') {
+            return (await caches.match('./index.html')) || (await caches.match('./'));
+          }
+          return undefined;
+        });
 
       // Cache-first: show the saved copy instantly if we have one, while
       // quietly checking the network in the background for next time.
