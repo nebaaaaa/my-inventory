@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEBA ERP - Multi-Shop Console</title>
+    <title>My Inventory - Multi-Shop Console</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -317,7 +317,7 @@
     <div id="onboarding-overlay" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:5000; align-items:center; justify-content:center; padding:40px 16px; overflow-y:auto;">
         <div class="modal-box" style="max-width:480px; width:100%;">
             <h2 style="color:var(--primary); margin-bottom:12px;">Welcome! Let's set up your shop.</h2>
-            <p style="font-size:13px; color:var(--text-light); margin-bottom:16px;">If you already have a NEBA ERP backup file (a <code>.json</code> file exported using the "Backup" button), upload it now to bring your existing data over. Otherwise, just start fresh with an empty shop.</p>
+            <p style="font-size:13px; color:var(--text-light); margin-bottom:16px;">If you already have a My Inventory backup file (a <code>.json</code> file exported using the "Backup" button), upload it now to bring your existing data over. Otherwise, just start fresh with an empty shop.</p>
             <div class="form-group" style="display:block; width:100%; margin-bottom:16px;">
                 <label>Upload Backup File (optional)</label>
                 <input type="file" id="onboarding-file" accept=".json" style="width:100%;">
@@ -343,7 +343,7 @@
     <aside id="sidebar">
         <div class="sidebar-scroll-inner">
         <div>
-            <div class="brand" id="shop-brand-name">NEBA ERP</div>
+            <div class="brand" id="shop-brand-name">MY INVENTORY</div>
             <nav>
                 <button onclick="switchView('dashboard')" class="active" id="nav-dashboard">📊 Dashboard</button>
                 <button onclick="switchView('inventory')" id="nav-inventory">📦 Inventory/Stock</button>
@@ -1586,7 +1586,7 @@
                     await bulkReplaceAllData();
                 } catch (err) {
                     document.getElementById('onboarding-loading').style.display = 'none';
-                    alert('That file could not be read. Please check it is a valid NEBA ERP backup .json file.');
+                    alert('That file could not be read. Please check it is a valid My Inventory backup .json file.');
                     return;
                 }
                 document.getElementById('onboarding-loading').style.display = 'none';
@@ -2098,7 +2098,8 @@
                     XLSX.utils.book_append_sheet(wb, ws, "Report Data");
                     
                     const timestamp = new Date().toISOString().slice(0,10);
-                    XLSX.writeFile(wb, `NEBA_${mod.toUpperCase()}_Report_${timestamp}.xlsx`);
+                    const safeBizName = (currentTenantName || 'Shop').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+                    XLSX.writeFile(wb, `${safeBizName}_${mod.toUpperCase()}_Report_${timestamp}.xlsx`);
                     
                     closeExportHub();
                 } catch(err) {
@@ -4580,7 +4581,8 @@
             try {
                 const fullBackup = await buildFullBusinessBackup();
                 let blob = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(fullBackup));
-                let a = document.createElement('a'); a.setAttribute("href", blob); a.setAttribute("download", `NEBA_ELECTRICAL_ERP_BACKUP_${new Date().toISOString().split('T')[0]}.json`); a.click();
+                const safeBizName = (currentTenantName || 'Shop').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+                let a = document.createElement('a'); a.setAttribute("href", blob); a.setAttribute("download", `My_Inventory_Backup_${safeBizName}_${new Date().toISOString().split('T')[0]}.json`); a.click();
             } catch (err) {
                 alert('Could not prepare the backup: ' + err.message);
             } finally {
