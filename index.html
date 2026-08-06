@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Inventory - Multi-Shop Console</title>
+    <title>My Inventory</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -77,7 +77,7 @@
         input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(169,117,47,0.14); }
 
         /* Checkboxes: shape/spacing refined, color left as browser default */
-        input[type="checkbox"] { width: 15px; height: 15px; border-radius: 4px; cursor: pointer; vertical-align: middle; margin: 0; }
+        input[type="checkbox"] { width: 15px; height: 15px; min-width: 15px; border-radius: 4px; cursor: pointer; vertical-align: middle; margin: 0; flex: 0 0 auto; }
         .check-label { display: inline-flex; align-items: center; gap: 5px; text-transform: none; font-weight: normal; font-size: 13px; cursor: pointer; }
 
         /* Roles & Permissions: per-page View/Edit rows */
@@ -672,11 +672,15 @@
                         <div class="form-group"><label>Supplier Name</label><input type="text" id="pur-supplier" list="supplier-list" placeholder="e.g., Global Distributors" required onfocus="syncSupplierList()"><datalist id="supplier-list"></datalist></div>
                         <div class="form-group">
                             <label>Item</label>
-                            <input type="text" id="pur-item" list="pur-item-list" placeholder="Type to filter..." style="min-width: 300px;" required autocomplete="off">
+                            <input type="text" id="pur-item" list="pur-item-list" placeholder="Type to filter..." style="min-width: 300px;" required autocomplete="off" oninput="handlePurchaseItemPicked()">
                             <datalist id="pur-item-list"></datalist>
                         </div>
                         <div class="form-group"><label>Quantity</label><input type="number" id="pur-qty" min="1" value="1" required oninput="syncPurchaseAmountPaidDefault()"></div>
-                        <div class="form-group"><label>Cost (ETB)</label><input type="number" id="pur-price" step="0.01" min="0.01" required oninput="syncPurchaseAmountPaidDefault()"></div>
+                        <div class="form-group" id="pur-price-group"><label>Cost (ETB)</label><input type="number" id="pur-price" step="0.01" min="0.01" required oninput="this.dataset.touched='1'; syncPurchaseAmountPaidDefault()"></div>
+                        <div class="form-group" id="pur-price-locked-note" style="display:none;">
+                            <label>Cost (ETB)</label>
+                            <div id="pur-price-locked-text" style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:180px;">🔒</div>
+                        </div>
                         <div class="form-group"><label>Selling Price (Optional)</label><input type="number" id="pur-selling-price" step="0.01" placeholder="Leave blank to skip"></div>
                         <div class="form-group">
                             <label>Amount Paid Now (ETB)</label>
@@ -702,10 +706,14 @@
                     <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; border-bottom:1px solid var(--border); padding-bottom:16px; margin-bottom:16px;">
                         <div class="form-group" style="margin-bottom:0;">
                             <label>Item</label>
-                            <input type="text" id="cart-pur-item" list="pur-item-list" placeholder="Type to filter..." style="min-width: 260px;" autocomplete="off">
+                            <input type="text" id="cart-pur-item" list="pur-item-list" placeholder="Type to filter..." style="min-width: 260px;" autocomplete="off" oninput="handleCartPurchaseItemPicked()">
                         </div>
                         <div class="form-group" style="margin-bottom:0;"><label>Quantity</label><input type="number" id="cart-pur-qty" min="1" value="1" style="min-width:90px;"></div>
-                        <div class="form-group" style="margin-bottom:0;"><label>Cost (ETB)</label><input type="number" id="cart-pur-price" step="0.01" min="0.01" style="min-width:110px;"></div>
+                        <div class="form-group" style="margin-bottom:0;" id="cart-pur-price-group"><label>Cost (ETB)</label><input type="number" id="cart-pur-price" step="0.01" min="0.01" style="min-width:110px;"></div>
+                        <div class="form-group" style="margin-bottom:0; display:none;" id="cart-pur-price-locked-note">
+                            <label>Cost (ETB)</label>
+                            <div id="cart-pur-price-locked-text" style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:110px;">🔒 Auto</div>
+                        </div>
                         <div class="form-group" style="margin-bottom:0;"><label>Selling Price (Optional)</label><input type="number" id="cart-pur-selling-price" step="0.01" placeholder="Skip to leave" style="min-width:130px;"></div>
                         <button type="button" class="btn" onclick="addToPurchaseCart()">+ Add to Basket</button>
                     </div>
@@ -1163,6 +1171,8 @@
                 const el = document.getElementById(id);
                 if (el) el.style.display = visible ? 'block' : 'none';
             });
+
+            applyPurchaseCostFieldPermissionUI();
 
             // Backup and Restore touch the entire business's data at once, so
             // they're gated behind their own permissions (data.backup /
@@ -2182,7 +2192,7 @@
             if (viewId === 'inventory') { resetProductForm(); renderPerpetualInventoryTable(); }
             if (viewId === 'transfer') initStockTransferCard();
             if (viewId === 'sales') { syncTransactionalProductDropdownOptions(); renderSalesLogTable(); }
-            if (viewId === 'purchase') { syncTransactionalProductDropdownOptions(); renderPurchaseLogTable(); }
+            if (viewId === 'purchase') { syncTransactionalProductDropdownOptions(); renderPurchaseLogTable(); applyPurchaseCostFieldPermissionUI(); }
             if (viewId === 'expenses') renderExpenseLogTable();
             if (viewId === 'coa') renderSystemCOAProfileLayouts();
             if (viewId === 'journal') { prepVoucherInputTargetDropdowns(); renderHistoricalJournalsTable(); }
@@ -3632,6 +3642,82 @@
             document.getElementById('sale-channel-group').style.display = amt > 0 ? 'inline-block' : 'none';
         }
 
+        // ---------------------------------------------------------------
+        // LAST PURCHASE COST — convenience auto-fill, and the mandatory
+        // source of truth for employees who can record purchases but
+        // aren't allowed to see cost prices. We look this up from the
+        // purchase history (not from item.lots) because lots get consumed
+        // by sales and moved by transfers, so purchaseLog is the reliable
+        // record of "what did we last actually pay for this item".
+        // ---------------------------------------------------------------
+        function getLastPurchaseCost(comp) {
+            const matches = state.purchaseLog.filter(p => p.desc === comp);
+            if (!matches.length) return null;
+            matches.sort((a, b) => (b.date || '').localeCompare(a.date || '') || String(b.id).localeCompare(String(a.id)));
+            return matches[0].cost;
+        }
+
+        // Shows/hides the real Cost input vs. the "set automatically" note
+        // based on whether this session can view cost prices. Called on
+        // permission load and whenever the purchase view is opened.
+        function applyPurchaseCostFieldPermissionUI() {
+            const canSeeCost = hasPerm('inventory.view_cost');
+            const group = document.getElementById('pur-price-group');
+            const note = document.getElementById('pur-price-locked-note');
+            if (group && note) {
+                group.style.display = canSeeCost ? 'block' : 'none';
+                note.style.display = canSeeCost ? 'none' : 'block';
+                document.getElementById('pur-price').required = canSeeCost;
+            }
+            const cartGroup = document.getElementById('cart-pur-price-group');
+            const cartNote = document.getElementById('cart-pur-price-locked-note');
+            if (cartGroup && cartNote) {
+                cartGroup.style.display = canSeeCost ? 'block' : 'none';
+                cartNote.style.display = canSeeCost ? 'none' : 'block';
+            }
+        }
+
+        function handlePurchaseItemPicked() {
+            const comp = document.getElementById('pur-item').value;
+            const item = state.inventory.find(i => `[${i.category}] ${i.desc}` === comp);
+            if (!item) return;
+            const lastCost = getLastPurchaseCost(comp);
+            const canSeeCost = hasPerm('inventory.view_cost');
+            const priceField = document.getElementById('pur-price');
+            if (!canSeeCost) {
+                // Not shown to the user at all — just kept ready for submit.
+                priceField.value = lastCost !== null ? lastCost : '';
+                const noteEl = document.getElementById('pur-price-locked-text');
+                if (noteEl) {
+                    noteEl.textContent = lastCost !== null
+                        ? '🔒 Set automatically from last purchase'
+                        : '⚠️ No purchase history yet — ask an owner to record the first purchase for this item';
+                }
+            } else if (priceField.dataset.touched !== '1' && lastCost !== null) {
+                // Convenience prefill only; they can still change it.
+                priceField.value = lastCost;
+            }
+            syncPurchaseAmountPaidDefault();
+        }
+
+        function handleCartPurchaseItemPicked() {
+            const comp = document.getElementById('cart-pur-item').value;
+            const item = state.inventory.find(i => `[${i.category}] ${i.desc}` === comp);
+            if (!item) return;
+            const lastCost = getLastPurchaseCost(comp);
+            const canSeeCost = hasPerm('inventory.view_cost');
+            const priceField = document.getElementById('cart-pur-price');
+            if (!canSeeCost) {
+                priceField.value = lastCost !== null ? lastCost : '';
+                const noteEl = document.getElementById('cart-pur-price-locked-text');
+                if (noteEl) {
+                    noteEl.textContent = lastCost !== null ? '🔒 Auto' : '⚠️ No history';
+                }
+            } else if (!priceField.value && lastCost !== null) {
+                priceField.value = lastCost;
+            }
+        }
+
         function syncPurchaseAmountPaidDefault() {
             const amtField = document.getElementById('pur-amount-paid');
             if (amtField.dataset.touched !== '1') {
@@ -4108,6 +4194,7 @@
         function togglePurchaseCartMode(showCart) {
             document.getElementById('purchase-entry-card').style.display = showCart ? 'none' : 'block';
             document.getElementById('purchase-cart-card').style.display = showCart ? 'block' : 'none';
+            applyPurchaseCostFieldPermissionUI();
             if (showCart) {
                 const today = new Date().toISOString().split('T')[0];
                 document.getElementById('cart-pur-date').value = today;
@@ -4121,11 +4208,18 @@
         function addToPurchaseCart() {
             const comp = document.getElementById('cart-pur-item').value;
             const qty = parseInt(document.getElementById('cart-pur-qty').value);
-            const cost = parseFloat(document.getElementById('cart-pur-price').value);
             const spInput = document.getElementById('cart-pur-selling-price').value;
             const item = state.inventory.find(i => `[${i.category}] ${i.desc}` === comp);
             if (!item) return alert('Select a valid item from the dropdown.');
             if (!qty || qty < 1) return alert('Enter a valid quantity.');
+
+            let cost;
+            if (hasPerm('inventory.view_cost')) {
+                cost = parseFloat(document.getElementById('cart-pur-price').value);
+            } else {
+                cost = getLastPurchaseCost(comp);
+                if (cost === null) return alert("This item has never been purchased before, so there's no price to reuse. Ask someone with cost access to record its first purchase.");
+            }
             if (!cost || cost <= 0) return alert('Enter a valid cost.');
 
             purchaseCart.push({ comp, desc: item.desc, qty, cost, sellingPrice: spInput !== '' && !isNaN(parseFloat(spInput)) ? parseFloat(spInput) : null });
@@ -4237,10 +4331,22 @@
             e.preventDefault();
             const date = document.getElementById('pur-date').value, sup = document.getElementById('pur-supplier').value.trim();
             const comp = document.getElementById('pur-item').value, qty = parseInt(document.getElementById('pur-qty').value);
-            const cost = parseFloat(document.getElementById('pur-price').value), spInput = document.getElementById('pur-selling-price').value;
+            const spInput = document.getElementById('pur-selling-price').value;
 
             let item = state.inventory.find(i => `[${i.category}] ${i.desc}` === comp);
             if(!item) return alert("Select a valid item string.");
+
+            let cost;
+            if (hasPerm('inventory.view_cost')) {
+                cost = parseFloat(document.getElementById('pur-price').value);
+            } else {
+                // Cost field is hidden from this session — always use the
+                // real last purchase price, never whatever's sitting in the
+                // (hidden) field, so it can't be tampered with client-side.
+                cost = getLastPurchaseCost(comp);
+                if (cost === null) return alert("This item has never been purchased before, so there's no price to reuse. Ask someone with cost access to record its first purchase.");
+            }
+            if (!cost || cost <= 0) return alert("Enter a valid cost.");
 
             const tot = qty * cost;
             let amountPaidNow = parseFloat(document.getElementById('pur-amount-paid').value);
@@ -4282,6 +4388,7 @@
             queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(newJournal) });
             if (priceChanged) queueWrite({ kind: 'update', table: 'inventory_items', id: item.id, patch: { selling_price: item.sellingPrice } });
             e.target.reset(); document.getElementById('pur-amount-paid').dataset.touched = '';
+            document.getElementById('pur-price').dataset.touched = '';
             syncTransactionalProductDropdownOptions(); renderPurchaseLogTable();
             addNotification('Stock Purchased', `Added ${qty} units of ${item.desc}`, `Total Cost: ETB ${tot.toFixed(2)}${amountPaidNow > 0 ? ' (ETB ' + amountPaidNow.toFixed(2) + ' paid now via ' + chan + (remaining > 0 ? ', ETB ' + remaining.toFixed(2) + ' owed)' : ')') : ' (fully on credit)'}`);
         }
