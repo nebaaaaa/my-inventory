@@ -554,7 +554,7 @@
                 </div>
                 <div class="card" id="stock-transfer-unavailable-card" style="display:none;">
                     <h2>Transfer Stock Between Branches</h2>
-                    <p style="color:var(--text-light);">Stock transfers need more than one branch on your account and permission to edit products.</p>
+                    <p style="color:var(--text-light);">Stock transfers need more than one branch on your account and permission to transfer stock.</p>
                 </div>
             </div>
 
@@ -1531,7 +1531,7 @@
             }
             accessibleBranches = accessible;
             const transferNav = document.getElementById('nav-transfer');
-            if (transferNav) transferNav.style.display = (accessibleBranches.length > 1 && hasPerm('inventory.edit_products')) ? 'flex' : 'none';
+            if (transferNav) transferNav.style.display = (accessibleBranches.length > 1 && hasPerm('inventory.transfer')) ? 'flex' : 'none';
 
             // Remember the last branch this person worked in, on this device,
             // so returning to the app doesn't reset them back to Main Branch
@@ -2958,6 +2958,7 @@
                     }
                 });
                 let cL = activeStrings.join(' &rarr; ') || '0.00';
+                const canSeeCost = hasPerm('inventory.view_cost');
 
                 let btns = `${hasPerm('inventory.edit_products') ? `<button class="btn btn-small" onclick="initiateEditProductDefinition(${index})">Edit</button>
                             <button class="btn btn-danger btn-small" onclick="executeVoidProductState(${index})">Delete</button>` : ''}
@@ -2970,9 +2971,9 @@
                 tbody.innerHTML += `<tr>
                     <td><small>${item.category}</small></td>
                     <td><strong>${item.desc}</strong>${item.history&&item.history.length>0?'<span class="audit-badge badge-edited">EDITED</span>':''}</td>
-                    <td class="num">${tQ}</td><td class="num price-trace">${cL}</td>
+                    <td class="num">${tQ}</td><td class="num price-trace">${canSeeCost ? cL : '—'}</td>
                     <td class="num">${priceCell}</td>
-                    <td class="num"><strong>${tV.toFixed(2)}</strong></td>
+                    <td class="num"><strong>${canSeeCost ? tV.toFixed(2) : '—'}</strong></td>
                     <td style="text-align: center;">${btns || '<span style="color:var(--text-light); font-size:12px;">—</span>'}</td>
                 </tr>`;
             });
@@ -2998,7 +2999,7 @@
             const unavailableCard = document.getElementById('stock-transfer-unavailable-card');
             const navBtn = document.getElementById('nav-transfer');
             if (!card) return;
-            const canTransfer = accessibleBranches.length > 1 && hasPerm('inventory.edit_products');
+            const canTransfer = accessibleBranches.length > 1 && hasPerm('inventory.transfer');
             if (navBtn) navBtn.style.display = canTransfer ? 'flex' : 'none';
             card.style.display = canTransfer ? 'block' : 'none';
             if (unavailableCard) unavailableCard.style.display = canTransfer ? 'none' : 'block';
@@ -3136,7 +3137,7 @@
         // the form "<transferId>-<originalLotId>", so we can find exactly
         // which lots came from this transfer and hand them straight back.
         async function deleteStockTransfer(transferId, btnEl) {
-            if (!hasPerm('inventory.edit_products')) return alert("You don't have permission to undo stock transfers.");
+            if (!hasPerm('inventory.transfer')) return alert("You don't have permission to undo stock transfers.");
             const row = lastTransferRows.find(t => t.id === transferId);
             if (!row) return alert('Could not find that transfer. Try refreshing.');
             if (isBranchClosed(row.from_branch_id) || isBranchClosed(row.to_branch_id)) {
@@ -4826,7 +4827,7 @@
             }
             accessibleBranches = accessible;
             const transferNav = document.getElementById('nav-transfer');
-            if (transferNav) transferNav.style.display = (accessibleBranches.length > 1 && hasPerm('inventory.edit_products')) ? 'flex' : 'none';
+            if (transferNav) transferNav.style.display = (accessibleBranches.length > 1 && hasPerm('inventory.transfer')) ? 'flex' : 'none';
         }
 
         // Only shown at all once there's more than one branch to choose from —
@@ -5169,7 +5170,9 @@
             { key: 'dashboard', label: 'Dashboard / Statements / Ledger / Chart of Accounts', viewPerm: 'reports.view', actions: [] },
             { key: 'inventory', label: 'Inventory/Stock', viewPerm: 'inventory.view', actions: [
                 { key: 'inventory.edit_products', label: 'Add / edit product catalog' },
-                { key: 'inventory.adjust_price', label: 'Change selling prices' }
+                { key: 'inventory.adjust_price', label: 'Change selling prices' },
+                { key: 'inventory.view_cost', label: 'View cost prices / cost of goods' },
+                { key: 'inventory.transfer', label: 'Transfer stock between branches' }
             ]},
             { key: 'sales', label: 'Sales', viewPerm: 'sales.view', actions: [
                 { key: 'sales.create', label: 'Record sales' },
@@ -5331,9 +5334,15 @@
             });
 
             const checked = Array.from(toSave);
-            await supabaseClient.from('role_permissions').delete().eq('role_id', roleId);
+            const { error: delErr } = await supabaseClient.from('role_permissions').delete().eq('role_id', roleId);
+            if (delErr) return alert('Could not save permissions: ' + delErr.message);
             if (checked.length) {
-                await supabaseClient.from('role_permissions').insert(checked.map(key => ({ role_id: roleId, permission_key: key })));
+                const { error: insErr } = await supabaseClient.from('role_permissions').insert(checked.map(key => ({ role_id: roleId, permission_key: key })));
+                if (insErr) {
+                    alert('Permissions were cleared but the new ones could not be saved: ' + insErr.message + '\n\nThis role currently has NO permissions until this is fixed — please report this exact message.');
+                    renderRolesPermissionEditor();
+                    return;
+                }
             }
             alert('Permissions saved. Anyone with this role will see the change next time they open the app.');
         }
