@@ -348,6 +348,7 @@
                 <button onclick="switchView('dashboard')" class="active" id="nav-dashboard">📊 Dashboard</button>
                 <button onclick="switchView('inventory')" id="nav-inventory">📦 Inventory/Stock</button>
                 <button onclick="switchView('transfer')" id="nav-transfer" style="display:none;">🔀 Transfer</button>
+                <button onclick="switchView('cash_handover')" id="nav-cash-handover" style="display:none;">💵 Cash Handover</button>
                 <button onclick="switchView('sales')" id="nav-sales">💰 Sales</button>
                 <button onclick="switchView('purchase')" id="nav-purchase">🛒 Purchase</button>
                 <button onclick="switchView('expenses')" id="nav-expenses">💸 Expense</button>
@@ -558,6 +559,45 @@
                 </div>
             </div>
 
+            <div id="view-cash_handover" class="view-panel">
+                <div class="card" id="cash-handover-employee-card" style="display:none;">
+                    <h2>Cash Handover</h2>
+                    <div id="cash-handover-balance-box" style="background:var(--bg); border-radius:10px; padding:18px; margin-bottom:20px;">
+                        <div style="font-size:12px; color:var(--text-light); text-transform:uppercase; letter-spacing:0.5px;">Cash you're currently holding at <span id="cash-handover-branch-name">this branch</span></div>
+                        <div id="cash-handover-balance-amount" style="font-size:32px; font-weight:700; color:var(--primary); margin-top:4px;">ETB 0.00</div>
+                    </div>
+                    <form id="cash-handover-form" onsubmit="submitCashHandover(event)">
+                        <div class="form-group"><label>Amount Handing Over (ETB)</label><input type="number" id="cash-handover-amount" step="0.01" min="0.01" required></div>
+                        <div class="form-group"><label>Note (Optional)</label><input type="text" id="cash-handover-note" placeholder="e.g. End of day handover"></div>
+                        <div class="form-group" style="padding-top:22px;"><button type="submit" class="btn">Submit Handover</button></div>
+                    </form>
+                    <p style="font-size:12px; color:var(--text-light); margin-top:-8px;">This won't reduce your balance above until the owner approves it.</p>
+                    <h2 style="margin-top:24px;">Your Handover History</h2>
+                    <table>
+                        <thead><tr><th>Date</th><th class="num">Amount</th><th>Note</th><th>Status</th></tr></thead>
+                        <tbody id="cash-handover-my-history-body"></tbody>
+                    </table>
+                </div>
+
+                <div class="card" id="cash-handover-owner-pending-card" style="display:none;">
+                    <h2>Pending Cash Handovers</h2>
+                    <table>
+                        <thead><tr><th>Date</th><th>Employee</th><th>Branch</th><th class="num">Amount</th><th>Note</th><th style="text-align:center;">Actions</th></tr></thead>
+                        <tbody id="cash-handover-pending-body"></tbody>
+                    </table>
+                    <h2 style="margin-top:24px;">All Handover History</h2>
+                    <table>
+                        <thead><tr><th>Date</th><th>Employee</th><th>Branch</th><th class="num">Amount</th><th>Note</th><th>Status</th><th>Decided By</th></tr></thead>
+                        <tbody id="cash-handover-all-history-body"></tbody>
+                    </table>
+                </div>
+
+                <div class="card" id="cash-handover-unavailable-card" style="display:none;">
+                    <h2>Cash Handover</h2>
+                    <p style="color:var(--text-light);">You don't have permission to use Cash Handover.</p>
+                </div>
+            </div>
+
             <div id="view-sales" class="view-panel">
                 <div class="card" id="sales-entry-card">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -682,9 +722,13 @@
                             <div id="pur-price-locked-text" style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:180px;">🔒</div>
                         </div>
                         <div class="form-group"><label>Selling Price (Optional)</label><input type="number" id="pur-selling-price" step="0.01" placeholder="Leave blank to skip"></div>
-                        <div class="form-group">
+                        <div class="form-group" id="pur-amount-paid-group">
                             <label>Amount Paid Now (ETB)</label>
                             <input type="number" id="pur-amount-paid" step="0.01" min="0" oninput="handlePurchaseAmountPaidInput()" title="Leave less than the total for a down payment (or blank/0 for fully on credit) — the rest is tracked as owed to the supplier">
+                        </div>
+                        <div class="form-group" id="pur-amount-paid-locked-note" style="display:none;">
+                            <label>Amount Paid Now (ETB)</label>
+                            <div style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:180px;">🔒</div>
                         </div>
                         <div class="form-group" id="pur-channel-group">
                             <label>Channel</label>
@@ -712,7 +756,7 @@
                         <div class="form-group" style="margin-bottom:0;" id="cart-pur-price-group"><label>Cost (ETB)</label><input type="number" id="cart-pur-price" step="0.01" min="0.01" style="min-width:110px;"></div>
                         <div class="form-group" style="margin-bottom:0; display:none;" id="cart-pur-price-locked-note">
                             <label>Cost (ETB)</label>
-                            <div id="cart-pur-price-locked-text" style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:110px;">🔒 Auto</div>
+                            <div id="cart-pur-price-locked-text" style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:110px;">🔒</div>
                         </div>
                         <div class="form-group" style="margin-bottom:0;"><label>Selling Price (Optional)</label><input type="number" id="cart-pur-selling-price" step="0.01" placeholder="Skip to leave" style="min-width:130px;"></div>
                         <button type="button" class="btn" onclick="addToPurchaseCart()">+ Add to Basket</button>
@@ -726,9 +770,13 @@
                             <div style="display:flex; justify-content:space-between; font-size:15px; font-weight:700; color:var(--primary); margin-bottom:12px;">
                                 <span>Basket Total</span><span class="num" id="purchase-cart-total">ETB 0.00</span>
                             </div>
-                            <div class="form-group" style="display:block; width:100%; margin-bottom:12px;">
+                            <div class="form-group" id="cart-pur-amount-paid-group" style="display:block; width:100%; margin-bottom:12px;">
                                 <label>Amount Paid Now (ETB)</label>
                                 <input type="number" id="cart-pur-amount-paid" step="0.01" min="0" style="width:100%;" oninput="handleCartPurchaseAmountPaidInput()">
+                            </div>
+                            <div class="form-group" id="cart-pur-amount-paid-locked-note" style="display:none; width:100%; margin-bottom:12px;">
+                                <label>Amount Paid Now (ETB)</label>
+                                <div style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border);">🔒</div>
                             </div>
                             <div class="form-group" id="cart-pur-channel-group" style="display:block; width:100%; margin-bottom:12px;">
                                 <label>Channel</label>
@@ -992,9 +1040,12 @@
             <h3 id="record-payment-title" style="color:var(--primary); margin-bottom:8px;">Record Payment</h3>
             <p id="record-payment-subtitle" style="font-size:13px; color:var(--text-light); margin-bottom:14px;"></p>
             <div id="record-payment-error" style="display:none; background:#F1DCD8; color:var(--danger); font-size:13px; padding:10px; border-radius:6px; margin-bottom:14px;"></div>
-            <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
+            <div class="form-group" id="record-payment-amount-group" style="display:block; width:100%; margin-bottom:14px;">
                 <label>Amount (ETB)</label>
                 <input type="number" id="record-payment-amount" step="0.01" min="0.01" style="width:100%;">
+            </div>
+            <div class="form-group" id="record-payment-amount-locked-note" style="display:none; width:100%; margin-bottom:14px; font-size:13px; color:var(--text-light);">
+                🔒 Amount is hidden for your role — this will record the full remaining balance as paid.
             </div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                 <label>Channel</label>
@@ -1153,7 +1204,8 @@
                 'nav-coa': hasPerm('reports.view'),
                 'nav-journal': hasPerm('journal.view'),
                 'nav-ledger': hasPerm('reports.view'),
-                'nav-statements': hasPerm('reports.view')
+                'nav-statements': hasPerm('reports.view'),
+                'nav-cash-handover': hasPerm('cash.handover')
             };
             Object.entries(navRules).forEach(([id, visible]) => {
                 const el = document.getElementById(id);
@@ -2179,7 +2231,7 @@
             
             const titles = {
                 dashboard: "Dashboard", inventory: "Inventory/Stock",
-                transfer: "Transfer", sales: "Sales", purchase: "Purchase",
+                transfer: "Transfer", cash_handover: "Cash Handover", sales: "Sales", purchase: "Purchase",
                 expenses: "Expense", coa: "Chart of Accounts",
                 journal: "Journal Entries", ledger: "General Ledger",
                 statements: "Financial Statements", trash: "Trash",
@@ -2191,6 +2243,7 @@
             if (viewId === 'dashboard') renderAnalyticalDashboards();
             if (viewId === 'inventory') { resetProductForm(); renderPerpetualInventoryTable(); }
             if (viewId === 'transfer') initStockTransferCard();
+            if (viewId === 'cash_handover') renderCashHandoverView();
             if (viewId === 'sales') { syncTransactionalProductDropdownOptions(); renderSalesLogTable(); }
             if (viewId === 'purchase') { syncTransactionalProductDropdownOptions(); renderPurchaseLogTable(); applyPurchaseCostFieldPermissionUI(); }
             if (viewId === 'expenses') renderExpenseLogTable();
@@ -3076,24 +3129,36 @@
                 for (const layer of consumedLayers) {
                     const remainingQty = (sourceLots.find(l => l.id === layer.lotId).qty) - layer.qty;
                     if (remainingQty > 0) {
-                        await supabaseClient.from('inventory_lots').update({ qty: remainingQty }).eq('id', layer.lotId);
+                        const { error: updErr, count: updCount } = await supabaseClient.from('inventory_lots').update({ qty: remainingQty }, { count: 'exact' }).eq('id', layer.lotId);
+                        if (updErr) throw new Error('Could not reduce stock at the source branch: ' + updErr.message);
+                        if (!updCount) throw new Error('Could not reduce stock at the source branch — your account may not have permission to transfer stock (check the "Transfer stock between branches" permission and the database policy for the "inventory_lots" table).');
                     } else {
-                        await supabaseClient.from('inventory_lots').delete().eq('id', layer.lotId);
+                        const { error: delErr, count: delCount } = await supabaseClient.from('inventory_lots').delete({ count: 'exact' }).eq('id', layer.lotId);
+                        if (delErr) throw new Error('Could not remove the source stock layer: ' + delErr.message);
+                        if (!delCount) throw new Error('Could not remove the source stock layer — your account may not have permission to transfer stock (check the "Transfer stock between branches" permission and the database policy for the "inventory_lots" table).');
                     }
-                    await supabaseClient.from('inventory_lots').insert({
+                    const { error: insErr } = await supabaseClient.from('inventory_lots').insert({
                         id: `${transferId}-${layer.lotId}`, tenant_id: currentTenantId, branch_id: toBranchId,
                         item_id: item.id, qty: layer.qty, cost: layer.cost
                     });
+                    if (insErr) throw new Error('Could not add stock at the destination branch: ' + insErr.message);
                 }
 
                 const fromName = accessibleBranches.find(b => b.id === fromBranchId)?.name || 'Unknown';
                 const toName = accessibleBranches.find(b => b.id === toBranchId)?.name || 'Unknown';
 
-                await supabaseClient.from('stock_transfers').insert({
+                const { error: transferInsertErr } = await supabaseClient.from('stock_transfers').insert({
                     id: transferId, tenant_id: currentTenantId, from_branch_id: fromBranchId, to_branch_id: toBranchId,
                     item_id: item.id, item_desc: item.desc, qty, notes: notes || null,
                     date: new Date().toISOString().split('T')[0], created_by_username: currentUsername
                 });
+                if (transferInsertErr) {
+                    // The stock itself already moved (writes above succeeded) —
+                    // this only means the LOG entry failed, which is exactly
+                    // what was silently happening before this fix: the
+                    // transfer worked but never showed up in Transfer History.
+                    throw new Error('Stock was moved, but the transfer could not be logged to history: ' + transferInsertErr.message + '. This usually means the database\'s row-level security policy for the "stock_transfers" table doesn\'t allow this account to insert — ask whoever manages the database to check it.');
+                }
 
                 // Resync local state so the currently-viewed branch reflects
                 // reality immediately, whether it was the source, the
@@ -3121,15 +3186,36 @@
         async function renderStockTransferHistory() {
             const tbody = document.getElementById('stock-transfer-table-body');
             if (!tbody) return;
-            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--text-light);">Loading...</td></tr>`;
+            // Show whatever we already have instantly (from the last time this
+            // loaded) instead of blanking to "Loading..." on every visit —
+            // then quietly refresh once the network responds.
+            if (lastTransferRows.length) renderStockTransferHistoryRows(lastTransferRows);
+            else tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--text-light);">Loading...</td></tr>`;
+
             const { data, error } = await supabaseClient
-                .from('stock_transfers').select('*').eq('tenant_id', currentTenantId).order('created_at', { ascending: false }).limit(100);
-            if (error || !data || !data.length) {
+                .from('stock_transfers').select('id, date, item_id, item_desc, qty, from_branch_id, to_branch_id, created_by_username, notes, created_at').eq('tenant_id', currentTenantId).order('created_at', { ascending: false }).limit(100);
+            if (error) {
+                // Don't show the same "No transfers yet." message a real query
+                // failure would previously get lumped into — that made a
+                // blocked/denied read (e.g. an RLS policy that doesn't grant
+                // employees SELECT on stock_transfers) look identical to an
+                // empty history, which is exactly what was reported.
                 lastTransferRows = [];
+                console.error('Could not load transfer history:', error);
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--danger);">Couldn't load transfer history: ${error.message}. This may be a database permissions (RLS) issue — ask whoever manages the database to check the "stock_transfers" table's SELECT policy for this account's role.</td></tr>`;
+                return;
+            }
+            lastTransferRows = data || [];
+            renderStockTransferHistoryRows(lastTransferRows);
+        }
+
+        function renderStockTransferHistoryRows(data) {
+            const tbody = document.getElementById('stock-transfer-table-body');
+            if (!tbody) return;
+            if (!data || !data.length) {
                 tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--text-light);">No transfers yet.</td></tr>`;
                 return;
             }
-            lastTransferRows = data;
             tbody.innerHTML = data.map(t => {
                 const fromName = branchNameById(t.from_branch_id);
                 const toName = branchNameById(t.to_branch_id);
@@ -3188,18 +3274,24 @@
                 for (const destLot of stillPresent) {
                     const origLotId = destLot.id.slice(transferId.length + 1);
 
-                    const { data: existingSourceLot } = await supabaseClient
+                    const { data: existingSourceLot, error: lookupErr } = await supabaseClient
                         .from('inventory_lots').select('*').eq('id', origLotId).eq('branch_id', row.from_branch_id).eq('item_id', row.item_id).maybeSingle();
+                    if (lookupErr) throw new Error('Could not check the source branch while undoing this transfer: ' + lookupErr.message);
 
                     if (existingSourceLot) {
-                        await supabaseClient.from('inventory_lots').update({ qty: existingSourceLot.qty + destLot.qty }).eq('id', origLotId);
+                        const { error: restoreErr, count: restoreCount } = await supabaseClient.from('inventory_lots').update({ qty: existingSourceLot.qty + destLot.qty }, { count: 'exact' }).eq('id', origLotId);
+                        if (restoreErr) throw new Error('Could not restore stock to the source branch: ' + restoreErr.message);
+                        if (!restoreCount) throw new Error('Could not restore stock to the source branch — your account may not have permission to transfer stock.');
                     } else {
-                        await supabaseClient.from('inventory_lots').insert({
+                        const { error: restoreInsErr } = await supabaseClient.from('inventory_lots').insert({
                             id: origLotId, tenant_id: currentTenantId, branch_id: row.from_branch_id,
                             item_id: row.item_id, qty: destLot.qty, cost: destLot.cost
                         });
+                        if (restoreInsErr) throw new Error('Could not restore stock to the source branch: ' + restoreInsErr.message);
                     }
-                    await supabaseClient.from('inventory_lots').delete().eq('id', destLot.id);
+                    const { error: removeDestErr, count: removeDestCount } = await supabaseClient.from('inventory_lots').delete({ count: 'exact' }).eq('id', destLot.id);
+                    if (removeDestErr) throw new Error('Could not remove stock from the destination branch: ' + removeDestErr.message);
+                    if (!removeDestCount) throw new Error('Could not remove stock from the destination branch — your account may not have permission to transfer stock.');
                 }
 
                 const { error: delErr, count } = await supabaseClient
@@ -3220,6 +3312,146 @@
             } finally {
                 if (btnEl) { btnEl.disabled = false; btnEl.innerText = 'Delete'; }
             }
+        }
+
+
+        // --- CASH HANDOVER ---
+        // Every cash sale, cash payment collected on an old AR/AP balance,
+        // and cash expense already posts a journal line to account "1010"
+        // (Cash), tagged with who did it via the "(by username)" stamp on
+        // journal.desc. So "how much cash should this employee be holding"
+        // is entirely derivable from the journal that already exists —
+        // no changes needed to how sales/purchases/expenses are recorded.
+        function computeCashHeldByEmployee(username, branchId) {
+            if (!username || !branchId) return 0;
+            let net = 0;
+            state.journal.forEach(j => {
+                if (j.branchId !== branchId) return;
+                if (extractAuthor(j.desc) !== username) return;
+                (j.lines || []).forEach(l => {
+                    if (l.account === '1010') net += (l.dr || 0) - (l.cr || 0);
+                });
+            });
+            cashHandoverCache.forEach(h => {
+                if (h.branch_id === branchId && h.submitted_by_username === username && h.status === 'approved') {
+                    net -= Number(h.amount);
+                }
+            });
+            return net;
+        }
+
+        let cashHandoverCache = [];
+        async function fetchCashHandovers() {
+            const { data, error } = await supabaseClient
+                .from('cash_handovers').select('*').eq('tenant_id', currentTenantId).order('submitted_at', { ascending: false }).limit(200);
+            if (error) { console.error('Could not load cash handovers:', error); cashHandoverCache = []; return; }
+            cashHandoverCache = data || [];
+        }
+
+        async function renderCashHandoverView() {
+            renderCashHandoverBody(); // show cached data instantly if we have any
+            await fetchCashHandovers();
+            renderCashHandoverBody(); // then refresh with the latest
+        }
+
+        function renderCashHandoverBody() {
+            const isOwnerUser = currentIsOwner;
+            const employeeCard = document.getElementById('cash-handover-employee-card');
+            const ownerCard = document.getElementById('cash-handover-owner-pending-card');
+            const unavailableCard = document.getElementById('cash-handover-unavailable-card');
+
+            if (!hasPerm('cash.handover') && !isOwnerUser) {
+                employeeCard.style.display = 'none';
+                ownerCard.style.display = 'none';
+                unavailableCard.style.display = 'block';
+                return;
+            }
+            unavailableCard.style.display = 'none';
+
+            if (isOwnerUser) {
+                ownerCard.style.display = 'block';
+                const pendingRows = cashHandoverCache.filter(h => h.status === 'pending');
+                document.getElementById('cash-handover-pending-body').innerHTML = pendingRows.length
+                    ? pendingRows.map(h => `<tr>
+                        <td>${new Date(h.submitted_at).toLocaleString()}</td>
+                        <td>${h.submitted_by_username}</td>
+                        <td>${branchNameById(h.branch_id)}</td>
+                        <td class="num">${Number(h.amount).toFixed(2)}</td>
+                        <td class="truncate-cell" title="${h.note || ''}">${h.note || '—'}</td>
+                        <td style="text-align:center;">
+                            <button class="btn btn-success btn-small" onclick="decideCashHandover('${h.id}', true)">Approve</button>
+                            <button class="btn btn-danger btn-small" onclick="decideCashHandover('${h.id}', false)">Reject</button>
+                        </td>
+                    </tr>`).join('')
+                    : `<tr><td colspan="6" style="text-align:center; color:var(--text-light);">No pending handovers.</td></tr>`;
+
+                document.getElementById('cash-handover-all-history-body').innerHTML = cashHandoverCache.length
+                    ? cashHandoverCache.map(h => `<tr>
+                        <td>${new Date(h.submitted_at).toLocaleString()}</td>
+                        <td>${h.submitted_by_username}</td>
+                        <td>${branchNameById(h.branch_id)}</td>
+                        <td class="num">${Number(h.amount).toFixed(2)}</td>
+                        <td class="truncate-cell" title="${h.note || ''}">${h.note || '—'}</td>
+                        <td>${h.status === 'approved' ? '<span style="color:var(--success);">Approved</span>' : h.status === 'rejected' ? '<span style="color:var(--danger);">Rejected</span>' : '<span style="color:var(--warning);">Pending</span>'}</td>
+                        <td>${h.decided_by_username || '—'}</td>
+                    </tr>`).join('')
+                    : `<tr><td colspan="7" style="text-align:center; color:var(--text-light);">No handovers recorded yet.</td></tr>`;
+            } else {
+                ownerCard.style.display = 'none';
+            }
+
+            if (hasPerm('cash.handover')) {
+                employeeCard.style.display = 'block';
+                if (currentBranchId === 'all' || !currentBranchId) {
+                    document.getElementById('cash-handover-branch-name').innerText = 'a specific branch — pick one from the branch switcher above';
+                    document.getElementById('cash-handover-balance-amount').innerText = '—';
+                    document.getElementById('cash-handover-form').querySelector('button').disabled = true;
+                } else {
+                    document.getElementById('cash-handover-branch-name').innerText = branchNameById(currentBranchId);
+                    const held = computeCashHeldByEmployee(currentUsername, currentBranchId);
+                    document.getElementById('cash-handover-balance-amount').innerText = `ETB ${held.toFixed(2)}`;
+                    document.getElementById('cash-handover-form').querySelector('button').disabled = false;
+                }
+                const mine = cashHandoverCache.filter(h => h.submitted_by_username === currentUsername);
+                document.getElementById('cash-handover-my-history-body').innerHTML = mine.length
+                    ? mine.map(h => `<tr>
+                        <td>${new Date(h.submitted_at).toLocaleString()}</td>
+                        <td class="num">${Number(h.amount).toFixed(2)}</td>
+                        <td class="truncate-cell" title="${h.note || ''}">${h.note || '—'}</td>
+                        <td>${h.status === 'approved' ? '<span style="color:var(--success);">Approved</span>' : h.status === 'rejected' ? '<span style="color:var(--danger);">Rejected</span>' : '<span style="color:var(--warning);">Pending</span>'}</td>
+                    </tr>`).join('')
+                    : `<tr><td colspan="4" style="text-align:center; color:var(--text-light);">You haven't submitted any handovers yet.</td></tr>`;
+            } else if (!isOwnerUser) {
+                employeeCard.style.display = 'none';
+            }
+        }
+
+        async function submitCashHandover(e) {
+            e.preventDefault();
+            if (currentBranchId === 'all' || !currentBranchId) return alert('Pick a specific branch from the branch switcher first.');
+            const amount = parseFloat(document.getElementById('cash-handover-amount').value);
+            if (isNaN(amount) || amount <= 0) return alert('Enter a valid amount.');
+            const note = document.getElementById('cash-handover-note').value.trim();
+
+            const id = `CH-${Date.now().toString().slice(-8)}`;
+            const { error } = await supabaseClient.from('cash_handovers').insert({
+                id, tenant_id: currentTenantId, branch_id: currentBranchId,
+                submitted_by_username: currentUsername, amount, note: note || null, status: 'pending'
+            });
+            if (error) return alert('Could not submit handover: ' + error.message);
+
+            document.getElementById('cash-handover-form').reset();
+            addNotification('Cash Handover Submitted', `ETB ${amount.toFixed(2)} submitted for approval at ${branchNameById(currentBranchId)}.`);
+            renderCashHandoverView();
+        }
+
+        async function decideCashHandover(id, approve) {
+            if (!confirm(approve ? 'Approve this handover as received?' : 'Reject this handover submission?')) return;
+            const { error } = await supabaseClient.from('cash_handovers')
+                .update({ status: approve ? 'approved' : 'rejected', decided_by_username: currentUsername, decided_at: new Date().toISOString() })
+                .eq('id', id);
+            if (error) return alert('Could not update this handover: ' + error.message);
+            renderCashHandoverView();
         }
 
 
@@ -3675,6 +3907,28 @@
                 cartGroup.style.display = canSeeCost ? 'block' : 'none';
                 cartNote.style.display = canSeeCost ? 'none' : 'block';
             }
+
+            // Amount Paid Now defaults to qty*cost, so showing it would leak
+            // the hidden cost just as much as the Cost field itself — lock
+            // it too, and treat restricted purchases as fully paid.
+            const amtGroup = document.getElementById('pur-amount-paid-group');
+            const amtNote = document.getElementById('pur-amount-paid-locked-note');
+            if (amtGroup && amtNote) {
+                amtGroup.style.display = canSeeCost ? 'block' : 'none';
+                amtNote.style.display = canSeeCost ? 'none' : 'block';
+            }
+            const cartAmtGroup = document.getElementById('cart-pur-amount-paid-group');
+            const cartAmtNote = document.getElementById('cart-pur-amount-paid-locked-note');
+            if (cartAmtGroup && cartAmtNote) {
+                cartAmtGroup.style.display = canSeeCost ? 'block' : 'none';
+                cartAmtNote.style.display = canSeeCost ? 'none' : 'block';
+            }
+            if (!canSeeCost) {
+                const chanGroup = document.getElementById('pur-channel-group');
+                if (chanGroup) chanGroup.style.display = 'inline-block';
+                const cartChanGroup = document.getElementById('cart-pur-channel-group');
+                if (cartChanGroup) cartChanGroup.style.display = 'block';
+            }
         }
 
         function handlePurchaseItemPicked() {
@@ -4044,11 +4298,19 @@
             const remaining = Math.max(0, effectiveTotal - (record.amountPaid || 0));
             recordPaymentContext = { type, id: record.id, effectiveTotal };
             document.getElementById('record-payment-title').innerText = type === 'sale' ? 'Record Customer Payment' : 'Record Supplier Payment';
-            document.getElementById('record-payment-subtitle').innerText = `Owed: ETB ${remaining.toFixed(2)} of ETB ${effectiveTotal.toFixed(2)} total`;
+
+            // Purchase totals/balances are cost information — hide them the
+            // same way the purchase form and history table already do.
+            const hideAmount = type === 'purchase' && !hasPerm('inventory.view_cost');
+            document.getElementById('record-payment-subtitle').innerText = hideAmount
+                ? '🔒 Amount owed is hidden for your role.'
+                : `Owed: ETB ${remaining.toFixed(2)} of ETB ${effectiveTotal.toFixed(2)} total`;
             document.getElementById('record-payment-error').style.display = 'none';
             const amtInput = document.getElementById('record-payment-amount');
             amtInput.value = remaining.toFixed(2);
             amtInput.max = remaining.toFixed(2);
+            document.getElementById('record-payment-amount-group').style.display = hideAmount ? 'none' : 'block';
+            document.getElementById('record-payment-amount-locked-note').style.display = hideAmount ? 'block' : 'none';
             document.getElementById('record-payment-channel').innerHTML = ['Cash', 'Mobile banking', ...customChannelNames()].map(name => `<option value="${name}">${name}</option>`).join('');
             document.getElementById('record-payment-modal').classList.add('active');
         }
@@ -4237,17 +4499,18 @@
 
         function renderPurchaseCartTable() {
             const tbody = document.getElementById('purchase-cart-table-body');
+            const canSeeCost = hasPerm('inventory.view_cost');
             if (!purchaseCart.length) {
                 tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-light);">No items added yet.</td></tr>`;
             } else {
                 tbody.innerHTML = purchaseCart.map((c, i) => `<tr>
-                    <td>${c.desc}</td><td class="num">${c.qty}</td><td class="num">${c.cost.toFixed(2)}</td>
-                    <td class="num">${(c.qty * c.cost).toFixed(2)}</td>
+                    <td>${c.desc}</td><td class="num">${c.qty}</td><td class="num">${canSeeCost ? c.cost.toFixed(2) : '🔒'}</td>
+                    <td class="num">${canSeeCost ? (c.qty * c.cost).toFixed(2) : '🔒'}</td>
                     <td style="text-align:center;"><button class="btn btn-danger btn-small" onclick="removeFromPurchaseCart(${i})">✕</button></td>
                 </tr>`).join('');
             }
             const total = purchaseCart.reduce((sum, c) => sum + c.qty * c.cost, 0);
-            document.getElementById('purchase-cart-total').innerText = `ETB ${total.toFixed(2)}`;
+            document.getElementById('purchase-cart-total').innerText = canSeeCost ? `ETB ${total.toFixed(2)}` : '🔒 Hidden';
             const amtField = document.getElementById('cart-pur-amount-paid');
             if (amtField.dataset.touched !== '1') amtField.value = total.toFixed(2);
             updateCartPurchaseChannelVisibility();
@@ -4269,10 +4532,16 @@
             const sup = document.getElementById('cart-pur-supplier').value.trim();
             if (!sup) return alert('Enter a supplier name.');
             const total = purchaseCart.reduce((sum, c) => sum + c.qty * c.cost, 0);
-            let amountPaidNow = parseFloat(document.getElementById('cart-pur-amount-paid').value);
-            if (isNaN(amountPaidNow)) amountPaidNow = 0;
-            if (amountPaidNow < 0) return alert("Amount Paid Now can't be negative.");
-            if (amountPaidNow > total + 0.001) return alert(`Amount Paid Now can't be more than the basket total (ETB ${total.toFixed(2)}).`);
+            const canSeeCost = hasPerm('inventory.view_cost');
+            let amountPaidNow;
+            if (!canSeeCost) {
+                amountPaidNow = total;
+            } else {
+                amountPaidNow = parseFloat(document.getElementById('cart-pur-amount-paid').value);
+                if (isNaN(amountPaidNow)) amountPaidNow = 0;
+                if (amountPaidNow < 0) return alert("Amount Paid Now can't be negative.");
+                if (amountPaidNow > total + 0.001) return alert(`Amount Paid Now can't be more than the basket total (ETB ${total.toFixed(2)}).`);
+            }
             const remaining = Math.max(0, total - amountPaidNow);
             const chan = amountPaidNow > 0 ? document.getElementById('cart-pur-channel').value : 'Accounts payable';
 
@@ -4349,10 +4618,19 @@
             if (!cost || cost <= 0) return alert("Enter a valid cost.");
 
             const tot = qty * cost;
-            let amountPaidNow = parseFloat(document.getElementById('pur-amount-paid').value);
-            if (isNaN(amountPaidNow)) amountPaidNow = 0;
-            if (amountPaidNow < 0) return alert("Amount Paid Now can't be negative.");
-            if (amountPaidNow > tot + 0.001) return alert(`Amount Paid Now (ETB ${amountPaidNow.toFixed(2)}) can't be more than the total (ETB ${tot.toFixed(2)}).`);
+            const canSeeCost = hasPerm('inventory.view_cost');
+            let amountPaidNow;
+            if (!canSeeCost) {
+                // Amount Paid Now defaults to qty*cost, which would leak the
+                // hidden cost just by dividing — so restricted purchases are
+                // always recorded as fully paid, and this field stays hidden.
+                amountPaidNow = tot;
+            } else {
+                amountPaidNow = parseFloat(document.getElementById('pur-amount-paid').value);
+                if (isNaN(amountPaidNow)) amountPaidNow = 0;
+                if (amountPaidNow < 0) return alert("Amount Paid Now can't be negative.");
+                if (amountPaidNow > tot + 0.001) return alert(`Amount Paid Now (ETB ${amountPaidNow.toFixed(2)}) can't be more than the total (ETB ${tot.toFixed(2)}).`);
+            }
             const remaining = Math.max(0, tot - amountPaidNow);
             const chan = amountPaidNow > 0 ? document.getElementById('pur-channel').value : 'Accounts payable';
 
@@ -4431,11 +4709,14 @@
             });
 
             let rows = [];
+            const canSeeCost = hasPerm('inventory.view_cost');
             displayList.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(p => {
                 const remaining = Math.max(0, p.total - (p.amountPaid || 0));
                 let statusStr = paymentChannelSummary(p);
                 if (remaining <= 0.001) {
                     statusStr += `<br><small style="color:var(--success)">[Paid in full]</small>`;
+                } else if (!canSeeCost) {
+                    statusStr += `<br><small style="color:var(--warning)">[Balance owed]</small>`;
                 } else if ((p.amountPaid || 0) > 0) {
                     statusStr += `<br><small style="color:var(--warning)">[Owe ETB ${remaining.toFixed(2)}]</small>`;
                 } else {
@@ -4443,15 +4724,16 @@
                 }
                 let payBtn = (remaining > 0.001 && hasPerm('purchase.mark_paid') && !isBranchClosed(p.branchId)) ? `<button class="btn btn-success btn-small" onclick="openRecordPaymentModal('purchase', '${p.id}')">Record Payment</button>` : '';
                 let voidBtn = (hasPerm('purchase.void') && !isBranchClosed(p.branchId)) ? `<button class="btn btn-danger btn-small" onclick="deletePurchase('${p.id}')">${p.isGroup ? 'Delete Basket' : 'Delete'}</button>` : '';
-                const costCell = p.cost === null ? '—' : p.cost.toFixed(2);
+                const costCell = !canSeeCost ? '🔒' : (p.cost === null ? '—' : p.cost.toFixed(2));
+                const totalCell = canSeeCost ? p.total.toFixed(2) : '🔒';
                 const isExpanded = p.isGroup && expandedPurchaseGroups.has(p.groupId);
                 const descCell = p.isGroup
                     ? `<span style="cursor:pointer;" onclick="togglePurchaseGroupExpand('${p.groupId}')">🧺 ${isExpanded ? '▾' : '▸'} ${p.desc}</span>`
                     : `<span class="truncate-cell" title="${p.desc}">${p.desc}</span>`;
-                rows.push(`<tr><td>${p.date}</td><td>${p.supplier}</td><td class="truncate-cell">${descCell}</td><td class="num">${p.qty}</td><td class="num">${costCell}</td><td class="num"><strong>${p.total.toFixed(2)}</strong></td><td>${statusStr}</td><td class="branch-col">${branchNameById(p.branchId)}</td><td><small>${getTransactionAuthor(p.id)}</small></td><td style="text-align:center;">${payBtn}${voidBtn}</td></tr>`);
+                rows.push(`<tr><td>${p.date}</td><td>${p.supplier}</td><td class="truncate-cell">${descCell}</td><td class="num">${p.qty}</td><td class="num">${costCell}</td><td class="num"><strong>${totalCell}</strong></td><td>${statusStr}</td><td class="branch-col">${branchNameById(p.branchId)}</td><td><small>${getTransactionAuthor(p.id)}</small></td><td style="text-align:center;">${payBtn}${voidBtn}</td></tr>`);
                 if (isExpanded) {
                     p.itemRows.forEach(r => {
-                        rows.push(`<tr style="background:var(--bg);"><td></td><td></td><td class="truncate-cell" style="padding-left:32px;" title="${r.desc}"><small>↳ ${r.desc}</small></td><td class="num"><small>${r.qty}</small></td><td class="num"><small>${r.cost.toFixed(2)}</small></td><td class="num"><small>${r.total.toFixed(2)}</small></td><td colspan="4"></td></tr>`);
+                        rows.push(`<tr style="background:var(--bg);"><td></td><td></td><td class="truncate-cell" style="padding-left:32px;" title="${r.desc}"><small>↳ ${r.desc}</small></td><td class="num"><small>${r.qty}</small></td><td class="num"><small>${canSeeCost ? r.cost.toFixed(2) : '🔒'}</small></td><td class="num"><small>${canSeeCost ? r.total.toFixed(2) : '🔒'}</small></td><td colspan="4"></td></tr>`);
                     });
                 }
             });
@@ -5281,6 +5563,7 @@
                 { key: 'inventory.view_cost', label: 'View cost prices / cost of goods' },
                 { key: 'inventory.transfer', label: 'Transfer stock between branches' }
             ]},
+            { key: 'cash_handover', label: 'Cash Handover', viewPerm: 'cash.handover', actions: [] },
             { key: 'sales', label: 'Sales', viewPerm: 'sales.view', actions: [
                 { key: 'sales.create', label: 'Record sales' },
                 { key: 'sales.void', label: 'Void / delete sales' },
@@ -5322,7 +5605,7 @@
                     ${hasActions ? `<label class="check-label"><input type="checkbox" class="perm-edit-cb" data-page="${page.key}" ${editChecked ? 'checked' : ''} ${viewChecked ? '' : 'disabled'} onchange="handlePageEditToggle(this)">Edit</label>` : ''}
                 </div>
                 ${hasActions ? `<div class="perm-actions-sub" data-page="${page.key}" style="display:${editChecked ? 'flex' : 'none'};">
-                    ${page.actions.map(a => `<label class="check-label"><input type="checkbox" data-perm="${a.key}" ${granted.has(a.key) ? 'checked' : ''}>${a.label}</label>`).join('')}
+                    ${page.actions.map(a => `<label class="check-label"><input type="checkbox" id="perm-${role.id}-${a.key}" data-perm="${a.key}" ${granted.has(a.key) ? 'checked' : ''} ${a.key === 'inventory.view_cost' ? `onchange="syncPurchaseMarkPaidLock('${role.id}')"` : ''}>${a.label}</label>`).join('')}
                 </div>` : ''}
             </div>`;
         }
@@ -5350,6 +5633,7 @@
             } else {
                 editCb.disabled = false;
             }
+            syncPurchaseMarkPaidLockForRow(row);
         }
         // Edit off => none of that page's specific actions apply, so they're
         // hidden and cleared rather than left in a confusing half-set state.
@@ -5362,6 +5646,25 @@
                 subDiv.style.display = 'none';
                 subDiv.querySelectorAll('input').forEach(i => i.checked = false);
             }
+            syncPurchaseMarkPaidLockForRow(row);
+        }
+
+        // "Settle accounts payable" reveals the owed amount and total cost of
+        // a purchase, so a role can only be granted it if that same role can
+        // already see cost prices — otherwise the lock on cost is pointless.
+        function syncPurchaseMarkPaidLockForRow(row) {
+            const permsContainer = row.closest('[id^="role-perms-"]');
+            if (!permsContainer) return;
+            syncPurchaseMarkPaidLock(permsContainer.id.replace('role-perms-', ''));
+        }
+        function syncPurchaseMarkPaidLock(roleId) {
+            const viewCostCb = document.getElementById(`perm-${roleId}-inventory.view_cost`);
+            const markPaidCb = document.getElementById(`perm-${roleId}-purchase.mark_paid`);
+            if (!viewCostCb || !markPaidCb) return;
+            const allowed = viewCostCb.checked;
+            markPaidCb.disabled = !allowed;
+            markPaidCb.parentElement.title = allowed ? '' : 'Requires "View cost prices / cost of goods" first';
+            if (!allowed) markPaidCb.checked = false;
         }
 
         function toggleRoleCard(roleId) {
@@ -5397,19 +5700,31 @@
                 </div>`;
             }).join('');
 
-            teamRolesCache.filter(r => r.key !== 'owner').forEach(role => {
-                supabaseClient.from('role_permissions').select('permission_key').eq('role_id', role.id).then(({ data }) => {
-                    const granted = new Set((data || []).map(p => p.permission_key));
-                    const permsContainer = document.getElementById(`role-perms-${role.id}`);
-                    if (!permsContainer) return;
-                    permsContainer.innerHTML = PAGE_DEFINITIONS.map(page =>
-                        page.key === 'data' ? renderDataRow(page, granted) : renderPageRow(role, page, granted)
-                    ).join('');
-                    if (!hasPerm('team.manage_roles')) {
-                        permsContainer.querySelectorAll('input').forEach(el => el.disabled = true);
-                    }
+            const nonOwnerRoles = teamRolesCache.filter(r => r.key !== 'owner');
+            if (nonOwnerRoles.length) {
+                // One query for every role's permissions, instead of firing a
+                // separate round-trip per role (that N+1 pattern was the main
+                // source of lag on this page).
+                supabaseClient.from('role_permissions').select('role_id, permission_key').in('role_id', nonOwnerRoles.map(r => r.id)).then(({ data }) => {
+                    const grantedByRole = {};
+                    (data || []).forEach(p => {
+                        if (!grantedByRole[p.role_id]) grantedByRole[p.role_id] = new Set();
+                        grantedByRole[p.role_id].add(p.permission_key);
+                    });
+                    nonOwnerRoles.forEach(role => {
+                        const granted = grantedByRole[role.id] || new Set();
+                        const permsContainer = document.getElementById(`role-perms-${role.id}`);
+                        if (!permsContainer) return;
+                        permsContainer.innerHTML = PAGE_DEFINITIONS.map(page =>
+                            page.key === 'data' ? renderDataRow(page, granted) : renderPageRow(role, page, granted)
+                        ).join('');
+                        syncPurchaseMarkPaidLock(role.id);
+                        if (!hasPerm('team.manage_roles')) {
+                            permsContainer.querySelectorAll('input').forEach(el => el.disabled = true);
+                        }
+                    });
                 });
-            });
+            }
 
             if (!hasPerm('team.manage_roles')) {
                 container.querySelectorAll('button').forEach(el => el.disabled = true);
