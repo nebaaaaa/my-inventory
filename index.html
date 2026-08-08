@@ -721,7 +721,11 @@
                             <label>Cost (ETB)</label>
                             <div id="pur-price-locked-text" style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:180px;">🔒</div>
                         </div>
-                        <div class="form-group"><label>Selling Price (Optional)</label><input type="number" id="pur-selling-price" step="0.01" placeholder="Leave blank to skip"></div>
+                        <div class="form-group" id="pur-selling-price-group"><label>Selling Price (Optional)</label><input type="number" id="pur-selling-price" step="0.01" placeholder="Leave blank to skip"></div>
+                        <div class="form-group" id="pur-selling-price-locked-note" style="display:none;">
+                            <label>Selling Price</label>
+                            <div style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:180px;">🔒 Not editable for your role</div>
+                        </div>
                         <div class="form-group" id="pur-amount-paid-group">
                             <label>Amount Paid Now (ETB)</label>
                             <input type="number" id="pur-amount-paid" step="0.01" min="0" oninput="handlePurchaseAmountPaidInput()" title="Leave less than the total for a down payment (or blank/0 for fully on credit) — the rest is tracked as owed to the supplier">
@@ -758,7 +762,11 @@
                             <label>Cost (ETB)</label>
                             <div id="cart-pur-price-locked-text" style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:110px;">🔒</div>
                         </div>
-                        <div class="form-group" style="margin-bottom:0;"><label>Selling Price (Optional)</label><input type="number" id="cart-pur-selling-price" step="0.01" placeholder="Skip to leave" style="min-width:130px;"></div>
+                        <div class="form-group" style="margin-bottom:0;" id="cart-pur-selling-price-group"><label>Selling Price (Optional)</label><input type="number" id="cart-pur-selling-price" step="0.01" placeholder="Skip to leave" style="min-width:130px;"></div>
+                        <div class="form-group" style="margin-bottom:0; display:none;" id="cart-pur-selling-price-locked-note">
+                            <label>Selling Price</label>
+                            <div style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:130px;">🔒 Not editable</div>
+                        </div>
                         <button type="button" class="btn" onclick="addToPurchaseCart()">+ Add to Basket</button>
                     </div>
                     <table>
@@ -3928,6 +3936,25 @@
                 if (chanGroup) chanGroup.style.display = 'inline-block';
                 const cartChanGroup = document.getElementById('cart-pur-channel-group');
                 if (cartChanGroup) cartChanGroup.style.display = 'block';
+            }
+
+            // Setting a selling price from the purchase form is a price
+            // change same as editing it on the Inventory page — gate it the
+            // same way, independent of whether cost is visible.
+            const canAdjustPrice = hasPerm('inventory.adjust_price');
+            const spGroup = document.getElementById('pur-selling-price-group');
+            const spNote = document.getElementById('pur-selling-price-locked-note');
+            if (spGroup && spNote) {
+                spGroup.style.display = canAdjustPrice ? 'block' : 'none';
+                spNote.style.display = canAdjustPrice ? 'none' : 'block';
+                if (!canAdjustPrice) document.getElementById('pur-selling-price').value = '';
+            }
+            const cartSpGroup = document.getElementById('cart-pur-selling-price-group');
+            const cartSpNote = document.getElementById('cart-pur-selling-price-locked-note');
+            if (cartSpGroup && cartSpNote) {
+                cartSpGroup.style.display = canAdjustPrice ? 'block' : 'none';
+                cartSpNote.style.display = canAdjustPrice ? 'none' : 'block';
+                if (!canAdjustPrice) document.getElementById('cart-pur-selling-price').value = '';
             }
         }
 
