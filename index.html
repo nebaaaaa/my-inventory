@@ -9,7 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+Ethiopic:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary: #171B34;
@@ -186,7 +186,7 @@
 
     <div id="impersonation-banner" style="display:none; position:fixed; top:0; left:0; width:100%; z-index:6000; background:var(--warning); color:white; padding:10px 16px; text-align:center; font-size:13px; font-weight:600; box-shadow:var(--shadow-md);">
         Viewing as <span id="impersonation-target-name"></span> —
-        <button class="btn btn-small" style="margin-left:8px; background:var(--primary); color:white;" onclick="returnToOwnerAccount()">Return to my account</button>
+        <button class="btn btn-small" style="margin-left:8px; background:var(--primary); color:white;" onclick="returnToOwnerAccount()" data-i18n="misc.return_to_owner">Return to my account</button>
     </div>
 
     <!-- ===================== SIGN IN / SIGN UP SCREEN ===================== -->
@@ -199,63 +199,63 @@
         </svg>
 
         <div class="modal-box" style="max-width:410px; width:100%; position:relative; z-index:2;">
-            <h1 class="auth-welcome-heading">Welcome</h1>
-            <p class="auth-welcome-subtitle">Let's make informed decisions for your business.</p>
+            <h1 class="auth-welcome-heading" data-i18n="misc.welcome">Welcome</h1>
+            <p class="auth-welcome-subtitle" data-i18n="auth.tagline">Let's make informed decisions for your business.</p>
             <div id="auth-error" style="display:none; background:#F1DCD8; color:var(--danger); font-size:13px; padding:10px; border-radius:4px; margin-bottom:14px;"></div>
 
             <!-- SIGN IN VIEW -->
             <div id="auth-signin-view">
-                <p style="font-size:13px; color:var(--text-light); margin-bottom:20px;">Sign in to your shop.</p>
+                <p style="font-size:13px; color:var(--text-light); margin-bottom:20px;" data-i18n="auth.signin_desc">Sign in to your shop.</p>
                 <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                    <label>Email or Username</label>
+                    <label data-i18n="auth.email_or_username">Email or Username</label>
                     <input type="text" id="signin-email" style="width:100%;" placeholder="you@example.com or your username">
                 </div>
                 <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                    <label>Password</label>
+                    <label data-i18n="auth.password">Password</label>
                     <div style="position:relative;">
                         <input type="password" id="signin-password" style="width:100%; padding-right:40px;" placeholder="Your password">
                         <button type="button" onclick="togglePasswordVisibility('signin-password', this)" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:16px; padding:4px;"><svg viewBox="0 0 576 512" width="18" height="18" style="display:block;"><path fill="#232849" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#ffffff"/><circle cx="288" cy="256" r="38" fill="#232849"/></svg></button>
                     </div>
                 </div>
-                <button class="btn" style="width:100%; margin-top:6px;" onclick="handleSignIn()">Sign In</button>
+                <button class="btn" style="width:100%; margin-top:6px;" onclick="handleSignIn()" data-i18n="auth.sign_in">Sign In</button>
                 <p style="text-align:center; font-size:13px; margin-top:12px;"><a href="#" onclick="handleForgotPassword(); return false;" style="color:var(--text-light);">Forgot password?</a></p>
                 <p style="text-align:center; font-size:13px; margin-top:4px; color:var(--text-light);">Don't have a shop account yet? <a href="#" onclick="showAuthView('signup'); return false;" style="color:var(--primary); font-weight:600;">Create one</a></p>
             </div>
 
             <!-- CREATE ACCOUNT VIEW -->
             <div id="auth-signup-view" style="display:none;">
-                <p style="font-size:13px; color:var(--text-light); margin-bottom:20px;">Create a new shop account.</p>
+                <p style="font-size:13px; color:var(--text-light); margin-bottom:20px;" data-i18n="auth.signup_desc">Create a new shop account.</p>
                 <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                    <label>Shop / Business Name</label>
+                    <label data-i18n="auth.shop_name">Shop / Business Name</label>
                     <input type="text" id="auth-business-name" style="width:100%;" placeholder="e.g. Kebede Electrical Supplies">
                 </div>
                 <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                    <label>Phone Number</label>
+                    <label data-i18n="auth.phone">Phone Number</label>
                     <input type="tel" id="auth-phone" style="width:100%;" placeholder="e.g. 0911 234 567">
                 </div>
                 <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                    <label>Your Username</label>
+                    <label data-i18n="auth.your_username">Your Username</label>
                     <input type="text" id="auth-username" style="width:100%;" placeholder="e.g. kebede (used to log in later)" autocomplete="off">
                 </div>
                 <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                    <label>Email</label>
+                    <label data-i18n="auth.email">Email</label>
                     <input type="email" id="auth-email" style="width:100%;" placeholder="you@example.com">
                 </div>
                 <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                    <label>Password</label>
+                    <label data-i18n="auth.password">Password</label>
                     <div style="position:relative;">
                         <input type="password" id="auth-password" style="width:100%; padding-right:40px;" placeholder="At least 6 characters">
                         <button type="button" onclick="togglePasswordVisibility('auth-password', this)" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:16px; padding:4px;"><svg viewBox="0 0 576 512" width="18" height="18" style="display:block;"><path fill="#232849" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#ffffff"/><circle cx="288" cy="256" r="38" fill="#232849"/></svg></button>
                     </div>
                 </div>
                 <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                    <label>Confirm Password</label>
+                    <label data-i18n="auth.confirm_password">Confirm Password</label>
                     <div style="position:relative;">
                         <input type="password" id="auth-password-confirm" style="width:100%; padding-right:40px;" placeholder="Re-enter your password">
                         <button type="button" onclick="togglePasswordVisibility('auth-password-confirm', this)" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:16px; padding:4px;"><svg viewBox="0 0 576 512" width="18" height="18" style="display:block;"><path fill="#232849" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#ffffff"/><circle cx="288" cy="256" r="38" fill="#232849"/></svg></button>
                     </div>
                 </div>
-                <button class="btn btn-success" style="width:100%; margin-top:6px;" onclick="handleSignUp()">Create Account</button>
+                <button class="btn btn-success" style="width:100%; margin-top:6px;" onclick="handleSignUp()" data-i18n="auth.create_account">Create Account</button>
                 <p style="text-align:center; font-size:13px; margin-top:16px; color:var(--text-light);">Already have an account? <a href="#" onclick="showAuthView('signin'); return false;" style="color:var(--primary); font-weight:600;">Sign in</a></p>
             </div>
 
@@ -268,23 +268,23 @@
     <!-- ===================== SET NEW PASSWORD SCREEN (after clicking reset email link) ===================== -->
     <div id="reset-password-overlay" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:5000; align-items:center; justify-content:center; padding:40px 16px; overflow-y:auto;">
         <div class="modal-box" style="max-width:400px; width:100%;">
-            <p style="font-size:13px; color:var(--text-light); margin-bottom:20px;">Choose a new password for your account.</p>
+            <p style="font-size:13px; color:var(--text-light); margin-bottom:20px;" data-i18n="auth.reset_desc">Choose a new password for your account.</p>
             <div id="reset-error" style="display:none; background:#F1DCD8; color:var(--danger); font-size:13px; padding:10px; border-radius:4px; margin-bottom:14px;"></div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                <label>New Password</label>
+                <label data-i18n="auth.new_password">New Password</label>
                 <div style="position:relative;">
                     <input type="password" id="reset-new-password" style="width:100%; padding-right:40px;" placeholder="At least 6 characters">
                     <button type="button" onclick="togglePasswordVisibility('reset-new-password', this)" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; padding:4px;"><svg viewBox="0 0 576 512" width="18" height="18" style="display:block;"><path fill="#232849" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#ffffff"/><circle cx="288" cy="256" r="38" fill="#232849"/></svg></button>
                 </div>
             </div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                <label>Confirm New Password</label>
+                <label data-i18n="auth.confirm_new_password">Confirm New Password</label>
                 <div style="position:relative;">
                     <input type="password" id="reset-new-password-confirm" style="width:100%; padding-right:40px;" placeholder="Re-enter your new password">
                     <button type="button" onclick="togglePasswordVisibility('reset-new-password-confirm', this)" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; padding:4px;"><svg viewBox="0 0 576 512" width="18" height="18" style="display:block;"><path fill="#232849" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#ffffff"/><circle cx="288" cy="256" r="38" fill="#232849"/></svg></button>
                 </div>
             </div>
-            <button class="btn btn-success" style="width:100%; margin-top:6px;" onclick="handleSetNewPassword()">Set New Password</button>
+            <button class="btn btn-success" style="width:100%; margin-top:6px;" onclick="handleSetNewPassword()" data-i18n="auth.set_new_password">Set New Password</button>
             <div id="reset-loading" style="display:none; text-align:center; margin-top:14px; font-size:12px; color:var(--text-light);">Working, please wait...</div>
         </div>
     </div>
@@ -292,22 +292,22 @@
     <!-- ===================== FINISH SHOP SETUP (only shown if a confirmed user has no business yet) ===================== -->
     <div id="business-setup-overlay" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:5000; align-items:center; justify-content:center; padding:40px 16px; overflow-y:auto;">
         <div class="modal-box" style="max-width:420px; width:100%;">
-            <h2 style="color:var(--primary); margin-bottom:12px;">One last step</h2>
+            <h2 style="color:var(--primary); margin-bottom:12px;" data-i18n="misc.one_last_step">One last step</h2>
             <p style="font-size:13px; color:var(--text-light); margin-bottom:20px;">Your email is confirmed — let's finish setting up your shop.</p>
             <div id="biz-setup-error" style="display:none; background:#F1DCD8; color:var(--danger); font-size:13px; padding:10px; border-radius:4px; margin-bottom:14px;"></div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                <label>Shop / Business Name</label>
+                <label data-i18n="auth.shop_name">Shop / Business Name</label>
                 <input type="text" id="biz-setup-name" style="width:100%;" placeholder="e.g. Kebede Electrical Supplies">
             </div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                <label>Phone Number</label>
+                <label data-i18n="auth.phone">Phone Number</label>
                 <input type="tel" id="biz-setup-phone" style="width:100%;" placeholder="e.g. 0911 234 567">
             </div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                <label>Your Username</label>
+                <label data-i18n="auth.your_username">Your Username</label>
                 <input type="text" id="biz-setup-username" style="width:100%;" placeholder="e.g. kebede (used to log in later)" autocomplete="off">
             </div>
-            <button class="btn btn-success" style="width:100%; margin-top:6px;" onclick="completeBusinessSetup()">Finish Setup</button>
+            <button class="btn btn-success" style="width:100%; margin-top:6px;" onclick="completeBusinessSetup()" data-i18n="auth.finish_setup">Finish Setup</button>
             <div id="biz-setup-loading" style="display:none; text-align:center; margin-top:14px; font-size:12px; color:var(--text-light);">Setting up your shop...</div>
             <div style="text-align:center; margin-top:16px;"><a href="#" onclick="event.preventDefault(); handleSignOut();" style="font-size:12px; color:var(--text-light);">Not you? Sign out</a></div>
         </div>
@@ -319,12 +319,12 @@
             <h2 style="color:var(--primary); margin-bottom:12px;">Welcome! Let's set up your shop.</h2>
             <p style="font-size:13px; color:var(--text-light); margin-bottom:16px;">If you already have a My Inventory backup file (a <code>.json</code> file exported using the "Backup" button), upload it now to bring your existing data over. Otherwise, just start fresh with an empty shop.</p>
             <div class="form-group" style="display:block; width:100%; margin-bottom:16px;">
-                <label>Upload Backup File (optional)</label>
+                <label data-i18n="misc.upload_backup">Upload Backup File (optional)</label>
                 <input type="file" id="onboarding-file" accept=".json" style="width:100%;">
             </div>
             <div style="display:flex; gap:10px;">
-                <button class="btn" style="flex:1;" onclick="finishOnboarding(true)">Import This File</button>
-                <button class="btn" style="flex:1; background:#4a4e63;" onclick="finishOnboarding(false)">Start Fresh (Skip)</button>
+                <button class="btn" style="flex:1;" onclick="finishOnboarding(true)" data-i18n="misc.import_file">Import This File</button>
+                <button class="btn" style="flex:1; background:#4a4e63;" onclick="finishOnboarding(false)" data-i18n="misc.start_fresh">Start Fresh (Skip)</button>
             </div>
             <div id="onboarding-loading" style="display:none; text-align:center; margin-top:14px; font-size:12px; color:var(--text-light);">Importing your data, please wait...</div>
         </div>
@@ -333,9 +333,9 @@
     <!-- ===================== ACCOUNT INACTIVE SCREEN ===================== -->
     <div id="inactive-overlay" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:5000; align-items:center; justify-content:center; text-align:center; padding:24px;">
         <div>
-            <h2 style="color:var(--primary);">Account Inactive</h2>
+            <h2 style="color:var(--primary);" data-i18n="auth.account_inactive">Account Inactive</h2>
             <p style="margin-top:12px; color:var(--text-light); max-width:360px;">Your subscription is currently inactive. Please contact your provider to renew access.</p>
-            <button class="btn" style="margin-top:20px;" onclick="handleSignOut()">Sign Out</button>
+            <button class="btn" style="margin-top:20px;" onclick="handleSignOut()" data-i18n="auth.sign_out">Sign Out</button>
         </div>
     </div>
 
@@ -345,18 +345,18 @@
         <div>
             <div class="brand" id="shop-brand-name">MY INVENTORY</div>
             <nav>
-                <button onclick="switchView('dashboard')" class="active" id="nav-dashboard">📊 Dashboard</button>
-                <button onclick="switchView('inventory')" id="nav-inventory">📦 Inventory/Stock</button>
-                <button onclick="switchView('transfer')" id="nav-transfer" style="display:none;">🔀 Transfer</button>
-                <button onclick="switchView('cash_handover')" id="nav-cash-handover" style="display:none;">💵 Cash Handover</button>
-                <button onclick="switchView('sales')" id="nav-sales">💰 Sales</button>
-                <button onclick="switchView('purchase')" id="nav-purchase">🛒 Purchase</button>
-                <button onclick="switchView('expenses')" id="nav-expenses">💸 Expense</button>
+                <button onclick="switchView('dashboard')" class="active" id="nav-dashboard">📊 <span data-i18n="nav.dashboard">Dashboard</span></button>
+                <button onclick="switchView('inventory')" id="nav-inventory">📦 <span data-i18n="nav.inventory">Inventory/Stock</span></button>
+                <button onclick="switchView('transfer')" id="nav-transfer" style="display:none;">🔀 <span data-i18n="nav.transfer">Transfer</span></button>
+                <button onclick="switchView('cash_handover')" id="nav-cash-handover" style="display:none;">💵 <span data-i18n="nav.cash_handover">Cash Handover</span></button>
+                <button onclick="switchView('sales')" id="nav-sales">💰 <span data-i18n="nav.sales">Sales</span></button>
+                <button onclick="switchView('purchase')" id="nav-purchase">🛒 <span data-i18n="nav.purchase">Purchase</span></button>
+                <button onclick="switchView('expenses')" id="nav-expenses">💸 <span data-i18n="nav.expense">Expense</span></button>
                 <button onclick="switchView('coa')" id="nav-coa">📋 Chart of Accounts</button>
                 <button onclick="switchView('journal')" id="nav-journal">✍️ Journal Entries</button>
                 <button onclick="switchView('ledger')" id="nav-ledger">📖 General Ledger</button>
                 <button onclick="switchView('statements')" id="nav-statements">🏦 Financial Statements</button>
-                <button onclick="switchView('team')" id="nav-team" style="display:none;">👥 Team & Branches</button>
+                <button onclick="switchView('team')" id="nav-team" style="display:none;">👥 <span data-i18n="nav.team">Team &amp; Branches</span></button>
             </nav>
         </div>
         <div class="aside-footer">
@@ -382,6 +382,7 @@
                 <h1 id="page-title">Dashboard</h1>
             </div>
             <div class="header-right">
+                <button class="menu-toggle-btn" id="lang-toggle-btn" onclick="toggleLanguage()" title="Switch language" style="font-size:12px; font-weight:700; min-width:44px;">አማ</button>
                 <select id="branch-switcher" onchange="switchActiveBranch(this.value)" style="display:none; min-width:auto; font-size:12px; padding:6px 10px; font-weight:600; color:var(--primary); border-color:var(--accent);" title="Which branch you're working in"></select>
                 <span id="offline-dot" title="You're offline — changes are saved on this device and will sync once reconnected" style="display:none; width:8px; height:8px; border-radius:50%; background:#C97A22; margin-right:4px;"></span>
                 <div id="clock" style="color: var(--text-light); font-weight: 500; font-size: 13px;"></div>
@@ -395,7 +396,7 @@
         <div class="notif-panel" id="notif-dropdown" onclick="event.stopPropagation()">
             <div style="padding:12px; border-bottom: 2px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
                 <strong>System Alerts</strong>
-                <button class="btn-small btn" onclick="clearAllNotifications()">Clear All</button>
+                <button class="btn-small btn" onclick="clearAllNotifications()" data-i18n="misc.clear_all">Clear All</button>
             </div>
             <div id="notif-list"></div>
         </div>
@@ -405,55 +406,55 @@
             <div id="view-dashboard" class="view-panel active">
                 <div class="dashboard-filter-container">
                     <div class="dashboard-filter-bar">
-                        <button class="filter-btn active" id="f-all" onclick="changePeriod('all')">All-Time</button>
-                        <button class="filter-btn" id="f-today" onclick="changePeriod('today')">Today</button>
-                        <button class="filter-btn" id="f-week" onclick="changePeriod('week')">This Week</button>
-                        <button class="filter-btn" id="f-month" onclick="changePeriod('month')">This Month</button>
-                        <button class="filter-btn" id="f-year" onclick="changePeriod('year')">This Year</button>
-                        <button class="filter-btn" id="f-custom" onclick="changePeriod('custom')">Custom Range</button>
+                        <button class="filter-btn active" id="f-all" onclick="changePeriod('all')" data-i18n="dash.all_time">All-Time</button>
+                        <button class="filter-btn" id="f-today" onclick="changePeriod('today')" data-i18n="dash.today">Today</button>
+                        <button class="filter-btn" id="f-week" onclick="changePeriod('week')" data-i18n="dash.this_week">This Week</button>
+                        <button class="filter-btn" id="f-month" onclick="changePeriod('month')" data-i18n="dash.this_month">This Month</button>
+                        <button class="filter-btn" id="f-year" onclick="changePeriod('year')" data-i18n="dash.this_year">This Year</button>
+                        <button class="filter-btn" id="f-custom" onclick="changePeriod('custom')" data-i18n="dash.custom_range">Custom Range</button>
                     </div>
                     <div class="custom-range-box">
-                        <label style="display:inline; margin-bottom:0;">From:</label>
+                        <label style="display:inline; margin-bottom:0;" data-i18n="dash.from">From:</label>
                         <input type="date" id="dash-start-date" onchange="triggerCustomDateFilter()" style="min-width:auto;">
-                        <label style="display:inline; margin-bottom:0;">To:</label>
+                        <label style="display:inline; margin-bottom:0;" data-i18n="dash.to">To:</label>
                         <input type="date" id="dash-end-date" onchange="triggerCustomDateFilter()" style="min-width:auto;">
                     </div>
                 </div>
 
                 <div class="grid-5">
-                    <div class="metric-box revenue" onclick="launchDrillDown('revenue')"><div class="metric-title">Total Revenue</div><div class="metric-value" id="m-revenue">ETB 0.00</div></div>
-                    <div class="metric-box danger" onclick="launchDrillDown('cogs')"><div class="metric-title">Cost of Goods Sold</div><div class="metric-value" id="m-cogs">ETB 0.00</div></div>
-                    <div class="metric-box success" onclick="launchDrillDown('gross')"><div class="metric-title">Gross Profit</div><div class="metric-value" id="m-gross">ETB 0.00</div></div>
-                    <div class="metric-box danger" onclick="launchDrillDown('expenses')"><div class="metric-title">Total Expenses</div><div class="metric-value" id="m-expenses">ETB 0.00</div></div>
-                    <div class="metric-box success" style="background: #EAF3EE;" onclick="launchDrillDown('net')"><div class="metric-title">Net Profit</div><div class="metric-value" id="m-net">ETB 0.00</div></div>
+                    <div class="metric-box revenue" onclick="launchDrillDown('revenue')"><div class="metric-title" data-i18n="acct.total_revenue">Total Revenue</div><div class="metric-value" id="m-revenue">ETB 0.00</div></div>
+                    <div class="metric-box danger" onclick="launchDrillDown('cogs')"><div class="metric-title" data-i18n="acct.cogs">Cost of Goods Sold</div><div class="metric-value" id="m-cogs">ETB 0.00</div></div>
+                    <div class="metric-box success" onclick="launchDrillDown('gross')"><div class="metric-title" data-i18n="acct.gross_profit">Gross Profit</div><div class="metric-value" id="m-gross">ETB 0.00</div></div>
+                    <div class="metric-box danger" onclick="launchDrillDown('expenses')"><div class="metric-title" data-i18n="acct.total_expenses">Total Expenses</div><div class="metric-value" id="m-expenses">ETB 0.00</div></div>
+                    <div class="metric-box success" style="background: #EAF3EE;" onclick="launchDrillDown('net')"><div class="metric-title" data-i18n="acct.net_profit">Net Profit</div><div class="metric-value" id="m-net">ETB 0.00</div></div>
                 </div>
 
                 <div class="card">
-                    <h3>Liquid Capital Asset Positions</h3>
+                    <h3 data-i18n="dash.liquid_positions">Liquid Capital Asset Positions</h3>
                     <p style="margin-top: 10px; font-size: 14px; color: var(--text-light);">
-                        Liquid Vault Balance (Cash & Banks): <strong id="dash-cash-sum" style="color: var(--primary);">ETB 0.00</strong> | 
-                        Inventory Assets (FIFO cost basis): <strong id="dash-stock-sum" style="color: var(--primary);">ETB 0.00</strong>
+                        <span onclick="launchLiquidVaultDrillDown()" style="cursor:pointer; text-decoration:underline dotted;" title="Click for a breakdown by channel" data-i18n="dash.liquid_vault">Liquid Vault Balance (Cash &amp; Banks)</span>: <strong id="dash-cash-sum" style="color: var(--primary);">ETB 0.00</strong> | 
+                        <span data-i18n="dash.inventory_assets">Inventory Assets (FIFO cost basis)</span>: <strong id="dash-stock-sum" style="color: var(--primary);">ETB 0.00</strong>
                     </p>
                 </div>
                 
                 <div class="card" id="analytics-module" style="background: #F4F5F8; border: none; padding: 0;">
                     <div style="background: linear-gradient(135deg, #232849, #171B34); padding: 24px; border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; color: white;">
-                        <h2 style="margin: 0; border: none; color: white; font-size: 22px; font-weight: 600;">Deep Sales Analytics</h2>
+                        <h2 style="margin: 0; border: none; color: white; font-size: 22px; font-weight: 600;" data-i18n="dash.deep_analytics">Deep Sales Analytics</h2>
                         <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center;">
                             <div class="form-group" style="margin: 0; display:flex; gap:8px; align-items:center;">
-                                <label style="margin:0; color: #9195a8;">Start Date:</label>
+                                <label style="margin:0; color: #9195a8;" data-i18n="dash.start_date">Start Date:</label>
                                 <input type="date" id="analytics-start" onchange="renderDeepAnalytics()" style="min-width: 130px; padding: 8px 12px; border-radius: 6px; border: 1px solid #4a4e63; background: #23263A; color: white;">
                             </div>
                             <div class="form-group" style="margin: 0; display:flex; gap:8px; align-items:center;">
-                                <label style="margin:0; color: #9195a8;">End Date:</label>
+                                <label style="margin:0; color: #9195a8;" data-i18n="dash.end_date">End Date:</label>
                                 <input type="date" id="analytics-end" onchange="renderDeepAnalytics()" style="min-width: 130px; padding: 8px 12px; border-radius: 6px; border: 1px solid #4a4e63; background: #23263A; color: white;">
                             </div>
                             <div class="form-group" style="margin: 0; display:flex; gap:8px; align-items:center; border-left: 2px solid #4a4e63; padding-left: 16px;">
-                                <label style="margin:0; color: #9195a8;">Grouping:</label>
+                                <label style="margin:0; color: #9195a8;" data-i18n="dash.grouping">Grouping:</label>
                                 <select id="history-group-by" onchange="renderDeepAnalytics()" style="min-width: 110px; padding: 8px 12px; border-radius: 6px; border: 1px solid #4a4e63; background: #23263A; color: white;">
-                                    <option value="week">By Week</option>
-                                    <option value="month">By Month</option>
-                                    <option value="year">By Year</option>
+                                    <option value="week" data-i18n="dash.by_week">By Week</option>
+                                    <option value="month" data-i18n="dash.by_month">By Month</option>
+                                    <option value="year" data-i18n="dash.by_year">By Year</option>
                                 </select>
                             </div>
                         </div>
@@ -470,11 +471,11 @@
                             </div>
                             
                             <div class="chart-scroll-wrap" style="grid-column: 1 / -1; background: #ffffff; padding: 20px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.06);">
-                                <h3 style="margin:0 0 14px 0; font-size:16px; font-weight:600; color:#171B34;">Revenue &amp; Profit History</h3>
+                                <h3 style="margin:0 0 14px 0; font-size:16px; font-weight:600; color:#171B34;">Revenue &amp; Profit History <span style="font-size:12px; font-weight:normal; color:var(--text-light);">— click a point for that period's details</span></h3>
                                 <button class="graph-btn left-btn" onclick="document.getElementById('scroll-revprof').scrollBy({left: -400, behavior: 'smooth'})">◀</button>
                                 <button class="graph-btn right-btn" onclick="document.getElementById('scroll-revprof').scrollBy({left: 400, behavior: 'smooth'})">▶</button>
                                 <div id="scroll-revprof" style="overflow-x: auto; overflow-y: hidden; scroll-behavior: smooth; width: 100%; white-space: nowrap; padding-bottom: 8px;">
-                                    <div id="container-revprof" style="height: 350px; display: inline-block;">
+                                    <div id="container-revprof" style="height: 350px; display: inline-block; cursor: pointer;">
                                         </div>
                                 </div>
                             </div>
@@ -484,7 +485,7 @@
                             </div>
                         </div>
 
-                        <h3 style="color: var(--primary); margin-bottom: 12px; font-size: 18px;">Item Performance Matrix (Velocity & Margins)</h3>
+                        <h3 style="color: var(--primary); margin-bottom: 12px; font-size: 18px;" data-i18n="dash.item_matrix">Item Performance Matrix (Velocity &amp; Margins)</h3>
                         <div style="overflow-x: auto; margin-top: 8px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid var(--border);">
                             <table style="margin-top: 0; width: 100%; border-collapse: separate; border-spacing: 0;">
                                 <thead style="background: linear-gradient(to right, #F4F5F8, #ECEDF2);">
@@ -508,24 +509,24 @@
 
             <div id="view-inventory" class="view-panel">
                 <div class="card" id="inventory-def-card">
-                    <h2 id="inv-title">Add Product</h2>
+                    <h2 id="inv-title" data-i18n="inv.add_product">Add Product</h2>
                     <form id="inventory-def-form" onsubmit="handleDefineProduct(event)">
                         <input type="hidden" id="edit-index" value="">
-                        <div class="form-group"><label>Category</label><input type="text" id="p-category" list="category-list" required autocomplete="off"><datalist id="category-list"></datalist></div>
-                        <div class="form-group"><label>Product Name</label><input type="text" id="p-desc" required></div>
-                        <div class="form-group" style="padding-top: 22px;"><button type="submit" class="btn" id="inv-btn">Add Product</button><button type="button" class="btn btn-warning" id="inv-cancel" style="display:none;" onclick="resetProductForm()">Cancel</button></div>
+                        <div class="form-group"><label data-i18n="inv.category">Category</label><input type="text" id="p-category" list="category-list" required autocomplete="off"><datalist id="category-list"></datalist></div>
+                        <div class="form-group"><label data-i18n="inv.product_name">Product Name</label><input type="text" id="p-desc" required></div>
+                        <div class="form-group" style="padding-top: 22px;"><button type="submit" class="btn" id="inv-btn">Add Product</button><button type="button" class="btn btn-warning" id="inv-cancel" style="display:none;" onclick="resetProductForm()" data-i18n="common.cancel">Cancel</button></div>
                     </form>
                 </div>
 
                 <div class="card">
-                    <h2>Stock List</h2>
+                    <h2 data-i18n="inv.stock_list">Stock List</h2>
                     <div class="filter-panel">
-                        <div class="form-group"><label>Search Category</label><input type="text" id="inv-filter-category" placeholder="Filter category..." oninput="renderPerpetualInventoryTable()"></div>
-                        <div class="form-group"><label>Search Name</label><input type="text" id="inv-filter-name" placeholder="Filter name..." oninput="renderPerpetualInventoryTable()"></div>
+                        <div class="form-group"><label data-i18n="inv.search_category">Search Category</label><input type="text" id="inv-filter-category" placeholder="Filter category..." oninput="renderPerpetualInventoryTable()"></div>
+                        <div class="form-group"><label data-i18n="inv.search_name">Search Name</label><input type="text" id="inv-filter-name" placeholder="Filter name..." oninput="renderPerpetualInventoryTable()"></div>
                     </div>
                     <table>
                         <thead>
-                            <tr><th>Category</th><th>Item Specification / Name</th><th class="num">Qty On Hand</th><th class="num">Cost Layers FIFO (ETB)</th><th class="num">Selling Price (ETB)</th><th class="num">Total Asset (ETB)</th><th style="text-align: center;">Actions</th></tr>
+                            <tr><th data-i18n="inv.category">Category</th><th data-i18n="inv.item_spec">Item Specification / Name</th><th class="num" data-i18n="inv.qty_on_hand">Qty On Hand</th><th class="num" data-i18n="inv.cost_layers">Cost Layers FIFO (ETB)</th><th class="num" data-i18n="inv.selling_price">Selling Price (ETB)</th><th class="num" data-i18n="inv.total_asset">Total Asset (ETB)</th><th style="text-align: center;" data-i18n="inv.actions">Actions</th></tr>
                         </thead>
                         <tbody id="inventory-table-body"></tbody>
                     </table>
@@ -534,96 +535,96 @@
 
             <div id="view-transfer" class="view-panel">
                 <div class="card" id="stock-transfer-card">
-                    <h2>Transfer Stock Between Branches</h2>
+                    <h2 data-i18n="tr.title">Transfer Stock Between Branches</h2>
                     <form id="stock-transfer-form" onsubmit="handleStockTransfer(event)">
-                        <div class="form-group"><label>From Branch</label><select id="transfer-from-branch" required></select></div>
-                        <div class="form-group"><label>To Branch</label><select id="transfer-to-branch" required></select></div>
+                        <div class="form-group"><label data-i18n="tr.from_branch">From Branch</label><select id="transfer-from-branch" required></select></div>
+                        <div class="form-group"><label data-i18n="tr.to_branch">To Branch</label><select id="transfer-to-branch" required></select></div>
                         <div class="form-group">
-                            <label>Item</label>
+                            <label data-i18n="sale.item">Item</label>
                             <input type="text" id="transfer-item" list="transfer-item-list" placeholder="Type to filter..." style="min-width: 300px;" required autocomplete="off">
                             <datalist id="transfer-item-list"></datalist>
                         </div>
-                        <div class="form-group"><label>Quantity</label><input type="number" id="transfer-qty" min="1" value="1" required></div>
-                        <div class="form-group"><label>Notes (Optional)</label><input type="text" id="transfer-notes" placeholder="e.g. Restocking low shelf"></div>
-                        <div class="form-group" style="padding-top: 22px;"><button type="submit" class="btn" id="transfer-submit-btn">Transfer Stock</button></div>
+                        <div class="form-group"><label data-i18n="tr.quantity">Quantity</label><input type="number" id="transfer-qty" min="1" value="1" required></div>
+                        <div class="form-group"><label data-i18n="tr.notes_optional">Notes (Optional)</label><input type="text" id="transfer-notes" placeholder="e.g. Restocking low shelf"></div>
+                        <div class="form-group" style="padding-top: 22px;"><button type="submit" class="btn" id="transfer-submit-btn" data-i18n="tr.transfer_stock">Transfer Stock</button></div>
                     </form>
-                    <h2 style="margin-top:24px;">Transfer History</h2>
+                    <h2 style="margin-top:24px;" data-i18n="tr.history">Transfer History</h2>
                     <table>
-                        <thead><tr><th>Date</th><th>Item</th><th class="num">Qty</th><th>From</th><th>To</th><th>By</th><th>Notes</th><th style="text-align:center;">Actions</th></tr></thead>
+                        <thead><tr><th data-i18n="sale.date">Date</th><th data-i18n="sale.item">Item</th><th class="num" data-i18n="tr.quantity">Qty</th><th data-i18n="tr.from">From</th><th data-i18n="tr.to">To</th><th data-i18n="tr.by">By</th><th data-i18n="tr.notes">Notes</th><th style="text-align:center;" data-i18n="inv.actions">Actions</th></tr></thead>
                         <tbody id="stock-transfer-table-body"></tbody>
                     </table>
                 </div>
                 <div class="card" id="stock-transfer-unavailable-card" style="display:none;">
-                    <h2>Transfer Stock Between Branches</h2>
+                    <h2 data-i18n="tr.title">Transfer Stock Between Branches</h2>
                     <p style="color:var(--text-light);">Stock transfers need more than one branch on your account and permission to transfer stock.</p>
                 </div>
             </div>
 
             <div id="view-cash_handover" class="view-panel">
                 <div class="card" id="cash-handover-employee-card" style="display:none;">
-                    <h2>Cash Handover</h2>
+                    <h2 data-i18n="nav.cash_handover">Cash Handover</h2>
                     <div id="cash-handover-balance-box" style="background:var(--bg); border-radius:10px; padding:18px; margin-bottom:20px;">
-                        <div style="font-size:12px; color:var(--text-light); text-transform:uppercase; letter-spacing:0.5px;">Cash you're currently holding at <span id="cash-handover-branch-name">this branch</span></div>
+                        <div style="font-size:12px; color:var(--text-light); text-transform:uppercase; letter-spacing:0.5px;"><span data-i18n="ch.holding_at">Cash you're currently holding at</span> <span id="cash-handover-branch-name">this branch</span></div>
                         <div id="cash-handover-balance-amount" style="font-size:32px; font-weight:700; color:var(--primary); margin-top:4px;">ETB 0.00</div>
                     </div>
                     <form id="cash-handover-form" onsubmit="submitCashHandover(event)">
-                        <div class="form-group"><label>Amount Handing Over (ETB)</label><input type="number" id="cash-handover-amount" step="0.01" min="0.01" required></div>
-                        <div class="form-group"><label>Note (Optional)</label><input type="text" id="cash-handover-note" placeholder="e.g. End of day handover"></div>
-                        <div class="form-group" style="padding-top:22px;"><button type="submit" class="btn">Submit Handover</button></div>
+                        <div class="form-group"><label data-i18n="ch.amount_handing_over">Amount Handing Over (ETB)</label><input type="number" id="cash-handover-amount" step="0.01" min="0.01" required></div>
+                        <div class="form-group"><label data-i18n="tr.notes_optional">Note (Optional)</label><input type="text" id="cash-handover-note" placeholder="e.g. End of day handover"></div>
+                        <div class="form-group" style="padding-top:22px;"><button type="submit" class="btn" data-i18n="ch.submit">Submit Handover</button></div>
                     </form>
-                    <p style="font-size:12px; color:var(--text-light); margin-top:-8px;">This won't reduce your balance above until the owner approves it.</p>
-                    <h2 style="margin-top:24px;">Your Handover History</h2>
+                    <p style="font-size:12px; color:var(--text-light); margin-top:-8px;" data-i18n="ch.pending_note">This won't reduce your balance above until the owner approves it.</p>
+                    <h2 style="margin-top:24px;" data-i18n="ch.my_history">Your Handover History</h2>
                     <table>
-                        <thead><tr><th>Date</th><th class="num">Amount</th><th>Note</th><th>Status</th></tr></thead>
+                        <thead><tr><th data-i18n="sale.date">Date</th><th class="num" data-i18n="ch.amount">Amount</th><th data-i18n="tr.notes">Note</th><th data-i18n="ch.status">Status</th><th style="text-align:center;" data-i18n="inv.actions">Actions</th></tr></thead>
                         <tbody id="cash-handover-my-history-body"></tbody>
                     </table>
                 </div>
 
                 <div class="card" id="cash-handover-owner-pending-card" style="display:none;">
-                    <h2>Pending Cash Handovers</h2>
+                    <h2 data-i18n="ch.pending_title">Pending Cash Handovers</h2>
                     <table>
-                        <thead><tr><th>Date</th><th>Employee</th><th>Branch</th><th class="num">Amount</th><th>Note</th><th style="text-align:center;">Actions</th></tr></thead>
+                        <thead><tr><th data-i18n="sale.date">Date</th><th data-i18n="ch.employee">Employee</th><th data-i18n="sale.branch">Branch</th><th class="num" data-i18n="ch.amount">Amount</th><th data-i18n="tr.notes">Note</th><th style="text-align:center;" data-i18n="inv.actions">Actions</th></tr></thead>
                         <tbody id="cash-handover-pending-body"></tbody>
                     </table>
-                    <h2 style="margin-top:24px;">All Handover History</h2>
+                    <h2 style="margin-top:24px;" data-i18n="ch.all_history">All Handover History</h2>
                     <table>
-                        <thead><tr><th>Date</th><th>Employee</th><th>Branch</th><th class="num">Amount</th><th>Note</th><th>Status</th><th>Decided By</th></tr></thead>
+                        <thead><tr><th data-i18n="sale.date">Date</th><th data-i18n="ch.employee">Employee</th><th data-i18n="sale.branch">Branch</th><th class="num" data-i18n="ch.amount">Amount</th><th data-i18n="tr.notes">Note</th><th data-i18n="ch.status">Status</th><th data-i18n="ch.decided_by">Decided By</th><th style="text-align:center;" data-i18n="inv.actions">Actions</th></tr></thead>
                         <tbody id="cash-handover-all-history-body"></tbody>
                     </table>
                 </div>
 
                 <div class="card" id="cash-handover-unavailable-card" style="display:none;">
-                    <h2>Cash Handover</h2>
-                    <p style="color:var(--text-light);">You don't have permission to use Cash Handover.</p>
+                    <h2 data-i18n="nav.cash_handover">Cash Handover</h2>
+                    <p style="color:var(--text-light);" data-i18n="ch.no_perm">You don't have permission to use Cash Handover.</p>
                 </div>
             </div>
 
             <div id="view-sales" class="view-panel">
                 <div class="card" id="sales-entry-card">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <h2 style="border:none; margin-bottom:0; padding-bottom:0;">Record Sale</h2>
-                        <a href="#" onclick="toggleSaleCartMode(true); return false;" style="font-size:12px; color:var(--accent); font-weight:600;">+ Selling multiple items in one transaction?</a>
+                        <h2 style="border:none; margin-bottom:0; padding-bottom:0;" data-i18n="sale.record_sale">Record Sale</h2>
+                        <a href="#" onclick="toggleSaleCartMode(true); return false;" style="font-size:12px; color:var(--accent); font-weight:600;">+ <span data-i18n="sale.multi_item_prompt">Selling multiple items in one transaction?</span></a>
                     </div>
                     <form id="sales-form" onsubmit="handlePostSale(event)">
-                        <div class="form-group"><label>Date</label><input type="date" id="sale-date" required></div>
-                        <div class="form-group"><label>Customer Name</label><input type="text" id="sale-customer" list="customer-list" placeholder="Blank defaults to Walk-in" onfocus="syncCustomerList()"><datalist id="customer-list"></datalist></div>
+                        <div class="form-group"><label data-i18n="sale.date">Date</label><input type="date" id="sale-date" required></div>
+                        <div class="form-group"><label data-i18n="sale.customer_name">Customer Name</label><input type="text" id="sale-customer" list="customer-list" placeholder="Blank defaults to Walk-in" onfocus="syncCustomerList()"><datalist id="customer-list"></datalist></div>
                         <div class="form-group">
-                            <label>Item</label>
+                            <label data-i18n="sale.item">Item</label>
                             <input type="text" id="sale-item" list="sale-item-list" onchange="autoPopulateSalePrice()" placeholder="Type to filter..." style="min-width: 300px;" required autocomplete="off">
                             <datalist id="sale-item-list"></datalist>
                         </div>
-                        <div class="form-group"><label>Quantity</label><input type="number" id="sale-qty" min="1" value="1" required oninput="syncSaleAmountPaidDefault()"></div>
-                        <div class="form-group"><label>Price (ETB)</label><input type="number" id="sale-price" step="0.01" min="0.01" required oninput="syncSaleAmountPaidDefault()"></div>
+                        <div class="form-group"><label data-i18n="tr.quantity">Quantity</label><input type="number" id="sale-qty" min="1" value="1" required oninput="syncSaleAmountPaidDefault()"></div>
+                        <div class="form-group"><label data-i18n="sale.price">Price (ETB)</label><input type="number" id="sale-price" step="0.01" min="0.01" required oninput="syncSaleAmountPaidDefault()"></div>
                         <div class="form-group">
-                            <label>Amount Paid Now (ETB)</label>
+                            <label data-i18n="sale.amount_paid_now">Amount Paid Now (ETB)</label>
                             <input type="number" id="sale-amount-paid" step="0.01" min="0" oninput="handleSaleAmountPaidInput()" title="Leave less than the total for a down payment (or blank/0 for fully on credit) — the rest is tracked as owed by the customer">
                         </div>
                         <div class="form-group" id="sale-channel-group">
-                            <label>Channel</label>
+                            <label data-i18n="sale.channel">Channel</label>
                             <select id="sale-channel" onchange="handleChannelSelectChange(this)" onfocus="this.dataset.prevValue=this.value"><option value="Cash">Cash</option><option value="Mobile banking">Mobile banking</option></select>
                         </div>
                         <div class="form-group">
-                            <label>Sale Type</label>
+                            <label data-i18n="sale.sale_type">Sale Type</label>
                             <select id="sale-type" onchange="handleSaleTypeSelectChange(this)" onfocus="this.dataset.prevValue=this.value">
                                 <option value="Walk in">Walk in</option>
                                 <option value="Proforma">Proforma</option>
@@ -631,20 +632,20 @@
                                 <option value="Tender">Tender</option>
                             </select>
                         </div>
-                        <div class="form-group" style="padding-top: 22px;"><button type="submit" class="btn" style="background:var(--success);">Post Sale</button></div>
+                        <div class="form-group" style="padding-top: 22px;"><button type="submit" class="btn" style="background:var(--success);" data-i18n="sale.post_sale">Post Sale</button></div>
                     </form>
                 </div>
 
                 <div class="card" id="sale-cart-card" style="display:none;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <h2 style="border:none; margin-bottom:0; padding-bottom:0;">Multi-Item Sale</h2>
-                        <a href="#" onclick="toggleSaleCartMode(false); return false;" style="font-size:12px; color:var(--accent); font-weight:600;">← Back to single-item sale</a>
+                        <h2 style="border:none; margin-bottom:0; padding-bottom:0;" data-i18n="sale.multi_item_sale">Multi-Item Sale</h2>
+                        <a href="#" onclick="toggleSaleCartMode(false); return false;" style="font-size:12px; color:var(--accent); font-weight:600;" data-i18n="sale.back_to_single">← Back to single-item sale</a>
                     </div>
                     <div class="filter-panel" style="margin-top:14px;">
-                        <div class="form-group"><label>Date</label><input type="date" id="cart-sale-date" required></div>
-                        <div class="form-group"><label>Customer Name</label><input type="text" id="cart-sale-customer" list="customer-list" placeholder="Blank defaults to Walk-in" onfocus="syncCustomerList()"></div>
+                        <div class="form-group"><label data-i18n="sale.date">Date</label><input type="date" id="cart-sale-date" required></div>
+                        <div class="form-group"><label data-i18n="sale.customer_name">Customer Name</label><input type="text" id="cart-sale-customer" list="customer-list" placeholder="Blank defaults to Walk-in" onfocus="syncCustomerList()"></div>
                         <div class="form-group">
-                            <label>Sale Type</label>
+                            <label data-i18n="sale.sale_type">Sale Type</label>
                             <select id="cart-sale-type">
                                 <option value="Walk in">Walk in</option>
                                 <option value="Proforma">Proforma</option>
@@ -655,46 +656,47 @@
                     </div>
                     <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; border-bottom:1px solid var(--border); padding-bottom:16px; margin-bottom:16px;">
                         <div class="form-group" style="margin-bottom:0;">
-                            <label>Item</label>
+                            <label data-i18n="sale.item">Item</label>
                             <input type="text" id="cart-sale-item" list="sale-item-list" onchange="autoPopulateCartSalePrice()" placeholder="Type to filter..." style="min-width: 260px;" autocomplete="off">
                         </div>
-                        <div class="form-group" style="margin-bottom:0;"><label>Quantity</label><input type="number" id="cart-sale-qty" min="1" value="1" style="min-width:90px;"></div>
-                        <div class="form-group" style="margin-bottom:0;"><label>Price (ETB)</label><input type="number" id="cart-sale-price" step="0.01" min="0.01" style="min-width:110px;"></div>
-                        <button type="button" class="btn" onclick="addToSaleCart()">+ Add to Basket</button>
+                        <div class="form-group" style="margin-bottom:0;"><label data-i18n="tr.quantity">Quantity</label><input type="number" id="cart-sale-qty" min="1" value="1" style="min-width:90px;"></div>
+                        <div class="form-group" style="margin-bottom:0;"><label data-i18n="sale.price">Price (ETB)</label><input type="number" id="cart-sale-price" step="0.01" min="0.01" style="min-width:110px;"></div>
+                        <button type="button" class="btn" onclick="addToSaleCart()">+ <span data-i18n="sale.add_to_basket">Add to Basket</span></button>
                     </div>
                     <table>
-                        <thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Line Total</th><th style="text-align:center;">Remove</th></tr></thead>
-                        <tbody id="sale-cart-table-body"><tr><td colspan="5" style="text-align:center; color:var(--text-light);">No items added yet.</td></tr></tbody>
+                        <thead><tr><th data-i18n="sale.item">Item</th><th class="num" data-i18n="tr.quantity">Qty</th><th class="num" data-i18n="sale.price">Price</th><th class="num" data-i18n="sale.line_total">Line Total</th><th style="text-align:center;" data-i18n="sale.remove">Remove</th></tr></thead>
+                        <tbody id="sale-cart-table-body"><tr><td colspan="5" style="text-align:center; color:var(--text-light);" data-i18n="sale.no_items_yet">No items added yet.</td></tr></tbody>
                     </table>
                     <div style="display:flex; justify-content:flex-end; margin-top:16px;">
                         <div style="min-width:280px;">
                             <div style="display:flex; justify-content:space-between; font-size:15px; font-weight:700; color:var(--primary); margin-bottom:12px;">
-                                <span>Basket Total</span><span class="num" id="sale-cart-total">ETB 0.00</span>
+                                <span data-i18n="sale.basket_total">Basket Total</span><span class="num" id="sale-cart-total">ETB 0.00</span>
                             </div>
                             <div class="form-group" style="display:block; width:100%; margin-bottom:12px;">
-                                <label>Amount Paid Now (ETB)</label>
+                                <label data-i18n="sale.amount_paid_now">Amount Paid Now (ETB)</label>
                                 <input type="number" id="cart-sale-amount-paid" step="0.01" min="0" style="width:100%;" oninput="handleCartSaleAmountPaidInput()">
                             </div>
                             <div class="form-group" id="cart-sale-channel-group" style="display:block; width:100%; margin-bottom:12px;">
-                                <label>Channel</label>
+                                <label data-i18n="sale.channel">Channel</label>
                                 <select id="cart-sale-channel" style="width:100%;"><option value="Cash">Cash</option><option value="Mobile banking">Mobile banking</option></select>
                             </div>
-                            <button class="btn" style="background:var(--success); width:100%;" onclick="submitSaleCart()">Complete Sale</button>
+                            <button class="btn" style="background:var(--success); width:100%;" onclick="submitSaleCart()" data-i18n="sale.complete_sale">Complete Sale</button>
                         </div>
                     </div>
                 </div>
                 
                 <div class="card">
-                    <h2>Sales History</h2>
+                    <h2 data-i18n="sale.history">Sales History</h2>
                     <div class="filter-panel">
-                        <div class="form-group"><label>Filter Date</label><input type="date" id="sale-log-filter-date" onchange="renderSalesLogTable()"></div>
-                        <div class="form-group"><label>Customer</label><input type="text" id="sale-log-filter-customer" placeholder="Search..." oninput="renderSalesLogTable()"></div>
-                        <div class="form-group"><label>Product</label><input type="text" id="sale-log-filter-item" placeholder="Search..." oninput="renderSalesLogTable()"></div>
-                        <div class="form-group"><label>Channel</label><select id="sale-log-filter-channel" onchange="renderSalesLogTable()"><option value="">-- All --</option><option value="Cash">Cash</option><option value="Mobile banking">Mobile banking</option><option value="Accounts receivable">Accounts receivable</option></select></div>
+                        <div class="form-group"><label data-i18n="sale.filter_date">Filter Date</label><input type="date" id="sale-log-filter-date" onchange="renderSalesLogTable()"></div>
+                        <div class="form-group"><label data-i18n="sale.customer_filter">Customer</label><input type="text" id="sale-log-filter-customer" placeholder="Search..." oninput="renderSalesLogTable()"></div>
+                        <div class="form-group"><label data-i18n="sale.product">Product</label><input type="text" id="sale-log-filter-item" placeholder="Search..." oninput="renderSalesLogTable()"></div>
+                        <div class="form-group"><label data-i18n="sale.channel">Channel</label><select id="sale-log-filter-channel" onchange="renderSalesLogTable()"><option value="" data-i18n="sale.all">-- All --</option><option value="Cash">Cash</option><option value="Mobile banking">Mobile banking</option><option value="Accounts receivable">Accounts receivable</option></select></div>
                     </div>
+                    <div id="sale-log-total-display" style="font-size:13px; font-weight:600; color:var(--primary); margin-bottom:8px;"></div>
                     <table>
                         <thead>
-                            <tr><th>Date</th><th>Customer Name</th><th>Product Item</th><th class="num">Quantity</th><th class="num">Unit Price</th><th class="num">Total</th><th>Channel / Status / Type</th><th class="branch-col">Branch</th><th>By</th><th style="text-align:center;">Action</th></tr>
+                            <tr><th data-i18n="sale.date">Date</th><th data-i18n="sale.customer_name">Customer Name</th><th data-i18n="sale.product_item">Product Item</th><th class="num" data-i18n="tr.quantity">Quantity</th><th class="num" data-i18n="sale.unit_price">Unit Price</th><th class="num" data-i18n="sale.total">Total</th><th>Channel / Status / Type</th><th class="branch-col" data-i18n="sale.branch">Branch</th><th data-i18n="tr.by">By</th><th style="text-align:center;" data-i18n="sale.action">Action</th></tr>
                         </thead>
                         <tbody id="sales-log-table-body"></tbody>
                     </table>
@@ -704,108 +706,109 @@
             <div id="view-purchase" class="view-panel">
                 <div class="card" id="purchase-entry-card">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <h2 style="border:none; margin-bottom:0; padding-bottom:0;">Record Purchase</h2>
-                        <a href="#" onclick="togglePurchaseCartMode(true); return false;" style="font-size:12px; color:var(--accent); font-weight:600;">+ Buying multiple items in one transaction?</a>
+                        <h2 style="border:none; margin-bottom:0; padding-bottom:0;" data-i18n="pur.record_purchase">Record Purchase</h2>
+                        <a href="#" onclick="togglePurchaseCartMode(true); return false;" style="font-size:12px; color:var(--accent); font-weight:600;">+ <span data-i18n="pur.multi_item_prompt">Buying multiple items in one transaction?</span></a>
                     </div>
                     <form id="purchase-form" onsubmit="handlePostPurchase(event)">
-                        <div class="form-group"><label>Date</label><input type="date" id="pur-date" required></div>
-                        <div class="form-group"><label>Supplier Name</label><input type="text" id="pur-supplier" list="supplier-list" placeholder="e.g., Global Distributors" required onfocus="syncSupplierList()"><datalist id="supplier-list"></datalist></div>
+                        <div class="form-group"><label data-i18n="sale.date">Date</label><input type="date" id="pur-date" required></div>
+                        <div class="form-group"><label data-i18n="pur.supplier_name">Supplier Name</label><input type="text" id="pur-supplier" list="supplier-list" placeholder="e.g., Global Distributors" required onfocus="syncSupplierList()"><datalist id="supplier-list"></datalist></div>
                         <div class="form-group">
-                            <label>Item</label>
+                            <label data-i18n="sale.item">Item</label>
                             <input type="text" id="pur-item" list="pur-item-list" placeholder="Type to filter..." style="min-width: 300px;" required autocomplete="off" oninput="handlePurchaseItemPicked()">
                             <datalist id="pur-item-list"></datalist>
                         </div>
-                        <div class="form-group"><label>Quantity</label><input type="number" id="pur-qty" min="1" value="1" required oninput="syncPurchaseAmountPaidDefault()"></div>
-                        <div class="form-group" id="pur-price-group"><label>Cost (ETB)</label><input type="number" id="pur-price" step="0.01" min="0.01" required oninput="this.dataset.touched='1'; syncPurchaseAmountPaidDefault()"></div>
+                        <div class="form-group"><label data-i18n="tr.quantity">Quantity</label><input type="number" id="pur-qty" min="1" value="1" required oninput="syncPurchaseAmountPaidDefault()"></div>
+                        <div class="form-group" id="pur-price-group"><label data-i18n="pur.cost">Cost (ETB)</label><input type="number" id="pur-price" step="0.01" min="0.01" required oninput="this.dataset.touched='1'; syncPurchaseAmountPaidDefault()"></div>
                         <div class="form-group" id="pur-price-locked-note" style="display:none;">
-                            <label>Cost (ETB)</label>
+                            <label data-i18n="pur.cost">Cost (ETB)</label>
                             <div id="pur-price-locked-text" style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:180px;">🔒</div>
                         </div>
-                        <div class="form-group" id="pur-selling-price-group"><label>Selling Price (Optional)</label><input type="number" id="pur-selling-price" step="0.01" placeholder="Leave blank to skip"></div>
+                        <div class="form-group" id="pur-selling-price-group"><label data-i18n="misc.selling_price_optional">Selling Price (Optional)</label><input type="number" id="pur-selling-price" step="0.01" placeholder="Leave blank to skip"></div>
                         <div class="form-group" id="pur-selling-price-locked-note" style="display:none;">
-                            <label>Selling Price</label>
+                            <label data-i18n="misc.selling_price">Selling Price</label>
                             <div style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:180px;">🔒 Not editable for your role</div>
                         </div>
                         <div class="form-group" id="pur-amount-paid-group">
-                            <label>Amount Paid Now (ETB)</label>
+                            <label data-i18n="sale.amount_paid_now">Amount Paid Now (ETB)</label>
                             <input type="number" id="pur-amount-paid" step="0.01" min="0" oninput="handlePurchaseAmountPaidInput()" title="Leave less than the total for a down payment (or blank/0 for fully on credit) — the rest is tracked as owed to the supplier">
                         </div>
                         <div class="form-group" id="pur-amount-paid-locked-note" style="display:none;">
-                            <label>Amount Paid Now (ETB)</label>
+                            <label data-i18n="sale.amount_paid_now">Amount Paid Now (ETB)</label>
                             <div style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:180px;">🔒</div>
                         </div>
                         <div class="form-group" id="pur-channel-group">
-                            <label>Channel</label>
+                            <label data-i18n="sale.channel">Channel</label>
                             <select id="pur-channel" onchange="handleChannelSelectChange(this)" onfocus="this.dataset.prevValue=this.value"><option value="Cash">Cash</option><option value="Mobile banking">Mobile banking</option></select>
                         </div>
-                        <div class="form-group" style="padding-top: 22px;"><button type="submit" class="btn">Commit Purchase</button></div>
+                        <div class="form-group" style="padding-top: 22px;"><button type="submit" class="btn" data-i18n="pur.commit_purchase">Commit Purchase</button></div>
                     </form>
                 </div>
 
                 <div class="card" id="purchase-cart-card" style="display:none;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <h2 style="border:none; margin-bottom:0; padding-bottom:0;">Multi-Item Purchase</h2>
-                        <a href="#" onclick="togglePurchaseCartMode(false); return false;" style="font-size:12px; color:var(--accent); font-weight:600;">← Back to single-item purchase</a>
+                        <h2 style="border:none; margin-bottom:0; padding-bottom:0;" data-i18n="pur.multi_item_purchase">Multi-Item Purchase</h2>
+                        <a href="#" onclick="togglePurchaseCartMode(false); return false;" style="font-size:12px; color:var(--accent); font-weight:600;" data-i18n="pur.back_to_single">← Back to single-item purchase</a>
                     </div>
                     <div class="filter-panel" style="margin-top:14px;">
-                        <div class="form-group"><label>Date</label><input type="date" id="cart-pur-date" required></div>
-                        <div class="form-group"><label>Supplier Name</label><input type="text" id="cart-pur-supplier" list="supplier-list" placeholder="e.g., Global Distributors" required onfocus="syncSupplierList()"></div>
+                        <div class="form-group"><label data-i18n="sale.date">Date</label><input type="date" id="cart-pur-date" required></div>
+                        <div class="form-group"><label data-i18n="pur.supplier_name">Supplier Name</label><input type="text" id="cart-pur-supplier" list="supplier-list" placeholder="e.g., Global Distributors" required onfocus="syncSupplierList()"></div>
                     </div>
                     <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; border-bottom:1px solid var(--border); padding-bottom:16px; margin-bottom:16px;">
                         <div class="form-group" style="margin-bottom:0;">
-                            <label>Item</label>
+                            <label data-i18n="sale.item">Item</label>
                             <input type="text" id="cart-pur-item" list="pur-item-list" placeholder="Type to filter..." style="min-width: 260px;" autocomplete="off" oninput="handleCartPurchaseItemPicked()">
                         </div>
-                        <div class="form-group" style="margin-bottom:0;"><label>Quantity</label><input type="number" id="cart-pur-qty" min="1" value="1" style="min-width:90px;"></div>
-                        <div class="form-group" style="margin-bottom:0;" id="cart-pur-price-group"><label>Cost (ETB)</label><input type="number" id="cart-pur-price" step="0.01" min="0.01" style="min-width:110px;"></div>
+                        <div class="form-group" style="margin-bottom:0;"><label data-i18n="tr.quantity">Quantity</label><input type="number" id="cart-pur-qty" min="1" value="1" style="min-width:90px;"></div>
+                        <div class="form-group" style="margin-bottom:0;" id="cart-pur-price-group"><label data-i18n="pur.cost">Cost (ETB)</label><input type="number" id="cart-pur-price" step="0.01" min="0.01" style="min-width:110px;"></div>
                         <div class="form-group" style="margin-bottom:0; display:none;" id="cart-pur-price-locked-note">
-                            <label>Cost (ETB)</label>
+                            <label data-i18n="pur.cost">Cost (ETB)</label>
                             <div id="cart-pur-price-locked-text" style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:110px;">🔒</div>
                         </div>
-                        <div class="form-group" style="margin-bottom:0;" id="cart-pur-selling-price-group"><label>Selling Price (Optional)</label><input type="number" id="cart-pur-selling-price" step="0.01" placeholder="Skip to leave" style="min-width:130px;"></div>
+                        <div class="form-group" style="margin-bottom:0;" id="cart-pur-selling-price-group"><label data-i18n="misc.selling_price_optional">Selling Price (Optional)</label><input type="number" id="cart-pur-selling-price" step="0.01" placeholder="Skip to leave" style="min-width:130px;"></div>
                         <div class="form-group" style="margin-bottom:0; display:none;" id="cart-pur-selling-price-locked-note">
-                            <label>Selling Price</label>
+                            <label data-i18n="misc.selling_price">Selling Price</label>
                             <div style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:130px;">🔒 Not editable</div>
                         </div>
-                        <button type="button" class="btn" onclick="addToPurchaseCart()">+ Add to Basket</button>
+                        <button type="button" class="btn" onclick="addToPurchaseCart()">+ <span data-i18n="sale.add_to_basket">Add to Basket</span></button>
                     </div>
                     <table>
-                        <thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Cost</th><th class="num">Line Total</th><th style="text-align:center;">Remove</th></tr></thead>
-                        <tbody id="purchase-cart-table-body"><tr><td colspan="5" style="text-align:center; color:var(--text-light);">No items added yet.</td></tr></tbody>
+                        <thead><tr><th data-i18n="sale.item">Item</th><th class="num" data-i18n="tr.quantity">Qty</th><th class="num">Cost</th><th class="num" data-i18n="sale.line_total">Line Total</th><th style="text-align:center;" data-i18n="sale.remove">Remove</th></tr></thead>
+                        <tbody id="purchase-cart-table-body"><tr><td colspan="5" style="text-align:center; color:var(--text-light);" data-i18n="sale.no_items_yet">No items added yet.</td></tr></tbody>
                     </table>
                     <div style="display:flex; justify-content:flex-end; margin-top:16px;">
                         <div style="min-width:280px;">
                             <div style="display:flex; justify-content:space-between; font-size:15px; font-weight:700; color:var(--primary); margin-bottom:12px;">
-                                <span>Basket Total</span><span class="num" id="purchase-cart-total">ETB 0.00</span>
+                                <span data-i18n="sale.basket_total">Basket Total</span><span class="num" id="purchase-cart-total">ETB 0.00</span>
                             </div>
                             <div class="form-group" id="cart-pur-amount-paid-group" style="display:block; width:100%; margin-bottom:12px;">
-                                <label>Amount Paid Now (ETB)</label>
+                                <label data-i18n="sale.amount_paid_now">Amount Paid Now (ETB)</label>
                                 <input type="number" id="cart-pur-amount-paid" step="0.01" min="0" style="width:100%;" oninput="handleCartPurchaseAmountPaidInput()">
                             </div>
                             <div class="form-group" id="cart-pur-amount-paid-locked-note" style="display:none; width:100%; margin-bottom:12px;">
-                                <label>Amount Paid Now (ETB)</label>
+                                <label data-i18n="sale.amount_paid_now">Amount Paid Now (ETB)</label>
                                 <div style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border);">🔒</div>
                             </div>
                             <div class="form-group" id="cart-pur-channel-group" style="display:block; width:100%; margin-bottom:12px;">
-                                <label>Channel</label>
+                                <label data-i18n="sale.channel">Channel</label>
                                 <select id="cart-pur-channel" style="width:100%;"><option value="Cash">Cash</option><option value="Mobile banking">Mobile banking</option></select>
                             </div>
-                            <button class="btn" style="width:100%;" onclick="submitPurchaseCart()">Complete Purchase</button>
+                            <button class="btn" style="width:100%;" onclick="submitPurchaseCart()" data-i18n="pur.complete_purchase">Complete Purchase</button>
                         </div>
                     </div>
                 </div>
 
                 <div class="card">
-                    <h2>Purchase History</h2>
+                    <h2 data-i18n="pur.history">Purchase History</h2>
                     <div class="filter-panel">
-                        <div class="form-group"><label>Filter Date</label><input type="date" id="pur-log-filter-date" onchange="renderPurchaseLogTable()"></div>
-                        <div class="form-group"><label>Supplier</label><input type="text" id="pur-log-filter-supplier" placeholder="Search..." oninput="renderPurchaseLogTable()"></div>
-                        <div class="form-group"><label>Product</label><input type="text" id="pur-log-filter-item" placeholder="Search..." oninput="renderPurchaseLogTable()"></div>
-                        <div class="form-group"><label>Channel</label><select id="pur-log-filter-channel" onchange="renderPurchaseLogTable()"><option value="">-- All --</option><option value="Cash">Cash</option><option value="Mobile banking">Mobile banking</option><option value="Accounts payable">Accounts payable</option></select></div>
+                        <div class="form-group"><label data-i18n="sale.filter_date">Filter Date</label><input type="date" id="pur-log-filter-date" onchange="renderPurchaseLogTable()"></div>
+                        <div class="form-group"><label data-i18n="pur.supplier">Supplier</label><input type="text" id="pur-log-filter-supplier" placeholder="Search..." oninput="renderPurchaseLogTable()"></div>
+                        <div class="form-group"><label data-i18n="sale.product">Product</label><input type="text" id="pur-log-filter-item" placeholder="Search..." oninput="renderPurchaseLogTable()"></div>
+                        <div class="form-group"><label data-i18n="sale.channel">Channel</label><select id="pur-log-filter-channel" onchange="renderPurchaseLogTable()"><option value="" data-i18n="sale.all">-- All --</option><option value="Cash">Cash</option><option value="Mobile banking">Mobile banking</option><option value="Accounts payable">Accounts payable</option></select></div>
                     </div>
+                    <div id="pur-log-total-display" style="font-size:13px; font-weight:600; color:var(--primary); margin-bottom:8px;"></div>
                     <table>
                         <thead>
-                            <tr><th>Date</th><th>Supplier Name</th><th>Product Item</th><th class="num">Quantity</th><th class="num">Unit Cost</th><th class="num">Total</th><th>Channel / Status</th><th class="branch-col">Branch</th><th>By</th><th style="text-align:center;">Action</th></tr>
+                            <tr><th data-i18n="sale.date">Date</th><th data-i18n="pur.supplier_name">Supplier Name</th><th data-i18n="sale.product_item">Product Item</th><th class="num" data-i18n="tr.quantity">Quantity</th><th class="num" data-i18n="pur.unit_cost">Unit Cost</th><th class="num" data-i18n="sale.total">Total</th><th>Channel / Status</th><th class="branch-col" data-i18n="sale.branch">Branch</th><th data-i18n="tr.by">By</th><th style="text-align:center;" data-i18n="sale.action">Action</th></tr>
                         </thead>
                         <tbody id="purchase-log-table-body"></tbody>
                     </table>
@@ -814,21 +817,22 @@
 
             <div id="view-expenses" class="view-panel">
                 <div class="card" id="expense-entry-card">
-                    <h2>Add Expense</h2>
+                    <h2 data-i18n="exp.add_expense">Add Expense</h2>
                     <form id="expense-form" onsubmit="handlePostExpense(event)">
-                        <div class="form-group"><label>Date</label><input type="date" id="exp-date" required></div>
-                        <div class="form-group"><label>Account</label><select id="exp-target"></select></div>
-                        <div class="form-group"><label>Amount (ETB)</label><input type="number" id="exp-amount" step="0.01" min="0.01" required></div>
-                        <div class="form-group"><label>Channel</label><select id="exp-source" onchange="handleChannelSelectChange(this)" onfocus="this.dataset.prevValue=this.value"><option value="Cash">Cash</option><option value="Mobile banking">Mobile banking</option><option value="Accounts payable">Accounts payable</option></select></div>
-                        <div class="form-group"><label>Memo</label><input type="text" id="exp-memo" placeholder="e.g., May Bills" required></div>
-                        <div class="form-group" style="padding-top: 22px;"><button type="submit" class="btn btn-danger">Book Expense</button></div>
+                        <div class="form-group"><label data-i18n="sale.date">Date</label><input type="date" id="exp-date" required></div>
+                        <div class="form-group"><label data-i18n="exp.account">Account</label><select id="exp-target"></select></div>
+                        <div class="form-group"><label data-i18n="exp.amount">Amount (ETB)</label><input type="number" id="exp-amount" step="0.01" min="0.01" required></div>
+                        <div class="form-group"><label data-i18n="sale.channel">Channel</label><select id="exp-source" onchange="handleChannelSelectChange(this)" onfocus="this.dataset.prevValue=this.value"><option value="Cash">Cash</option><option value="Mobile banking">Mobile banking</option><option value="Accounts payable">Accounts payable</option></select></div>
+                        <div class="form-group"><label data-i18n="common.memo">Memo</label><input type="text" id="exp-memo" placeholder="e.g., May Bills" required></div>
+                        <div class="form-group" style="padding-top: 22px;"><button type="submit" class="btn btn-danger" data-i18n="exp.book_expense">Book Expense</button></div>
                     </form>
                 </div>
 
                 <div class="card">
-                    <h2>Expense History</h2>
+                    <h2 data-i18n="exp.history">Expense History</h2>
+                    <div id="exp-log-total-display" style="font-size:13px; font-weight:600; color:var(--primary); margin-bottom:8px;"></div>
                     <table>
-                        <thead><tr><th>Date</th><th>Expense Account</th><th>Memo Context</th><th class="num">Charge (ETB)</th><th>Channel</th><th class="branch-col">Branch</th><th>By</th><th style="text-align:center;">Action</th></tr></thead>
+                        <thead><tr><th data-i18n="sale.date">Date</th><th data-i18n="exp.expense_account">Expense Account</th><th data-i18n="exp.memo_context">Memo Context</th><th class="num" data-i18n="exp.charge">Charge (ETB)</th><th data-i18n="sale.channel">Channel</th><th class="branch-col" data-i18n="sale.branch">Branch</th><th data-i18n="tr.by">By</th><th style="text-align:center;" data-i18n="sale.action">Action</th></tr></thead>
                         <tbody id="expense-log-table-body"></tbody>
                     </table>
                 </div>
@@ -836,10 +840,10 @@
 
             <div id="view-trash" class="view-panel">
                 <div class="card">
-                    <h2>Trash</h2>
-                    <p style="font-size: 13px; color: var(--text-light); margin-bottom:16px;">Deleted records are held here for 30 days before permanent deletion. Restoring an item recalculates its inventory and ledger balances.</p>
+                    <h2 data-i18n="trash.title">Trash</h2>
+                    <p style="font-size: 13px; color: var(--text-light); margin-bottom:16px;" data-i18n="trash.desc">Deleted records are held here for 30 days before permanent deletion. Restoring an item recalculates its inventory and ledger balances.</p>
                     <table>
-                        <thead><tr><th>Date Deleted</th><th>Record Type</th><th>Data Details</th><th style="text-align:center;">Action</th></tr></thead>
+                        <thead><tr><th data-i18n="trash.date_deleted">Date Deleted</th><th data-i18n="trash.record_type">Record Type</th><th data-i18n="trash.data_details">Data Details</th><th style="text-align:center;" data-i18n="sale.action">Action</th></tr></thead>
                         <tbody id="trash-table-body"></tbody>
                     </table>
                 </div>
@@ -847,9 +851,9 @@
 
             <div id="view-coa" class="view-panel">
                 <div class="card">
-                    <h2>Chart of Accounts</h2>
+                    <h2 data-i18n="acct.coa">Chart of Accounts</h2>
                     <table>
-                        <thead><tr><th>Classification</th><th>Sub-Account Level</th><th>Code</th><th>Individual Account Title</th><th>Statement</th><th>Normal Balance</th></tr></thead>
+                        <thead><tr><th data-i18n="acct.classification">Classification</th><th data-i18n="acct.subaccount_level">Sub-Account Level</th><th data-i18n="acct.code">Code</th><th data-i18n="acct.account_title">Individual Account Title</th><th data-i18n="acct.statement">Statement</th><th data-i18n="acct.normal_balance">Normal Balance</th></tr></thead>
                         <tbody id="coa-table-body"></tbody>
                     </table>
                 </div>
@@ -857,22 +861,22 @@
 
             <div id="view-journal" class="view-panel">
                 <div class="card" id="journal-entry-card">
-                    <h2>New Journal Entry</h2>
+                    <h2 data-i18n="acct.new_journal_entry">New Journal Entry</h2>
                     <form id="journal-form" onsubmit="handleManualVoucher(event)">
-                        <div class="form-group"><label>Date</label><input type="date" id="jv-date" required></div>
-                        <div class="form-group"><label>Memo</label><input type="text" id="jv-desc" required></div><br>
-                        <div class="form-group"><label>Debit Account</label><select id="jv-dr-acc" required></select></div>
-                        <div class="form-group"><label>Debit Amount</label><input type="number" id="jv-dr-amt" step="0.01" required></div><br>
-                        <div class="form-group"><label>Credit Account</label><select id="jv-cr-acc" required></select></div>
-                        <div class="form-group"><label>Credit Amount</label><input type="number" id="jv-cr-amt" step="0.01" required></div>
-                        <div class="form-group" style="padding-top: 22px;"><button type="submit" class="btn">Commit Double Entry</button></div>
+                        <div class="form-group"><label data-i18n="sale.date">Date</label><input type="date" id="jv-date" required></div>
+                        <div class="form-group"><label data-i18n="common.memo">Memo</label><input type="text" id="jv-desc" required></div><br>
+                        <div class="form-group"><label data-i18n="acct.debit_account">Debit Account</label><select id="jv-dr-acc" required></select></div>
+                        <div class="form-group"><label data-i18n="acct.debit_amount">Debit Amount</label><input type="number" id="jv-dr-amt" step="0.01" required></div><br>
+                        <div class="form-group"><label data-i18n="acct.credit_account">Credit Account</label><select id="jv-cr-acc" required></select></div>
+                        <div class="form-group"><label data-i18n="acct.credit_amount">Credit Amount</label><input type="number" id="jv-cr-amt" step="0.01" required></div>
+                        <div class="form-group" style="padding-top: 22px;"><button type="submit" class="btn" data-i18n="acct.commit_double_entry">Commit Double Entry</button></div>
                     </form>
                 </div>
                 <div class="card">
-                    <h2>Journal History</h2>
-                    <div class="form-group"><label>Ethiopian Accounting Period</label><select id="jv-ethiopian-filter" class="ethiopian-period-select" onchange="updateEthiopianPeriod(this.value)"></select></div>
+                    <h2 data-i18n="acct.journal_history">Journal History</h2>
+                    <div class="form-group"><label data-i18n="acct.ethiopian_period">Ethiopian Accounting Period</label><select id="jv-ethiopian-filter" class="ethiopian-period-select" onchange="updateEthiopianPeriod(this.value)"></select></div>
                     <table>
-                        <thead><tr><th>Date</th><th>Reference ID</th><th>Account Criteria</th><th class="num">Debit Target (ETB)</th><th class="num">Credit Target (ETB)</th><th class="branch-col">Branch</th><th>By</th><th style="text-align:center;">Action</th></tr></thead>
+                        <thead><tr><th data-i18n="sale.date">Date</th><th data-i18n="acct.reference_id">Reference ID</th><th data-i18n="acct.account_criteria">Account Criteria</th><th class="num" data-i18n="acct.debit_target">Debit Target (ETB)</th><th class="num" data-i18n="acct.credit_target">Credit Target (ETB)</th><th class="branch-col" data-i18n="sale.branch">Branch</th><th data-i18n="tr.by">By</th><th style="text-align:center;" data-i18n="sale.action">Action</th></tr></thead>
                         <tbody id="journal-table-body"></tbody>
                     </table>
                 </div>
@@ -880,13 +884,13 @@
 
             <div id="view-ledger" class="view-panel">
                 <div class="card">
-                    <div class="form-group"><label>Account</label><select id="ledger-filter" onchange="renderGeneralLedgerCards()"></select></div>
-                    <div class="form-group"><label>Ethiopian Accounting Period</label><select id="led-ethiopian-filter" class="ethiopian-period-select" onchange="updateEthiopianPeriod(this.value)"></select></div>
+                    <div class="form-group"><label data-i18n="acct.account">Account</label><select id="ledger-filter" onchange="renderGeneralLedgerCards()"></select></div>
+                    <div class="form-group"><label data-i18n="acct.ethiopian_period">Ethiopian Accounting Period</label><select id="led-ethiopian-filter" class="ethiopian-period-select" onchange="updateEthiopianPeriod(this.value)"></select></div>
                 </div>
                 <div class="card">
-                    <h2>Ledger</h2>
+                    <h2 data-i18n="acct.ledger">Ledger</h2>
                     <table>
-                        <thead><tr><th>Date</th><th>Voucher Context</th><th class="num">Debit Charge</th><th class="num">Credit Charge</th><th class="num">Running Balance</th></tr></thead>
+                        <thead><tr><th data-i18n="sale.date">Date</th><th data-i18n="acct.voucher_context">Voucher Context</th><th class="num" data-i18n="acct.debit_charge">Debit Charge</th><th class="num" data-i18n="acct.credit_charge">Credit Charge</th><th class="num" data-i18n="acct.running_balance">Running Balance</th></tr></thead>
                         <tbody id="ledger-table-body"></tbody>
                     </table>
                 </div>
@@ -894,46 +898,46 @@
 
             <div id="view-statements" class="view-panel">
                 <div style="margin-bottom: 20px; display: flex; flex-wrap:wrap; gap: 10px;">
-                    <button class="btn" id="stmt-btn-trial" onclick="buildReports('trial')">Trial Balance Sheet</button>
-                    <button class="btn" id="stmt-btn-income" onclick="buildReports('income')">Income Statement (Profit & Loss)</button>
-                    <button class="btn" id="stmt-btn-balance" onclick="buildReports('balance')">Statement of Financial Position (Balance Sheet)</button>
+                    <button class="btn" id="stmt-btn-trial" onclick="buildReports('trial')" data-i18n="acct.trial_balance_btn">Trial Balance Sheet</button>
+                    <button class="btn" id="stmt-btn-income" onclick="buildReports('income')" data-i18n="acct.income_stmt_btn">Income Statement (Profit &amp; Loss)</button>
+                    <button class="btn" id="stmt-btn-balance" onclick="buildReports('balance')" data-i18n="acct.balance_sheet_btn">Statement of Financial Position (Balance Sheet)</button>
                 </div>
-                <div class="form-group" style="margin-bottom:16px;"><label>Ethiopian Accounting Period</label><select id="stmt-ethiopian-filter" class="ethiopian-period-select" onchange="updateEthiopianPeriod(this.value)"></select></div>
+                <div class="form-group" style="margin-bottom:16px;"><label data-i18n="acct.ethiopian_period">Ethiopian Accounting Period</label><select id="stmt-ethiopian-filter" class="ethiopian-period-select" onchange="updateEthiopianPeriod(this.value)"></select></div>
                 <div class="card" id="statement-output-panel"></div>
             </div>
 
             <div id="view-team" class="view-panel">
                 <div class="card">
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                        <h2 style="border:none; margin-bottom:0;">Branches</h2>
+                        <h2 style="border:none; margin-bottom:0;" data-i18n="team.branches">Branches</h2>
                         <div style="display:flex; align-items:center; gap:14px;">
-                            <label class="check-label" style="font-size:13px; font-weight:normal;"><input type="checkbox" id="show-closed-branches" onchange="renderBranchesTable()"> Show closed branches</label>
-                            <button class="btn btn-success" id="btn-add-branch" onclick="openAddBranchModal()">+ Add Branch</button>
+                            <label class="check-label" style="font-size:13px; font-weight:normal;"><input type="checkbox" id="show-closed-branches" onchange="renderBranchesTable()"> <span data-i18n="team.show_closed">Show closed branches</span></label>
+                            <button class="btn btn-success" id="btn-add-branch" onclick="openAddBranchModal()">+ <span data-i18n="team.add_branch">Add Branch</span></button>
                         </div>
                     </div>
                     <table style="margin-top:16px;">
-                        <thead><tr><th>Name</th><th>Address</th></tr></thead>
+                        <thead><tr><th data-i18n="team.name">Name</th><th data-i18n="team.address">Address</th></tr></thead>
                         <tbody id="branches-table-body"></tbody>
                     </table>
                 </div>
 
                 <div class="card">
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                        <h2 style="border:none; margin-bottom:0;">Team Members</h2>
-                        <button class="btn btn-success" onclick="openAddMemberModal()">+ Add Employee</button>
+                        <h2 style="border:none; margin-bottom:0;" data-i18n="team.members">Team Members</h2>
+                        <button class="btn btn-success" onclick="openAddMemberModal()">+ <span data-i18n="team.add_employee">Add Employee</span></button>
                     </div>
                     <table style="margin-top:16px;">
-                        <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Branch Access</th></tr></thead>
+                        <thead><tr><th data-i18n="team.name">Name</th><th data-i18n="team.username">Username</th><th data-i18n="team.role">Role</th><th data-i18n="team.branch_access">Branch Access</th></tr></thead>
                         <tbody id="team-members-table-body"></tbody>
                     </table>
                 </div>
 
                 <div class="card">
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                        <h2 style="border:none; margin-bottom:0;">Roles & Permissions</h2>
-                        <button class="btn" onclick="openAddRoleModal()">+ Add Custom Role</button>
+                        <h2 style="border:none; margin-bottom:0;" data-i18n="team.roles_perms">Roles &amp; Permissions</h2>
+                        <button class="btn" onclick="openAddRoleModal()">+ <span data-i18n="team.add_custom_role">Add Custom Role</span></button>
                     </div>
-                    <p style="font-size:13px; color:var(--text-light); margin-top:8px;">Toggle what each role is allowed to do. Changes apply immediately to everyone with that role.</p>
+                    <p style="font-size:13px; color:var(--text-light); margin-top:8px;" data-i18n="team.roles_desc">Toggle what each role is allowed to do. Changes apply immediately to everyone with that role.</p>
                     <div id="roles-permission-editor" style="margin-top:16px;"></div>
                 </div>
             </div>
@@ -944,81 +948,81 @@
 
     <div id="add-member-modal" class="modal-overlay" onclick="closeAddMemberModal()">
         <div class="modal-box" onclick="event.stopPropagation()" style="max-width:460px;">
-            <h3 style="color:var(--primary); margin-bottom:12px;">Add Employee</h3>
+            <h3 style="color:var(--primary); margin-bottom:12px;" data-i18n="team.add_employee">Add Employee</h3>
             <div id="add-member-error" style="display:none; background:#F1DCD8; color:var(--danger); font-size:13px; padding:10px; border-radius:4px; margin-bottom:14px;"></div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                <label>Display Name</label>
+                <label data-i18n="team.display_name">Display Name</label>
                 <input type="text" id="member-display-name" style="width:100%;" placeholder="e.g. Mekdes Tesfaye">
             </div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                <label>Username (they'll log in with this — no email needed)</label>
+                <label data-i18n="team.username_hint">Username (they'll log in with this — no email needed)</label>
                 <input type="text" id="member-username" style="width:100%;" placeholder="e.g. mekdes" autocomplete="off">
             </div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                <label>Temporary Password</label>
+                <label data-i18n="team.temp_password">Temporary Password</label>
                 <input type="text" id="member-password" style="width:100%;" placeholder="At least 6 characters">
             </div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                <label>Role</label>
+                <label data-i18n="team.role">Role</label>
                 <select id="member-role" style="width:100%;"></select>
             </div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                <label>Branch Access</label>
+                <label data-i18n="team.branch_access">Branch Access</label>
                 <div id="member-branch-checkboxes" style="display:flex; flex-wrap:wrap; gap:10px; background:#F4F5F8; padding:10px; border:1px solid var(--border); border-radius:4px;"></div>
             </div>
             <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
-                <button class="btn btn-warning" onclick="closeAddMemberModal()">Cancel</button>
-                <button class="btn btn-success" id="add-member-submit-btn" onclick="submitAddMember()">Add Employee</button>
+                <button class="btn btn-warning" onclick="closeAddMemberModal()" data-i18n="common.cancel">Cancel</button>
+                <button class="btn btn-success" id="add-member-submit-btn" onclick="submitAddMember()" data-i18n="team.add_employee">Add Employee</button>
             </div>
         </div>
     </div>
 
     <div id="add-role-modal" class="modal-overlay" onclick="closeAddRoleModal()">
         <div class="modal-box" onclick="event.stopPropagation()" style="max-width:460px;">
-            <h3 style="color:var(--primary); margin-bottom:12px;">Add Custom Role</h3>
+            <h3 style="color:var(--primary); margin-bottom:12px;" data-i18n="team.add_custom_role">Add Custom Role</h3>
             <div id="add-role-error" style="display:none; background:#F1DCD8; color:var(--danger); font-size:13px; padding:10px; border-radius:4px; margin-bottom:14px;"></div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                <label>Role Name</label>
+                <label data-i18n="team.role_name">Role Name</label>
                 <input type="text" id="new-role-label" style="width:100%;" placeholder="e.g. Senior Cashier">
             </div>
-            <p style="font-size:12px; color:var(--text-light); margin-bottom:14px;">You can set exactly what this role can do right after creating it, in the Roles &amp; Permissions list.</p>
+            <p style="font-size:12px; color:var(--text-light); margin-bottom:14px;" data-i18n="team.role_hint">You can set exactly what this role can do right after creating it, in the Roles &amp; Permissions list.</p>
             <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
-                <button class="btn btn-warning" onclick="closeAddRoleModal()">Cancel</button>
-                <button class="btn btn-success" onclick="submitAddRole()">Create Role</button>
+                <button class="btn btn-warning" onclick="closeAddRoleModal()" data-i18n="common.cancel">Cancel</button>
+                <button class="btn btn-success" onclick="submitAddRole()" data-i18n="team.create_role">Create Role</button>
             </div>
         </div>
     </div>
 
     <div id="add-branch-modal" class="modal-overlay" onclick="closeAddBranchModal()">
         <div class="modal-box" onclick="event.stopPropagation()" style="max-width:460px;">
-            <h3 style="color:var(--primary); margin-bottom:12px;">Add Branch</h3>
+            <h3 style="color:var(--primary); margin-bottom:12px;" data-i18n="team.add_branch">Add Branch</h3>
             <div id="add-branch-error" style="display:none; background:#F1DCD8; color:var(--danger); font-size:13px; padding:10px; border-radius:4px; margin-bottom:14px;"></div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                <label>Branch Name</label>
+                <label data-i18n="team.branch_name">Branch Name</label>
                 <input type="text" id="new-branch-name" style="width:100%;" placeholder="e.g. Bole Branch">
             </div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                <label>Address (optional)</label>
+                <label data-i18n="team.address_optional">Address (optional)</label>
                 <input type="text" id="new-branch-address" style="width:100%;" placeholder="e.g. Bole Road, near Edna Mall">
             </div>
-            <p style="font-size:12px; color:var(--text-light); margin-bottom:14px;">The new branch starts with its own empty stock — the product catalog is shared, but quantities are tracked separately per branch. Assign team members to it from the Team Members list below.</p>
+            <p style="font-size:12px; color:var(--text-light); margin-bottom:14px;" data-i18n="team.branch_hint">The new branch starts with its own empty stock — the product catalog is shared, but quantities are tracked separately per branch. Assign team members to it from the Team Members list below.</p>
             <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
-                <button class="btn btn-warning" onclick="closeAddBranchModal()">Cancel</button>
-                <button class="btn btn-success" id="add-branch-submit-btn" onclick="submitAddBranch()">Create Branch</button>
+                <button class="btn btn-warning" onclick="closeAddBranchModal()" data-i18n="common.cancel">Cancel</button>
+                <button class="btn btn-success" id="add-branch-submit-btn" onclick="submitAddBranch()" data-i18n="team.create_branch">Create Branch</button>
             </div>
         </div>
     </div>
 
     <div id="pick-transaction-branch-modal" class="modal-overlay">
         <div class="modal-box" onclick="event.stopPropagation()" style="max-width:400px;">
-            <h3 style="color:var(--primary); margin-bottom:12px;">Which branch is this for?</h3>
-            <p style="font-size:13px; color:var(--text-light); margin-bottom:14px;">You're viewing "All Branches" right now, so this entry needs a specific branch to belong to.</p>
+            <h3 style="color:var(--primary); margin-bottom:12px;" data-i18n="team.which_branch">Which branch is this for?</h3>
+            <p style="font-size:13px; color:var(--text-light); margin-bottom:14px;" data-i18n="team.which_branch_hint">You're viewing "All Branches" right now, so this entry needs a specific branch to belong to.</p>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                 <select id="pick-transaction-branch-select" style="width:100%;"></select>
             </div>
             <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
-                <button class="btn btn-warning" onclick="resolveTransactionBranchModal(null)">Cancel</button>
-                <button class="btn btn-success" onclick="resolveTransactionBranchModal(document.getElementById('pick-transaction-branch-select').value)">Confirm</button>
+                <button class="btn btn-warning" onclick="resolveTransactionBranchModal(null)" data-i18n="common.cancel">Cancel</button>
+                <button class="btn btn-success" onclick="resolveTransactionBranchModal(document.getElementById('pick-transaction-branch-select').value)" data-i18n="team.confirm">Confirm</button>
             </div>
         </div>
     </div>
@@ -1028,7 +1032,7 @@
             <h3 id="member-actions-title" style="color:var(--primary); margin-bottom:16px;"></h3>
             <div id="member-actions-body"></div>
             <div style="margin-top:16px; text-align:right;">
-                <button class="btn btn-warning btn-small" onclick="closeMemberActionsModal()">Close</button>
+                <button class="btn btn-warning btn-small" onclick="closeMemberActionsModal()" data-i18n="common.close">Close</button>
             </div>
         </div>
     </div>
@@ -1038,7 +1042,7 @@
             <h3 id="branch-actions-title" style="color:var(--primary); margin-bottom:16px;"></h3>
             <div id="branch-actions-body"></div>
             <div style="margin-top:16px; text-align:right;">
-                <button class="btn btn-warning btn-small" onclick="closeBranchActionsModal()">Close</button>
+                <button class="btn btn-warning btn-small" onclick="closeBranchActionsModal()" data-i18n="common.close">Close</button>
             </div>
         </div>
     </div>
@@ -1060,8 +1064,8 @@
                 <select id="record-payment-channel" style="width:100%;"></select>
             </div>
             <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
-                <button class="btn btn-warning" onclick="closeRecordPaymentModal()">Cancel</button>
-                <button class="btn btn-success" onclick="submitRecordPayment()">Record Payment</button>
+                <button class="btn btn-warning" onclick="closeRecordPaymentModal()" data-i18n="common.cancel">Cancel</button>
+                <button class="btn btn-success" onclick="submitRecordPayment()" data-i18n="common.record_payment">Record Payment</button>
             </div>
         </div>
     </div>
@@ -1070,7 +1074,7 @@
         <div class="modal-box" onclick="event.stopPropagation()">
             <h3 id="modal-title" style="color:var(--primary);">System Dialogue Frame</h3>
             <div class="modal-body" id="modal-body-content"></div>
-            <div style="margin-top: 20px; text-align: right;"><button class="btn btn-danger btn-small" onclick="closeAuditModal()">Dismiss Frame</button></div>
+            <div style="margin-top: 20px; text-align: right;"><button class="btn btn-danger btn-small" onclick="closeAuditModal()" data-i18n="misc.dismiss">Dismiss Frame</button></div>
         </div>
     </div>
 
@@ -1104,7 +1108,7 @@
             </div>
             
             <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end;">
-                <button class="btn btn-warning" onclick="closeExportHub()">Cancel</button>
+                <button class="btn btn-warning" onclick="closeExportHub()" data-i18n="common.cancel">Cancel</button>
                 <button class="btn btn-excel" id="export-trigger-btn" onclick="executeExcelExport()" style="width:auto;">Download .xlsx</button>
             </div>
         </div>
@@ -1160,6 +1164,337 @@
         function syncWriteBranchId() {
             writeBranchId = (currentBranchId === 'all') ? writeBranchId : currentBranchId;
         }
+        // =====================================================================
+        // i18n — English / Amharic
+        // Only interface text is translated here, never a person's actual
+        // data (item names, customer names, notes, etc. always stay exactly
+        // as typed). Accounting/financial-statement terms are deliberately
+        // left in English per the business owner's own preference.
+        // =====================================================================
+        const I18N = {
+            en: {
+                'nav.dashboard': 'Dashboard', 'nav.inventory': 'Inventory/Stock', 'nav.transfer': 'Transfer',
+                'nav.cash_handover': 'Cash Handover', 'nav.sales': 'Sales', 'nav.purchase': 'Purchase',
+                'nav.expense': 'Expense', 'nav.team': 'Team & Branches',
+
+                'dash.all_time': 'All-Time', 'dash.today': 'Today', 'dash.this_week': 'This Week',
+                'dash.this_month': 'This Month', 'dash.this_year': 'This Year', 'dash.custom_range': 'Custom Range',
+                'dash.from': 'From:', 'dash.to': 'To:', 'dash.deep_analytics': 'Deep Sales Analytics',
+                'dash.start_date': 'Start Date:', 'dash.end_date': 'End Date:', 'dash.grouping': 'Grouping:',
+                'dash.by_week': 'By Week', 'dash.by_month': 'By Month', 'dash.by_year': 'By Year',
+
+                'inv.add_product': 'Add Product', 'inv.category': 'Category', 'inv.product_name': 'Product Name',
+                'inv.stock_list': 'Stock List', 'inv.search_category': 'Search Category', 'inv.search_name': 'Search Name',
+                'inv.item_spec': 'Item Specification / Name', 'inv.qty_on_hand': 'Qty On Hand',
+                'inv.cost_layers': 'Cost Layers FIFO (ETB)', 'inv.selling_price': 'Selling Price (ETB)',
+                'inv.total_asset': 'Total Asset (ETB)', 'inv.actions': 'Actions',
+
+                'tr.title': 'Transfer Stock Between Branches', 'tr.from_branch': 'From Branch', 'tr.to_branch': 'To Branch',
+                'tr.quantity': 'Quantity', 'tr.notes_optional': 'Notes (Optional)', 'tr.transfer_stock': 'Transfer Stock',
+                'tr.history': 'Transfer History', 'tr.by': 'By', 'tr.from': 'From', 'tr.to': 'To', 'tr.notes': 'Notes',
+
+                'sale.record_sale': 'Record Sale', 'sale.multi_item_prompt': 'Selling multiple items in one transaction?',
+                'sale.date': 'Date', 'sale.customer_name': 'Customer Name', 'sale.item': 'Item',
+                'sale.price': 'Price (ETB)', 'sale.amount_paid_now': 'Amount Paid Now (ETB)', 'sale.channel': 'Channel',
+                'sale.sale_type': 'Sale Type', 'sale.post_sale': 'Post Sale', 'sale.multi_item_sale': 'Multi-Item Sale',
+                'sale.back_to_single': '← Back to single-item sale', 'sale.add_to_basket': 'Add to Basket',
+                'sale.line_total': 'Line Total', 'sale.remove': 'Remove', 'sale.no_items_yet': 'No items added yet.',
+                'sale.basket_total': 'Basket Total', 'sale.complete_sale': 'Complete Sale', 'sale.history': 'Sales History',
+                'sale.filter_date': 'Filter Date', 'sale.product': 'Product', 'sale.all': '-- All --',
+                'sale.product_item': 'Product Item', 'sale.unit_price': 'Unit Price', 'sale.total': 'Total',
+                'sale.branch': 'Branch', 'sale.action': 'Action', 'sale.customer_filter': 'Customer',
+
+                'common.save': 'Save', 'common.cancel': 'Cancel', 'common.delete': 'Delete', 'common.edit': 'Edit',
+                'common.search_ph': 'Search...', 'common.record_payment': 'Record Payment', 'common.close': 'Close',
+                'common.memo': 'Memo', 'common.branch': 'Branch', 'common.by': 'By', 'common.action': 'Action',
+                'common.date': 'Date',
+
+                'pur.record_purchase': 'Record Purchase', 'pur.multi_item_prompt': 'Buying multiple items in one transaction?',
+                'pur.supplier_name': 'Supplier Name', 'pur.cost': 'Cost (ETB)', 'pur.commit_purchase': 'Commit Purchase',
+                'pur.multi_item_purchase': 'Multi-Item Purchase', 'pur.back_to_single': '← Back to single-item purchase',
+                'pur.complete_purchase': 'Complete Purchase', 'pur.history': 'Purchase History', 'pur.supplier': 'Supplier',
+                'pur.unit_cost': 'Unit Cost',
+
+                'exp.add_expense': 'Add Expense', 'exp.account': 'Account', 'exp.amount': 'Amount (ETB)',
+                'exp.book_expense': 'Book Expense', 'exp.history': 'Expense History', 'exp.expense_account': 'Expense Account',
+                'exp.memo_context': 'Memo Context', 'exp.charge': 'Charge (ETB)',
+
+                'ch.holding_at': "Cash you're currently holding at", 'ch.amount_handing_over': 'Amount Handing Over (ETB)',
+                'ch.submit': 'Submit Handover', 'ch.pending_note': "This won't reduce your balance above until the owner approves it.",
+                'ch.my_history': 'Your Handover History', 'ch.amount': 'Amount', 'ch.status': 'Status',
+                'ch.pending_title': 'Pending Cash Handovers', 'ch.employee': 'Employee', 'ch.all_history': 'All Handover History',
+                'ch.decided_by': 'Decided By', 'ch.no_perm': "You don't have permission to use Cash Handover.",
+
+                'trash.title': 'Trash', 'trash.desc': 'Deleted records are held here for 30 days before permanent deletion. Restoring an item recalculates its inventory and ledger balances.',
+                'trash.date_deleted': 'Date Deleted', 'trash.record_type': 'Record Type', 'trash.data_details': 'Data Details',
+
+                'status.approved': 'Approved', 'status.rejected': 'Rejected', 'status.pending': 'Pending',
+
+                'team.branches': 'Branches', 'team.show_closed': 'Show closed branches', 'team.add_branch': 'Add Branch',
+                'team.name': 'Name', 'team.address': 'Address', 'team.members': 'Team Members',
+                'team.add_employee': 'Add Employee', 'team.username': 'Username', 'team.role': 'Role',
+                'team.branch_access': 'Branch Access', 'team.roles_perms': 'Roles & Permissions',
+                'team.add_custom_role': 'Add Custom Role',
+                'team.roles_desc': 'Toggle what each role is allowed to do. Changes apply immediately to everyone with that role.',
+                'team.display_name': 'Display Name',
+                'team.username_hint': "Username (they'll log in with this — no email needed)",
+                'team.temp_password': 'Temporary Password',
+                'team.role_name': 'Role Name',
+                'team.role_hint': 'You can set exactly what this role can do right after creating it, in the Roles & Permissions list.',
+                'team.create_role': 'Create Role',
+                'team.branch_name': 'Branch Name', 'team.address_optional': 'Address (optional)',
+                'team.branch_hint': "The new branch starts with its own empty stock — the product catalog is shared, but quantities are tracked separately per branch. Assign team members to it from the Team Members list below.",
+                'team.create_branch': 'Create Branch',
+                'team.which_branch': 'Which branch is this for?',
+                'team.which_branch_hint': 'You\'re viewing "All Branches" right now, so this entry needs a specific branch to belong to.',
+                'team.confirm': 'Confirm',
+                'team.login_as': 'Login As', 'team.reset_password': 'Reset Password', 'team.remove': 'Remove',
+                'team.owner_locked': "The owner's account can't be modified from here.",
+                'team.no_perm_member': "You don't have permission to manage this team member.",
+                'team.no_perm_branch': "You don't have permission to manage branches.",
+                'team.branch_closed_desc': "This branch is closed — it's hidden from the branch switcher and won't accept new sales, purchases, or transfers, but its history is kept for your records.",
+                'team.reopen_branch': 'Reopen Branch', 'team.close_branch': 'Close Branch',
+                'team.close_hint': "Closing keeps all its sales, purchase, and transfer history — it just stops it from being used going forward. You can reopen it any time.",
+                'team.only_open_branch': "This is your only open branch, so it can't be closed.",
+
+                'pagetitle.dashboard': 'Dashboard', 'pagetitle.inventory': 'Inventory/Stock', 'pagetitle.transfer': 'Transfer',
+                'pagetitle.cash_handover': 'Cash Handover', 'pagetitle.sales': 'Sales', 'pagetitle.purchase': 'Purchase',
+                'pagetitle.expenses': 'Expense', 'pagetitle.coa': 'Chart of Accounts', 'pagetitle.journal': 'Journal Entries',
+                'pagetitle.ledger': 'General Ledger', 'pagetitle.statements': 'Financial Statements', 'pagetitle.trash': 'Trash',
+                'pagetitle.team': 'Team & Branches',
+
+                'auth.tagline': "Let's make informed decisions for your business.", 'auth.signin_desc': 'Sign in to your shop.',
+                'auth.email_or_username': 'Email or Username', 'auth.password': 'Password', 'auth.sign_in': 'Sign In',
+                'auth.signup_desc': 'Create a new shop account.', 'auth.shop_name': 'Shop / Business Name',
+                'auth.phone': 'Phone Number', 'auth.your_username': 'Your Username', 'auth.email': 'Email',
+                'auth.confirm_password': 'Confirm Password', 'auth.create_account': 'Create Account',
+                'auth.reset_desc': 'Choose a new password for your account.', 'auth.new_password': 'New Password',
+                'auth.confirm_new_password': 'Confirm New Password', 'auth.set_new_password': 'Set New Password',
+                'auth.finish_setup': 'Finish Setup', 'auth.account_inactive': 'Account Inactive', 'auth.sign_out': 'Sign Out',
+
+                'misc.restore_data': 'Restore Data', 'misc.delete_role': 'Delete Role', 'misc.clear_all': 'Clear All',
+                'misc.logs': 'Logs', 'misc.record_customer_payment': 'Record Customer Payment', 'misc.record_supplier_payment': 'Record Supplier Payment',
+                'misc.welcome': 'Welcome', 'misc.one_last_step': 'One last step', 'misc.upload_backup': 'Upload Backup File (optional)',
+                'misc.import_file': 'Import This File', 'misc.start_fresh': 'Start Fresh (Skip)',
+                'misc.selling_price_optional': 'Selling Price (Optional)', 'misc.selling_price': 'Selling Price',
+                'misc.dismiss': 'Dismiss Frame', 'misc.approve': 'Approve', 'misc.reject': 'Reject',
+                'misc.save_permissions': 'Save Permissions', 'misc.return_to_owner': 'Return to my account',
+                'misc.total_shown': 'Total shown',
+
+                'acct.total_revenue': 'Total Revenue', 'acct.cogs': 'Cost of Goods Sold', 'acct.gross_profit': 'Gross Profit',
+                'acct.total_expenses': 'Total Expenses', 'acct.net_profit': 'Net Profit',
+
+                'acct.coa': 'Chart of Accounts', 'acct.classification': 'Classification', 'acct.subaccount_level': 'Sub-Account Level',
+                'acct.code': 'Code', 'acct.account_title': 'Individual Account Title', 'acct.statement': 'Statement',
+                'acct.normal_balance': 'Normal Balance',
+
+                'acct.new_journal_entry': 'New Journal Entry', 'acct.debit_account': 'Debit Account', 'acct.debit_amount': 'Debit Amount',
+                'acct.credit_account': 'Credit Account', 'acct.credit_amount': 'Credit Amount', 'acct.commit_double_entry': 'Commit Double Entry',
+                'acct.journal_history': 'Journal History', 'acct.ethiopian_period': 'Ethiopian Accounting Period',
+                'acct.reference_id': 'Reference ID', 'acct.account_criteria': 'Account Criteria',
+                'acct.debit_target': 'Debit Target (ETB)', 'acct.credit_target': 'Credit Target (ETB)',
+
+                'acct.account': 'Account', 'acct.ledger': 'Ledger', 'acct.voucher_context': 'Voucher Context',
+                'acct.debit_charge': 'Debit Charge', 'acct.credit_charge': 'Credit Charge', 'acct.running_balance': 'Running Balance',
+
+                'acct.trial_balance_btn': 'Trial Balance Sheet', 'acct.income_stmt_btn': 'Income Statement (Profit & Loss)',
+                'acct.balance_sheet_btn': 'Statement of Financial Position (Balance Sheet)',
+                'acct.trial_balance_verification': 'Trial Balance Verification', 'acct.debit': 'Debit', 'acct.credit': 'Credit',
+                'acct.totals': 'TOTALS', 'acct.income_statement_heading': 'Income Statement', 'acct.revenues': 'Revenues',
+                'acct.costs_section': 'Costs', 'acct.expenses_section': 'Expenses', 'acct.balance_sheet_heading': 'Balance Sheet',
+                'acct.assets': 'ASSETS', 'acct.total_assets': 'TOTAL ASSETS', 'acct.liabilities_equity': 'LIABILITIES & EQUITY',
+                'acct.total_liabilities_equity': 'TOTAL LIABILITIES & EQUITY', 'acct.retained_earnings': 'Retained Earnings',
+                'acct.net_income': 'NET INCOME',
+
+                'dash.liquid_positions': 'Liquid Capital Asset Positions', 'dash.liquid_vault': 'Liquid Vault Balance (Cash & Banks)',
+                'dash.inventory_assets': 'Inventory Assets (FIFO cost basis)', 'dash.item_matrix': 'Item Performance Matrix (Velocity & Margins)'
+            },
+            am: {
+                'nav.dashboard': 'ዳሽቦርድ', 'nav.inventory': 'የዕቃ ክምችት', 'nav.transfer': 'ዝውውር',
+                'nav.cash_handover': 'ካሽ ርክክብ', 'nav.sales': 'ሽያጭ', 'nav.purchase': 'ግዢ',
+                'nav.expense': 'ወጪ', 'nav.team': 'ቡድን እና ቅርንጫፎች',
+
+                'dash.all_time': 'ሁሉም ጊዜ', 'dash.today': 'ዛሬ', 'dash.this_week': 'ይህ ሳምንት',
+                'dash.this_month': 'ይህ ወር', 'dash.this_year': 'ይህ ዓመት', 'dash.custom_range': 'በፍላጎት ጊዜ ክልል',
+                'dash.from': 'ከ:', 'dash.to': 'እስከ:', 'dash.deep_analytics': 'ጥልቅ የሽያጭ ትንተና',
+                'dash.start_date': 'መጀመሪያ ቀን:', 'dash.end_date': 'መጨረሻ ቀን:', 'dash.grouping': 'በምድብ:',
+                'dash.by_week': 'በሳምንት', 'dash.by_month': 'በወር', 'dash.by_year': 'በዓመት',
+
+                'inv.add_product': 'ምርት ጨምር', 'inv.category': 'ምድብ', 'inv.product_name': 'የምርት ስም',
+                'inv.stock_list': 'የክምችት ዝርዝር', 'inv.search_category': 'ምድብ ፈልግ', 'inv.search_name': 'ስም ፈልግ',
+                'inv.item_spec': 'የዕቃ ዝርዝር / ስም', 'inv.qty_on_hand': 'በእጅ ያለ ብዛት',
+                'inv.cost_layers': 'የግዢ ዋጋ (ETB)', 'inv.selling_price': 'የሽያጭ ዋጋ (ETB)',
+                'inv.total_asset': 'ጠቅላላ ንብረት (ETB)', 'inv.actions': 'ተግባራት',
+
+                'tr.title': 'በቅርንጫፎች መካከል ዕቃ ማዛወር', 'tr.from_branch': 'ከቅርንጫፍ', 'tr.to_branch': 'ወደ ቅርንጫፍ',
+                'tr.quantity': 'ብዛት', 'tr.notes_optional': 'ማስታወሻ (አማራጭ)', 'tr.transfer_stock': 'ዕቃ አዛውር',
+                'tr.history': 'የዝውውር ታሪክ', 'tr.by': 'በ', 'tr.from': 'ከ', 'tr.to': 'ወደ', 'tr.notes': 'ማስታወሻ',
+
+                'sale.record_sale': 'ሽያጭ መዝግብ', 'sale.multi_item_prompt': 'ብዙ ዕቃዎችን በአንድ ግብይት መሸጥ?',
+                'sale.date': 'ቀን', 'sale.customer_name': 'የደንበኛ ስም', 'sale.item': 'ዕቃ',
+                'sale.price': 'ዋጋ (ETB)', 'sale.amount_paid_now': 'አሁን የተከፈለ መጠን (ETB)', 'sale.channel': 'የክፍያ መንገድ',
+                'sale.sale_type': 'የሽያጭ ዓይነት', 'sale.post_sale': 'ሽያጭ አስመዝግብ', 'sale.multi_item_sale': 'የብዙ ዕቃ ሽያጭ',
+                'sale.back_to_single': '← ወደ ነጠላ ዕቃ ሽያጭ ተመለስ', 'sale.add_to_basket': 'ወደ ቅርጫት ጨምር',
+                'sale.line_total': 'የመስመር ድምር', 'sale.remove': 'አስወግድ', 'sale.no_items_yet': 'እስካሁን ምንም ዕቃ አልታከለም።',
+                'sale.basket_total': 'የቅርጫት ድምር', 'sale.complete_sale': 'ሽያጭ ጨርስ', 'sale.history': 'የሽያጭ ታሪክ',
+                'sale.filter_date': 'በቀን ማጣሪያ', 'sale.product': 'ምርት', 'sale.all': '-- ሁሉም --',
+                'sale.product_item': 'የምርት ዕቃ', 'sale.unit_price': 'የአንድ ዋጋ', 'sale.total': 'ድምር',
+                'sale.branch': 'ቅርንጫፍ', 'sale.action': 'ተግባር', 'sale.customer_filter': 'ደንበኛ',
+
+                'common.save': 'መዝግብ', 'common.cancel': 'ሰርዝ', 'common.delete': 'አጥፋ', 'common.edit': 'አርም',
+                'common.search_ph': 'ፈልግ...', 'common.record_payment': 'ክፍያ መዝግብ', 'common.close': 'ዝጋ',
+                'common.memo': 'ማብራሪያ', 'common.branch': 'ቅርንጫፍ', 'common.by': 'በ', 'common.action': 'ተግባር',
+                'common.date': 'ቀን',
+
+                'pur.record_purchase': 'ግዢ መዝግብ', 'pur.multi_item_prompt': 'ብዙ ዕቃዎችን በአንድ ግብይት መግዛት?',
+                'pur.supplier_name': 'የአቅራቢ ስም', 'pur.cost': 'ዋጋ (ETB)', 'pur.commit_purchase': 'ግዢ አስመዝግብ',
+                'pur.multi_item_purchase': 'የብዙ ዕቃ ግዢ', 'pur.back_to_single': '← ወደ ነጠላ ዕቃ ግዢ ተመለስ',
+                'pur.complete_purchase': 'ግዢ ጨርስ', 'pur.history': 'የግዢ ታሪክ', 'pur.supplier': 'አቅራቢ',
+                'pur.unit_cost': 'የአንድ ዋጋ',
+
+                'exp.add_expense': 'ወጪ ጨምር', 'exp.account': 'መለያ', 'exp.amount': 'መጠን (ETB)',
+                'exp.book_expense': 'ወጪ አስመዝግብ', 'exp.history': 'የወጪ ታሪክ', 'exp.expense_account': 'የወጪ መለያ',
+                'exp.memo_context': 'ማብራሪያ', 'exp.charge': 'ክፍያ (ETB)',
+
+                'ch.holding_at': 'አሁን በእጅዎ ያለው ካሽ በ', 'ch.amount_handing_over': 'የሚያስረክቡት መጠን (ETB)',
+                'ch.submit': 'ርክክብ አስገባ', 'ch.pending_note': 'ባለቤቱ እስኪያፀድቀው ድረስ ከላይ ያለው ቀሪ ሂሳብ አይቀነስም።',
+                'ch.my_history': 'የእርስዎ የርክክብ ታሪክ', 'ch.amount': 'መጠን', 'ch.status': 'ሁኔታ',
+                'ch.pending_title': 'በመጠባበቅ ላይ ያሉ ርክክቦች', 'ch.employee': 'ሰራተኛ', 'ch.all_history': 'ሙሉ የርክክብ ታሪክ',
+                'ch.decided_by': 'በ ተወሰነ', 'ch.no_perm': 'ካሽ ርክክብን ለመጠቀም ፍቃድ የለዎትም።',
+
+                'trash.title': 'የተሰረዙ', 'trash.desc': 'የተሰረዙ መዝገቦች ከመጨረሻው ስረዛ በፊት ለ30 ቀናት እዚህ ይቀመጣሉ። አንድ ንጥል መመለስ የክምችት እና የመዝገብ ሂሳቦችን ዳግም ያሰላል።',
+                'trash.date_deleted': 'የተሰረዘበት ቀን', 'trash.record_type': 'የመዝገብ ዓይነት', 'trash.data_details': 'የመረጃ ዝርዝር',
+
+                'status.approved': 'ጸድቋል', 'status.rejected': 'ውድቅ ሆኗል', 'status.pending': 'በመጠባበቅ ላይ',
+
+                'team.branches': 'ቅርንጫፎች', 'team.show_closed': 'የተዘጉ ቅርንጫፎችን አሳይ', 'team.add_branch': 'ቅርንጫፍ ጨምር',
+                'team.name': 'ስም', 'team.address': 'አድራሻ', 'team.members': 'የቡድን አባላት',
+                'team.add_employee': 'ሰራተኛ ጨምር', 'team.username': 'የተጠቃሚ ስም', 'team.role': 'ሚና',
+                'team.branch_access': 'የቅርንጫፍ መዳረሻ', 'team.roles_perms': 'ሚናዎች እና ፍቃዶች',
+                'team.add_custom_role': 'ብጁ ሚና ጨምር',
+                'team.roles_desc': 'እያንዳንዱ ሚና ምን ማድረግ እንደሚችል ይቀይሩ። ለውጦች ወዲያውኑ ያንን ሚና ላላቸው ሁሉ ተግባራዊ ይሆናሉ።',
+                'team.display_name': 'የሚታይ ስም',
+                'team.username_hint': 'የተጠቃሚ ስም (በዚህ ይገባሉ — ኢሜይል አያስፈልግም)',
+                'team.temp_password': 'ጊዜያዊ የይለፍ ቃል',
+                'team.role_name': 'የሚና ስም',
+                'team.role_hint': 'ይህ ሚና ምን ማድረግ እንደሚችል ከፈጠሩት በኋላ ወዲያውኑ በሚናዎች እና ፍቃዶች ዝርዝር ውስጥ ማዘጋጀት ይችላሉ።',
+                'team.create_role': 'ሚና ፍጠር',
+                'team.branch_name': 'የቅርንጫፍ ስም', 'team.address_optional': 'አድራሻ (አማራጭ)',
+                'team.branch_hint': 'አዲሱ ቅርንጫፍ ባዶ ክምችት ይዞ ይጀምራል — የምርት ዝርዝሩ የጋራ ነው፣ ብዛቶች ግን በየቅርንጫፉ ተለያይተው ይመዘገባሉ። ከታች ካለው የቡድን አባላት ዝርዝር ለቅርንጫፉ ሰራተኞችን ይመድቡ።',
+                'team.create_branch': 'ቅርንጫፍ ፍጠር',
+                'team.which_branch': 'ይህ ለየትኛው ቅርንጫፍ ነው?',
+                'team.which_branch_hint': 'አሁን "ሁሉንም ቅርንጫፎች" እየተመለከቱ ነው፣ ስለዚህ ይህ ግቤት የተወሰነ ቅርንጫፍ ያስፈልገዋል።',
+                'team.confirm': 'አረጋግጥ',
+                'team.login_as': 'እንደ ገብተህ', 'team.reset_password': 'የይለፍ ቃል ዳግም አስጀምር', 'team.remove': 'አስወግድ',
+                'team.owner_locked': 'የባለቤቱ አካውንት ከዚህ ሊስተካከል አይችልም።',
+                'team.no_perm_member': 'ይህን የቡድን አባል ለማስተዳደር ፍቃድ የለዎትም።',
+                'team.no_perm_branch': 'ቅርንጫፎችን ለማስተዳደር ፍቃድ የለዎትም።',
+                'team.branch_closed_desc': 'ይህ ቅርንጫፍ ዝግ ነው — ከቅርንጫፍ መቀየሪያው ተደብቋል እና አዲስ ሽያጭ፣ ግዢ ወይም ዝውውር አይቀበልም፣ ነገር ግን ታሪኩ ለመዝገብዎ ተጠብቆ ይቆያል።',
+                'team.reopen_branch': 'ቅርንጫፍ ዳግም ክፈት', 'team.close_branch': 'ቅርንጫፍ ዝጋ',
+                'team.close_hint': 'መዝጋት ሁሉንም የሽያጭ፣ የግዢ እና የዝውውር ታሪክ ይይዛል — ወደፊት ጥቅም ላይ እንዳይውል ብቻ ያደርገዋል። በማንኛውም ጊዜ ዳግም መክፈት ይችላሉ።',
+                'team.only_open_branch': 'ይህ ብቸኛው ክፍት ቅርንጫፍዎ ነው፣ ስለዚህ ሊዘጋ አይችልም።',
+
+                'pagetitle.dashboard': 'ዳሽቦርድ', 'pagetitle.inventory': 'የዕቃ ክምችት', 'pagetitle.transfer': 'ዝውውር',
+                'pagetitle.cash_handover': 'ካሽ ርክክብ', 'pagetitle.sales': 'ሽያጭ', 'pagetitle.purchase': 'ግዢ',
+                'pagetitle.expenses': 'ወጪ', 'pagetitle.coa': 'Chart of Accounts', 'pagetitle.journal': 'Journal Entries',
+                'pagetitle.ledger': 'General Ledger', 'pagetitle.statements': 'Financial Statements', 'pagetitle.trash': 'የተሰረዙ',
+                'pagetitle.team': 'ቡድን እና ቅርንጫፎች',
+
+                'auth.tagline': 'ለንግድዎ የተሻለ ውሳኔ እንድናደርግ እንርዳዎት።', 'auth.signin_desc': 'ወደ ሱቅዎ ይግቡ።',
+                'auth.email_or_username': 'ኢሜይል ወይም የተጠቃሚ ስም', 'auth.password': 'የይለፍ ቃል', 'auth.sign_in': 'ግባ',
+                'auth.signup_desc': 'አዲስ የሱቅ አካውንት ይፍጠሩ።', 'auth.shop_name': 'የሱቅ / ንግድ ስም',
+                'auth.phone': 'ስልክ ቁጥር', 'auth.your_username': 'የእርስዎ የተጠቃሚ ስም', 'auth.email': 'ኢሜይል',
+                'auth.confirm_password': 'የይለፍ ቃል ያረጋግጡ', 'auth.create_account': 'አካውንት ፍጠር',
+                'auth.reset_desc': 'ለአካውንትዎ አዲስ የይለፍ ቃል ይምረጡ።', 'auth.new_password': 'አዲስ የይለፍ ቃል',
+                'auth.confirm_new_password': 'አዲስ የይለፍ ቃል ያረጋግጡ', 'auth.set_new_password': 'አዲስ የይለፍ ቃል አስቀምጥ',
+                'auth.finish_setup': 'ማዋቀር ጨርስ', 'auth.account_inactive': 'አካውንት ንቁ አይደለም', 'auth.sign_out': 'ውጣ',
+
+                'misc.restore_data': 'ውሂብ መልስ', 'misc.delete_role': 'ሚና አጥፋ', 'misc.clear_all': 'ሁሉንም አጽዳ',
+                'misc.logs': 'ታሪክ', 'misc.record_customer_payment': 'የደንበኛ ክፍያ መዝግብ', 'misc.record_supplier_payment': 'የአቅራቢ ክፍያ መዝግብ',
+                'misc.welcome': 'እንኳን ደህና መጡ', 'misc.one_last_step': 'የመጨረሻ እርምጃ', 'misc.upload_backup': 'የመጠባበቂያ ፋይል ስቀል (አማራጭ)',
+                'misc.import_file': 'ይህን ፋይል አስመዝግብ', 'misc.start_fresh': 'አዲስ ጀምር (ዝለል)',
+                'misc.selling_price_optional': 'የሽያጭ ዋጋ (አማራጭ)', 'misc.selling_price': 'የሽያጭ ዋጋ',
+                'misc.dismiss': 'ዝጋ', 'misc.approve': 'አጽድቅ', 'misc.reject': 'ውድቅ አድርግ',
+                'misc.save_permissions': 'ፍቃዶችን አስቀምጥ', 'misc.return_to_owner': 'ወደ አካውንቴ ተመለስ',
+                'misc.total_shown': 'የሚታየው ድምር',
+
+                'acct.total_revenue': 'ጠቅላላ ገቢ', 'acct.cogs': 'የተሸጠ ዕቃ የተገዛበት ዋጋ', 'acct.gross_profit': 'ያልተጣራ ትርፍ',
+                'acct.total_expenses': 'ጠቅላላ ወጪ', 'acct.net_profit': 'የተጣራ ትርፍ',
+
+                'acct.coa': 'ቻርት', 'acct.classification': 'ምድብ', 'acct.subaccount_level': 'የንዑስ ሂሳብ ደረጃ',
+                'acct.code': 'ኮድ', 'acct.account_title': 'የግል ሂሳብ ስም', 'acct.statement': 'መግለጫ',
+                'acct.normal_balance': 'መደበኛ ቀሪ ሂሳብ',
+
+                'acct.new_journal_entry': 'አዲስ የመዝገብ ምዝገባ', 'acct.debit_account': 'ዴቢት ሂሳብ', 'acct.debit_amount': 'ዴቢት መጠን',
+                'acct.credit_account': 'ክሬዲት ሂሳብ', 'acct.credit_amount': 'ክሬዲት መጠን', 'acct.commit_double_entry': 'ድርብ ምዝገባ አስመዝግብ',
+                'acct.journal_history': 'የመዝገብ ታሪክ', 'acct.ethiopian_period': 'የኢትዮጵያ የሂሳብ ወቅት',
+                'acct.reference_id': 'መለያ ቁጥር', 'acct.account_criteria': 'የሂሳብ መስፈርት',
+                'acct.debit_target': 'ዴቢት (ETB)', 'acct.credit_target': 'ክሬዲት (ETB)',
+
+                'acct.account': 'ሂሳብ', 'acct.ledger': 'ሌጀር', 'acct.voucher_context': 'የሰነድ ማብራሪያ',
+                'acct.debit_charge': 'ዴቢት ክፍያ', 'acct.credit_charge': 'ክሬዲት ክፍያ', 'acct.running_balance': 'ተከታታይ ቀሪ ሂሳብ',
+
+                'acct.trial_balance_btn': 'Trial Balance Sheet', 'acct.income_stmt_btn': 'የገቢ መግለጫ (ትርፍ እና ኪሳራ)',
+                'acct.balance_sheet_btn': 'የፋይናንስ ሁኔታ መግለጫ (ሂሳብ ሚዛን)',
+                'acct.trial_balance_verification': 'Trial Balance Verification', 'acct.debit': 'ዴቢት', 'acct.credit': 'ክሬዲት',
+                'acct.totals': 'ድምር', 'acct.income_statement_heading': 'የገቢ መግለጫ', 'acct.revenues': 'ገቢ',
+                'acct.costs_section': 'የተሸጠ ዕቃ የተገዛበት ዋጋ', 'acct.expenses_section': 'ወጪዎች', 'acct.balance_sheet_heading': 'Balance Sheet',
+                'acct.assets': 'ንብረቶች', 'acct.total_assets': 'ጠቅላላ ንብረቶች', 'acct.liabilities_equity': 'ዕዳዎች እና ካፒታል',
+                'acct.total_liabilities_equity': 'ጠቅላላ ዕዳዎች እና ካፒታል', 'acct.retained_earnings': 'የተያዘ/የተሸጋገረ ገቢ',
+                'acct.net_income': 'የተጣራ ትርፍ',
+
+                'dash.liquid_positions': 'የፈሳሽ ንብረት ሁኔታ', 'dash.liquid_vault': 'የካሽ ቀሪ ሂሳብ (ካሽ እና ባንክ)',
+                'dash.inventory_assets': 'የክምችት ንብረት', 'dash.item_matrix': 'የምርት አፈጻጸም ትንተና'
+            }
+        };
+
+        let currentLang = localStorage.getItem('appLang') || 'en';
+        document.addEventListener('DOMContentLoaded', () => {
+            const btn = document.getElementById('lang-toggle-btn');
+            if (btn) btn.innerText = currentLang === 'en' ? 'አማ' : 'EN';
+        });
+
+        function t(key) {
+            return (I18N[currentLang] && I18N[currentLang][key]) || I18N.en[key] || key;
+        }
+
+        function toggleLanguage() {
+            setLanguage(currentLang === 'en' ? 'am' : 'en');
+        }
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('appLang', lang);
+            document.getElementById('lang-toggle-btn').innerText = lang === 'en' ? 'አማ' : 'EN';
+            // Amharic (Ge'ez script) doesn't render well in the app's default
+            // Latin fonts, so swap in a font that actually supports it.
+            document.documentElement.style.setProperty('--i18n-font', lang === 'am' ? "'Noto Sans Ethiopic', sans-serif" : 'inherit');
+            document.body.style.fontFamily = lang === 'am' ? "'Noto Sans Ethiopic', var(--font-body, sans-serif)" : '';
+            applyStaticTranslations();
+            // Re-render whichever dynamic tables are currently on screen so
+            // their buttons/headers pick up the new language immediately.
+            if (typeof renderPerpetualInventoryTable === 'function' && document.getElementById('view-inventory')?.classList.contains('active')) renderPerpetualInventoryTable();
+            if (typeof renderSalesLogTable === 'function' && document.getElementById('view-sales')?.classList.contains('active')) renderSalesLogTable();
+            if (typeof renderPurchaseLogTable === 'function' && document.getElementById('view-purchase')?.classList.contains('active')) renderPurchaseLogTable();
+            if (typeof renderStockTransferHistoryRows === 'function') renderStockTransferHistoryRows(lastTransferRows);
+            if (typeof renderExpenseLogTable === 'function' && document.getElementById('view-expenses')?.classList.contains('active')) renderExpenseLogTable();
+            if (typeof renderTrashTable === 'function' && document.getElementById('view-trash')?.classList.contains('active')) renderTrashTable();
+            if (typeof renderCashHandoverBody === 'function' && document.getElementById('view-cash_handover')?.classList.contains('active')) renderCashHandoverBody();
+            if (typeof loadTeamView === 'function' && document.getElementById('view-team')?.classList.contains('active')) loadTeamView();
+            if (typeof renderSystemCOAProfileLayouts === 'function' && document.getElementById('view-coa')?.classList.contains('active')) renderSystemCOAProfileLayouts();
+            if (typeof renderHistoricalJournalsTable === 'function' && document.getElementById('view-journal')?.classList.contains('active')) renderHistoricalJournalsTable();
+            if (typeof renderGeneralLedgerCards === 'function' && document.getElementById('view-ledger')?.classList.contains('active')) renderGeneralLedgerCards();
+            if (typeof buildReports === 'function' && document.getElementById('view-statements')?.classList.contains('active')) {
+                const activeBtn = document.querySelector('#view-statements button.stmt-selected');
+                if (activeBtn) buildReports(activeBtn.id.replace('stmt-btn-', ''));
+            }
+        }
+
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerText = t(el.dataset.i18n); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+        }
+
         let accessibleBranches = [];     // branches this session is allowed to work in (open only)
         let allBranchesById = {};        // every branch this business has ever had, open or closed — for showing names on old records
         let currentMemberId = null;      // this user's business_members row id
@@ -1481,6 +1816,7 @@
         async function onLoginSuccess(user, isNewSignup) {
             loadOfflineQueue();
             document.getElementById('auth-overlay').style.display = 'none';
+            setLanguage(currentLang);
 
             const { data: member, error: memberErr } = await supabaseClient
                 .from('business_members')
@@ -2237,15 +2573,7 @@
             let navBtn = document.getElementById(`nav-${viewId}`);
             if(navBtn) navBtn.classList.add('active');
             
-            const titles = {
-                dashboard: "Dashboard", inventory: "Inventory/Stock",
-                transfer: "Transfer", cash_handover: "Cash Handover", sales: "Sales", purchase: "Purchase",
-                expenses: "Expense", coa: "Chart of Accounts",
-                journal: "Journal Entries", ledger: "General Ledger",
-                statements: "Financial Statements", trash: "Trash",
-                team: "Team & Branches"
-            };
-            document.getElementById('page-title').innerText = titles[viewId];
+            document.getElementById('page-title').innerText = t(`pagetitle.${viewId}`);
             if (window.innerWidth <= 768) document.getElementById('sidebar').classList.add('collapsed');
 
             if (viewId === 'dashboard') renderAnalyticalDashboards();
@@ -2577,7 +2905,8 @@
             document.getElementById('m-net').innerText = `ETB ${(r-c-e).toLocaleString(undefined,{minimumFractionDigits:2})}`;
 
             let absoluteBalances = runAbsoluteAccountBalances();
-            let cashTotal = (absoluteBalances["1010"] || 0) + (absoluteBalances["1020"] || 0);
+            let cashTotal = (absoluteBalances["1010"] || 0) + (absoluteBalances["1020"] || 0)
+                + (state.customAccounts || []).filter(a => a.isCustomChannel).reduce((sum, a) => sum + (absoluteBalances[a.code] || 0), 0);
             let invTotal = state.inventory.reduce((acc, item) => acc + item.lots.reduce((a,l)=>a+(l.qty*l.cost),0), 0);
 
             document.getElementById('dash-cash-sum').innerText = `ETB ${cashTotal.toLocaleString(undefined,{minimumFractionDigits:2})}`;
@@ -2850,6 +3179,11 @@
                             chart.tooltip.setActiveElements(activeEls, { x: event.x, y: event.y });
                             chart.update();
                         },
+                        onClick: (event, elements, chart) => {
+                            const hits = chart.getElementsAtEventForMode(event.native || event, 'index', { intersect: false }, true);
+                            if (!hits || !hits.length) return;
+                            launchRevProfBucketDrillDown(tKeys[hits[0].index], timeAgg, displayLabels[hits[0].index]);
+                        },
                         plugins: {
                             legend: { display: true, position: 'top', align: 'end' },
                             tooltip: {
@@ -3007,6 +3341,79 @@
         }
         function closeAuditModal() { document.getElementById('audit-modal').style.display = "none"; }
 
+        function launchRevProfBucketDrillDown(key, timeAgg, label) {
+            if (!key) return;
+            let start, end, periodLabel;
+            if (timeAgg === 'year') {
+                // key is "YYYY-MM" — the whole month is the bucket
+                const [y, m] = key.split('-').map(Number);
+                start = new Date(y, m - 1, 1, 0, 0, 0, 0);
+                end = new Date(y, m, 0, 23, 59, 59, 999);
+                periodLabel = start.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            } else {
+                // key is "YYYY-MM-DD" — a single day is the bucket
+                const [y, m, d] = key.split('-').map(Number);
+                start = new Date(y, m - 1, d, 0, 0, 0, 0);
+                end = new Date(y, m - 1, d, 23, 59, 59, 999);
+                periodLabel = start.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+            }
+            const startMs = start.getTime(), endMs = end.getTime();
+            const inRange = (dateStr) => {
+                const p = dateStr.split('-');
+                const t = new Date(p[0], p[1] - 1, p[2]).getTime();
+                return t >= startMs && t <= endMs;
+            };
+
+            // Matches this chart's own existing scope (business-wide, not
+            // filtered to the currently-selected branch) so the popup always
+            // agrees with what the chart line itself is showing.
+            const sales = state.salesLog.filter(s => inRange(s.date)).sort((a, b) => a.date.localeCompare(b.date));
+
+            const mTitle = document.getElementById('modal-title');
+            const mContent = document.getElementById('modal-body-content');
+            mTitle.innerText = `Sales — ${periodLabel}`;
+            if (!sales.length) {
+                mContent.innerHTML = `<p style="color:var(--text-light);">No sales recorded in this period.</p>`;
+            } else {
+                let totalRev = 0, totalCogs = 0;
+                const rows = sales.map(s => {
+                    const gp = s.total - s.cogs;
+                    totalRev += s.total; totalCogs += s.cogs;
+                    return `<tr><td>${s.date}</td><td>${s.desc}</td><td>${s.customer || '—'}</td><td class="num">${s.total.toFixed(2)}</td><td class="num">${s.cogs.toFixed(2)}</td><td class="num">${gp.toFixed(2)}</td></tr>`;
+                }).join('');
+                mContent.innerHTML = `<table>
+                    <thead><tr><th>Date</th><th>Item</th><th>Customer</th><th class="num">Revenue</th><th class="num">COGS</th><th class="num">Gross Profit</th></tr></thead>
+                    <tbody>${rows}</tbody>
+                    <tfoot><tr style="font-weight:700; border-top:2px solid var(--border);"><td colspan="3">Total</td><td class="num">${totalRev.toFixed(2)}</td><td class="num">${totalCogs.toFixed(2)}</td><td class="num">${(totalRev-totalCogs).toFixed(2)}</td></tr></tfoot>
+                </table>`;
+            }
+            document.getElementById('audit-modal').style.display = "flex";
+        }
+
+        function launchLiquidVaultDrillDown() {
+            const mTitle = document.getElementById('modal-title');
+            const mContent = document.getElementById('modal-body-content');
+            mTitle.innerText = "Liquid Vault Balance — By Channel";
+            const balances = runAbsoluteAccountBalances();
+            const channelAccounts = [
+                { code: '1010', name: 'Cash' },
+                { code: '1020', name: 'Mobile banking' },
+                ...(state.customAccounts || []).filter(a => a.isCustomChannel).map(a => ({ code: a.code, name: a.name }))
+            ];
+            let total = 0;
+            const rows = channelAccounts.map(c => {
+                const bal = balances[c.code] || 0;
+                total += bal;
+                return `<tr><td>${c.name}</td><td class="num">ETB ${bal.toLocaleString(undefined,{minimumFractionDigits:2})}</td></tr>`;
+            }).join('');
+            mContent.innerHTML = `<table>
+                <thead><tr><th>Channel</th><th class="num">Balance</th></tr></thead>
+                <tbody>${rows}</tbody>
+                <tfoot><tr style="font-weight:700; border-top:2px solid var(--border);"><td>Total</td><td class="num">ETB ${total.toLocaleString(undefined,{minimumFractionDigits:2})}</td></tr></tfoot>
+            </table>`;
+            document.getElementById('audit-modal').style.display = "flex";
+        }
+
         // --- INVENTORY ---
         function renderPerpetualInventoryTable() {
             const tbody = document.getElementById('inventory-table-body'); tbody.innerHTML = '';
@@ -3031,9 +3438,9 @@
                 let cL = activeStrings.join(' &rarr; ') || '0.00';
                 const canSeeCost = hasPerm('inventory.view_cost');
 
-                let btns = `${hasPerm('inventory.edit_products') ? `<button class="btn btn-small" onclick="initiateEditProductDefinition(${index})">Edit</button>
-                            <button class="btn btn-danger btn-small" onclick="executeVoidProductState(${index})">Delete</button>` : ''}
-                            ${item.history&&item.history.length>0?`<button class="btn btn-warning btn-small" onclick="launchHistoryPopup(${index})">Logs</button>`:''}`;
+                let btns = `${hasPerm('inventory.edit_products') ? `<button class="btn btn-small" onclick="initiateEditProductDefinition(${index})">${t('common.edit')}</button>
+                            <button class="btn btn-danger btn-small" onclick="executeVoidProductState(${index})">${t('common.delete')}</button>` : ''}
+                            ${item.history&&item.history.length>0?`<button class="btn btn-warning btn-small" onclick="launchHistoryPopup(${index})">${t('misc.logs')}</button>`:''}`;
 
                 let priceCell = hasPerm('inventory.adjust_price')
                     ? `<input type="number" step="0.01" style="min-width:100px; padding:4px; text-align:right;" value="${item.sellingPrice.toFixed(2)}" onchange="updateDirectSellingPrice(${index}, this.value)">`
@@ -3224,12 +3631,12 @@
                 tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--text-light);">No transfers yet.</td></tr>`;
                 return;
             }
-            tbody.innerHTML = data.map(t => {
-                const fromName = branchNameById(t.from_branch_id);
-                const toName = branchNameById(t.to_branch_id);
-                const canUndo = !isBranchClosed(t.from_branch_id) && !isBranchClosed(t.to_branch_id);
-                const delBtn = canUndo ? `<button class="btn btn-danger btn-small" onclick="deleteStockTransfer('${t.id}', this)">Delete</button>` : '';
-                return `<tr><td>${t.date}</td><td class="truncate-cell" title="${t.item_desc}">${t.item_desc}</td><td class="num">${t.qty}</td><td>${fromName}</td><td>${toName}</td><td><small>${t.created_by_username || '—'}</small></td><td class="truncate-cell" title="${t.notes || ''}">${t.notes || ''}</td><td style="text-align:center;">${delBtn}</td></tr>`;
+            tbody.innerHTML = data.map(row => {
+                const fromName = branchNameById(row.from_branch_id);
+                const toName = branchNameById(row.to_branch_id);
+                const canUndo = !isBranchClosed(row.from_branch_id) && !isBranchClosed(row.to_branch_id);
+                const delBtn = canUndo ? `<button class="btn btn-danger btn-small" onclick="deleteStockTransfer('${row.id}', this)">${t('common.delete')}</button>` : '';
+                return `<tr><td>${row.date}</td><td class="truncate-cell" title="${row.item_desc}">${row.item_desc}</td><td class="num">${row.qty}</td><td>${fromName}</td><td>${toName}</td><td><small>${row.created_by_username || '—'}</small></td><td class="truncate-cell" title="${row.notes || ''}">${row.notes || ''}</td><td style="text-align:center;">${delBtn}</td></tr>`;
             }).join('');
         }
 
@@ -3387,12 +3794,15 @@
                         <td class="num">${Number(h.amount).toFixed(2)}</td>
                         <td class="truncate-cell" title="${h.note || ''}">${h.note || '—'}</td>
                         <td style="text-align:center;">
-                            <button class="btn btn-success btn-small" onclick="decideCashHandover('${h.id}', true)">Approve</button>
-                            <button class="btn btn-danger btn-small" onclick="decideCashHandover('${h.id}', false)">Reject</button>
+                            <button class="btn btn-success btn-small" onclick="decideCashHandover('${h.id}', true)">${t('misc.approve')}</button>
+                            <button class="btn btn-danger btn-small" onclick="decideCashHandover('${h.id}', false)">${t('misc.reject')}</button>
                         </td>
                     </tr>`).join('')
                     : `<tr><td colspan="6" style="text-align:center; color:var(--text-light);">No pending handovers.</td></tr>`;
 
+                // Owner can delete any handover record — it's just a
+                // reconciliation log, not a real accounting transaction, so
+                // there's nothing else to unwind by removing it.
                 document.getElementById('cash-handover-all-history-body').innerHTML = cashHandoverCache.length
                     ? cashHandoverCache.map(h => `<tr>
                         <td>${new Date(h.submitted_at).toLocaleString()}</td>
@@ -3400,15 +3810,19 @@
                         <td>${branchNameById(h.branch_id)}</td>
                         <td class="num">${Number(h.amount).toFixed(2)}</td>
                         <td class="truncate-cell" title="${h.note || ''}">${h.note || '—'}</td>
-                        <td>${h.status === 'approved' ? '<span style="color:var(--success);">Approved</span>' : h.status === 'rejected' ? '<span style="color:var(--danger);">Rejected</span>' : '<span style="color:var(--warning);">Pending</span>'}</td>
+                        <td>${h.status === 'approved' ? `<span style="color:var(--success);">${t('status.approved')}</span>` : h.status === 'rejected' ? `<span style="color:var(--danger);">${t('status.rejected')}</span>` : `<span style="color:var(--warning);">${t('status.pending')}</span>`}</td>
                         <td>${h.decided_by_username || '—'}</td>
+                        <td style="text-align:center;"><button class="btn btn-danger btn-small" onclick="deleteCashHandover('${h.id}')">${t('common.delete')}</button></td>
                     </tr>`).join('')
-                    : `<tr><td colspan="7" style="text-align:center; color:var(--text-light);">No handovers recorded yet.</td></tr>`;
+                    : `<tr><td colspan="8" style="text-align:center; color:var(--text-light);">No handovers recorded yet.</td></tr>`;
             } else {
                 ownerCard.style.display = 'none';
             }
 
-            if (hasPerm('cash.handover')) {
+            // The submit form is only for employees handing cash TO the
+            // owner — the owner has no one to hand cash to, so this section
+            // never applies to them, regardless of what permissions they have.
+            if (hasPerm('cash.handover') && !isOwnerUser) {
                 employeeCard.style.display = 'block';
                 if (currentBranchId === 'all' || !currentBranchId) {
                     document.getElementById('cash-handover-branch-name').innerText = 'a specific branch — pick one from the branch switcher above';
@@ -3420,18 +3834,34 @@
                     document.getElementById('cash-handover-balance-amount').innerText = `ETB ${held.toFixed(2)}`;
                     document.getElementById('cash-handover-form').querySelector('button').disabled = false;
                 }
+                // An employee can only delete their own STILL-PENDING
+                // submissions (e.g. they made a typo) — once the owner has
+                // approved or rejected it, it's a decided record and stays put.
                 const mine = cashHandoverCache.filter(h => h.submitted_by_username === currentUsername);
                 document.getElementById('cash-handover-my-history-body').innerHTML = mine.length
                     ? mine.map(h => `<tr>
                         <td>${new Date(h.submitted_at).toLocaleString()}</td>
                         <td class="num">${Number(h.amount).toFixed(2)}</td>
                         <td class="truncate-cell" title="${h.note || ''}">${h.note || '—'}</td>
-                        <td>${h.status === 'approved' ? '<span style="color:var(--success);">Approved</span>' : h.status === 'rejected' ? '<span style="color:var(--danger);">Rejected</span>' : '<span style="color:var(--warning);">Pending</span>'}</td>
+                        <td>${h.status === 'approved' ? `<span style="color:var(--success);">${t('status.approved')}</span>` : h.status === 'rejected' ? `<span style="color:var(--danger);">${t('status.rejected')}</span>` : `<span style="color:var(--warning);">${t('status.pending')}</span>`}</td>
+                        <td style="text-align:center;">${h.status === 'pending' ? `<button class="btn btn-danger btn-small" onclick="deleteCashHandover('${h.id}')">${t('common.delete')}</button>` : ''}</td>
                     </tr>`).join('')
-                    : `<tr><td colspan="4" style="text-align:center; color:var(--text-light);">You haven't submitted any handovers yet.</td></tr>`;
-            } else if (!isOwnerUser) {
+                    : `<tr><td colspan="5" style="text-align:center; color:var(--text-light);">You haven't submitted any handovers yet.</td></tr>`;
+            } else {
                 employeeCard.style.display = 'none';
             }
+        }
+
+        async function deleteCashHandover(id) {
+            const record = cashHandoverCache.find(h => h.id === id);
+            if (!record) return;
+            if (!currentIsOwner && (record.submitted_by_username !== currentUsername || record.status !== 'pending')) {
+                return alert("You can only delete your own handover submissions, and only while they're still pending.");
+            }
+            if (!confirm('Delete this handover record? This only removes the log entry — it never affected your books.')) return;
+            const { error } = await supabaseClient.from('cash_handovers').delete().eq('id', id);
+            if (error) return alert('Could not delete this record: ' + error.message);
+            renderCashHandoverView();
         }
 
         async function submitCashHandover(e) {
@@ -3732,20 +4162,20 @@
             if(state.trash.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-light);">-- Bin is empty --</td></tr>`; return;
             }
-            state.trash.slice().reverse().forEach((t, i) => {
+            state.trash.slice().reverse().forEach((trashItem, i) => {
                 let actualIndex = state.trash.length - 1 - i;
                 let info = "";
-                if (t.type === 'inventory') info = `[${t.data.category}] ${t.data.desc}`;
-                else if (t.type === 'sale') info = `Sale: ${t.data.qty}x ${t.data.desc} to ${t.data.customer} for ETB ${t.data.total.toFixed(2)} (${t.data.channel})`;
-                else if (t.type === 'purchase') info = `Purchase: ${t.data.qty}x ${t.data.desc} from ${t.data.supplier} for ETB ${t.data.total.toFixed(2)} (${t.data.channel})`;
-                else if (t.type === 'expense') info = `Expense: ETB ${t.data.amount.toFixed(2)} for ${t.data.memo} (${t.data.source})`;
-                else if (t.type === 'sale_group') { const rows = t.data.rows; info = `Multi-Item Sale: ${rows.length} items to ${rows[0].customer} for ETB ${rows.reduce((s,r)=>s+r.total,0).toFixed(2)}`; }
-                else if (t.type === 'purchase_group') { const rows = t.data.rows; info = `Multi-Item Purchase: ${rows.length} items from ${rows[0].supplier} for ETB ${rows.reduce((s,r)=>s+r.total,0).toFixed(2)}`; }
+                if (trashItem.type === 'inventory') info = `[${trashItem.data.category}] ${trashItem.data.desc}`;
+                else if (trashItem.type === 'sale') info = `Sale: ${trashItem.data.qty}x ${trashItem.data.desc} to ${trashItem.data.customer} for ETB ${trashItem.data.total.toFixed(2)} (${trashItem.data.channel})`;
+                else if (trashItem.type === 'purchase') info = `Purchase: ${trashItem.data.qty}x ${trashItem.data.desc} from ${trashItem.data.supplier} for ETB ${trashItem.data.total.toFixed(2)} (${trashItem.data.channel})`;
+                else if (trashItem.type === 'expense') info = `Expense: ETB ${trashItem.data.amount.toFixed(2)} for ${trashItem.data.memo} (${trashItem.data.source})`;
+                else if (trashItem.type === 'sale_group') { const rows = trashItem.data.rows; info = `Multi-Item Sale: ${rows.length} items to ${rows[0].customer} for ETB ${rows.reduce((s,r)=>s+r.total,0).toFixed(2)}`; }
+                else if (trashItem.type === 'purchase_group') { const rows = trashItem.data.rows; info = `Multi-Item Purchase: ${rows.length} items from ${rows[0].supplier} for ETB ${rows.reduce((s,r)=>s+r.total,0).toFixed(2)}`; }
 
                 tbody.innerHTML += `<tr>
-                    <td>${new Date(t.deletedAt).toLocaleString()}</td><td style="text-transform:uppercase;">${t.type}</td>
+                    <td>${new Date(trashItem.deletedAt).toLocaleString()}</td><td style="text-transform:uppercase;">${trashItem.type}</td>
                     <td>${info}</td>
-                    <td style="text-align:center;"><button class="btn btn-success btn-small" onclick="restoreTrash(${actualIndex})">Restore Data</button></td>
+                    <td style="text-align:center;"><button class="btn btn-success btn-small" onclick="restoreTrash(${actualIndex})">${t('misc.restore_data')}</button></td>
                 </tr>`;
             });
         }
@@ -4324,7 +4754,7 @@
             }
             const remaining = Math.max(0, effectiveTotal - (record.amountPaid || 0));
             recordPaymentContext = { type, id: record.id, effectiveTotal };
-            document.getElementById('record-payment-title').innerText = type === 'sale' ? 'Record Customer Payment' : 'Record Supplier Payment';
+            document.getElementById('record-payment-title').innerText = type === 'sale' ? t('misc.record_customer_payment') : t('misc.record_supplier_payment');
 
             // Purchase totals/balances are cost information — hide them the
             // same way the purchase form and history table already do.
@@ -4420,7 +4850,7 @@
             const fI = document.getElementById('sale-log-filter-item').value.toLowerCase().trim(), fCh = document.getElementById('sale-log-filter-channel').value;
             let arr = state.salesLog.filter(s => (!fD || s.date===fD) && (!fC || s.customer.toLowerCase().includes(fC)) && (!fI || s.desc.toLowerCase().includes(fI)) && (!fCh || s.channel===fCh));
             
-            if(arr.length===0) { tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">-- No logs --</td></tr>`; return; }
+            if(arr.length===0) { tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">-- No logs --</td></tr>`; document.getElementById('sale-log-total-display').innerText = `${t('misc.total_shown')}: ETB 0.00 (0)`; return; }
 
             // Collapse multi-item baskets (shared groupId) into one row each,
             // combining totals and showing every item's name together.
@@ -4457,8 +4887,8 @@
                 } else {
                     statusStr += `<br><small style="color:var(--danger)">[Pending]</small>`;
                 }
-                let payBtn = (remaining > 0.001 && hasPerm('sales.mark_paid') && !isBranchClosed(s.branchId)) ? `<button class="btn btn-success btn-small" onclick="openRecordPaymentModal('sale', '${s.id}')">Record Payment</button>` : '';
-                let voidBtn = (hasPerm('sales.void') && !isBranchClosed(s.branchId)) ? `<button class="btn btn-danger btn-small" onclick="deleteSale('${s.id}')">${s.isGroup ? 'Delete Basket' : 'Delete'}</button>` : '';
+                let payBtn = (remaining > 0.001 && hasPerm('sales.mark_paid') && !isBranchClosed(s.branchId)) ? `<button class="btn btn-success btn-small" onclick="openRecordPaymentModal('sale', '${s.id}')">${t('common.record_payment')}</button>` : '';
+                let voidBtn = (hasPerm('sales.void') && !isBranchClosed(s.branchId)) ? `<button class="btn btn-danger btn-small" onclick="deleteSale('${s.id}')">${s.isGroup ? 'Delete Basket' : t('common.delete')}</button>` : '';
                 const priceCell = s.price === null ? '—' : s.price.toFixed(2);
                 const isExpanded = s.isGroup && expandedSaleGroups.has(s.groupId);
                 const descCell = s.isGroup
@@ -4473,6 +4903,8 @@
             });
             tbody.innerHTML = rows.join('');
             updateBranchColumnVisibility();
+            const salesTotal = displayList.reduce((sum, s) => sum + s.total, 0);
+            document.getElementById('sale-log-total-display').innerText = `${t('misc.total_shown')}: ETB ${salesTotal.toFixed(2)} (${displayList.length})`;
         }
 
         // ---------------------------------------------------------------
@@ -4711,7 +5143,7 @@
             const fI = document.getElementById('pur-log-filter-item').value.toLowerCase().trim(), fCh = document.getElementById('pur-log-filter-channel').value;
             let arr = state.purchaseLog.filter(p => (!fD || p.date===fD) && (!fS || p.supplier.toLowerCase().includes(fS)) && (!fI || p.desc.toLowerCase().includes(fI)) && (!fCh || p.channel===fCh));
             
-            if(arr.length===0) { tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">-- No logs --</td></tr>`; return; }
+            if(arr.length===0) { tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">-- No logs --</td></tr>`; document.getElementById('pur-log-total-display').innerText = `${t('misc.total_shown')}: ETB 0.00 (0)`; return; }
 
             const seenGroups = new Set();
             let displayList = [];
@@ -4749,8 +5181,8 @@
                 } else {
                     statusStr += `<br><small style="color:var(--danger)">[Pending]</small>`;
                 }
-                let payBtn = (remaining > 0.001 && hasPerm('purchase.mark_paid') && !isBranchClosed(p.branchId)) ? `<button class="btn btn-success btn-small" onclick="openRecordPaymentModal('purchase', '${p.id}')">Record Payment</button>` : '';
-                let voidBtn = (hasPerm('purchase.void') && !isBranchClosed(p.branchId)) ? `<button class="btn btn-danger btn-small" onclick="deletePurchase('${p.id}')">${p.isGroup ? 'Delete Basket' : 'Delete'}</button>` : '';
+                let payBtn = (remaining > 0.001 && hasPerm('purchase.mark_paid') && !isBranchClosed(p.branchId)) ? `<button class="btn btn-success btn-small" onclick="openRecordPaymentModal('purchase', '${p.id}')">${t('common.record_payment')}</button>` : '';
+                let voidBtn = (hasPerm('purchase.void') && !isBranchClosed(p.branchId)) ? `<button class="btn btn-danger btn-small" onclick="deletePurchase('${p.id}')">${p.isGroup ? 'Delete Basket' : t('common.delete')}</button>` : '';
                 const costCell = !canSeeCost ? '🔒' : (p.cost === null ? '—' : p.cost.toFixed(2));
                 const totalCell = canSeeCost ? p.total.toFixed(2) : '🔒';
                 const isExpanded = p.isGroup && expandedPurchaseGroups.has(p.groupId);
@@ -4766,6 +5198,13 @@
             });
             tbody.innerHTML = rows.join('');
             updateBranchColumnVisibility();
+            const purTotalEl = document.getElementById('pur-log-total-display');
+            if (canSeeCost) {
+                const purTotal = displayList.reduce((sum, p) => sum + p.total, 0);
+                purTotalEl.innerText = `${t('misc.total_shown')}: ETB ${purTotal.toFixed(2)} (${displayList.length})`;
+            } else {
+                purTotalEl.innerText = `🔒 ${t('misc.total_shown')} (${displayList.length})`;
+            }
         }
 
         async function handlePostExpense(e) {
@@ -4800,20 +5239,22 @@
 
         function renderExpenseLogTable() {
             const tbody = document.getElementById('expense-log-table-body');
-            if(state.expenseLog.length===0) { tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">-- No logs --</td></tr>`; return; }
+            if(state.expenseLog.length===0) { tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">-- No logs --</td></tr>`; document.getElementById('exp-log-total-display').innerText = `${t('misc.total_shown')}: ETB 0.00 (0)`; return; }
             let rows = [];
             state.expenseLog.slice().sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(ex => {
                 let m = CHART_OF_ACCOUNTS_MAP.find(c => c.code === ex.target);
-                let voidBtn = (hasPerm('expense.void') && !isBranchClosed(ex.branchId)) ? `<button class="btn btn-danger btn-small" onclick="deleteExpense('${ex.id}')">Delete</button>` : '';
+                let voidBtn = (hasPerm('expense.void') && !isBranchClosed(ex.branchId)) ? `<button class="btn btn-danger btn-small" onclick="deleteExpense('${ex.id}')">${t('common.delete')}</button>` : '';
                 rows.push(`<tr><td>${ex.date}</td><td>${ex.target} - ${m?m.name:''}</td><td>${ex.memo}</td><td class="num"><strong>${ex.amount.toFixed(2)}</strong></td><td>${ex.source}</td><td class="branch-col">${branchNameById(ex.branchId)}</td><td><small>${getTransactionAuthor(ex.id)}</small></td><td style="text-align:center;">${voidBtn}</td></tr>`);
             });
             tbody.innerHTML = rows.join('');
             updateBranchColumnVisibility();
+            const expTotal = state.expenseLog.reduce((sum, ex) => sum + ex.amount, 0);
+            document.getElementById('exp-log-total-display').innerText = `${t('misc.total_shown')}: ETB ${expTotal.toFixed(2)} (${state.expenseLog.length})`;
         }
 
         function renderSystemCOAProfileLayouts() {
             const tbody = document.getElementById('coa-table-body'); tbody.innerHTML = '';
-            CHART_OF_ACCOUNTS_MAP.forEach(a => { tbody.innerHTML += `<tr><td><strong>${a.main}</strong></td><td>${a.sub}</td><td><code>${a.code}</code></td><td><strong>${a.name}</strong></td><td style="text-transform:uppercase;font-size:11px;">${a.stmt}</td><td>${a.normal}</td></tr>`; });
+            CHART_OF_ACCOUNTS_MAP.forEach(a => { tbody.innerHTML += `<tr><td><strong>${a.main}</strong></td><td>${a.sub}</td><td><code>${a.code}</code></td><td><strong>${a.name}</strong></td><td style="text-transform:uppercase;font-size:11px;">${a.stmt}</td><td>${a.normal === 'Debit' ? t('acct.debit') : t('acct.credit')}</td></tr>`; });
         }
 
         function populateExpenseAccountDropdown() {
@@ -4923,22 +5364,22 @@
 
             const out = document.getElementById('statement-output-panel'); let bal = runAbsoluteAccountBalances();
             if (type === 'trial') {
-                let d = 0, c = 0, s = `<h2>Trial Balance Verification</h2><table><thead><tr><th>Code</th><th>Name</th><th class="num">Debit</th><th class="num">Credit</th></tr></thead><tbody>`;
+                let d = 0, c = 0, s = `<h2>${t('acct.trial_balance_verification')}</h2><table><thead><tr><th>${t('acct.code')}</th><th>${t('team.name')}</th><th class="num">${t('acct.debit')}</th><th class="num">${t('acct.credit')}</th></tr></thead><tbody>`;
                 CHART_OF_ACCOUNTS_MAP.forEach(a => {
                     let b = bal[a.code] || 0; if(b===0) return;
                     if (a.normal==="Debit") { s += `<tr><td><code>${a.code}</code></td><td>${a.name}</td><td class="num">${b.toFixed(2)}</td><td class="num">-</td></tr>`; d+=b; } 
                     else { s += `<tr><td><code>${a.code}</code></td><td>${a.name}</td><td class="num">-</td><td class="num">${b.toFixed(2)}</td></tr>`; c+=b; }
                 });
-                out.innerHTML = s + `<tr class="total-row"><td>TOTALS</td><td></td><td class="num">${d.toFixed(2)}</td><td class="num">${c.toFixed(2)}</td></tr></tbody></table>`;
+                out.innerHTML = s + `<tr class="total-row"><td>${t('acct.totals')}</td><td></td><td class="num">${d.toFixed(2)}</td><td class="num">${c.toFixed(2)}</td></tr></tbody></table>`;
             } else if (type === 'income') {
                 let r = bal["4010"]||0, cgs = bal["5010"]||0, gp = r - cgs;
                 let u = bal["6010"]||0, sal = bal["6020"]||0, tx = bal["6030"]||0, ex = u+sal+tx, net = gp - ex;
-                out.innerHTML = `<h2>Income Statement</h2><table><tr style="background:#ECEDF2;"><td colspan="2"><strong>Revenues</strong></td></tr><tr><td style="padding-left:24px;">Sales (4010)</td><td class="num">${r.toFixed(2)}</td></tr><tr class="total-row"><td>Total Revenue</td><td class="num">${r.toFixed(2)}</td></tr><tr style="background:#ECEDF2;"><td colspan="2"><strong>Costs</strong></td></tr><tr><td style="padding-left:24px;">COGS (5010)</td><td class="num">(${cgs.toFixed(2)})</td></tr><tr class="total-row"><td>Gross Profit</td><td class="num">${gp.toFixed(2)}</td></tr><tr style="background:#ECEDF2;"><td colspan="2"><strong>Expenses</strong></td></tr><tr><td style="padding-left:24px;">Utility (6010)</td><td class="num">${u.toFixed(2)}</td></tr><tr><td style="padding-left:24px;">Salary (6020)</td><td class="num">${sal.toFixed(2)}</td></tr><tr><td style="padding-left:24px;">Taxes (6030)</td><td class="num">${tx.toFixed(2)}</td></tr><tr class="total-row"><td>Total Expenses</td><td class="num">(${ex.toFixed(2)})</td></tr><tr class="total-row" style="background:#EAF3EE;"><td>NET INCOME</td><td class="num text-success">${net.toFixed(2)}</td></tr></table>`;
+                out.innerHTML = `<h2>${t('acct.income_statement_heading')}</h2><table><tr style="background:#ECEDF2;"><td colspan="2"><strong>${t('acct.revenues')}</strong></td></tr><tr><td style="padding-left:24px;">Sales (4010)</td><td class="num">${r.toFixed(2)}</td></tr><tr class="total-row"><td>${t('acct.total_revenue')}</td><td class="num">${r.toFixed(2)}</td></tr><tr style="background:#ECEDF2;"><td colspan="2"><strong>${t('acct.costs_section')}</strong></td></tr><tr><td style="padding-left:24px;">COGS (5010)</td><td class="num">(${cgs.toFixed(2)})</td></tr><tr class="total-row"><td>${t('acct.gross_profit')}</td><td class="num">${gp.toFixed(2)}</td></tr><tr style="background:#ECEDF2;"><td colspan="2"><strong>${t('acct.expenses_section')}</strong></td></tr><tr><td style="padding-left:24px;">Utility (6010)</td><td class="num">${u.toFixed(2)}</td></tr><tr><td style="padding-left:24px;">Salary (6020)</td><td class="num">${sal.toFixed(2)}</td></tr><tr><td style="padding-left:24px;">Taxes (6030)</td><td class="num">${tx.toFixed(2)}</td></tr><tr class="total-row"><td>${t('acct.total_expenses')}</td><td class="num">(${ex.toFixed(2)})</td></tr><tr class="total-row" style="background:#EAF3EE;"><td>${t('acct.net_income')}</td><td class="num text-success">${net.toFixed(2)}</td></tr></table>`;
             } else if (type === 'balance') {
                 let csh = bal["1010"]||0, mb = bal["1020"]||0, ar = bal["1300"]||0, inv = state.inventory.reduce((acc, i)=>acc+i.lots.reduce((a,l)=>a+(l.qty*l.cost),0),0);
                 let ast = csh + mb + inv + ar, ap = bal["2010"]||0, eq = bal["3010"]||0;
                 let r = bal["4010"]||0, cgs = bal["5010"]||0, ex = (bal["6010"]||0)+(bal["6020"]||0)+(bal["6030"]||0), ret = r - cgs - ex;
-                out.innerHTML = `<h2>Balance Sheet</h2><table><thead><tr style="background:var(--secondary); color:white;"><th colspan="2">ASSETS</th></tr></thead><tbody><tr><td>Cash (1010)</td><td class="num">${csh.toFixed(2)}</td></tr><tr><td>Mobile banking (1020)</td><td class="num">${mb.toFixed(2)}</td></tr><tr><td>Inventory (1200)</td><td class="num">${inv.toFixed(2)}</td></tr><tr><td>Accounts receivable (1300)</td><td class="num">${ar.toFixed(2)}</td></tr><tr class="total-row" style="background:#e3e4ea;"><td>TOTAL ASSETS</td><td class="num">${ast.toFixed(2)}</td></tr><thead><tr style="background:var(--secondary); color:white;"><th colspan="2">LIABILITIES & EQUITY</th></tr></thead><tr><td>Accounts payable (2010)</td><td class="num">${ap.toFixed(2)}</td></tr><tr><td>Equity Capital (3010)</td><td class="num">${eq.toFixed(2)}</td></tr><tr><td>Retained Earnings</td><td class="num">${ret.toFixed(2)}</td></tr><tr class="total-row" style="background:#e3e4ea;"><td>TOTAL LIABILITIES & EQUITY</td><td class="num">${(ap+eq+ret).toFixed(2)}</td></tr></tbody></table>`;
+                out.innerHTML = `<h2>${t('acct.balance_sheet_heading')}</h2><table><thead><tr style="background:var(--secondary); color:white;"><th colspan="2">${t('acct.assets')}</th></tr></thead><tbody><tr><td>Cash (1010)</td><td class="num">${csh.toFixed(2)}</td></tr><tr><td>Mobile banking (1020)</td><td class="num">${mb.toFixed(2)}</td></tr><tr><td>Inventory (1200)</td><td class="num">${inv.toFixed(2)}</td></tr><tr><td>Accounts receivable (1300)</td><td class="num">${ar.toFixed(2)}</td></tr><tr class="total-row" style="background:#e3e4ea;"><td>${t('acct.total_assets')}</td><td class="num">${ast.toFixed(2)}</td></tr><thead><tr style="background:var(--secondary); color:white;"><th colspan="2">${t('acct.liabilities_equity')}</th></tr></thead><tr><td>Accounts payable (2010)</td><td class="num">${ap.toFixed(2)}</td></tr><tr><td>Equity Capital (3010)</td><td class="num">${eq.toFixed(2)}</td></tr><tr><td>${t('acct.retained_earnings')}</td><td class="num">${ret.toFixed(2)}</td></tr><tr class="total-row" style="background:#e3e4ea;"><td>${t('acct.total_liabilities_equity')}</td><td class="num">${(ap+eq+ret).toFixed(2)}</td></tr></tbody></table>`;
             }
         }
 
@@ -5131,18 +5572,18 @@
             document.getElementById('branch-actions-title').innerText = b.name;
             const body = document.getElementById('branch-actions-body');
             if (!canManage) {
-                body.innerHTML = `<p style="color:var(--text-light); font-size:13px;">You don't have permission to manage branches.</p>`;
+                body.innerHTML = `<p style="color:var(--text-light); font-size:13px;">${t('team.no_perm_branch')}</p>`;
             } else if (b.closed) {
                 body.innerHTML = `
-                    <p style="font-size:13px; color:var(--text-light); margin-bottom:8px;">This branch is closed — it's hidden from the branch switcher and won't accept new sales, purchases, or transfers, but its history is kept for your records.</p>
-                    <button class="btn" style="width:100%; margin-bottom:8px;" onclick="closeBranchActionsModal(); openEditBranchModal('${b.id}')">Edit</button>
-                    <button class="btn" style="width:100%;" onclick="closeBranchActionsModal(); reopenBranch('${b.id}', '${b.name.replace(/'/g,"\\'")}')">Reopen Branch</button>
+                    <p style="font-size:13px; color:var(--text-light); margin-bottom:8px;">${t('team.branch_closed_desc')}</p>
+                    <button class="btn" style="width:100%; margin-bottom:8px;" onclick="closeBranchActionsModal(); openEditBranchModal('${b.id}')">${t('common.edit')}</button>
+                    <button class="btn" style="width:100%;" onclick="closeBranchActionsModal(); reopenBranch('${b.id}', '${b.name.replace(/'/g,"\\'")}')">${t('team.reopen_branch')}</button>
                 `;
             } else {
                 body.innerHTML = `
-                    <button class="btn" style="width:100%; margin-bottom:8px;" onclick="closeBranchActionsModal(); openEditBranchModal('${b.id}')">Edit</button>
-                    <button class="btn btn-danger" style="width:100%;" ${canClose ? '' : 'disabled title="A business must have at least one open branch"'} onclick="closeBranchActionsModal(); promptCloseBranch('${b.id}', '${b.name.replace(/'/g,"\\'")}')">Close Branch</button>
-                    ${canClose ? '<p style="font-size:12px; color:var(--text-light); margin-top:8px;">Closing keeps all its sales, purchase, and transfer history — it just stops it from being used going forward. You can reopen it any time.</p>' : '<p style="font-size:12px; color:var(--text-light); margin-top:8px;">This is your only open branch, so it can\'t be closed.</p>'}
+                    <button class="btn" style="width:100%; margin-bottom:8px;" onclick="closeBranchActionsModal(); openEditBranchModal('${b.id}')">${t('common.edit')}</button>
+                    <button class="btn btn-danger" style="width:100%;" ${canClose ? '' : 'disabled title="A business must have at least one open branch"'} onclick="closeBranchActionsModal(); promptCloseBranch('${b.id}', '${b.name.replace(/'/g,"\\'")}')">${t('team.close_branch')}</button>
+                    ${canClose ? `<p style="font-size:12px; color:var(--text-light); margin-top:8px;">${t('team.close_hint')}</p>` : `<p style="font-size:12px; color:var(--text-light); margin-top:8px;">${t('team.only_open_branch')}</p>`}
                 `;
             }
             document.getElementById('branch-actions-modal').classList.add('active');
@@ -5373,14 +5814,14 @@
             document.getElementById('member-actions-title').innerText = m.display_name || m.username;
             const body = document.getElementById('member-actions-body');
             if (!canManage && !canLoginAs) {
-                body.innerHTML = `<p style="color:var(--text-light); font-size:13px;">${m.is_owner ? "The owner's account can't be modified from here." : "You don't have permission to manage this team member."}</p>`;
+                body.innerHTML = `<p style="color:var(--text-light); font-size:13px;">${m.is_owner ? t('team.owner_locked') : t('team.no_perm_member')}</p>`;
             } else {
                 body.innerHTML = `
-                    ${canLoginAs ? `<button class="btn btn-success" style="width:100%; margin-bottom:8px;" onclick="closeMemberActionsModal(); loginAsEmployee('${m.id}', '${name}')">Login As</button>` : ''}
+                    ${canLoginAs ? `<button class="btn btn-success" style="width:100%; margin-bottom:8px;" onclick="closeMemberActionsModal(); loginAsEmployee('${m.id}', '${name}')">${t('team.login_as')}</button>` : ''}
                     ${canManage ? `
-                        <button class="btn" style="width:100%; margin-bottom:8px;" onclick="closeMemberActionsModal(); openEditMemberModal('${m.id}')">Edit</button>
-                        <button class="btn btn-warning" style="width:100%; margin-bottom:8px;" onclick="closeMemberActionsModal(); promptResetPassword('${m.id}')">Reset Password</button>
-                        <button class="btn btn-danger" style="width:100%;" onclick="closeMemberActionsModal(); promptRemoveMember('${m.id}', '${name}')">Remove</button>
+                        <button class="btn" style="width:100%; margin-bottom:8px;" onclick="closeMemberActionsModal(); openEditMemberModal('${m.id}')">${t('common.edit')}</button>
+                        <button class="btn btn-warning" style="width:100%; margin-bottom:8px;" onclick="closeMemberActionsModal(); promptResetPassword('${m.id}')">${t('team.reset_password')}</button>
+                        <button class="btn btn-danger" style="width:100%;" onclick="closeMemberActionsModal(); promptRemoveMember('${m.id}', '${name}')">${t('team.remove')}</button>
                     ` : ''}
                 `;
             }
@@ -5719,8 +6160,8 @@
                         <div id="role-body-${role.id}" style="display:none; padding:0 20px 20px 20px;">
                             <div id="role-perms-${role.id}"></div>
                             <div style="display:flex; gap:8px; margin-top:14px;">
-                                <button class="btn btn-small" onclick="saveRolePermissions('${role.id}')">Save Permissions</button>
-                                ${role.is_builtin ? '' : `<button class="btn btn-danger btn-small" onclick="deleteRole('${role.id}', '${role.label.replace(/'/g,"\\'")}')">Delete Role</button>`}
+                                <button class="btn btn-small" onclick="saveRolePermissions('${role.id}')">${t('misc.save_permissions')}</button>
+                                ${role.is_builtin ? '' : `<button class="btn btn-danger btn-small" onclick="deleteRole('${role.id}', '${role.label.replace(/'/g,"\\'")}')">${t('misc.delete_role')}</button>`}
                             </div>
                         </div>
                     `}
