@@ -11,7 +11,7 @@
 // keep seeing the old app until the cache naturally expires.
 // =====================================================================
 
-const CACHE_NAME = 'neba-erp-shell-v9';
+const CACHE_NAME = 'neba-erp-shell-v10';
 
 const ASSETS_TO_CACHE = [
   './',
