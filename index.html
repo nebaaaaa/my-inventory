@@ -1013,6 +1013,37 @@
         </div>
     </div>
 
+    <div id="fund-transfer-modal" class="modal-overlay" style="z-index:3001;" onclick="closeFundTransferModal()">
+        <div class="modal-box" onclick="event.stopPropagation()" style="max-width:460px;">
+            <h3 style="color:var(--primary); margin-bottom:12px;" data-i18n="ft.title">Transfer Between Channels</h3>
+            <div id="fund-transfer-error" style="display:none; background:#F1DCD8; color:var(--danger); font-size:13px; padding:10px; border-radius:4px; margin-bottom:14px;"></div>
+            <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
+                <label data-i18n="sale.date">Date</label>
+                <input type="date" id="ft-date" style="width:100%;">
+            </div>
+            <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
+                <label data-i18n="ft.from_channel">From Channel</label>
+                <select id="ft-from-channel" style="width:100%;"></select>
+            </div>
+            <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
+                <label data-i18n="ft.to_channel">To Channel</label>
+                <select id="ft-to-channel" style="width:100%;"></select>
+            </div>
+            <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
+                <label data-i18n="ft.amount">Amount (ETB)</label>
+                <input type="number" id="ft-amount" step="0.01" min="0.01" style="width:100%;">
+            </div>
+            <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
+                <label data-i18n="tr.notes_optional">Note (Optional)</label>
+                <input type="text" id="ft-note" style="width:100%;" placeholder="e.g. Weekly cash deposit">
+            </div>
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
+                <button class="btn btn-warning" onclick="closeFundTransferModal()" data-i18n="common.cancel">Cancel</button>
+                <button class="btn btn-success" id="fund-transfer-submit-btn" onclick="submitFundTransfer()" data-i18n="ft.submit">Transfer Funds</button>
+            </div>
+        </div>
+    </div>
+
     <div id="pick-transaction-branch-modal" class="modal-overlay">
         <div class="modal-box" onclick="event.stopPropagation()" style="max-width:400px;">
             <h3 style="color:var(--primary); margin-bottom:12px;" data-i18n="team.which_branch">Which branch is this for?</h3>
@@ -1129,7 +1160,8 @@
             { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "6010", name: "Utility/Overhead", normal: "Debit" },
             { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "6020", name: "Salary", normal: "Debit" },
             { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "6030", name: "Tax/Vat", normal: "Debit" },
-            { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "6040", name: "Transport/Fuel", normal: "Debit" }
+            { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "6040", name: "Transport/Fuel", normal: "Debit" },
+            { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "6050", name: "Personal Expenses", normal: "Debit" }
         ];
         // Base list of accounts, extended by state.customAccounts. The only
         // way custom accounts get created right now is addNewChannel() below
@@ -1281,6 +1313,11 @@
                 'misc.save_permissions': 'Save Permissions', 'misc.return_to_owner': 'Return to my account',
                 'misc.total_shown': 'Total shown',
 
+                'ft.title': 'Transfer Between Channels', 'ft.vault_title': 'Liquid Vault Balance — By Channel',
+                'ft.from_channel': 'From Channel', 'ft.to_channel': 'To Channel', 'ft.amount': 'Amount (ETB)',
+                'ft.submit': 'Transfer Funds', 'ft.channel': 'Channel', 'ft.balance': 'Balance',
+                'ft.recent': 'Recent Fund Transfers', 'ft.movement': 'Movement',
+
                 'acct.total_revenue': 'Total Revenue', 'acct.cogs': 'Cost of Goods Sold', 'acct.gross_profit': 'Gross Profit',
                 'acct.total_expenses': 'Total Expenses', 'acct.net_profit': 'Net Profit',
 
@@ -1417,6 +1454,11 @@
                 'misc.dismiss': 'ዝጋ', 'misc.approve': 'አጽድቅ', 'misc.reject': 'ውድቅ አድርግ',
                 'misc.save_permissions': 'ፍቃዶችን አስቀምጥ', 'misc.return_to_owner': 'ወደ አካውንቴ ተመለስ',
                 'misc.total_shown': 'የሚታየው ድምር',
+
+                'ft.title': 'በመንገዶች መካከል አዛውር', 'ft.vault_title': 'የካሽ ቀሪ ሂሳብ — በመንገድ',
+                'ft.from_channel': 'ከየትኛው መንገድ', 'ft.to_channel': 'ወደየትኛው መንገድ', 'ft.amount': 'መጠን (ETB)',
+                'ft.submit': 'ገንዘብ አዛውር', 'ft.channel': 'መንገድ', 'ft.balance': 'ቀሪ ሂሳብ',
+                'ft.recent': 'የቅርብ ጊዜ ገንዘብ ዝውውሮች', 'ft.movement': 'እንቅስቃሴ',
 
                 'acct.total_revenue': 'ጠቅላላ ገቢ', 'acct.cogs': 'የተሸጠ ዕቃ የተገዛበት ዋጋ', 'acct.gross_profit': 'ያልተጣራ ትርፍ',
                 'acct.total_expenses': 'ጠቅላላ ወጪ', 'acct.net_profit': 'የተጣራ ትርፍ',
@@ -3390,28 +3432,111 @@
             document.getElementById('audit-modal').style.display = "flex";
         }
 
-        function launchLiquidVaultDrillDown() {
-            const mTitle = document.getElementById('modal-title');
-            const mContent = document.getElementById('modal-body-content');
-            mTitle.innerText = "Liquid Vault Balance — By Channel";
-            const balances = runAbsoluteAccountBalances();
-            const channelAccounts = [
+        function getChannelAccountsList() {
+            return [
                 { code: '1010', name: 'Cash' },
                 { code: '1020', name: 'Mobile banking' },
                 ...(state.customAccounts || []).filter(a => a.isCustomChannel).map(a => ({ code: a.code, name: a.name }))
             ];
+        }
+
+        function launchLiquidVaultDrillDown() {
+            const mTitle = document.getElementById('modal-title');
+            const mContent = document.getElementById('modal-body-content');
+            mTitle.innerText = t('ft.vault_title');
+            const balances = runAbsoluteAccountBalances();
+            const channelAccounts = getChannelAccountsList();
             let total = 0;
             const rows = channelAccounts.map(c => {
                 const bal = balances[c.code] || 0;
                 total += bal;
                 return `<tr><td>${c.name}</td><td class="num">ETB ${bal.toLocaleString(undefined,{minimumFractionDigits:2})}</td></tr>`;
             }).join('');
+
+            const canTransferFunds = hasPerm('dashboard.fund_transfer');
+            const recentTransfers = state.journal.filter(j => j.id.startsWith('FT-')).sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, 10);
+            const transferRows = recentTransfers.map(j => {
+                const fromLine = j.lines.find(l => l.cr > 0);
+                const toLine = j.lines.find(l => l.dr > 0);
+                const fromAcc = channelAccounts.find(c => c.code === fromLine?.account);
+                const toAcc = channelAccounts.find(c => c.code === toLine?.account);
+                return `<tr><td>${j.date}</td><td>${fromAcc ? fromAcc.name : '—'} → ${toAcc ? toAcc.name : '—'}</td><td class="num">${(fromLine?.cr || 0).toFixed(2)}</td><td style="text-align:center;"><button class="btn btn-danger btn-small" onclick="deleteFundTransfer('${j.id}')">${t('common.delete')}</button></td></tr>`;
+            }).join('');
+
             mContent.innerHTML = `<table>
-                <thead><tr><th>Channel</th><th class="num">Balance</th></tr></thead>
+                <thead><tr><th>${t('ft.channel')}</th><th class="num">${t('ft.balance')}</th></tr></thead>
                 <tbody>${rows}</tbody>
-                <tfoot><tr style="font-weight:700; border-top:2px solid var(--border);"><td>Total</td><td class="num">ETB ${total.toLocaleString(undefined,{minimumFractionDigits:2})}</td></tr></tfoot>
-            </table>`;
+                <tfoot><tr style="font-weight:700; border-top:2px solid var(--border);"><td>${t('sale.total')}</td><td class="num">ETB ${total.toLocaleString(undefined,{minimumFractionDigits:2})}</td></tr></tfoot>
+            </table>
+            ${canTransferFunds ? `<div style="margin-top:16px; text-align:right;"><button class="btn" onclick="openFundTransferModal()">🔁 ${t('ft.title')}</button></div>` : ''}
+            ${canTransferFunds && recentTransfers.length ? `<h4 style="margin-top:18px; margin-bottom:8px; font-size:13px; color:var(--text-light);">${t('ft.recent')}</h4>
+            <table>
+                <thead><tr><th>${t('sale.date')}</th><th>${t('ft.movement')}</th><th class="num">${t('ft.amount')}</th><th style="text-align:center;">${t('inv.actions')}</th></tr></thead>
+                <tbody>${transferRows}</tbody>
+            </table>` : ''}`;
             document.getElementById('audit-modal').style.display = "flex";
+        }
+
+        function openFundTransferModal() {
+            if (currentBranchId === 'all' || !currentBranchId) return alert('Pick a specific branch from the branch switcher first — fund transfers belong to one branch.');
+            const channelAccounts = getChannelAccountsList();
+            const opts = channelAccounts.map(c => `<option value="${c.code}">${c.name}</option>`).join('');
+            document.getElementById('ft-from-channel').innerHTML = opts;
+            document.getElementById('ft-to-channel').innerHTML = opts;
+            if (channelAccounts.length > 1) document.getElementById('ft-to-channel').value = channelAccounts[1].code;
+            document.getElementById('ft-date').value = getLocalYMD(new Date());
+            document.getElementById('ft-amount').value = '';
+            document.getElementById('ft-note').value = '';
+            document.getElementById('fund-transfer-error').style.display = 'none';
+            document.getElementById('fund-transfer-modal').style.display = 'flex';
+        }
+        function closeFundTransferModal() { document.getElementById('fund-transfer-modal').style.display = 'none'; }
+
+        async function submitFundTransfer() {
+            const errBox = document.getElementById('fund-transfer-error');
+            errBox.style.display = 'none';
+            const fromCode = document.getElementById('ft-from-channel').value;
+            const toCode = document.getElementById('ft-to-channel').value;
+            const amount = parseFloat(document.getElementById('ft-amount').value);
+            const date = document.getElementById('ft-date').value;
+            const note = document.getElementById('ft-note').value.trim();
+
+            if (fromCode === toCode) { errBox.innerText = "From and To channels can't be the same."; errBox.style.display = 'block'; return; }
+            if (isNaN(amount) || amount <= 0) { errBox.innerText = 'Enter a valid amount.'; errBox.style.display = 'block'; return; }
+            if (!date) { errBox.innerText = 'Pick a date.'; errBox.style.display = 'block'; return; }
+
+            const channelAccounts = getChannelAccountsList();
+            const fromName = channelAccounts.find(c => c.code === fromCode)?.name || fromCode;
+            const toName = channelAccounts.find(c => c.code === toCode)?.name || toCode;
+
+            const id = `FT-${Date.now().toString().slice(-8)}`;
+            const desc = stampDesc(`Fund transfer: ${fromName} → ${toName}${note ? ' (' + note + ')' : ''}`);
+            const newJournal = {
+                id, date, desc,
+                lines: [ { account: toCode, dr: amount, cr: 0 }, { account: fromCode, dr: 0, cr: amount } ],
+                branchId: currentBranchId
+            };
+            state.journal.push(newJournal);
+            queueWrite({ kind: 'upsert', table: 'journal_entries', data: toDbJournal(newJournal) });
+            cacheStateLocally();
+
+            closeFundTransferModal();
+            addNotification('Fund Transfer Recorded', `ETB ${amount.toFixed(2)} moved from ${fromName} to ${toName}.`);
+            launchLiquidVaultDrillDown();
+            renderAnalyticalDashboards();
+        }
+
+        async function deleteFundTransfer(id) {
+            if (!hasPerm('dashboard.fund_transfer')) return alert("You don't have permission to undo fund transfers.");
+            if (!confirm('Delete this fund transfer? This reverses the channel balances back to before it happened.')) return;
+            const idx = state.journal.findIndex(j => j.id === id);
+            if (idx === -1) return;
+            state.journal.splice(idx, 1);
+            queueWrite({ kind: 'delete', table: 'journal_entries', id });
+            cacheStateLocally();
+            addNotification('Fund Transfer Deleted', `Voucher ${id} removed.`);
+            launchLiquidVaultDrillDown();
+            renderAnalyticalDashboards();
         }
 
         // --- INVENTORY ---
@@ -6024,7 +6149,9 @@
         // the owner wants to grant. "data" (Backup/Restore) isn't a nav page,
         // so it skips the View/Edit framing and is just plain checkboxes.
         const PAGE_DEFINITIONS = [
-            { key: 'dashboard', label: 'Dashboard / Statements / Ledger / Chart of Accounts', viewPerm: 'reports.view', actions: [] },
+            { key: 'dashboard', label: 'Dashboard / Statements / Ledger / Chart of Accounts', viewPerm: 'reports.view', actions: [
+                { key: 'dashboard.fund_transfer', label: 'Transfer money between channels' }
+            ] },
             { key: 'inventory', label: 'Inventory/Stock', viewPerm: 'inventory.view', actions: [
                 { key: 'inventory.edit_products', label: 'Add / edit product catalog' },
                 { key: 'inventory.adjust_price', label: 'Change selling prices' },
