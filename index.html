@@ -191,6 +191,7 @@
 
     <!-- ===================== SIGN IN / SIGN UP SCREEN ===================== -->
     <div id="auth-overlay" style="position:fixed; inset:0; z-index:5000; display:flex; align-items:center; justify-content:center; padding:40px 16px; overflow-y:auto;">
+        <button id="lang-toggle-btn-auth" onclick="toggleLanguage()" title="Switch language" style="position:fixed; top:16px; right:16px; z-index:5001; font-size:12px; font-weight:700; min-width:44px; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:white; cursor:pointer;">አማ</button>
         <div class="auth-brand-mark-fixed"><span class="accent">MY</span> <span class="dark">INVENTORY</span></div>
 
         <svg class="auth-bg-chart" viewBox="0 0 1200 400" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
@@ -490,14 +491,14 @@
                             <table style="margin-top: 0; width: 100%; border-collapse: separate; border-spacing: 0;">
                                 <thead style="background: linear-gradient(to right, #F4F5F8, #ECEDF2);">
                                     <tr>
-                                        <th onclick="sortAnalysisTable('desc')" style="cursor:pointer; padding: 14px; border-bottom: 2px solid #cfd1da;" title="Sort by Name">Product Item ↕</th>
-                                        <th onclick="sortAnalysisTable('speed')" style="cursor:pointer; padding: 14px; border-bottom: 2px solid #cfd1da;" title="Sort by Speed Category">Velocity ↕</th>
-                                        <th class="num" onclick="sortAnalysisTable('freq')" style="cursor:pointer; padding: 14px; border-bottom: 2px solid #cfd1da;" title="Sort by Invoicing Frequency">Txn Freq ↕</th>
-                                        <th class="num" onclick="sortAnalysisTable('qty')" style="cursor:pointer; padding: 14px; border-bottom: 2px solid #cfd1da;" title="Sort by Total Volume Sold">Qty Sold ↕</th>
-                                        <th class="num" onclick="sortAnalysisTable('rev')" style="cursor:pointer; padding: 14px; border-bottom: 2px solid #cfd1da;" title="Sort by Revenue">Gross Revenue ↕</th>
-                                        <th class="num" onclick="sortAnalysisTable('profit')" style="cursor:pointer; padding: 14px; border-bottom: 2px solid #cfd1da;" title="Sort by Gross Profit">Gross Profit ↕</th>
-                                        <th class="num" onclick="sortAnalysisTable('margin')" style="cursor:pointer; padding: 14px; border-bottom: 2px solid #cfd1da;" title="Sort by Unit Profit Margin">Unit Margin (%) ↕</th>
-                                        <th class="num" onclick="sortAnalysisTable('roi')" style="cursor:pointer; padding: 14px; border-bottom: 2px solid #cfd1da;" title="Sort by ROI">Total ROI (%) ↕</th>
+                                        <th onclick="sortAnalysisTable('desc')" style="cursor:pointer; padding: 14px; border-bottom: 2px solid #cfd1da;" data-i18n-title="matrix.sort_name" title="Sort by Name"><span data-i18n="matrix.product_item">Product Item</span> ↕</th>
+                                        <th onclick="sortAnalysisTable('speed')" style="cursor:pointer; padding: 14px; border-bottom: 2px solid #cfd1da;" data-i18n-title="matrix.sort_speed" title="Sort by Speed Category"><span data-i18n="matrix.velocity">Velocity</span> ↕</th>
+                                        <th class="num" onclick="sortAnalysisTable('freq')" style="cursor:pointer; padding: 14px; border-bottom: 2px solid #cfd1da;" data-i18n-title="matrix.sort_freq" title="Sort by Invoicing Frequency"><span data-i18n="matrix.txn_freq">Txn Freq</span> ↕</th>
+                                        <th class="num" onclick="sortAnalysisTable('qty')" style="cursor:pointer; padding: 14px; border-bottom: 2px solid #cfd1da;" data-i18n-title="matrix.sort_qty" title="Sort by Total Volume Sold"><span data-i18n="matrix.qty_sold">Qty Sold</span> ↕</th>
+                                        <th class="num" onclick="sortAnalysisTable('rev')" style="cursor:pointer; padding: 14px; border-bottom: 2px solid #cfd1da;" data-i18n-title="matrix.sort_rev" title="Sort by Revenue"><span data-i18n="matrix.gross_revenue">Gross Revenue</span> ↕</th>
+                                        <th class="num" onclick="sortAnalysisTable('profit')" style="cursor:pointer; padding: 14px; border-bottom: 2px solid #cfd1da;" data-i18n-title="matrix.sort_profit" title="Sort by Gross Profit"><span data-i18n="acct.gross_profit">Gross Profit</span> ↕</th>
+                                        <th class="num" onclick="sortAnalysisTable('margin')" style="cursor:pointer; padding: 14px; border-bottom: 2px solid #cfd1da;" data-i18n-title="matrix.sort_margin" title="Sort by Unit Profit Margin"><span data-i18n="matrix.unit_margin">Unit Margin (%)</span> ↕</th>
+                                        <th class="num" onclick="sortAnalysisTable('roi')" style="cursor:pointer; padding: 14px; border-bottom: 2px solid #cfd1da;" data-i18n-title="matrix.sort_roi" title="Sort by ROI"><span data-i18n="matrix.total_roi">Total ROI (%)</span> ↕</th>
                                     </tr>
                                 </thead>
                                 <tbody id="item-performance-tbody" style="background: white;"></tbody>
@@ -1023,7 +1024,8 @@
             </div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                 <label data-i18n="ft.from_channel">From Channel</label>
-                <select id="ft-from-channel" style="width:100%;"></select>
+                <select id="ft-from-channel" style="width:100%;" onchange="updateFundTransferAvailable()"></select>
+                <div id="ft-available-hint" style="font-size:12px; color:var(--text-light); margin-top:4px;"></div>
             </div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                 <label data-i18n="ft.to_channel">To Channel</label>
@@ -1317,6 +1319,28 @@
                 'ft.from_channel': 'From Channel', 'ft.to_channel': 'To Channel', 'ft.amount': 'Amount (ETB)',
                 'ft.submit': 'Transfer Funds', 'ft.channel': 'Channel', 'ft.balance': 'Balance',
                 'ft.recent': 'Recent Fund Transfers', 'ft.movement': 'Movement',
+                'ft.insufficient': 'Not enough balance in that channel. Available:', 'ft.available': 'Available',
+
+                'chart.top10_proportion': 'Top 10 Items Proportion', 'chart.bottom10_proportion': 'Top 10 Non-Performing Items',
+                'chart.revenue_by_type': 'Revenue Proportion by Sales Type', 'chart.revenue': 'Revenue', 'chart.profit': 'Profit',
+
+                'matrix.product_item': 'Product Item', 'matrix.velocity': 'Velocity', 'matrix.txn_freq': 'Txn Freq',
+                'matrix.qty_sold': 'Qty Sold', 'matrix.gross_revenue': 'Gross Revenue', 'matrix.unit_margin': 'Unit Margin (%)',
+                'matrix.total_roi': 'Total ROI (%)',
+                'matrix.sort_name': 'Sort by Name', 'matrix.sort_speed': 'Sort by Speed Category', 'matrix.sort_freq': 'Sort by Invoicing Frequency',
+                'matrix.sort_qty': 'Sort by Total Volume Sold', 'matrix.sort_rev': 'Sort by Revenue', 'matrix.sort_profit': 'Sort by Gross Profit',
+                'matrix.sort_margin': 'Sort by Unit Profit Margin', 'matrix.sort_roi': 'Sort by ROI',
+
+                'drill.range_label': 'Current Range Constraint:', 'drill.revenue_title': 'Revenue Details',
+                'drill.cogs_title': 'Cost of Goods Sold Details', 'drill.gross_title': 'Gross Profit Details',
+                'drill.expenses_title': 'Expense Details', 'drill.net_title': 'Net Profit Details',
+                'drill.no_sales': 'No recorded transaction lines in range.', 'drill.no_expenses': 'No operational expenses logged in range.',
+                'drill.voucher_id': 'Voucher ID',
+
+                'warn.void_pur_group': 'Warning 1: Void this whole Multi-Item Purchase ({n} items)?\nWarning 2: Stock will be instantly deducted for all items. Proceed?',
+                'warn.void_pur_single': 'Warning 1: Void this Purchase?\nWarning 2: Stock will be instantly deducted. Proceed?',
+                'warn.void_sale_group': 'Warning 1: Void this whole Multi-Item Sale ({n} items)?\nWarning 2: Stock will be returned to inventory for all items. Proceed?',
+                'warn.void_sale_single': 'Warning 1: Void this Sale?\nWarning 2: Stock will be returned to inventory. Proceed?',
 
                 'acct.total_revenue': 'Total Revenue', 'acct.cogs': 'Cost of Goods Sold', 'acct.gross_profit': 'Gross Profit',
                 'acct.total_expenses': 'Total Expenses', 'acct.net_profit': 'Net Profit',
@@ -1459,6 +1483,28 @@
                 'ft.from_channel': 'ከየትኛው መንገድ', 'ft.to_channel': 'ወደየትኛው መንገድ', 'ft.amount': 'መጠን (ETB)',
                 'ft.submit': 'ገንዘብ አዛውር', 'ft.channel': 'መንገድ', 'ft.balance': 'ቀሪ ሂሳብ',
                 'ft.recent': 'የቅርብ ጊዜ ገንዘብ ዝውውሮች', 'ft.movement': 'እንቅስቃሴ',
+                'ft.insufficient': 'በዚያ መንገድ በቂ ቀሪ ሂሳብ የለም። ያለው:', 'ft.available': 'ያለው',
+
+                'chart.top10_proportion': 'ከፍተኛ 10 ምርቶች ድርሻ', 'chart.bottom10_proportion': 'ዝቅተኛ አፈጻጸም ያላቸው 10 ምርቶች',
+                'chart.revenue_by_type': 'በሽያጭ ዓይነት የገቢ ድርሻ', 'chart.revenue': 'ገቢ', 'chart.profit': 'ትርፍ',
+
+                'matrix.product_item': 'ምርት', 'matrix.velocity': 'ፍጥነት', 'matrix.txn_freq': 'የግብይት ብዛት',
+                'matrix.qty_sold': 'የተሸጠ ብዛት', 'matrix.gross_revenue': 'ጠቅላላ ገቢ', 'matrix.unit_margin': 'የአንድ ትርፍ ልዩነት (%)',
+                'matrix.total_roi': 'ጠቅላላ ROI (%)',
+                'matrix.sort_name': 'በስም ደርድር', 'matrix.sort_speed': 'በፍጥነት ደርድር', 'matrix.sort_freq': 'በግብይት ብዛት ደርድር',
+                'matrix.sort_qty': 'በመጠን ደርድር', 'matrix.sort_rev': 'በገቢ ደርድር', 'matrix.sort_profit': 'በትርፍ ደርድር',
+                'matrix.sort_margin': 'በትርፍ ልዩነት ደርድር', 'matrix.sort_roi': 'በ ROI ደርድር',
+
+                'drill.range_label': 'የተመረጠው ጊዜ ገደብ:', 'drill.revenue_title': 'የገቢ ዝርዝር',
+                'drill.cogs_title': 'የተሸጠ ዕቃ ዋጋ ዝርዝር', 'drill.gross_title': 'ያልተጣራ ትርፍ ዝርዝር',
+                'drill.expenses_title': 'የወጪ ዝርዝር', 'drill.net_title': 'የተጣራ ትርፍ ዝርዝር',
+                'drill.no_sales': 'በዚህ ጊዜ ውስጥ ምንም ግብይት አልተመዘገበም።', 'drill.no_expenses': 'በዚህ ጊዜ ውስጥ ምንም ወጪ አልተመዘገበም።',
+                'drill.voucher_id': 'መለያ ቁጥር',
+
+                'warn.void_pur_group': 'ማስጠንቀቂያ 1: ይህን መላውን የብዙ ዕቃ ግዢ ({n} ዕቃዎች) መሰረዝ ይፈልጋሉ?\nማስጠንቀቂያ 2: ለሁሉም ዕቃዎች ክምችት ወዲያውኑ ይቀነሳል። ይቀጥሉ?',
+                'warn.void_pur_single': 'ማስጠንቀቂያ 1: ይህን ግዢ መሰረዝ ይፈልጋሉ?\nማስጠንቀቂያ 2: ክምችት ወዲያውኑ ይቀነሳል። ይቀጥሉ?',
+                'warn.void_sale_group': 'ማስጠንቀቂያ 1: ይህን መላውን የብዙ ዕቃ ሽያጭ ({n} ዕቃዎች) መሰረዝ ይፈልጋሉ?\nማስጠንቀቂያ 2: ለሁሉም ዕቃዎች ክምችት ወደ ዕቃ ግምጃ ቤት ይመለሳል። ይቀጥሉ?',
+                'warn.void_sale_single': 'ማስጠንቀቂያ 1: ይህን ሽያጭ መሰረዝ ይፈልጋሉ?\nማስጠንቀቂያ 2: ክምችት ወደ ዕቃ ግምጃ ቤት ይመለሳል። ይቀጥሉ?',
 
                 'acct.total_revenue': 'ጠቅላላ ገቢ', 'acct.cogs': 'የተሸጠ ዕቃ የተገዛበት ዋጋ', 'acct.gross_profit': 'ያልተጣራ ትርፍ',
                 'acct.total_expenses': 'ጠቅላላ ወጪ', 'acct.net_profit': 'የተጣራ ትርፍ',
@@ -1492,8 +1538,12 @@
 
         let currentLang = localStorage.getItem('appLang') || 'en';
         document.addEventListener('DOMContentLoaded', () => {
+            const label = currentLang === 'en' ? 'አማ' : 'EN';
             const btn = document.getElementById('lang-toggle-btn');
-            if (btn) btn.innerText = currentLang === 'en' ? 'አማ' : 'EN';
+            if (btn) btn.innerText = label;
+            const authBtn = document.getElementById('lang-toggle-btn-auth');
+            if (authBtn) authBtn.innerText = label;
+            applyStaticTranslations();
         });
 
         function t(key) {
@@ -1507,7 +1557,10 @@
         function setLanguage(lang) {
             currentLang = lang;
             localStorage.setItem('appLang', lang);
-            document.getElementById('lang-toggle-btn').innerText = lang === 'en' ? 'አማ' : 'EN';
+            const label = lang === 'en' ? 'አማ' : 'EN';
+            document.getElementById('lang-toggle-btn').innerText = label;
+            const authBtn = document.getElementById('lang-toggle-btn-auth');
+            if (authBtn) authBtn.innerText = label;
             // Amharic (Ge'ez script) doesn't render well in the app's default
             // Latin fonts, so swap in a font that actually supports it.
             document.documentElement.style.setProperty('--i18n-font', lang === 'am' ? "'Noto Sans Ethiopic', sans-serif" : 'inherit');
@@ -1535,6 +1588,7 @@
         function applyStaticTranslations() {
             document.querySelectorAll('[data-i18n]').forEach(el => { el.innerText = t(el.dataset.i18n); });
             document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+            document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.dataset.i18nTitle); });
         }
 
         let accessibleBranches = [];     // branches this session is allowed to work in (open only)
@@ -3066,9 +3120,9 @@
                     type: 'pie',
                     data: {
                         labels: top10Rev.map(i => i.desc),
-                        datasets: [{ label: 'Revenue', data: top10Rev.map(i => i.rev), backgroundColor: ['#A9752F','#1F7A54','#6B5CA5','#B23A2E','#2E6E8E','#C97A22','#7A8B99','#8C6239','#4F7942','#9B5B6B'], borderWidth: 2, borderColor: '#fff' }]
+                        datasets: [{ label: t('chart.revenue'), data: top10Rev.map(i => i.rev), backgroundColor: ['#A9752F','#1F7A54','#6B5CA5','#B23A2E','#2E6E8E','#C97A22','#7A8B99','#8C6239','#4F7942','#9B5B6B'], borderWidth: 2, borderColor: '#fff' }]
                     },
-                    options: { maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: function(ctx){ let i = top10Rev[ctx.dataIndex]; return `Revenue: ETB ${i.rev.toFixed(2)} | Profit: ETB ${i.profit.toFixed(2)}`; } } }, title: {display:true, text:'Top 10 Items Proportion', color:'#171B34', font:{size:16, weight:'600'}} } }
+                    options: { maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: function(ctx){ let i = top10Rev[ctx.dataIndex]; return `${t('chart.revenue')}: ETB ${i.rev.toFixed(2)} | ${t('chart.profit')}: ETB ${i.profit.toFixed(2)}`; } } }, title: {display:true, text:t('chart.top10_proportion'), color:'#171B34', font:{size:16, weight:'600'}} } }
                 });
             }
 
@@ -3080,9 +3134,9 @@
                     type: 'pie',
                     data: {
                         labels: bottom10Rev.map(i => i.desc),
-                        datasets: [{ label: 'Revenue', data: bottom10Rev.map(i => i.rev), backgroundColor: ['#B8AFA0','#C7C0B3','#D5D0C6','#E1DDD5','#EAE7E1','#C2BAAC','#D0C9BD','#DCD6CC','#E6E2DA','#F0EEE9'], borderWidth: 2, borderColor: '#fff' }]
+                        datasets: [{ label: t('chart.revenue'), data: bottom10Rev.map(i => i.rev), backgroundColor: ['#B8AFA0','#C7C0B3','#D5D0C6','#E1DDD5','#EAE7E1','#C2BAAC','#D0C9BD','#DCD6CC','#E6E2DA','#F0EEE9'], borderWidth: 2, borderColor: '#fff' }]
                     },
-                    options: { maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: function(ctx){ let i = bottom10Rev[ctx.dataIndex]; return `Revenue: ETB ${i.rev.toFixed(2)} | Profit: ETB ${i.profit.toFixed(2)}`; } } }, title: {display:true, text:'Top 10 Non-Performing Items', color:'#171B34', font:{size:16, weight:'600'}} } }
+                    options: { maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: function(ctx){ let i = bottom10Rev[ctx.dataIndex]; return `${t('chart.revenue')}: ETB ${i.rev.toFixed(2)} | ${t('chart.profit')}: ETB ${i.profit.toFixed(2)}`; } } }, title: {display:true, text:t('chart.bottom10_proportion'), color:'#171B34', font:{size:16, weight:'600'}} } }
                 });
             }
 
@@ -3191,8 +3245,8 @@
                     data: {
                         labels: displayLabels,
                         datasets: [
-                            { label: 'Revenue (ETB)', data: revArr, borderColor: '#1B6FA8', fill: 1, backgroundColor: 'rgba(27, 111, 168, 0.16)', tension:0.3, pointRadius: 0, pointHoverRadius: 0 },
-                            { label: 'Gross Profit (ETB)', data: profArr, borderColor: '#1F7A54', fill: 'origin', backgroundColor: 'rgba(31, 122, 84, 0.20)', tension:0.3, pointRadius: 0, pointHoverRadius: 0 }
+                            { label: t('acct.total_revenue') + ' (ETB)', data: revArr, borderColor: '#1B6FA8', fill: 1, backgroundColor: 'rgba(27, 111, 168, 0.16)', tension:0.3, pointRadius: 0, pointHoverRadius: 0 },
+                            { label: t('acct.gross_profit') + ' (ETB)', data: profArr, borderColor: '#1F7A54', fill: 'origin', backgroundColor: 'rgba(31, 122, 84, 0.20)', tension:0.3, pointRadius: 0, pointHoverRadius: 0 }
                         ]
                     },
                     options: { 
@@ -3276,7 +3330,7 @@
                         labels: tLabels,
                         datasets: [{ data: tLabels.map(l => typeStats[l].rev), backgroundColor: ['#A9752F', '#2E6E8E', '#1F7A54', '#B23A2E', '#6B5CA5'], borderWidth: 2, borderColor: '#fff' }]
                     },
-                    options: { maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: function(ctx){ let k = tLabels[ctx.dataIndex]; return `Rev: ETB ${typeStats[k].rev.toFixed(2)} | Profit: ETB ${typeStats[k].profit.toFixed(2)}`; } } }, title: {display:true, text:'Revenue Proportion by Sales Type', color:'#171B34', font:{size:16, weight:'600'}} } }
+                    options: { maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: function(ctx){ let k = tLabels[ctx.dataIndex]; return `${t('chart.revenue')}: ETB ${typeStats[k].rev.toFixed(2)} | ${t('chart.profit')}: ETB ${typeStats[k].profit.toFixed(2)}`; } } }, title: {display:true, text:t('chart.revenue_by_type'), color:'#171B34', font:{size:16, weight:'600'}} } }
                 });
             }
         }
@@ -3319,21 +3373,21 @@
             const mTitle = document.getElementById('modal-title');
             const mContent = document.getElementById('modal-body-content');
             let period = state.currentFilter;
-            let html = `<div><strong>Current Range Constraint:</strong> ${period.toUpperCase()} ${state.customStart ? `(${state.customStart} to ${state.customEnd})` : ''}</div><br>`;
+            let html = `<div><strong>${t('drill.range_label')}</strong> ${period.toUpperCase()} ${state.customStart ? `(${state.customStart} to ${state.customEnd})` : ''}</div><br>`;
 
             if(metric === 'revenue') {
-                mTitle.innerText = "Drill-Down Matrix: Revenue Stream Invoices";
-                html += `<table><thead><tr><th>Date</th><th>Customer</th><th>Product Item</th><th class="num">Qty</th><th class="num">Price (ETB)</th><th class="num">Total</th></tr></thead><tbody>`;
+                mTitle.innerText = t('drill.revenue_title');
+                html += `<table><thead><tr><th>${t('sale.date')}</th><th>${t('sale.customer_name')}</th><th>${t('sale.product_item')}</th><th class="num">${t('tr.quantity')}</th><th class="num">${t('sale.price')}</th><th class="num">${t('sale.total')}</th></tr></thead><tbody>`;
                 let matches = state.salesLog.filter(s => verifyChronologicalOverlap(s.date, period)).sort((a,b) => new Date(b.date) - new Date(a.date));
-                if(matches.length === 0) html += `<tr><td colspan="6" style="text-align:center;">No recorded transaction lines in range.</td></tr>`;
+                if(matches.length === 0) html += `<tr><td colspan="6" style="text-align:center;">${t('drill.no_sales')}</td></tr>`;
                 matches.forEach(m => {
                     html += `<tr><td>${m.date}</td><td>${m.customer}</td><td>${m.desc}</td><td class="num">${m.qty}</td><td class="num">${m.price.toFixed(2)}</td><td class="num"><strong>${m.total.toFixed(2)}</strong></td></tr>`;
                 });
                 html += `</tbody></table>`;
             } 
             else if(metric === 'cogs') {
-                mTitle.innerText = "Drill-Down Matrix: Cost of Goods Sold Distribution";
-                html += `<table><thead><tr><th>Date</th><th>Voucher ID</th><th>Context Reference</th><th class="num">Debit Value Charge (ETB)</th></tr></thead><tbody>`;
+                mTitle.innerText = t('drill.cogs_title');
+                html += `<table><thead><tr><th>${t('sale.date')}</th><th>${t('drill.voucher_id')}</th><th>${t('common.memo')}</th><th class="num">${t('acct.cogs')} (ETB)</th></tr></thead><tbody>`;
                 let cogsRows = [];
                 state.journal.forEach(j => {
                     if(verifyChronologicalOverlap(j.date, period) && shouldCountInCurrentTotals(j.branchId)) {
@@ -3349,20 +3403,20 @@
                 html += `</tbody></table>`;
             }
             else if(metric === 'gross') {
-                mTitle.innerText = "Drill-Down Matrix: Gross Profit Synthesis Summary";
+                mTitle.innerText = t('drill.gross_title');
                 let revSum = 0, cogsSum = 0;
                 state.journal.forEach(j => {
                     if(verifyChronologicalOverlap(j.date, period) && shouldCountInCurrentTotals(j.branchId)) {
                         j.lines.forEach(l => { if(l.account === '4010') revSum += l.cr; if(l.account === '5010') cogsSum += l.dr; });
                     }
                 });
-                html += `<div style="font-size:14px; padding:10px; background:#ECEDF2; border-radius:4px;">Allocated Gross Operations Revenues: <strong>ETB ${revSum.toFixed(2)}</strong><br>Less Outbound Direct Cost of Goods Sold: <strong>ETB (${cogsSum.toFixed(2)})</strong><br><hr style="margin:8px 0; border-color:#cfd1da;">Synthesized Margin Balance: <strong style="color:var(--success);">ETB ${(revSum - cogsSum).toFixed(2)}</strong></div>`;
+                html += `<div style="font-size:14px; padding:10px; background:#ECEDF2; border-radius:4px;">${t('acct.total_revenue')}: <strong>ETB ${revSum.toFixed(2)}</strong><br>${t('acct.cogs')}: <strong>ETB (${cogsSum.toFixed(2)})</strong><br><hr style="margin:8px 0; border-color:#cfd1da;">${t('acct.gross_profit')}: <strong style="color:var(--success);">ETB ${(revSum - cogsSum).toFixed(2)}</strong></div>`;
             }
             else if(metric === 'expenses') {
-                mTitle.innerText = "Drill-Down Matrix: Booked Overheads Distribution";
-                html += `<table><thead><tr><th>Date</th><th>Allocation Account</th><th>Memo Reference Context</th><th class="num">Value (ETB)</th></tr></thead><tbody>`;
+                mTitle.innerText = t('drill.expenses_title');
+                html += `<table><thead><tr><th>${t('sale.date')}</th><th>${t('exp.account')}</th><th>${t('common.memo')}</th><th class="num">${t('exp.amount')}</th></tr></thead><tbody>`;
                 let matches = state.expenseLog.filter(e => verifyChronologicalOverlap(e.date, period) && shouldCountInCurrentTotals(e.branchId)).sort((a,b) => new Date(b.date) - new Date(a.date));
-                if(matches.length === 0) html += `<tr><td colspan="4" style="text-align:center;">No operational expenses logged in range.</td></tr>`;
+                if(matches.length === 0) html += `<tr><td colspan="4" style="text-align:center;">${t('drill.no_expenses')}</td></tr>`;
                 matches.forEach(m => {
                     let nameMeta = CHART_OF_ACCOUNTS_MAP.find(c => c.code === m.target);
                     html += `<tr><td>${m.date}</td><td>${m.target} - ${nameMeta?nameMeta.name:''}</td><td>${m.memo}</td><td class="num"><strong>${m.amount.toFixed(2)}</strong></td></tr>`;
@@ -3370,14 +3424,14 @@
                 html += `</tbody></table>`;
             }
             else if(metric === 'net') {
-                mTitle.innerText = "Drill-Down Matrix: Bottom Line Net Synthesis Review";
+                mTitle.innerText = t('drill.net_title');
                 let r = 0, c = 0, e = 0;
                 state.journal.forEach(j => {
                     if(verifyChronologicalOverlap(j.date, period) && shouldCountInCurrentTotals(j.branchId)) {
                         j.lines.forEach(l => { if(l.account === '4010') r += l.cr; if(l.account === '5010') c += l.dr; if(['6010','6020','6030'].includes(l.account)) e += l.dr; });
                     }
                 });
-                html += `<div style="font-size:14px; padding:12px; background:#171B34; color:white; border-radius:4px; font-family:monospace;">[+] Revenue Intake Total: ETB ${r.toFixed(2)}<br>[-] Cost of Sales Total: ETB (${c.toFixed(2)})<br>[-] Operating Expenses : ETB (${e.toFixed(2)})<br><hr style="margin:8px 0; border-color:rgba(255,255,255,0.2);">[=] Net Margin Inflow  : ETB ${(r - c - e).toFixed(2)}</div>`;
+                html += `<div style="font-size:14px; padding:12px; background:#171B34; color:white; border-radius:4px; font-family:monospace;">[+] ${t('acct.total_revenue')}: ETB ${r.toFixed(2)}<br>[-] ${t('acct.cogs')}: ETB (${c.toFixed(2)})<br>[-] ${t('acct.total_expenses')}: ETB (${e.toFixed(2)})<br><hr style="margin:8px 0; border-color:rgba(255,255,255,0.2);">[=] ${t('acct.net_profit')}: ETB ${(r - c - e).toFixed(2)}</div>`;
             }
             mContent.innerHTML = html; document.getElementById('audit-modal').style.display = "flex";
         }
@@ -3489,6 +3543,12 @@
             document.getElementById('ft-note').value = '';
             document.getElementById('fund-transfer-error').style.display = 'none';
             document.getElementById('fund-transfer-modal').style.display = 'flex';
+            updateFundTransferAvailable();
+        }
+        function updateFundTransferAvailable() {
+            const fromCode = document.getElementById('ft-from-channel').value;
+            const available = (runAbsoluteAccountBalances()[fromCode]) || 0;
+            document.getElementById('ft-available-hint').innerText = `${t('ft.available')}: ETB ${available.toFixed(2)}`;
         }
         function closeFundTransferModal() { document.getElementById('fund-transfer-modal').style.display = 'none'; }
 
@@ -3505,6 +3565,13 @@
             if (isNaN(amount) || amount <= 0) { errBox.innerText = 'Enter a valid amount.'; errBox.style.display = 'block'; return; }
             if (!date) { errBox.innerText = 'Pick a date.'; errBox.style.display = 'block'; return; }
 
+            const availableBalance = (runAbsoluteAccountBalances()[fromCode]) || 0;
+            if (amount > availableBalance + 0.001) {
+                errBox.innerText = `${t('ft.insufficient')} ETB ${availableBalance.toFixed(2)}.`;
+                errBox.style.display = 'block';
+                return;
+            }
+
             const channelAccounts = getChannelAccountsList();
             const fromName = channelAccounts.find(c => c.code === fromCode)?.name || fromCode;
             const toName = channelAccounts.find(c => c.code === toCode)?.name || toCode;
@@ -3517,7 +3584,7 @@
                 branchId: currentBranchId
             };
             state.journal.push(newJournal);
-            queueWrite({ kind: 'upsert', table: 'journal_entries', data: toDbJournal(newJournal) });
+            queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(newJournal) });
             cacheStateLocally();
 
             closeFundTransferModal();
@@ -4113,7 +4180,7 @@
                 const groupRows = state.purchaseLog.filter(p => p.groupId === pur.groupId);
                 const anySold = groupRows.some(row => state.salesLog.some(s => (s.restorationLayers || []).some(l => l.id === row.id)));
                 if (anySold) return alert("This purchase basket can't be deleted because stock from at least one item has already been sold.");
-                if (!confirm(`Warning 1: Void this whole Multi-Item Purchase (${groupRows.length} items)?\nWarning 2: Stock will be instantly deducted for all items. Proceed?`)) return;
+                if (!confirm(t('warn.void_pur_group').replace('{n}', groupRows.length))) return;
 
                 groupRows.forEach(row => {
                     let item = state.inventory.find(i => `[${i.category}] ${i.desc}` === row.desc || i.desc === row.desc);
@@ -4150,7 +4217,7 @@
                 return;
             }
 
-            if(!confirm("Warning 1: Void this Purchase?\nWarning 2: Stock will be instantly deducted. Proceed?")) return;
+            if(!confirm(t('warn.void_pur_single'))) return;
             let idx = state.purchaseLog.findIndex(p => p.id === id); if(idx===-1) return;
             let jv = state.journal.find(j => j.id === id);
 
@@ -4198,7 +4265,7 @@
 
             if (sale.groupId) {
                 const groupRows = state.salesLog.filter(s => s.groupId === sale.groupId);
-                if (!confirm(`Warning 1: Void this whole Multi-Item Sale (${groupRows.length} items)?\nWarning 2: Stock will be returned to inventory for all items. Proceed?`)) return;
+                if (!confirm(t('warn.void_sale_group').replace('{n}', groupRows.length))) return;
 
                 groupRows.forEach(row => {
                     let item = state.inventory.find(i => `[${i.category}] ${i.desc}` === row.desc);
@@ -4232,7 +4299,7 @@
                 return;
             }
 
-            if(!confirm("Warning 1: Void this Sale?\nWarning 2: Stock will be returned to inventory. Proceed?")) return;
+            if(!confirm(t('warn.void_sale_single'))) return;
             let idx = state.salesLog.findIndex(s => s.id === id); if(idx===-1) return;
             let jv = state.journal.find(j => j.id === id);
             
