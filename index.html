@@ -219,8 +219,8 @@
                     </div>
                 </div>
                 <button class="btn" style="width:100%; margin-top:6px;" onclick="handleSignIn()" data-i18n="auth.sign_in">Sign In</button>
-                <p style="text-align:center; font-size:13px; margin-top:12px;"><a href="#" onclick="handleForgotPassword(); return false;" style="color:var(--text-light);">Forgot password?</a></p>
-                <p style="text-align:center; font-size:13px; margin-top:4px; color:var(--text-light);">Don't have a shop account yet? <a href="#" onclick="showAuthView('signup'); return false;" style="color:var(--primary); font-weight:600;">Create one</a></p>
+                <p style="text-align:center; font-size:13px; margin-top:12px;"><a href="#" onclick="handleForgotPassword(); return false;" style="color:var(--text-light);" data-i18n="auth.forgot_password">Forgot password?</a></p>
+                <p style="text-align:center; font-size:13px; margin-top:4px; color:var(--text-light);"><span data-i18n="auth.no_account_yet">Don't have a shop account yet?</span> <a href="#" onclick="showAuthView('signup'); return false;" style="color:var(--primary); font-weight:600;" data-i18n="auth.create_one">Create one</a></p>
             </div>
 
             <!-- CREATE ACCOUNT VIEW -->
@@ -257,7 +257,7 @@
                     </div>
                 </div>
                 <button class="btn btn-success" style="width:100%; margin-top:6px;" onclick="handleSignUp()" data-i18n="auth.create_account">Create Account</button>
-                <p style="text-align:center; font-size:13px; margin-top:16px; color:var(--text-light);">Already have an account? <a href="#" onclick="showAuthView('signin'); return false;" style="color:var(--primary); font-weight:600;">Sign in</a></p>
+                <p style="text-align:center; font-size:13px; margin-top:16px; color:var(--text-light);"><span data-i18n="auth.already_have_account">Already have an account?</span> <a href="#" onclick="showAuthView('signin'); return false;" style="color:var(--primary); font-weight:600;" data-i18n="auth.sign_in_link">Sign in</a></p>
             </div>
 
             <div id="auth-loading" style="display:none; text-align:center; margin-top:14px; font-size:12px; color:var(--text-light);">Working, please wait...</div>
@@ -472,7 +472,7 @@
                             </div>
                             
                             <div class="chart-scroll-wrap" style="grid-column: 1 / -1; background: #ffffff; padding: 20px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.06);">
-                                <h3 style="margin:0 0 14px 0; font-size:16px; font-weight:600; color:#171B34;">Revenue &amp; Profit History <span style="font-size:12px; font-weight:normal; color:var(--text-light);">— click a point for that period's details</span></h3>
+                                <h3 style="margin:0 0 14px 0; font-size:16px; font-weight:600; color:#171B34;"><span data-i18n="chart.revprof_title">Revenue &amp; Profit History</span> <span style="font-size:12px; font-weight:normal; color:var(--text-light);" data-i18n="chart.revprof_hint">— click a point for that period's details</span></h3>
                                 <button class="graph-btn left-btn" onclick="document.getElementById('scroll-revprof').scrollBy({left: -400, behavior: 'smooth'})">◀</button>
                                 <button class="graph-btn right-btn" onclick="document.getElementById('scroll-revprof').scrollBy({left: 400, behavior: 'smooth'})">▶</button>
                                 <div id="scroll-revprof" style="overflow-x: auto; overflow-y: hidden; scroll-behavior: smooth; width: 100%; white-space: nowrap; padding-bottom: 8px;">
@@ -1305,6 +1305,8 @@
                 'auth.reset_desc': 'Choose a new password for your account.', 'auth.new_password': 'New Password',
                 'auth.confirm_new_password': 'Confirm New Password', 'auth.set_new_password': 'Set New Password',
                 'auth.finish_setup': 'Finish Setup', 'auth.account_inactive': 'Account Inactive', 'auth.sign_out': 'Sign Out',
+                'auth.forgot_password': 'Forgot password?', 'auth.no_account_yet': "Don't have a shop account yet?",
+                'auth.create_one': 'Create one', 'auth.already_have_account': 'Already have an account?', 'auth.sign_in_link': 'Sign in',
 
                 'misc.restore_data': 'Restore Data', 'misc.delete_role': 'Delete Role', 'misc.clear_all': 'Clear All',
                 'misc.logs': 'Logs', 'misc.record_customer_payment': 'Record Customer Payment', 'misc.record_supplier_payment': 'Record Supplier Payment',
@@ -1323,6 +1325,7 @@
 
                 'chart.top10_proportion': 'Top 10 Items Proportion', 'chart.bottom10_proportion': 'Top 10 Non-Performing Items',
                 'chart.revenue_by_type': 'Revenue Proportion by Sales Type', 'chart.revenue': 'Revenue', 'chart.profit': 'Profit',
+                'chart.revprof_title': 'Revenue & Profit History', 'chart.revprof_hint': "— click a point for that period's details",
 
                 'matrix.product_item': 'Product Item', 'matrix.velocity': 'Velocity', 'matrix.txn_freq': 'Txn Freq',
                 'matrix.qty_sold': 'Qty Sold', 'matrix.gross_revenue': 'Gross Revenue', 'matrix.unit_margin': 'Unit Margin (%)',
@@ -1469,6 +1472,8 @@
                 'auth.reset_desc': 'ለአካውንትዎ አዲስ የይለፍ ቃል ይምረጡ።', 'auth.new_password': 'አዲስ የይለፍ ቃል',
                 'auth.confirm_new_password': 'አዲስ የይለፍ ቃል ያረጋግጡ', 'auth.set_new_password': 'አዲስ የይለፍ ቃል አስቀምጥ',
                 'auth.finish_setup': 'ማዋቀር ጨርስ', 'auth.account_inactive': 'አካውንት ንቁ አይደለም', 'auth.sign_out': 'ውጣ',
+                'auth.forgot_password': 'የይለፍ ቃል ረሱ?', 'auth.no_account_yet': 'የሱቅ አካውንት እስካሁን የለዎትም?',
+                'auth.create_one': 'አንድ ይፍጠሩ', 'auth.already_have_account': 'አካውንት አለዎት?', 'auth.sign_in_link': 'ግባ',
 
                 'misc.restore_data': 'ውሂብ መልስ', 'misc.delete_role': 'ሚና አጥፋ', 'misc.clear_all': 'ሁሉንም አጽዳ',
                 'misc.logs': 'ታሪክ', 'misc.record_customer_payment': 'የደንበኛ ክፍያ መዝግብ', 'misc.record_supplier_payment': 'የአቅራቢ ክፍያ መዝግብ',
@@ -1487,6 +1492,7 @@
 
                 'chart.top10_proportion': 'ከፍተኛ 10 ምርቶች ድርሻ', 'chart.bottom10_proportion': 'ዝቅተኛ አፈጻጸም ያላቸው 10 ምርቶች',
                 'chart.revenue_by_type': 'በሽያጭ ዓይነት የገቢ ድርሻ', 'chart.revenue': 'ገቢ', 'chart.profit': 'ትርፍ',
+                'chart.revprof_title': 'የገቢ እና ትርፍ ታሪክ', 'chart.revprof_hint': '— ለዚያ ወቅት ዝርዝር ነጥብ ላይ ይጫኑ',
 
                 'matrix.product_item': 'ምርት', 'matrix.velocity': 'ፍጥነት', 'matrix.txn_freq': 'የግብይት ብዛት',
                 'matrix.qty_sold': 'የተሸጠ ብዛት', 'matrix.gross_revenue': 'ጠቅላላ ገቢ', 'matrix.unit_margin': 'የአንድ ትርፍ ልዩነት (%)',
@@ -1566,8 +1572,14 @@
             document.documentElement.style.setProperty('--i18n-font', lang === 'am' ? "'Noto Sans Ethiopic', sans-serif" : 'inherit');
             document.body.style.fontFamily = lang === 'am' ? "'Noto Sans Ethiopic', var(--font-body, sans-serif)" : '';
             applyStaticTranslations();
+            const activePanel = document.querySelector('.view-panel.active');
+            if (activePanel) {
+                const activeViewId = activePanel.id.replace('view-', '');
+                document.getElementById('page-title').innerText = t(`pagetitle.${activeViewId}`);
+            }
             // Re-render whichever dynamic tables are currently on screen so
             // their buttons/headers pick up the new language immediately.
+            if (typeof renderAnalyticalDashboards === 'function' && document.getElementById('view-dashboard')?.classList.contains('active')) renderAnalyticalDashboards();
             if (typeof renderPerpetualInventoryTable === 'function' && document.getElementById('view-inventory')?.classList.contains('active')) renderPerpetualInventoryTable();
             if (typeof renderSalesLogTable === 'function' && document.getElementById('view-sales')?.classList.contains('active')) renderSalesLogTable();
             if (typeof renderPurchaseLogTable === 'function' && document.getElementById('view-purchase')?.classList.contains('active')) renderPurchaseLogTable();
