@@ -4179,7 +4179,28 @@
             renderPerpetualInventoryTable();
         }
 
-        function deletePurchase(id) {
+        // Stock transfers create their destination lot with an id of the
+        // form "<transferId>-<originalLotId>" (see handleStockTransfer), so
+        // if this purchase's own lot id shows up embedded inside another
+        // still-existing lot's id, that means some (or all) of it has
+        // already moved to another branch and is sitting there right now.
+        // Deleting the purchase in that case would either corrupt whichever
+        // branch happens to still hold a same-id lot, or — if restored
+        // later — get double-counted across both branches.
+        //
+        // This checks the database directly rather than trusting the local
+        // copy of state.inventory, since that copy can be stale (a transfer
+        // made in another tab/session, or simply time passing) — exactly
+        // the kind of staleness that would let this bug slip through.
+        async function purchaseStockTransferredElsewhere(itemId, purchaseId) {
+            if (!itemId) return { transferred: false };
+            const { data, error } = await supabaseClient.from('inventory_lots').select('id, qty').eq('item_id', itemId);
+            if (error) return { transferred: false, checkFailed: true, message: error.message };
+            const transferred = (data || []).some(l => l.id !== purchaseId && l.id.includes(purchaseId) && l.qty > 0);
+            return { transferred };
+        }
+
+        async function deletePurchase(id) {
             const pur = state.purchaseLog.find(p => p.id === id);
             if (!pur) return;
             if (blockIfBranchClosed(pur.branchId, 'voided')) return;
@@ -4187,11 +4208,29 @@
             if (hasSalesFromThisBatch) {
                 return alert("This purchase batch cannot be deleted because stock from it has already been sold. Deleting it would corrupt your sales history and cost records.");
             }
+            const purItem = state.inventory.find(i => `[${i.category}] ${i.desc}` === pur.desc || i.desc === pur.desc);
+            const purCheck = await purchaseStockTransferredElsewhere(purItem?.id, id);
+            if (purCheck.checkFailed) {
+                return alert("Couldn't verify whether this stock has been transferred elsewhere (connection issue). Please try again before deleting: " + purCheck.message);
+            }
+            if (purCheck.transferred) {
+                return alert("This purchase can't be deleted because some (or all) of its stock has already been transferred to another branch. Transfer it back first, or delete the transfer record instead if it was a mistake.");
+            }
 
             if (pur.groupId) {
                 const groupRows = state.purchaseLog.filter(p => p.groupId === pur.groupId);
                 const anySold = groupRows.some(row => state.salesLog.some(s => (s.restorationLayers || []).some(l => l.id === row.id)));
                 if (anySold) return alert("This purchase basket can't be deleted because stock from at least one item has already been sold.");
+                for (const row of groupRows) {
+                    const rowItem = state.inventory.find(i => `[${i.category}] ${i.desc}` === row.desc || i.desc === row.desc);
+                    const rowCheck = await purchaseStockTransferredElsewhere(rowItem?.id, row.id);
+                    if (rowCheck.checkFailed) {
+                        return alert("Couldn't verify whether this stock has been transferred elsewhere (connection issue). Please try again before deleting: " + rowCheck.message);
+                    }
+                    if (rowCheck.transferred) {
+                        return alert("This purchase basket can't be deleted because stock from at least one item has already been transferred to another branch. Transfer it back first, or delete the transfer record instead.");
+                    }
+                }
                 if (!confirm(t('warn.void_pur_group').replace('{n}', groupRows.length))) return;
 
                 groupRows.forEach(row => {
@@ -4404,7 +4443,7 @@
                 let item = state.inventory.find(i => `[${i.category}] ${i.desc}` === t.data.desc || i.desc === t.data.desc);
                 if (!item) return alert("Original inventory profile deleted. Cannot safely restore.");
                 const beforeLots = item.lots.map(l => ({...l}));
-                item.lots.push({ id: t.data.id || 'LOT-'+Math.random().toString(36).substr(2,9), qty: t.data.qty, cost: t.data.cost });
+                item.lots.push({ id: t.data.id || 'LOT-'+Math.random().toString(36).substr(2,9), qty: t.data.qty, cost: t.data.cost, branchId: t.data.branchId });
                 syncItemLots(item, beforeLots);
                 state.purchaseLog.push(t.data);
                 queueWrite({ kind: 'insert', table: 'purchase_log', row: toDbPurchase(t.data) });
@@ -4457,7 +4496,7 @@
                             else { qToSell -= oldest.qty; item.lots.shift(); }
                         }
                     } else {
-                        item.lots.push({ id: row.id, qty: row.qty, cost: row.cost });
+                        item.lots.push({ id: row.id, qty: row.qty, cost: row.cost, branchId: row.branchId });
                     }
                     syncItemLots(item, beforeLots);
                     arr.push(row);
@@ -5048,13 +5087,45 @@
             return channels.join(' + ');
         }
 
+        // Builds the exact amount paid/owed per channel for one transaction
+        // (or one collapsed multi-item basket) — e.g. a 200 ETB sale paid
+        // 100 Cash + 100 Mobile banking becomes
+        // [{channel:'Cash',amount:100}, {channel:'Mobile banking',amount:100}].
+        // Any amount still outstanding is added under unpaidLabel (Accounts
+        // receivable/payable), so the three numbers always add up to total.
+        function getChannelBreakdown(record, total, unpaidLabel) {
+            const breakdown = [];
+            (record.payments || []).forEach(p => {
+                if (!p.channel || !(p.amount > 0)) return;
+                const existing = breakdown.find(b => b.channel === p.channel);
+                if (existing) existing.amount += p.amount;
+                else breakdown.push({ channel: p.channel, amount: p.amount });
+            });
+            let paidSum = breakdown.reduce((s, b) => s + b.amount, 0);
+            // Old records from before payment-channel tracking existed have
+            // no payments[] at all — fall back to the single channel/amount
+            // they do have, so they still show up correctly when filtering.
+            if (breakdown.length === 0 && (record.amountPaid || 0) > 0) {
+                breakdown.push({ channel: record.paidChannel || record.channel, amount: record.amountPaid });
+                paidSum = record.amountPaid;
+            }
+            const remaining = Math.max(0, total - paidSum);
+            if (remaining > 0.001) breakdown.push({ channel: unpaidLabel, amount: remaining });
+            return breakdown;
+        }
+
+        function renderChannelBreakdownHtml(breakdown) {
+            return breakdown.map(b => `<small>${b.channel}: ${b.amount.toFixed(2)}</small>`).join('<br>');
+        }
+
         function renderSalesLogTable() {
             const tbody = document.getElementById('sales-log-table-body');
             const fD = document.getElementById('sale-log-filter-date').value, fC = document.getElementById('sale-log-filter-customer').value.toLowerCase().trim();
             const fI = document.getElementById('sale-log-filter-item').value.toLowerCase().trim(), fCh = document.getElementById('sale-log-filter-channel').value;
-            let arr = state.salesLog.filter(s => (!fD || s.date===fD) && (!fC || s.customer.toLowerCase().includes(fC)) && (!fI || s.desc.toLowerCase().includes(fI)) && (!fCh || s.channel===fCh));
-            
-            if(arr.length===0) { tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">-- No logs --</td></tr>`; document.getElementById('sale-log-total-display').innerText = `${t('misc.total_shown')}: ETB 0.00 (0)`; return; }
+            // Channel filtering happens AFTER grouping below (it needs the
+            // group's combined payments/total, not one item row's own
+            // channel) — so this first pass only applies date/customer/item.
+            let arr = state.salesLog.filter(s => (!fD || s.date===fD) && (!fC || s.customer.toLowerCase().includes(fC)) && (!fI || s.desc.toLowerCase().includes(fI)));
 
             // Collapse multi-item baskets (shared groupId) into one row each,
             // combining totals and showing every item's name together.
@@ -5080,10 +5151,15 @@
                 }
             });
 
+            displayList.forEach(s => { s._breakdown = getChannelBreakdown(s, s.total, 'Accounts receivable'); });
+            if (fCh) displayList = displayList.filter(s => s._breakdown.some(b => b.channel === fCh));
+
+            if(displayList.length===0) { tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">-- No logs --</td></tr>`; document.getElementById('sale-log-total-display').innerText = `${t('misc.total_shown')}: ETB 0.00 (0)`; return; }
+
             let rows = [];
             displayList.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(s => {
                 const remaining = Math.max(0, s.total - (s.amountPaid || 0));
-                let statusStr = paymentChannelSummary(s);
+                let statusStr = renderChannelBreakdownHtml(s._breakdown);
                 if (remaining <= 0.001) {
                     statusStr += `<br><small style="color:var(--success)">[Paid in full]</small>`;
                 } else if ((s.amountPaid || 0) > 0) {
@@ -5107,7 +5183,14 @@
             });
             tbody.innerHTML = rows.join('');
             updateBranchColumnVisibility();
-            const salesTotal = displayList.reduce((sum, s) => sum + s.total, 0);
+            // With no channel filter, the total is every transaction's full
+            // amount. With one applied, it's ONLY the slice of each
+            // transaction that actually went through that channel — e.g.
+            // filtering "Cash" on a 200 sale paid 100 Cash + 100 Mobile
+            // banking shows 100, not 200.
+            const salesTotal = fCh
+                ? displayList.reduce((sum, s) => sum + s._breakdown.filter(b => b.channel === fCh).reduce((a,b) => a+b.amount, 0), 0)
+                : displayList.reduce((sum, s) => sum + s.total, 0);
             document.getElementById('sale-log-total-display').innerText = `${t('misc.total_shown')}: ETB ${salesTotal.toFixed(2)} (${displayList.length})`;
         }
 
@@ -5345,9 +5428,7 @@
             const tbody = document.getElementById('purchase-log-table-body');
             const fD = document.getElementById('pur-log-filter-date').value, fS = document.getElementById('pur-log-filter-supplier').value.toLowerCase().trim();
             const fI = document.getElementById('pur-log-filter-item').value.toLowerCase().trim(), fCh = document.getElementById('pur-log-filter-channel').value;
-            let arr = state.purchaseLog.filter(p => (!fD || p.date===fD) && (!fS || p.supplier.toLowerCase().includes(fS)) && (!fI || p.desc.toLowerCase().includes(fI)) && (!fCh || p.channel===fCh));
-            
-            if(arr.length===0) { tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">-- No logs --</td></tr>`; document.getElementById('pur-log-total-display').innerText = `${t('misc.total_shown')}: ETB 0.00 (0)`; return; }
+            let arr = state.purchaseLog.filter(p => (!fD || p.date===fD) && (!fS || p.supplier.toLowerCase().includes(fS)) && (!fI || p.desc.toLowerCase().includes(fI)));
 
             const seenGroups = new Set();
             let displayList = [];
@@ -5371,11 +5452,20 @@
                 }
             });
 
-            let rows = [];
             const canSeeCost = hasPerm('inventory.view_cost');
+            displayList.forEach(p => { p._breakdown = getChannelBreakdown(p, p.total, 'Accounts payable'); });
+            if (fCh) displayList = displayList.filter(p => p._breakdown.some(b => b.channel === fCh));
+
+            if(displayList.length===0) { tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">-- No logs --</td></tr>`; document.getElementById('pur-log-total-display').innerText = `${t('misc.total_shown')}: ETB 0.00 (0)`; return; }
+
+            let rows = [];
             displayList.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(p => {
                 const remaining = Math.max(0, p.total - (p.amountPaid || 0));
-                let statusStr = paymentChannelSummary(p);
+                // Exact per-channel amounts reveal cost, same as the
+                // cost/total columns — mask them the same way when the
+                // viewer isn't allowed to see cost, but still show which
+                // channels were involved.
+                let statusStr = canSeeCost ? renderChannelBreakdownHtml(p._breakdown) : paymentChannelSummary(p);
                 if (remaining <= 0.001) {
                     statusStr += `<br><small style="color:var(--success)">[Paid in full]</small>`;
                 } else if (!canSeeCost) {
@@ -5404,7 +5494,9 @@
             updateBranchColumnVisibility();
             const purTotalEl = document.getElementById('pur-log-total-display');
             if (canSeeCost) {
-                const purTotal = displayList.reduce((sum, p) => sum + p.total, 0);
+                const purTotal = fCh
+                    ? displayList.reduce((sum, p) => sum + p._breakdown.filter(b => b.channel === fCh).reduce((a,b) => a+b.amount, 0), 0)
+                    : displayList.reduce((sum, p) => sum + p.total, 0);
                 purTotalEl.innerText = `${t('misc.total_shown')}: ETB ${purTotal.toFixed(2)} (${displayList.length})`;
             } else {
                 purTotalEl.innerText = `🔒 ${t('misc.total_shown')} (${displayList.length})`;
