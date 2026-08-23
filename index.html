@@ -2019,8 +2019,27 @@
                 alert('Could not load your shop account. Please try signing in again.');
                 return handleSignOut();
             }
-            if (biz.subscription_status === 'inactive') {
-                document.getElementById('inactive-overlay').style.display = 'flex';
+            // Blocks sign-in for a suspended/cancelled/inactive account, or
+            // one whose plan has simply run past its expiry date — covers
+            // both the admin app's explicit actions and a trial/subscription
+            // quietly lapsing. "inactive" is kept as a recognized value for
+            // compatibility with any account already set that way before
+            // the fuller subscription system existed.
+            const blockedStatuses = ['inactive', 'suspended', 'cancelled'];
+            const isExpired = biz.subscription_expires_at && new Date(biz.subscription_expires_at) < new Date();
+            if (blockedStatuses.includes(biz.subscription_status) || isExpired) {
+                const overlay = document.getElementById('inactive-overlay');
+                const msgEl = overlay.querySelector('p');
+                if (biz.subscription_status === 'suspended') {
+                    msgEl.innerText = 'Your account has been suspended. Please contact support.';
+                } else if (biz.subscription_status === 'cancelled') {
+                    msgEl.innerText = 'Your subscription has been cancelled. Please contact us to reactivate.';
+                } else if (isExpired) {
+                    msgEl.innerText = 'Your subscription has expired. Please contact your provider to renew access.';
+                } else {
+                    msgEl.innerText = 'Your subscription is currently inactive. Please contact your provider to renew access.';
+                }
+                overlay.style.display = 'flex';
                 return;
             }
 
