@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEBA ERP — Platform Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+    :root {
+        --primary: #171B34; --accent: #A9752F; --success: #1F7A54; --danger: #B23A2E; --warning: #C97A22;
+        --bg: #F4F3EF; --card: #FFFFFF; --border: #E4E1D8; --text-light: #6B6F7C;
+    }
+    * { box-sizing: border-box; }
+    body { font-family: 'IBM Plex Sans', sans-serif; background: var(--bg); color: var(--primary); margin: 0; }
+    h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; margin: 0 0 12px 0; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px 16px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    th { color: var(--text-light); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
+    tr:hover td { background: #FAFAF7; }
+    .btn { font-family: inherit; font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 7px; border: none; cursor: pointer; background: var(--primary); color: white; }
+    .btn:hover { opacity: 0.9; }
+    .btn-danger { background: var(--danger); }
+    .btn-success { background: var(--success); }
+    .btn-warning { background: var(--warning); }
+    .btn-small { padding: 5px 10px; font-size: 11px; margin-right: 4px; }
+    .btn-outline { background: white; color: var(--primary); border: 1px solid var(--border); }
+    input, select, textarea { font-family: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; width: 100%; }
+    label { font-size: 12px; font-weight: 600; color: var(--text-light); display: block; margin-bottom: 4px; }
+    .form-group { margin-bottom: 14px; }
+    .badge { display: inline-block; padding: 3px 9px; border-radius: 100px; font-size: 11px; font-weight: 600; }
+    .badge-trial { background: #EFE4D0; color: var(--accent); }
+    .badge-active { background: #DCEFE5; color: var(--success); }
+    .badge-suspended { background: #F1DCD8; color: var(--danger); }
+    .badge-cancelled { background: #E4E1D8; color: var(--text-light); }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(23,27,52,0.55); z-index: 3000; align-items: center; justify-content: center; padding: 16px; }
+    .modal-overlay.active { display: flex; }
+    .modal-box { background: white; border-radius: 12px; padding: 24px; max-width: 560px; width: 100%; max-height: 88vh; overflow-y: auto; }
+    .top-bar { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; background: var(--primary); color: white; }
+    .top-bar .brand { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 18px; }
+    .top-bar .brand .accent { color: var(--accent); }
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+    .stat-box { background: var(--bg); border-radius: 8px; padding: 12px; }
+    .stat-box .label { font-size: 11px; color: var(--text-light); text-transform: uppercase; }
+    .stat-box .value { font-size: 20px; font-weight: 700; margin-top: 2px; }
+    #auth-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .error-box { background: #F1DCD8; color: var(--danger); font-size: 13px; padding: 10px; border-radius: 6px; margin-bottom: 14px; display: none; }
+    .truncate { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<div id="auth-screen">
+    <div class="card" style="max-width: 380px; width: 100%;">
+        <h2>NEBA ERP <span style="color:var(--accent);">Admin</span></h2>
+        <p style="font-size: 13px; color: var(--text-light); margin-top: -8px; margin-bottom: 16px;">Platform administrator sign-in only.</p>
+        <div id="auth-error" class="error-box"></div>
+        <div class="form-group"><label>Email</label><input type="email" id="admin-email"></div>
+        <div class="form-group"><label>Password</label><input type="password" id="admin-password"></div>
+        <button class="btn" style="width:100%;" onclick="handleAdminSignIn()">Sign In</button>
+    </div>
+</div>
+
+<div id="admin-app" style="display:none;">
+    <div class="top-bar">
+        <div class="brand">NEBA ERP <span class="accent">Admin</span></div>
+        <div>
+            <span id="admin-email-display" style="font-size:13px; margin-right:16px; opacity:0.8;"></span>
+            <button class="btn btn-outline" style="background:transparent; color:white; border-color:rgba(255,255,255,0.3);" onclick="handleAdminSignOut()">Sign Out</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="stat-grid" id="platform-stats" style="margin-bottom:20px;"></div>
+
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 14px;">
+                <h2 style="border:none; margin-bottom:0;">Registered Businesses</h2>
+                <input type="text" id="business-search" placeholder="Search by name, phone, owner..." style="max-width:260px;" oninput="renderBusinessTable()">
+            </div>
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead><tr>
+                        <th>Business</th><th>Owner</th><th>Signed Up</th><th>Branches</th><th>Team</th>
+                        <th>Plan</th><th>Status</th><th>Expires</th><th style="text-align:center;">Actions</th>
+                    </tr></thead>
+                    <tbody id="business-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="detail-modal" class="modal-overlay" onclick="closeDetailModal()">
+    <div class="modal-box" style="max-width:640px;" onclick="event.stopPropagation()">
+        <div id="detail-modal-content">Loading...</div>
+    </div>
+</div>
+
+<div id="subscription-modal" class="modal-overlay" onclick="closeSubscriptionModal()">
+    <div class="modal-box" onclick="event.stopPropagation()">
+        <h3>Edit Subscription — <span id="sub-modal-business-name"></span></h3>
+        <div id="sub-modal-error" class="error-box"></div>
+        <div class="form-group">
+            <label>Plan</label>
+            <select id="sub-plan-select"></select>
+        </div>
+        <div class="form-group">
+            <label>Status</label>
+            <select id="sub-status-select">
+                <option value="trial">Trial</option>
+                <option value="active">Active</option>
+                <option value="suspended">Suspended</option>
+                <option value="cancelled">Cancelled</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Expires On</label>
+            <input type="date" id="sub-expiry-input">
+        </div>
+        <div class="form-group">
+            <label>Internal Notes (not visible to the business)</label>
+            <textarea id="sub-notes-input" rows="3"></textarea>
+        </div>
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px;">
+            <button class="btn btn-outline" onclick="closeSubscriptionModal()">Cancel</button>
+            <button class="btn btn-success" onclick="submitSubscriptionUpdate()">Save Changes</button>
+        </div>
+    </div>
+</div>
+
+<div id="delete-modal" class="modal-overlay" onclick="closeDeleteModal()">
+    <div class="modal-box" onclick="event.stopPropagation()">
+        <h3 style="color:var(--danger);">Permanently Delete Business</h3>
+        <p style="font-size:13px;">This deletes <strong id="delete-modal-business-name"></strong> and <u>every</u> branch, sale, purchase, expense, employee, and record tied to it. This cannot be undone.</p>
+        <p style="font-size:13px;">Type the business's exact name to confirm:</p>
+        <input type="text" id="delete-confirm-input" placeholder="">
+        <div id="delete-modal-error" class="error-box"></div>
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px;">
+            <button class="btn btn-outline" onclick="closeDeleteModal()">Cancel</button>
+            <button class="btn btn-danger" onclick="submitDeleteBusiness()">Delete Permanently</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = "https://nwkrrcatdhppvlceuzwg.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im53a3JyY2F0ZGhwcHZsY2V1endnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzMjEzNjUsImV4cCI6MjA5OTg5NzM2NX0.kELqbONKGQIs2Z99Zx8rEcwuYekTCugLYtbsYW3_0h8";
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let businesses = [];
+    let plans = [];
+    let currentEditBusinessId = null;
+
+    async function callAdminFunction(name, body = {}) {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) throw new Error('Not signed in');
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+            body: JSON.stringify(body),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+        return data;
+    }
+
+    async function handleAdminSignIn() {
+        const errBox = document.getElementById('auth-error');
+        errBox.style.display = 'none';
+        const email = document.getElementById('admin-email').value.trim();
+        const password = document.getElementById('admin-password').value;
+        const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+        if (error) { errBox.innerText = error.message; errBox.style.display = 'block'; return; }
+        await afterSignIn();
+    }
+
+    async function handleAdminSignOut() {
+        await supabaseClient.auth.signOut();
+        document.getElementById('admin-app').style.display = 'none';
+        document.getElementById('auth-screen').style.display = 'flex';
+    }
+
+    async function afterSignIn() {
+        try {
+            await loadEverything();
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            document.getElementById('admin-email-display').innerText = user.email;
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('admin-app').style.display = 'block';
+        } catch (err) {
+            const errBox = document.getElementById('auth-error');
+            errBox.innerText = err.message.includes('platform admin') ? "This account isn't a platform admin." : err.message;
+            errBox.style.display = 'block';
+            await supabaseClient.auth.signOut();
+        }
+    }
+
+    async function loadEverything() {
+        const [{ data: planRows }, listResult] = await Promise.all([
+            supabaseClient.from('subscription_plans').select('*').eq('is_active', true).order('price_etb'),
+            callAdminFunction('admin-list-businesses'),
+        ]);
+        plans = planRows || [];
+        businesses = listResult.businesses || [];
+        renderPlatformStats();
+        renderBusinessTable();
+    }
+
+    function renderPlatformStats() {
+        const total = businesses.length;
+        const active = businesses.filter(b => b.subscriptionStatus === 'active').length;
+        const trial = businesses.filter(b => b.subscriptionStatus === 'trial').length;
+        const suspended = businesses.filter(b => b.subscriptionStatus === 'suspended').length;
+        document.getElementById('platform-stats').innerHTML = `
+            <div class="card stat-box"><div class="label">Total Businesses</div><div class="value">${total}</div></div>
+            <div class="card stat-box"><div class="label">Active</div><div class="value" style="color:var(--success);">${active}</div></div>
+            <div class="card stat-box"><div class="label">On Trial</div><div class="value" style="color:var(--accent);">${trial}</div></div>
+            <div class="card stat-box"><div class="label">Suspended</div><div class="value" style="color:var(--danger);">${suspended}</div></div>
+        `;
+    }
+
+    function statusBadge(status) {
+        const labels = { trial: 'Trial', active: 'Active', suspended: 'Suspended', cancelled: 'Cancelled' };
+        return `<span class="badge badge-${status}">${labels[status] || status}</span>`;
+    }
+
+    function renderBusinessTable() {
+        const q = document.getElementById('business-search').value.toLowerCase().trim();
+        const filtered = businesses.filter(b => !q ||
+            (b.businessName || '').toLowerCase().includes(q) ||
+            (b.phone || '').toLowerCase().includes(q) ||
+            (b.ownerUsername || '').toLowerCase().includes(q) ||
+            (b.ownerEmail || '').toLowerCase().includes(q));
+
+        const tbody = document.getElementById('business-table-body');
+        if (!filtered.length) { tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-light);">No businesses found.</td></tr>`; return; }
+
+        tbody.innerHTML = filtered.map(b => {
+            const expiresText = b.subscriptionExpiresAt ? new Date(b.subscriptionExpiresAt).toLocaleDateString() : '—';
+            const isPastDue = b.subscriptionExpiresAt && new Date(b.subscriptionExpiresAt) < new Date() && b.subscriptionStatus !== 'cancelled';
+            return `<tr>
+                <td><strong class="truncate" title="${b.businessName}">${b.businessName}</strong><br><small style="color:var(--text-light);">${b.phone || '—'}</small></td>
+                <td class="truncate" title="${b.ownerEmail || ''}"><small>${b.ownerUsername || '—'}<br>${b.ownerEmail || ''}</small></td>
+                <td><small>${new Date(b.createdAt).toLocaleDateString()}</small></td>
+                <td>${b.branchCount}</td>
+                <td>${b.memberCount}</td>
+                <td><small>${b.subscriptionPlanName || '—'}</small></td>
+                <td>${statusBadge(b.subscriptionStatus)}${isPastDue ? ' <small style="color:var(--danger);">(past due)</small>' : ''}</td>
+                <td><small>${expiresText}</small></td>
+                <td style="text-align:center; white-space:nowrap;">
+                    <button class="btn btn-outline btn-small" onclick="openDetailModal('${b.id}')">View</button>
+                    <button class="btn btn-warning btn-small" onclick="openSubscriptionModal('${b.id}')">Plan</button>
+                    <button class="btn btn-danger btn-small" onclick="openDeleteModal('${b.id}')">Delete</button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    async function openDetailModal(businessId) {
+        document.getElementById('detail-modal-content').innerHTML = 'Loading...';
+        document.getElementById('detail-modal').classList.add('active');
+        try {
+            const data = await callAdminFunction('admin-business-detail', { businessId });
+            const biz = data.business;
+            document.getElementById('detail-modal-content').innerHTML = `
+                <h3>${biz.businessName}</h3>
+                <p style="font-size:13px; color:var(--text-light); margin-top:-8px;">${biz.phone || '—'} · Signed up ${new Date(biz.createdAt).toLocaleDateString()} · ${statusBadge(biz.subscriptionStatus)}</p>
+                <div class="stat-grid" style="margin:16px 0;">
+                    <div class="stat-box"><div class="label">Inventory Value</div><div class="value">ETB ${data.inventoryValue.toLocaleString(undefined,{maximumFractionDigits:0})}</div></div>
+                    <div class="stat-box"><div class="label">Sales (30d)</div><div class="value">${data.last30Days.sales}</div></div>
+                    <div class="stat-box"><div class="label">Purchases (30d)</div><div class="value">${data.last30Days.purchases}</div></div>
+                    <div class="stat-box"><div class="label">Expenses (30d)</div><div class="value">${data.last30Days.expenses}</div></div>
+                </div>
+                <h3 style="font-size:14px;">Branches (${data.branches.length})</h3>
+                <table style="margin-bottom:16px;"><tbody>
+                    ${data.branches.map(b => `<tr><td>${b.name}</td><td><small>${b.address || '—'}</small></td><td>${b.closed ? '<small style="color:var(--text-light);">Closed</small>' : '<small style="color:var(--success);">Open</small>'}</td></tr>`).join('') || '<tr><td colspan="3" style="color:var(--text-light);">None yet</td></tr>'}
+                </tbody></table>
+                <h3 style="font-size:14px;">Team (${data.members.length})</h3>
+                <table><tbody>
+                    ${data.members.map(m => `<tr><td>${m.displayName || m.username}${m.isOwner ? ' 👑' : ''}</td><td><small>${m.roleName}</small></td><td><small>${m.email || '—'}</small></td></tr>`).join('') || '<tr><td colspan="3" style="color:var(--text-light);">None yet</td></tr>'}
+                </tbody></table>
+                ${biz.adminNotes ? `<h3 style="font-size:14px; margin-top:16px;">Notes</h3><p style="font-size:13px; background:var(--bg); padding:10px; border-radius:6px;">${biz.adminNotes}</p>` : ''}
+                <div style="text-align:right; margin-top:16px;"><button class="btn btn-outline" onclick="closeDetailModal()">Close</button></div>
+            `;
+        } catch (err) {
+            document.getElementById('detail-modal-content').innerHTML = `<p style="color:var(--danger);">Could not load details: ${err.message}</p><div style="text-align:right;"><button class="btn btn-outline" onclick="closeDetailModal()">Close</button></div>`;
+        }
+    }
+    function closeDetailModal() { document.getElementById('detail-modal').classList.remove('active'); }
+
+    function openSubscriptionModal(businessId) {
+        const biz = businesses.find(b => b.id === businessId);
+        if (!biz) return;
+        currentEditBusinessId = businessId;
+        document.getElementById('sub-modal-error').style.display = 'none';
+        document.getElementById('sub-modal-business-name').innerText = biz.businessName;
+        document.getElementById('sub-plan-select').innerHTML = plans.map(p => `<option value="${p.id}" ${p.id === biz.subscriptionPlanId ? 'selected' : ''}>${p.name} — ETB ${p.price_etb}</option>`).join('');
+        document.getElementById('sub-status-select').value = biz.subscriptionStatus;
+        document.getElementById('sub-expiry-input').value = biz.subscriptionExpiresAt ? biz.subscriptionExpiresAt.split('T')[0] : '';
+        document.getElementById('sub-notes-input').value = biz.adminNotes || '';
+        document.getElementById('subscription-modal').classList.add('active');
+    }
+    function closeSubscriptionModal() { document.getElementById('subscription-modal').classList.remove('active'); }
+
+    async function submitSubscriptionUpdate() {
+        const errBox = document.getElementById('sub-modal-error');
+        errBox.style.display = 'none';
+        try {
+            await callAdminFunction('admin-update-subscription', {
+                businessId: currentEditBusinessId,
+                subscriptionPlanId: document.getElementById('sub-plan-select').value,
+                subscriptionStatus: document.getElementById('sub-status-select').value,
+                subscriptionExpiresAt: document.getElementById('sub-expiry-input').value || null,
+                adminNotes: document.getElementById('sub-notes-input').value,
+            });
+            closeSubscriptionModal();
+            await loadEverything();
+        } catch (err) {
+            errBox.innerText = err.message;
+            errBox.style.display = 'block';
+        }
+    }
+
+    function openDeleteModal(businessId) {
+        const biz = businesses.find(b => b.id === businessId);
+        if (!biz) return;
+        currentEditBusinessId = businessId;
+        document.getElementById('delete-modal-error').style.display = 'none';
+        document.getElementById('delete-modal-business-name').innerText = biz.businessName;
+        document.getElementById('delete-confirm-input').value = '';
+        document.getElementById('delete-confirm-input').placeholder = biz.businessName;
+        document.getElementById('delete-modal').classList.add('active');
+    }
+    function closeDeleteModal() { document.getElementById('delete-modal').classList.remove('active'); }
+
+    async function submitDeleteBusiness() {
+        const errBox = document.getElementById('delete-modal-error');
+        errBox.style.display = 'none';
+        const biz = businesses.find(b => b.id === currentEditBusinessId);
+        try {
+            await callAdminFunction('admin-delete-business', {
+                businessId: currentEditBusinessId,
+                confirmName: document.getElementById('delete-confirm-input').value,
+            });
+            closeDeleteModal();
+            await loadEverything();
+        } catch (err) {
+            errBox.innerText = err.message;
+            errBox.style.display = 'block';
+        }
+    }
+
+    // Resume session on refresh
+    (async () => {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session) await afterSignIn();
+    })();
+</script>
+</body>
+</html>
