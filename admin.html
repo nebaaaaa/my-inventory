@@ -79,7 +79,10 @@
         <div class="card">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 14px;">
                 <h2 style="border:none; margin-bottom:0;">Registered Businesses</h2>
-                <input type="text" id="business-search" placeholder="Search by name, phone, owner..." style="max-width:260px;" oninput="renderBusinessTable()">
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-outline" onclick="openPlansModal()">Manage Plans</button>
+                    <input type="text" id="business-search" placeholder="Search by name, phone, owner..." style="max-width:260px;" oninput="renderBusinessTable()">
+                </div>
             </div>
             <div style="overflow-x:auto;">
                 <table>
@@ -146,6 +149,26 @@
     </div>
 </div>
 
+<div id="plans-modal" class="modal-overlay" onclick="closePlansModal()">
+    <div class="modal-box" style="max-width:600px;" onclick="event.stopPropagation()">
+        <h3>Manage Subscription Plans</h3>
+        <div id="plans-modal-error" class="error-box"></div>
+        <table style="margin-bottom:16px;">
+            <thead><tr><th>Name</th><th>Branches</th><th>Employees</th><th>Price (ETB)</th><th></th></tr></thead>
+            <tbody id="plans-table-body"></tbody>
+        </table>
+        <h3 style="font-size:14px;">Add New Plan</h3>
+        <div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap:8px; align-items:end;">
+            <div class="form-group" style="margin-bottom:0;"><label>Name</label><input type="text" id="new-plan-name" placeholder="e.g. Pro"></div>
+            <div class="form-group" style="margin-bottom:0;"><label>Max Branches</label><input type="number" id="new-plan-branches" placeholder="Blank = &#8734;"></div>
+            <div class="form-group" style="margin-bottom:0;"><label>Max Employees</label><input type="number" id="new-plan-employees" placeholder="Blank = &#8734;"></div>
+            <div class="form-group" style="margin-bottom:0;"><label>Price (ETB)</label><input type="number" id="new-plan-price" placeholder="0"></div>
+        </div>
+        <button class="btn btn-success btn-small" style="margin-top:10px;" onclick="submitCreatePlan()">+ Add Plan</button>
+        <div style="text-align:right; margin-top:16px;"><button class="btn btn-outline" onclick="closePlansModal()">Close</button></div>
+    </div>
+</div>
+
 <script>
     const SUPABASE_URL = "https://nwkrrcatdhppvlceuzwg.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im53a3JyY2F0ZGhwcHZsY2V1endnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzMjEzNjUsImV4cCI6MjA5OTg5NzM2NX0.kELqbONKGQIs2Z99Zx8rEcwuYekTCugLYtbsYW3_0h8";
@@ -201,13 +224,67 @@
 
     async function loadEverything() {
         const [{ data: planRows }, listResult] = await Promise.all([
-            supabaseClient.from('subscription_plans').select('*').eq('is_active', true).order('price_etb'),
+            supabaseClient.from('subscription_plans').select('*').order('price_etb'),
             callAdminFunction('admin-list-businesses'),
         ]);
         plans = planRows || [];
         businesses = listResult.businesses || [];
         renderPlatformStats();
         renderBusinessTable();
+    }
+
+    function openPlansModal() {
+        document.getElementById('plans-modal-error').style.display = 'none';
+        document.getElementById('new-plan-name').value = '';
+        document.getElementById('new-plan-branches').value = '';
+        document.getElementById('new-plan-employees').value = '';
+        document.getElementById('new-plan-price').value = '';
+        renderPlansTable();
+        document.getElementById('plans-modal').classList.add('active');
+    }
+    function closePlansModal() { document.getElementById('plans-modal').classList.remove('active'); }
+
+    function renderPlansTable() {
+        document.getElementById('plans-table-body').innerHTML = plans.map(p => `<tr style="${p.is_active ? '' : 'opacity:0.5;'}">
+            <td>${p.name}${p.is_active ? '' : ' <small>(inactive)</small>'}</td>
+            <td>${p.max_branches ?? '&#8734;'}</td>
+            <td>${p.max_employees ?? '&#8734;'}</td>
+            <td>${p.price_etb}</td>
+            <td style="text-align:center;"><button class="btn btn-small ${p.is_active ? 'btn-outline' : 'btn-success'}" onclick="togglePlanActive('${p.id}', ${!p.is_active})">${p.is_active ? 'Deactivate' : 'Reactivate'}</button></td>
+        </tr>`).join('');
+    }
+
+    async function submitCreatePlan() {
+        const errBox = document.getElementById('plans-modal-error');
+        errBox.style.display = 'none';
+        const name = document.getElementById('new-plan-name').value.trim();
+        if (!name) { errBox.innerText = 'Plan name is required.'; errBox.style.display = 'block'; return; }
+        try {
+            await callAdminFunction('admin-manage-plans', {
+                action: 'create',
+                name,
+                maxBranches: document.getElementById('new-plan-branches').value ? Number(document.getElementById('new-plan-branches').value) : null,
+                maxEmployees: document.getElementById('new-plan-employees').value ? Number(document.getElementById('new-plan-employees').value) : null,
+                priceEtb: document.getElementById('new-plan-price').value ? Number(document.getElementById('new-plan-price').value) : 0,
+            });
+            await loadEverything();
+            openPlansModal();
+        } catch (err) {
+            errBox.innerText = err.message;
+            errBox.style.display = 'block';
+        }
+    }
+
+    async function togglePlanActive(planId, makeActive) {
+        try {
+            await callAdminFunction('admin-manage-plans', { action: 'set_active', planId, isActive: makeActive });
+            await loadEverything();
+            renderPlansTable();
+        } catch (err) {
+            const errBox = document.getElementById('plans-modal-error');
+            errBox.innerText = err.message;
+            errBox.style.display = 'block';
+        }
     }
 
     function renderPlatformStats() {
@@ -298,7 +375,9 @@
         currentEditBusinessId = businessId;
         document.getElementById('sub-modal-error').style.display = 'none';
         document.getElementById('sub-modal-business-name').innerText = biz.businessName;
-        document.getElementById('sub-plan-select').innerHTML = plans.map(p => `<option value="${p.id}" ${p.id === biz.subscriptionPlanId ? 'selected' : ''}>${p.name} — ETB ${p.price_etb}</option>`).join('');
+        document.getElementById('sub-plan-select').innerHTML = plans
+            .filter(p => p.is_active || p.id === biz.subscriptionPlanId)
+            .map(p => `<option value="${p.id}" ${p.id === biz.subscriptionPlanId ? 'selected' : ''}>${p.name} — ETB ${p.price_etb}${p.is_active ? '' : ' (inactive)'}</option>`).join('');
         document.getElementById('sub-status-select').value = biz.subscriptionStatus;
         document.getElementById('sub-expiry-input').value = biz.subscriptionExpiresAt ? biz.subscriptionExpiresAt.split('T')[0] : '';
         document.getElementById('sub-notes-input').value = biz.adminNotes || '';
