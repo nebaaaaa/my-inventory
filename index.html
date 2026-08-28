@@ -239,6 +239,14 @@
                     <input type="text" id="auth-username" style="width:100%;" placeholder="e.g. kebede (used to log in later)" autocomplete="off">
                 </div>
                 <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
+                    <label data-i18n="auth.vat_registered">Is your shop VAT registered?</label>
+                    <select id="auth-vat-registered" style="width:100%;">
+                        <option value="no" data-i18n="common.no">No</option>
+                        <option value="yes" data-i18n="common.yes">Yes</option>
+                    </select>
+                    <p style="font-size:12px; color:var(--text-light); margin-top:4px;" data-i18n="auth.vat_registered_hint">You can change this anytime later from Team &amp; Branches.</p>
+                </div>
+                <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                     <label data-i18n="auth.email">Email</label>
                     <input type="email" id="auth-email" style="width:100%;" placeholder="you@example.com">
                 </div>
@@ -428,6 +436,7 @@
                     <div class="metric-box success" onclick="launchDrillDown('gross')"><div class="metric-title" data-i18n="acct.gross_profit">Gross Profit</div><div class="metric-value" id="m-gross">ETB 0.00</div></div>
                     <div class="metric-box danger" onclick="launchDrillDown('expenses')"><div class="metric-title" data-i18n="acct.total_expenses">Total Expenses</div><div class="metric-value" id="m-expenses">ETB 0.00</div></div>
                     <div class="metric-box success" style="background: #EAF3EE;" onclick="launchDrillDown('net')"><div class="metric-title" data-i18n="acct.net_profit">Net Profit</div><div class="metric-value" id="m-net">ETB 0.00</div></div>
+                    <div class="metric-box" id="m-vat-box" style="display:none; background:#FDF3E7; border-top-color:#C97A22;" onclick="launchVatDrillDown()"><div class="metric-title" data-i18n="dash.estimated_vat">Estimated VAT</div><div class="metric-value" id="m-vat">ETB 0.00</div></div>
                 </div>
 
                 <div class="card">
@@ -562,6 +571,10 @@
             </div>
 
             <div id="view-cash_handover" class="view-panel">
+                <div class="card" id="cash-handover-owner-balances-card" style="display:none;">
+                    <h2 data-i18n="ch.branch_balances">Cash Currently Held</h2>
+                    <div id="cash-handover-owner-balances-body"></div>
+                </div>
                 <div class="card" id="cash-handover-employee-card" style="display:none;">
                     <h2 data-i18n="nav.cash_handover">Cash Handover</h2>
                     <div id="cash-handover-balance-box" style="background:var(--bg); border-radius:10px; padding:18px; margin-bottom:20px;">
@@ -633,6 +646,9 @@
                                 <option value="Tender">Tender</option>
                             </select>
                         </div>
+                        <div class="form-group" id="sale-vat-group" style="display:none; padding-top: 22px;">
+                            <label class="check-label" style="font-size:13px;"><input type="checkbox" id="sale-include-vat"> <span data-i18n="sale.include_vat">Include VAT (15%)</span></label>
+                        </div>
                         <div class="form-group" style="padding-top: 22px;"><button type="submit" class="btn" style="background:var(--success);" data-i18n="sale.post_sale">Post Sale</button></div>
                     </form>
                 </div>
@@ -672,6 +688,9 @@
                         <div style="min-width:280px;">
                             <div style="display:flex; justify-content:space-between; font-size:15px; font-weight:700; color:var(--primary); margin-bottom:12px;">
                                 <span data-i18n="sale.basket_total">Basket Total</span><span class="num" id="sale-cart-total">ETB 0.00</span>
+                            </div>
+                            <div class="form-group" id="cart-sale-vat-group" style="display:none; width:100%; margin-bottom:12px;">
+                                <label class="check-label" style="font-size:13px;"><input type="checkbox" id="cart-sale-include-vat"> <span data-i18n="sale.include_vat">Include VAT (15%)</span></label>
                             </div>
                             <div class="form-group" style="display:block; width:100%; margin-bottom:12px;">
                                 <label data-i18n="sale.amount_paid_now">Amount Paid Now (ETB)</label>
@@ -908,6 +927,11 @@
             </div>
 
             <div id="view-team" class="view-panel">
+                <div class="card" id="vat-settings-card" style="display:none;">
+                    <h2 style="border:none; margin-bottom:10px;" data-i18n="team.vat_registration">VAT Registration</h2>
+                    <p style="font-size:13px; color:var(--text-light); margin-bottom:12px;" data-i18n="team.vat_registration_hint">Turning this on adds an "Include VAT (15%)" checkbox to the Sales page and shows an Estimated VAT box on the Dashboard. This is only an estimate for your own planning — it does not affect your journal entries or accounts.</p>
+                    <label class="check-label" style="font-size:14px;"><input type="checkbox" id="settings-vat-registered" onchange="toggleVatRegistered(this.checked)"> <span data-i18n="team.vat_registered_label">This shop is VAT registered</span></label>
+                </div>
                 <div class="card">
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                         <h2 style="border:none; margin-bottom:0;" data-i18n="team.branches">Branches</h2>
@@ -1216,6 +1240,11 @@
                 'dash.from': 'From:', 'dash.to': 'To:', 'dash.deep_analytics': 'Deep Sales Analytics',
                 'dash.start_date': 'Start Date:', 'dash.end_date': 'End Date:', 'dash.grouping': 'Grouping:',
                 'dash.by_week': 'By Week', 'dash.by_month': 'By Month', 'dash.by_year': 'By Year',
+                'dash.estimated_vat': 'Estimated VAT',
+
+                'month.jan': 'Jan', 'month.feb': 'Feb', 'month.mar': 'Mar', 'month.apr': 'Apr',
+                'month.may': 'May', 'month.jun': 'Jun', 'month.jul': 'Jul', 'month.aug': 'Aug',
+                'month.sep': 'Sep', 'month.oct': 'Oct', 'month.nov': 'Nov', 'month.dec': 'Dec',
 
                 'inv.add_product': 'Add Product', 'inv.category': 'Category', 'inv.product_name': 'Product Name',
                 'inv.stock_list': 'Stock List', 'inv.search_category': 'Search Category', 'inv.search_name': 'Search Name',
@@ -1237,11 +1266,12 @@
                 'sale.filter_date': 'Filter Date', 'sale.product': 'Product', 'sale.all': '-- All --',
                 'sale.product_item': 'Product Item', 'sale.unit_price': 'Unit Price', 'sale.total': 'Total',
                 'sale.branch': 'Branch', 'sale.action': 'Action', 'sale.customer_filter': 'Customer',
+                'sale.include_vat': 'Include VAT (15%)', 'sale.with_vat': 'with VAT',
 
                 'common.save': 'Save', 'common.cancel': 'Cancel', 'common.delete': 'Delete', 'common.edit': 'Edit',
                 'common.search_ph': 'Search...', 'common.record_payment': 'Record Payment', 'common.close': 'Close',
                 'common.memo': 'Memo', 'common.branch': 'Branch', 'common.by': 'By', 'common.action': 'Action',
-                'common.date': 'Date',
+                'common.date': 'Date', 'common.yes': 'Yes', 'common.no': 'No',
 
                 'pur.record_purchase': 'Record Purchase', 'pur.multi_item_prompt': 'Buying multiple items in one transaction?',
                 'pur.supplier_name': 'Supplier Name', 'pur.cost': 'Cost (ETB)', 'pur.commit_purchase': 'Commit Purchase',
@@ -1258,6 +1288,7 @@
                 'ch.my_history': 'Your Handover History', 'ch.amount': 'Amount', 'ch.status': 'Status',
                 'ch.pending_title': 'Pending Cash Handovers', 'ch.employee': 'Employee', 'ch.all_history': 'All Handover History',
                 'ch.decided_by': 'Decided By', 'ch.no_perm': "You don't have permission to use Cash Handover.",
+                'ch.branch_balances': 'Cash Currently Held',
 
                 'trash.title': 'Trash', 'trash.desc': 'Deleted records are held here for 30 days before permanent deletion. Restoring an item recalculates its inventory and ledger balances.',
                 'trash.date_deleted': 'Date Deleted', 'trash.record_type': 'Record Type', 'trash.data_details': 'Data Details',
@@ -1290,6 +1321,9 @@
                 'team.reopen_branch': 'Reopen Branch', 'team.close_branch': 'Close Branch',
                 'team.close_hint': "Closing keeps all its sales, purchase, and transfer history — it just stops it from being used going forward. You can reopen it any time.",
                 'team.only_open_branch': "This is your only open branch, so it can't be closed.",
+                'team.vat_registration': 'VAT Registration',
+                'team.vat_registration_hint': 'Turning this on adds an "Include VAT (15%)" checkbox to the Sales page and shows an Estimated VAT box on the Dashboard. This is only an estimate for your own planning — it does not affect your journal entries or accounts.',
+                'team.vat_registered_label': 'This shop is VAT registered',
 
                 'pagetitle.dashboard': 'Dashboard', 'pagetitle.inventory': 'Inventory/Stock', 'pagetitle.transfer': 'Transfer',
                 'pagetitle.cash_handover': 'Cash Handover', 'pagetitle.sales': 'Sales', 'pagetitle.purchase': 'Purchase',
@@ -1307,6 +1341,8 @@
                 'auth.finish_setup': 'Finish Setup', 'auth.account_inactive': 'Account Inactive', 'auth.sign_out': 'Sign Out',
                 'auth.forgot_password': 'Forgot password?', 'auth.no_account_yet': "Don't have a shop account yet?",
                 'auth.create_one': 'Create one', 'auth.already_have_account': 'Already have an account?', 'auth.sign_in_link': 'Sign in',
+                'auth.vat_registered': 'Is your shop VAT registered?',
+                'auth.vat_registered_hint': 'You can change this anytime later from Team & Branches.',
 
                 'misc.restore_data': 'Restore Data', 'misc.delete_role': 'Delete Role', 'misc.clear_all': 'Clear All',
                 'misc.logs': 'Logs', 'misc.record_customer_payment': 'Record Customer Payment', 'misc.record_supplier_payment': 'Record Supplier Payment',
@@ -1383,6 +1419,11 @@
                 'dash.from': 'ከ:', 'dash.to': 'እስከ:', 'dash.deep_analytics': 'ጥልቅ የሽያጭ ትንተና',
                 'dash.start_date': 'መጀመሪያ ቀን:', 'dash.end_date': 'መጨረሻ ቀን:', 'dash.grouping': 'በምድብ:',
                 'dash.by_week': 'በሳምንት', 'dash.by_month': 'በወር', 'dash.by_year': 'በዓመት',
+                'dash.estimated_vat': 'የተገመተ ቫት',
+
+                'month.jan': 'ጃንዩ', 'month.feb': 'ፌብሩ', 'month.mar': 'ማርች', 'month.apr': 'ኤፕሪ',
+                'month.may': 'ሜይ', 'month.jun': 'ጁን', 'month.jul': 'ጁላይ', 'month.aug': 'ኦገስ',
+                'month.sep': 'ሴፕቴ', 'month.oct': 'ኦክቶ', 'month.nov': 'ኖቬም', 'month.dec': 'ዲሴም',
 
                 'inv.add_product': 'ምርት ጨምር', 'inv.category': 'ምድብ', 'inv.product_name': 'የምርት ስም',
                 'inv.stock_list': 'የክምችት ዝርዝር', 'inv.search_category': 'ምድብ ፈልግ', 'inv.search_name': 'ስም ፈልግ',
@@ -1404,11 +1445,12 @@
                 'sale.filter_date': 'በቀን ማጣሪያ', 'sale.product': 'ምርት', 'sale.all': '-- ሁሉም --',
                 'sale.product_item': 'የምርት ዕቃ', 'sale.unit_price': 'የአንድ ዋጋ', 'sale.total': 'ድምር',
                 'sale.branch': 'ቅርንጫፍ', 'sale.action': 'ተግባር', 'sale.customer_filter': 'ደንበኛ',
+                'sale.include_vat': 'ቫት አካትት (15%)', 'sale.with_vat': 'ከቫት ጋር',
 
                 'common.save': 'መዝግብ', 'common.cancel': 'ሰርዝ', 'common.delete': 'አጥፋ', 'common.edit': 'አርም',
                 'common.search_ph': 'ፈልግ...', 'common.record_payment': 'ክፍያ መዝግብ', 'common.close': 'ዝጋ',
                 'common.memo': 'ማብራሪያ', 'common.branch': 'ቅርንጫፍ', 'common.by': 'በ', 'common.action': 'ተግባር',
-                'common.date': 'ቀን',
+                'common.date': 'ቀን', 'common.yes': 'አዎ', 'common.no': 'አይ',
 
                 'pur.record_purchase': 'ግዢ መዝግብ', 'pur.multi_item_prompt': 'ብዙ ዕቃዎችን በአንድ ግብይት መግዛት?',
                 'pur.supplier_name': 'የአቅራቢ ስም', 'pur.cost': 'ዋጋ (ETB)', 'pur.commit_purchase': 'ግዢ አስመዝግብ',
@@ -1425,6 +1467,7 @@
                 'ch.my_history': 'የእርስዎ የርክክብ ታሪክ', 'ch.amount': 'መጠን', 'ch.status': 'ሁኔታ',
                 'ch.pending_title': 'በመጠባበቅ ላይ ያሉ ርክክቦች', 'ch.employee': 'ሰራተኛ', 'ch.all_history': 'ሙሉ የርክክብ ታሪክ',
                 'ch.decided_by': 'በ ተወሰነ', 'ch.no_perm': 'ካሽ ርክክብን ለመጠቀም ፍቃድ የለዎትም።',
+                'ch.branch_balances': 'አሁን ያለ ካሽ',
 
                 'trash.title': 'የተሰረዙ', 'trash.desc': 'የተሰረዙ መዝገቦች ከመጨረሻው ስረዛ በፊት ለ30 ቀናት እዚህ ይቀመጣሉ። አንድ ንጥል መመለስ የክምችት እና የመዝገብ ሂሳቦችን ዳግም ያሰላል።',
                 'trash.date_deleted': 'የተሰረዘበት ቀን', 'trash.record_type': 'የመዝገብ ዓይነት', 'trash.data_details': 'የመረጃ ዝርዝር',
@@ -1457,6 +1500,9 @@
                 'team.reopen_branch': 'ቅርንጫፍ ዳግም ክፈት', 'team.close_branch': 'ቅርንጫፍ ዝጋ',
                 'team.close_hint': 'መዝጋት ሁሉንም የሽያጭ፣ የግዢ እና የዝውውር ታሪክ ይይዛል — ወደፊት ጥቅም ላይ እንዳይውል ብቻ ያደርገዋል። በማንኛውም ጊዜ ዳግም መክፈት ይችላሉ።',
                 'team.only_open_branch': 'ይህ ብቸኛው ክፍት ቅርንጫፍዎ ነው፣ ስለዚህ ሊዘጋ አይችልም።',
+                'team.vat_registration': 'የቫት ምዝገባ',
+                'team.vat_registration_hint': 'ይህንን ማብራት በሽያጭ ገጽ ላይ "ቫት አካትት (15%)" የሚል አማራጭ ይጨምራል እና በዳሽቦርድ ላይ የተገመተ ቫት ሳጥን ያሳያል። ይህ ለራስዎ እቅድ ማውጫ ብቻ የተገመተ ነው — በጆርናል ግቤቶችዎ ወይም በሂሳቦችዎ ላይ ተጽዕኖ አያመጣም።',
+                'team.vat_registered_label': 'ይህ ሱቅ በቫት ተመዝግቧል',
 
                 'pagetitle.dashboard': 'ዳሽቦርድ', 'pagetitle.inventory': 'የዕቃ ክምችት', 'pagetitle.transfer': 'ዝውውር',
                 'pagetitle.cash_handover': 'ካሽ ርክክብ', 'pagetitle.sales': 'ሽያጭ', 'pagetitle.purchase': 'ግዢ',
@@ -1474,6 +1520,8 @@
                 'auth.finish_setup': 'ማዋቀር ጨርስ', 'auth.account_inactive': 'አካውንት ንቁ አይደለም', 'auth.sign_out': 'ውጣ',
                 'auth.forgot_password': 'የይለፍ ቃል ረሱ?', 'auth.no_account_yet': 'የሱቅ አካውንት እስካሁን የለዎትም?',
                 'auth.create_one': 'አንድ ይፍጠሩ', 'auth.already_have_account': 'አካውንት አለዎት?', 'auth.sign_in_link': 'ግባ',
+                'auth.vat_registered': 'ሱቅዎ በቫት ተመዝግቧል?',
+                'auth.vat_registered_hint': 'ይህንን ከጊዜ በኋላ ከቡድን እና ቅርንጫፎች መቀየር ይችላሉ።',
 
                 'misc.restore_data': 'ውሂብ መልስ', 'misc.delete_role': 'ሚና አጥፋ', 'misc.clear_all': 'ሁሉንም አጽዳ',
                 'misc.logs': 'ታሪክ', 'misc.record_customer_payment': 'የደንበኛ ክፍያ መዝግብ', 'misc.record_supplier_payment': 'የአቅራቢ ክፍያ መዝግብ',
@@ -1639,6 +1687,31 @@
             return j ? extractAuthor(j.desc) : '—';
         }
 
+        // Shows/hides everything tied to VAT registration: the "Include VAT"
+        // checkboxes on the sale forms, the Estimated VAT dashboard box, and
+        // the owner-only settings toggle on Team & Branches. Purely a display
+        // concern — none of this touches journal entries or accounts.
+        function applyVatUIVisibility() {
+            const isVat = !!state.vatRegistered;
+            const saleVatGroup = document.getElementById('sale-vat-group');
+            if (saleVatGroup) saleVatGroup.style.display = isVat ? 'block' : 'none';
+            const cartVatGroup = document.getElementById('cart-sale-vat-group');
+            if (cartVatGroup) cartVatGroup.style.display = isVat ? 'block' : 'none';
+            const vatBox = document.getElementById('m-vat-box');
+            if (vatBox) vatBox.style.display = isVat ? 'block' : 'none';
+            const vatSettingsCard = document.getElementById('vat-settings-card');
+            if (vatSettingsCard) vatSettingsCard.style.display = currentIsOwner ? 'block' : 'none';
+            const vatCheckbox = document.getElementById('settings-vat-registered');
+            if (vatCheckbox) vatCheckbox.checked = isVat;
+        }
+
+        function toggleVatRegistered(checked) {
+            state.vatRegistered = checked;
+            queueWrite({ kind: 'tenant_update', patch: { vat_registered: checked } });
+            applyVatUIVisibility();
+            renderAnalyticalDashboards();
+        }
+
         // Hides/shows nav items, entry-form cards, and account-level buttons
         // based on the current session's permissions. This is the UI layer
         // only — RLS on the database is what actually enforces these rules,
@@ -1792,7 +1865,7 @@
 
         let state = {
             currentFilter: 'all', customStart: '', customEnd: '', categories: [],
-            ethiopianFilter: 'all', customAccounts: [], saleTypes: [],
+            ethiopianFilter: 'all', customAccounts: [], saleTypes: [], vatRegistered: false,
             inventory: [], journal: [], salesLog: [], purchaseLog: [], expenseLog: [],
             trash: [], notifications: []
         };
@@ -1848,8 +1921,8 @@
         // login on this device can finish creating the business automatically.
         // If they confirm on a different device, completeBusinessSetup() below
         // asks for these same three fields again.
-        function savePendingSignupInfo(bizName, phone, username) {
-            try { sessionStorage.setItem('neba_pending_signup', JSON.stringify({ bizName, phone, username })); } catch (e) {}
+        function savePendingSignupInfo(bizName, phone, username, vatRegistered) {
+            try { sessionStorage.setItem('neba_pending_signup', JSON.stringify({ bizName, phone, username, vatRegistered })); } catch (e) {}
         }
         function takePendingSignupInfo() {
             try {
@@ -1867,6 +1940,7 @@
             const email = document.getElementById('auth-email').value.trim();
             const password = document.getElementById('auth-password').value;
             const passwordConfirm = document.getElementById('auth-password-confirm').value;
+            const vatRegistered = document.getElementById('auth-vat-registered').value === 'yes';
             document.getElementById('auth-error').style.display = 'none';
             if (!bizName) return showAuthError('Please enter your shop / business name.');
             if (!phone) return showAuthError('Please enter a phone number.');
@@ -1880,7 +1954,7 @@
             setAuthLoading(false);
             if (error) return showAuthError(error.message);
 
-            savePendingSignupInfo(bizName, phone, username);
+            savePendingSignupInfo(bizName, phone, username, vatRegistered);
 
             if (!data.session) {
                 return showAuthError('Account created! Check your email to confirm your address, then sign in below to finish setting up your shop.');
@@ -1973,6 +2047,11 @@
                         alert('Could not finish setting up your shop: ' + createErr.message);
                         return handleSignOut();
                     }
+                    // create_business_with_owner doesn't take a VAT flag, so we
+                    // stash the choice here and apply it as a normal tenant_update
+                    // patch once currentTenantId is known, a few lines below in
+                    // this same function on the recursive call.
+                    try { sessionStorage.setItem('neba_pending_vat_registered', pending.vatRegistered ? '1' : '0'); } catch (e) {}
                     return onLoginSuccess(user, true);
                 }
                 // Genuine edge case: no pending info to work with (e.g. this
@@ -2019,27 +2098,8 @@
                 alert('Could not load your shop account. Please try signing in again.');
                 return handleSignOut();
             }
-            // Blocks sign-in for a suspended/cancelled/inactive account, or
-            // one whose plan has simply run past its expiry date — covers
-            // both the admin app's explicit actions and a trial/subscription
-            // quietly lapsing. "inactive" is kept as a recognized value for
-            // compatibility with any account already set that way before
-            // the fuller subscription system existed.
-            const blockedStatuses = ['inactive', 'suspended', 'cancelled'];
-            const isExpired = biz.subscription_expires_at && new Date(biz.subscription_expires_at) < new Date();
-            if (blockedStatuses.includes(biz.subscription_status) || isExpired) {
-                const overlay = document.getElementById('inactive-overlay');
-                const msgEl = overlay.querySelector('p');
-                if (biz.subscription_status === 'suspended') {
-                    msgEl.innerText = 'Your account has been suspended. Please contact support.';
-                } else if (biz.subscription_status === 'cancelled') {
-                    msgEl.innerText = 'Your subscription has been cancelled. Please contact us to reactivate.';
-                } else if (isExpired) {
-                    msgEl.innerText = 'Your subscription has expired. Please contact your provider to renew access.';
-                } else {
-                    msgEl.innerText = 'Your subscription is currently inactive. Please contact your provider to renew access.';
-                }
-                overlay.style.display = 'flex';
+            if (biz.subscription_status === 'inactive') {
+                document.getElementById('inactive-overlay').style.display = 'flex';
                 return;
             }
 
@@ -2047,6 +2107,18 @@
             state.categories = biz.categories || [];
             state.customAccounts = biz.custom_accounts || [];
             state.saleTypes = biz.sale_types || [];
+            state.vatRegistered = !!biz.vat_registered;
+            try {
+                const pendingVat = sessionStorage.getItem('neba_pending_vat_registered');
+                if (pendingVat !== null) {
+                    sessionStorage.removeItem('neba_pending_vat_registered');
+                    const wantVat = pendingVat === '1';
+                    if (wantVat !== state.vatRegistered) {
+                        state.vatRegistered = wantVat;
+                        queueWrite({ kind: 'tenant_update', patch: { vat_registered: wantVat } });
+                    }
+                }
+            } catch (e) {}
             rebuildChartOfAccounts();
             document.getElementById('shop-brand-name').innerText = currentTenantName.toUpperCase();
 
@@ -2224,7 +2296,8 @@
                 price: parseFloat(s.price), total: parseFloat(s.total), cogs: parseFloat(s.cogs),
                 channel: s.channel, type: s.type, paid: s.paid, paidChannel: s.paid_channel,
                 restorationLayers: s.restoration_layers || [], branchId: s.branch_id,
-                amountPaid: parseFloat(s.amount_paid) || 0, payments: s.payments || [], groupId: s.group_id || null
+                amountPaid: parseFloat(s.amount_paid) || 0, payments: s.payments || [], groupId: s.group_id || null,
+                vatIncluded: !!s.vat_included
             }));
 
             state.purchaseLog = (purchases.data || []).map(p => ({
@@ -2296,6 +2369,7 @@
             document.getElementById('cloud-sync-status').innerHTML = navigator.onLine ? '🟢 Cloud Synced' : '🟠 Offline — showing last-known data';
             renderAnalyticalDashboards();
             applyPermissionGating();
+            applyVatUIVisibility();
             populateBranchSwitcher();
             updateBranchColumnVisibility();
         }
@@ -2317,7 +2391,7 @@
             return { id: l.id, tenant_id: currentTenantId, branch_id: l.branchId || writeBranchId, item_id: itemId, qty: l.qty, cost: l.cost };
         }
         function toDbSale(s) {
-            return { id: s.id, tenant_id: currentTenantId, branch_id: s.branchId || writeBranchId, date: s.date, customer: s.customer, desc: s.desc, qty: s.qty, price: s.price, total: s.total, cogs: s.cogs, channel: s.channel, type: s.type, paid: s.paid, paid_channel: s.paidChannel || null, restoration_layers: s.restorationLayers || [], amount_paid: s.amountPaid || 0, payments: s.payments || [], group_id: s.groupId || null };
+            return { id: s.id, tenant_id: currentTenantId, branch_id: s.branchId || writeBranchId, date: s.date, customer: s.customer, desc: s.desc, qty: s.qty, price: s.price, total: s.total, cogs: s.cogs, channel: s.channel, type: s.type, paid: s.paid, paid_channel: s.paidChannel || null, restoration_layers: s.restorationLayers || [], amount_paid: s.amountPaid || 0, payments: s.payments || [], group_id: s.groupId || null, vat_included: !!s.vatIncluded };
         }
         function toDbPurchase(p) {
             return { id: p.id, tenant_id: currentTenantId, branch_id: p.branchId || writeBranchId, date: p.date, supplier: p.supplier, desc: p.desc, qty: p.qty, cost: p.cost, total: p.total, channel: p.channel, paid: p.paid, paid_channel: p.paidChannel || null, amount_paid: p.amountPaid || 0, payments: p.payments || [], group_id: p.groupId || null };
@@ -3031,6 +3105,14 @@
             document.getElementById('m-expenses').innerText = `ETB ${e.toLocaleString(undefined,{minimumFractionDigits:2})}`;
             document.getElementById('m-net').innerText = `ETB ${(r-c-e).toLocaleString(undefined,{minimumFractionDigits:2})}`;
 
+            // Estimated VAT is a standalone estimate, not pulled from the
+            // journal — it's a flat 15% of the total of whichever sales had
+            // "Include VAT" checked (VAT = total × 15/100). Purely informational.
+            let vatSum = state.salesLog.filter(s => s.vatIncluded && verifyChronologicalOverlap(s.date, p) && shouldCountInCurrentTotals(s.branchId))
+                .reduce((sum, s) => sum + (s.total * 15 / 100), 0);
+            const vatEl = document.getElementById('m-vat');
+            if (vatEl) vatEl.innerText = `ETB ${vatSum.toLocaleString(undefined,{minimumFractionDigits:2})}`;
+
             let absoluteBalances = runAbsoluteAccountBalances();
             let cashTotal = (absoluteBalances["1010"] || 0) + (absoluteBalances["1020"] || 0)
                 + (state.customAccounts || []).filter(a => a.isCustomChannel).reduce((sum, a) => sum + (absoluteBalances[a.code] || 0), 0);
@@ -3517,6 +3599,69 @@
             document.getElementById('audit-modal').style.display = "flex";
         }
 
+        // ---------------------------------------------------------------
+        // ESTIMATED VAT DRILL-DOWN
+        // Independent of the dashboard's own period filter on purpose — the
+        // person picks Month or Year right inside the popup. Reads only from
+        // state.salesLog (sale.vatIncluded); never touches state.journal, so
+        // this can't affect journal entries or account balances.
+        // ---------------------------------------------------------------
+        let vatDrillDownState = { mode: 'month', year: new Date().getFullYear(), month: new Date().getMonth() + 1 };
+
+        function launchVatDrillDown() {
+            document.getElementById('modal-title').innerText = t('dash.estimated_vat');
+            renderVatDrillDownModal();
+            document.getElementById('audit-modal').style.display = "flex";
+        }
+
+        function renderVatDrillDownModal() {
+            const mContent = document.getElementById('modal-body-content');
+            const vs = vatDrillDownState;
+            const monthNames = [t('month.jan'),t('month.feb'),t('month.mar'),t('month.apr'),t('month.may'),t('month.jun'),t('month.jul'),t('month.aug'),t('month.sep'),t('month.oct'),t('month.nov'),t('month.dec')];
+
+            let years = Array.from(new Set(state.salesLog.filter(s => s.vatIncluded).map(s => new Date(s.date).getFullYear())));
+            if (!years.includes(vs.year)) years.push(vs.year);
+            years.sort((a,b) => b - a);
+
+            let matches = state.salesLog.filter(s => {
+                if (!s.vatIncluded) return false;
+                if (!shouldCountInCurrentTotals(s.branchId)) return false;
+                const d = new Date(s.date);
+                if (d.getFullYear() !== vs.year) return false;
+                if (vs.mode === 'month' && (d.getMonth() + 1) !== vs.month) return false;
+                return true;
+            }).sort((a,b) => new Date(b.date) - new Date(a.date));
+
+            let totalSum = matches.reduce((sum, s) => sum + s.total, 0);
+            let vatSum = matches.reduce((sum, s) => sum + (s.total * 15 / 100), 0);
+
+            let html = `<div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
+                <select id="vat-drilldown-mode" onchange="changeVatDrillDownMode(this.value)" style="min-width:110px;">
+                    <option value="month" ${vs.mode==='month'?'selected':''}>${t('dash.by_month')}</option>
+                    <option value="year" ${vs.mode==='year'?'selected':''}>${t('dash.by_year')}</option>
+                </select>`;
+            if (vs.mode === 'month') {
+                html += `<select id="vat-drilldown-month" onchange="changeVatDrillDownMonth(this.value)">${monthNames.map((mn,i) => `<option value="${i+1}" ${vs.month===i+1?'selected':''}>${mn}</option>`).join('')}</select>`;
+            }
+            html += `<select id="vat-drilldown-year" onchange="changeVatDrillDownYear(this.value)">${years.map(y => `<option value="${y}" ${vs.year===y?'selected':''}>${y}</option>`).join('')}</select>
+            </div>
+            <div style="font-size:14px; padding:10px; background:#ECEDF2; border-radius:4px; margin-bottom:14px;">
+                ${t('sale.total')}: <strong>ETB ${totalSum.toLocaleString(undefined,{minimumFractionDigits:2})}</strong><br>
+                ${t('dash.estimated_vat')}: <strong style="color:#C97A22;">ETB ${vatSum.toLocaleString(undefined,{minimumFractionDigits:2})}</strong>
+            </div>
+            <table><thead><tr><th>${t('sale.date')}</th><th>${t('sale.customer_name')}</th><th>${t('sale.product_item')}</th><th class="num">${t('sale.total')}</th><th class="num">${t('dash.estimated_vat')}</th></tr></thead><tbody>`;
+            if (matches.length === 0) html += `<tr><td colspan="5" style="text-align:center;">${t('drill.no_sales')}</td></tr>`;
+            matches.forEach(m => {
+                html += `<tr><td>${m.date}</td><td>${m.customer}</td><td>${m.desc}</td><td class="num">${m.total.toFixed(2)}</td><td class="num">${(m.total * 15 / 100).toFixed(2)}</td></tr>`;
+            });
+            html += `</tbody></table>`;
+            mContent.innerHTML = html;
+        }
+
+        function changeVatDrillDownMode(val) { vatDrillDownState.mode = val; renderVatDrillDownModal(); }
+        function changeVatDrillDownMonth(val) { vatDrillDownState.month = parseInt(val); renderVatDrillDownModal(); }
+        function changeVatDrillDownYear(val) { vatDrillDownState.year = parseInt(val); renderVatDrillDownModal(); }
+
         function getChannelAccountsList() {
             return [
                 { code: '1010', name: 'Cash' },
@@ -3978,6 +4123,76 @@
             return net;
         }
 
+        // Same idea as computeCashHeldByEmployee but for the whole branch,
+        // every employee combined — this is what "cash currently sitting at
+        // this branch" means regardless of who's holding which slice of it.
+        function computeCashHeldByBranch(branchId) {
+            if (!branchId) return 0;
+            let net = 0;
+            state.journal.forEach(j => {
+                if (j.branchId !== branchId) return;
+                (j.lines || []).forEach(l => { if (l.account === '1010') net += (l.dr || 0) - (l.cr || 0); });
+            });
+            cashHandoverCache.forEach(h => {
+                if (h.branch_id === branchId && h.status === 'approved') net -= Number(h.amount);
+            });
+            return net;
+        }
+
+        // Which usernames have actually touched cash (account 1010) at this
+        // branch, or submitted a handover there — derived from the journal
+        // itself rather than branch_access, since "who's holding cash" is
+        // about who's actually rung up sales/collected payments there, not
+        // just who's assigned to the branch.
+        function getCashHoldersForBranch(branchId) {
+            const usernames = new Set();
+            state.journal.forEach(j => {
+                if (j.branchId !== branchId) return;
+                (j.lines || []).forEach(l => {
+                    if (l.account === '1010') {
+                        const author = extractAuthor(j.desc);
+                        if (author && author !== '—') usernames.add(author);
+                    }
+                });
+            });
+            cashHandoverCache.forEach(h => {
+                if (h.branch_id === branchId && h.submitted_by_username) usernames.add(h.submitted_by_username);
+            });
+            return Array.from(usernames).sort();
+        }
+
+        // Owner-only view: one entry per branch currently in scope (either
+        // just the branch they're viewing, or every accessible branch when
+        // viewing "All Branches"), with each branch's total cash on hand and,
+        // in smaller text underneath, the breakdown per employee who's
+        // actually handled cash there.
+        function renderOwnerCashBalances() {
+            const box = document.getElementById('cash-handover-owner-balances-body');
+            if (!box) return;
+            const branchesToShow = (currentBranchId === 'all' || !currentBranchId)
+                ? accessibleBranches
+                : accessibleBranches.filter(b => b.id === currentBranchId);
+            if (!branchesToShow.length) {
+                box.innerHTML = `<p style="color:var(--text-light); font-size:13px;">No branches to show.</p>`;
+                return;
+            }
+            box.innerHTML = branchesToShow.map(b => {
+                const branchTotal = computeCashHeldByBranch(b.id);
+                const holders = getCashHoldersForBranch(b.id);
+                const holderRows = holders.map(u => {
+                    const amt = computeCashHeldByEmployee(u, b.id);
+                    return `<div style="font-size:12px; color:var(--text-light); padding-left:14px; margin-top:2px;">${u}: ETB ${amt.toFixed(2)}</div>`;
+                }).join('');
+                return `<div style="padding:12px 0; border-bottom:1px solid var(--border);">
+                    <div style="display:flex; justify-content:space-between; align-items:baseline;">
+                        <strong>${b.name}</strong>
+                        <strong style="color:var(--primary);">ETB ${branchTotal.toFixed(2)}</strong>
+                    </div>
+                    ${holderRows || `<div style="font-size:12px; color:var(--text-light); padding-left:14px; margin-top:2px;">No cash activity recorded yet.</div>`}
+                </div>`;
+            }).join('');
+        }
+
         let cashHandoverCache = [];
         async function fetchCashHandovers() {
             const { data, error } = await supabaseClient
@@ -3996,11 +4211,13 @@
             const isOwnerUser = currentIsOwner;
             const employeeCard = document.getElementById('cash-handover-employee-card');
             const ownerCard = document.getElementById('cash-handover-owner-pending-card');
+            const ownerBalancesCard = document.getElementById('cash-handover-owner-balances-card');
             const unavailableCard = document.getElementById('cash-handover-unavailable-card');
 
             if (!hasPerm('cash.handover') && !isOwnerUser) {
                 employeeCard.style.display = 'none';
                 ownerCard.style.display = 'none';
+                ownerBalancesCard.style.display = 'none';
                 unavailableCard.style.display = 'block';
                 return;
             }
@@ -4008,6 +4225,8 @@
 
             if (isOwnerUser) {
                 ownerCard.style.display = 'block';
+                ownerBalancesCard.style.display = 'block';
+                renderOwnerCashBalances();
                 const pendingRows = cashHandoverCache.filter(h => h.status === 'pending');
                 document.getElementById('cash-handover-pending-body').innerHTML = pendingRows.length
                     ? pendingRows.map(h => `<tr>
@@ -4040,6 +4259,7 @@
                     : `<tr><td colspan="8" style="text-align:center; color:var(--text-light);">No handovers recorded yet.</td></tr>`;
             } else {
                 ownerCard.style.display = 'none';
+                ownerBalancesCard.style.display = 'none';
             }
 
             // The submit form is only for employees handing cash TO the
@@ -4832,6 +5052,7 @@
             const date = document.getElementById('cart-sale-date').value;
             const cName = document.getElementById('cart-sale-customer').value.trim() || 'Walk-in';
             const sType = document.getElementById('cart-sale-type').value;
+            const includeVat = state.vatRegistered && document.getElementById('cart-sale-include-vat').checked;
             const total = saleCart.reduce((sum, c) => sum + c.qty * c.price, 0);
             let amountPaidNow = parseFloat(document.getElementById('cart-sale-amount-paid').value);
             if (isNaN(amountPaidNow)) amountPaidNow = 0;
@@ -4881,7 +5102,7 @@
                     channel: chan, type: sType, paid: isPrimary ? (remaining <= 0.001) : true,
                     paidChannel: isPrimary ? (remaining <= 0.001 ? chan : null) : chan,
                     amountPaid: isPrimary ? amountPaidNow : (c.qty * c.price), payments: isPrimary && amountPaidNow > 0 ? [{ date, amount: amountPaidNow, channel: chan }] : [],
-                    restorationLayers, branchId: targetBranchId, groupId
+                    restorationLayers, branchId: targetBranchId, groupId, vatIncluded: includeVat
                 };
                 newRows.push(row);
                 state.salesLog.push(row);
@@ -4903,6 +5124,7 @@
 
             saleCart = [];
             document.getElementById('cart-sale-amount-paid').dataset.touched = '';
+            document.getElementById('cart-sale-include-vat').checked = false;
             renderSaleCartTable();
             document.getElementById('cart-sale-customer').value = '';
             syncTransactionalProductDropdownOptions(); renderSalesLogTable();
@@ -4918,6 +5140,7 @@
             const comp = document.getElementById('sale-item').value, qty = parseInt(document.getElementById('sale-qty').value);
             const price = parseFloat(document.getElementById('sale-price').value);
             const sType = document.getElementById('sale-type').value;
+            const includeVat = state.vatRegistered && document.getElementById('sale-include-vat').checked;
 
             let item = state.inventory.find(i => `[${i.category}] ${i.desc}` === comp);
             if(!item) return alert("Select a valid item string from the dropdown.");
@@ -4973,7 +5196,7 @@
             const newSale = {
                 id, date, customer: cName, desc: comp, qty: qty, price, total: rev, cogs, channel: chan, type: sType,
                 paid: fullyPaid, paidChannel: fullyPaid ? chan : null, amountPaid: amountPaidNow, payments,
-                restorationLayers, branchId: targetBranchId
+                restorationLayers, branchId: targetBranchId, vatIncluded: includeVat
             };
             const journalLines = [];
             if (amountPaidNow > 0) journalLines.push({ account: CHANNEL_ACCOUNT_CODES[chan], dr: amountPaidNow, cr: 0 });
@@ -5163,7 +5386,7 @@
                         qty: groupRows.reduce((sum,r) => sum + r.qty, 0), price: null,
                         total: groupRows.reduce((sum,r) => sum + r.total, 0),
                         channel: primary.channel, type: primary.type, amountPaid: primary.amountPaid,
-                        payments: primary.payments, branchId: primary.branchId, id: primary.id
+                        payments: primary.payments, branchId: primary.branchId, id: primary.id, vatIncluded: primary.vatIncluded
                     });
                 } else {
                     displayList.push({ isGroup: false, ...s });
@@ -5193,7 +5416,7 @@
                 const descCell = s.isGroup
                     ? `<span style="cursor:pointer;" onclick="toggleSaleGroupExpand('${s.groupId}')">🧺 ${isExpanded ? '▾' : '▸'} ${s.desc}</span>`
                     : `<span class="truncate-cell" title="${s.desc}">${s.desc}</span>`;
-                rows.push(`<tr><td>${s.date}</td><td>${s.customer}</td><td class="truncate-cell">${descCell}</td><td class="num">${s.qty}</td><td class="num">${priceCell}</td><td class="num"><strong>${s.total.toFixed(2)}</strong></td><td>${statusStr}<br><small style="color:var(--accent)">[${s.type || 'Walk in'}]</small></td><td class="branch-col">${branchNameById(s.branchId)}</td><td><small>${getTransactionAuthor(s.id)}</small></td><td style="text-align:center;">${payBtn}${voidBtn}</td></tr>`);
+                rows.push(`<tr><td>${s.date}</td><td>${s.customer}</td><td class="truncate-cell">${descCell}</td><td class="num">${s.qty}</td><td class="num">${priceCell}</td><td class="num"><strong>${s.total.toFixed(2)}</strong>${s.vatIncluded ? `<br><small style="color:var(--text-light);">${t('sale.with_vat')}</small>` : ''}</td><td>${statusStr}<br><small style="color:var(--accent)">[${s.type || 'Walk in'}]</small></td><td class="branch-col">${branchNameById(s.branchId)}</td><td><small>${getTransactionAuthor(s.id)}</small></td><td style="text-align:center;">${payBtn}${voidBtn}</td></tr>`);
                 if (isExpanded) {
                     s.itemRows.forEach(r => {
                         rows.push(`<tr style="background:var(--bg);"><td></td><td></td><td class="truncate-cell" style="padding-left:32px;" title="${r.desc}"><small>↳ ${r.desc}</small></td><td class="num"><small>${r.qty}</small></td><td class="num"><small>${r.price.toFixed(2)}</small></td><td class="num"><small>${r.total.toFixed(2)}</small></td><td colspan="4"></td></tr>`);
@@ -5731,7 +5954,8 @@
                     price: parseFloat(s.price), total: parseFloat(s.total), cogs: parseFloat(s.cogs),
                     channel: s.channel, type: s.type, paid: s.paid, paidChannel: s.paid_channel,
                     restorationLayers: s.restoration_layers || [], branchId: s.branch_id,
-                    amountPaid: parseFloat(s.amount_paid) || 0, payments: s.payments || [], groupId: s.group_id || null
+                    amountPaid: parseFloat(s.amount_paid) || 0, payments: s.payments || [], groupId: s.group_id || null,
+                    vatIncluded: !!s.vat_included
                 })),
                 purchaseLog: (purchases.data || []).map(p => ({
                     id: p.id, date: p.date, supplier: p.supplier, desc: p.desc, qty: p.qty,
