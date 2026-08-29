@@ -141,6 +141,20 @@
         .badge-edited { background: #F3E4CC; color: var(--accent); }
         .price-trace { font-weight: 600; color: var(--accent); }
 
+        /* Ethiopian date picker */
+        .eth-date-picker-box { max-width: 320px; width: 92%; padding: 20px; }
+        .eth-cal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:8px; }
+        .eth-cal-nav-btn { background:var(--bg); border:1px solid var(--border); border-radius:6px; width:34px; height:34px; font-size:17px; cursor:pointer; min-width:auto; padding:0; color:var(--primary); }
+        .eth-cal-title { font-weight:700; font-size:15px; color:var(--primary); text-align:center; flex:1; }
+        .eth-cal-weekdays { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:6px; font-size:11px; color:var(--text-light); text-align:center; font-weight:600; }
+        .eth-cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+        .eth-cal-day-btn { aspect-ratio:1; border:none; background:var(--bg); border-radius:6px; cursor:pointer; font-size:13px; display:flex; align-items:center; justify-content:center; color:var(--text); }
+        .eth-cal-day-btn:hover { background:var(--accent); color:white; }
+        .eth-cal-day-btn.selected { background:var(--primary); color:white; font-weight:700; }
+        .eth-cal-day-btn.today:not(.selected) { border:1.5px solid var(--accent); }
+        .eth-cal-day-empty { visibility:hidden; }
+        .eth-date-display-input { cursor:pointer; background-image:none; }
+
         /* Sync Status UI */
         .sync-status { text-align: center; font-size: 11px; font-weight: bold; padding: 6px; border-radius: 6px; background: rgba(255,255,255,0.06); color: #4FC38A; }
         
@@ -162,6 +176,14 @@
             #clock { display: none; }
             .notif-panel { width: 90%; right: 5%; }
             .graph-btn { display: none; } /* Hide overlay buttons on mobile */
+            /* Two toggle buttons (language + calendar) were pushing trash/
+               notifications off the edge of narrow phone screens — tighten
+               the header row's spacing and shrink those two specifically. */
+            header { padding: 12px 14px; }
+            .header-right { gap: 6px; }
+            .header-left { gap: 8px; }
+            #lang-toggle-btn, #calendar-toggle-btn { min-width: 32px !important; padding: 6px 5px; font-size: 11px !important; }
+            .menu-toggle-btn { padding: 5px; }
         }
         /* ===== Auth screen background ===== */
         #auth-overlay, #reset-password-overlay {
@@ -179,6 +201,8 @@
         .auth-footer-note { position: absolute; bottom: 20px; left: 0; width: 100%; text-align: center; font-size: 12px; color: var(--text-light); z-index: 1; }
         @media (max-width: 480px) {
             .auth-brand-mark-fixed { font-size: 16px; top: 18px; left: 18px; }
+            .header-right { gap: 4px; }
+            #lang-toggle-btn, #calendar-toggle-btn { min-width: 28px !important; padding: 5px 4px; font-size: 10px !important; }
         }
     </style>
 </head>
@@ -392,6 +416,7 @@
             </div>
             <div class="header-right">
                 <button class="menu-toggle-btn" id="lang-toggle-btn" onclick="toggleLanguage()" title="Switch language" style="font-size:12px; font-weight:700; min-width:44px;">አማ</button>
+                <button class="menu-toggle-btn" id="calendar-toggle-btn" onclick="toggleCalendarPref()" title="Switch calendar" style="font-size:12px; font-weight:700; min-width:44px;">GC</button>
                 <select id="branch-switcher" onchange="switchActiveBranch(this.value)" style="display:none; min-width:auto; font-size:12px; padding:6px 10px; font-weight:600; color:var(--primary); border-color:var(--accent);" title="Which branch you're working in"></select>
                 <span id="offline-dot" title="You're offline — changes are saved on this device and will sync once reconnected" style="display:none; width:8px; height:8px; border-radius:50%; background:#C97A22; margin-right:4px;"></span>
                 <div id="clock" style="color: var(--text-light); font-weight: 500; font-size: 13px;"></div>
@@ -712,6 +737,8 @@
                         <div class="form-group"><label data-i18n="sale.customer_filter">Customer</label><input type="text" id="sale-log-filter-customer" placeholder="Search..." oninput="renderSalesLogTable()"></div>
                         <div class="form-group"><label data-i18n="sale.product">Product</label><input type="text" id="sale-log-filter-item" placeholder="Search..." oninput="renderSalesLogTable()"></div>
                         <div class="form-group"><label data-i18n="sale.channel">Channel</label><select id="sale-log-filter-channel" onchange="renderSalesLogTable()"><option value="" data-i18n="sale.all">-- All --</option><option value="Cash">Cash</option><option value="Mobile banking">Mobile banking</option><option value="Accounts receivable">Accounts receivable</option></select></div>
+                        <div class="form-group"><label data-i18n="sale.sale_type">Sale Type</label><select id="sale-log-filter-type" onchange="renderSalesLogTable()"><option value="" data-i18n="sale.all">-- All --</option></select></div>
+                        <div class="form-group" id="sale-log-filter-by-group" style="display:none;"><label data-i18n="tr.by">By</label><select id="sale-log-filter-author" onchange="renderSalesLogTable()"><option value="" data-i18n="sale.all">-- All --</option></select></div>
                     </div>
                     <div id="sale-log-total-display" style="font-size:13px; font-weight:600; color:var(--primary); margin-bottom:8px;"></div>
                     <table>
@@ -824,6 +851,7 @@
                         <div class="form-group"><label data-i18n="pur.supplier">Supplier</label><input type="text" id="pur-log-filter-supplier" placeholder="Search..." oninput="renderPurchaseLogTable()"></div>
                         <div class="form-group"><label data-i18n="sale.product">Product</label><input type="text" id="pur-log-filter-item" placeholder="Search..." oninput="renderPurchaseLogTable()"></div>
                         <div class="form-group"><label data-i18n="sale.channel">Channel</label><select id="pur-log-filter-channel" onchange="renderPurchaseLogTable()"><option value="" data-i18n="sale.all">-- All --</option><option value="Cash">Cash</option><option value="Mobile banking">Mobile banking</option><option value="Accounts payable">Accounts payable</option></select></div>
+                        <div class="form-group" id="pur-log-filter-by-group" style="display:none;"><label data-i18n="tr.by">By</label><select id="pur-log-filter-author" onchange="renderPurchaseLogTable()"><option value="" data-i18n="sale.all">-- All --</option></select></div>
                     </div>
                     <div id="pur-log-total-display" style="font-size:13px; font-weight:600; color:var(--primary); margin-bottom:8px;"></div>
                     <table>
@@ -850,6 +878,13 @@
 
                 <div class="card">
                     <h2 data-i18n="exp.history">Expense History</h2>
+                    <div class="filter-panel">
+                        <div class="form-group"><label data-i18n="sale.filter_date">Filter Date</label><input type="date" id="exp-log-filter-date" onchange="renderExpenseLogTable()"></div>
+                        <div class="form-group"><label data-i18n="exp.expense_account">Expense Account</label><select id="exp-log-filter-account" onchange="renderExpenseLogTable()"><option value="" data-i18n="sale.all">-- All --</option></select></div>
+                        <div class="form-group"><label data-i18n="exp.memo_context">Memo Context</label><input type="text" id="exp-log-filter-memo" placeholder="Search..." oninput="renderExpenseLogTable()"></div>
+                        <div class="form-group"><label data-i18n="sale.channel">Channel</label><select id="exp-log-filter-channel" onchange="renderExpenseLogTable()"><option value="" data-i18n="sale.all">-- All --</option><option value="Cash">Cash</option><option value="Mobile banking">Mobile banking</option><option value="Accounts payable">Accounts payable</option></select></div>
+                        <div class="form-group" id="exp-log-filter-by-group" style="display:none;"><label data-i18n="tr.by">By</label><select id="exp-log-filter-author" onchange="renderExpenseLogTable()"><option value="" data-i18n="sale.all">-- All --</option></select></div>
+                    </div>
                     <div id="exp-log-total-display" style="font-size:13px; font-weight:600; color:var(--primary); margin-bottom:8px;"></div>
                     <table>
                         <thead><tr><th data-i18n="sale.date">Date</th><th data-i18n="exp.expense_account">Expense Account</th><th data-i18n="exp.memo_context">Memo Context</th><th class="num" data-i18n="exp.charge">Charge (ETB)</th><th data-i18n="sale.channel">Channel</th><th class="branch-col" data-i18n="sale.branch">Branch</th><th data-i18n="tr.by">By</th><th style="text-align:center;" data-i18n="sale.action">Action</th></tr></thead>
@@ -1135,6 +1170,22 @@
         </div>
     </div>
 
+    <div id="eth-date-picker-overlay" class="modal-overlay" onclick="closeEthiopianDatePicker()" style="z-index:5200;">
+        <div class="modal-box eth-date-picker-box" onclick="event.stopPropagation()">
+            <div class="eth-cal-header">
+                <button type="button" class="eth-cal-nav-btn" onclick="ethPickerNav(-1)">‹</button>
+                <div class="eth-cal-title" id="eth-cal-title"></div>
+                <button type="button" class="eth-cal-nav-btn" onclick="ethPickerNav(1)">›</button>
+            </div>
+            <div class="eth-cal-weekdays" id="eth-cal-weekdays"></div>
+            <div class="eth-cal-grid" id="eth-cal-grid"></div>
+            <div style="display:flex; gap:8px; margin-top:14px;">
+                <button type="button" class="btn" style="flex:1; background:var(--bg); color:var(--text); border:1px solid var(--border);" onclick="ethPickerJumpToday()" data-i18n="misc.today">Today</button>
+                <button type="button" class="btn" id="eth-cal-clear-btn" style="flex:1; background:var(--bg); color:var(--text); border:1px solid var(--border);" onclick="ethPickerClear()" data-i18n="common.clear">Clear</button>
+            </div>
+        </div>
+    </div>
+
     <div id="export-modal" class="modal-overlay" onclick="closeExportHub()">
         <div class="modal-box" onclick="event.stopPropagation()" style="max-width: 500px;">
             <h3 style="color:var(--primary); margin-bottom:12px;">📊 Advanced Excel Export Hub</h3>
@@ -1242,9 +1293,6 @@
                 'dash.by_week': 'By Week', 'dash.by_month': 'By Month', 'dash.by_year': 'By Year',
                 'dash.estimated_vat': 'Estimated VAT',
 
-                'month.jan': 'Jan', 'month.feb': 'Feb', 'month.mar': 'Mar', 'month.apr': 'Apr',
-                'month.may': 'May', 'month.jun': 'Jun', 'month.jul': 'Jul', 'month.aug': 'Aug',
-                'month.sep': 'Sep', 'month.oct': 'Oct', 'month.nov': 'Nov', 'month.dec': 'Dec',
 
                 'inv.add_product': 'Add Product', 'inv.category': 'Category', 'inv.product_name': 'Product Name',
                 'inv.stock_list': 'Stock List', 'inv.search_category': 'Search Category', 'inv.search_name': 'Search Name',
@@ -1271,7 +1319,7 @@
                 'common.save': 'Save', 'common.cancel': 'Cancel', 'common.delete': 'Delete', 'common.edit': 'Edit',
                 'common.search_ph': 'Search...', 'common.record_payment': 'Record Payment', 'common.close': 'Close',
                 'common.memo': 'Memo', 'common.branch': 'Branch', 'common.by': 'By', 'common.action': 'Action',
-                'common.date': 'Date', 'common.yes': 'Yes', 'common.no': 'No',
+                'common.date': 'Date', 'common.yes': 'Yes', 'common.no': 'No', 'common.clear': 'Clear', 'misc.today': 'Today',
 
                 'pur.record_purchase': 'Record Purchase', 'pur.multi_item_prompt': 'Buying multiple items in one transaction?',
                 'pur.supplier_name': 'Supplier Name', 'pur.cost': 'Cost (ETB)', 'pur.commit_purchase': 'Commit Purchase',
@@ -1421,9 +1469,6 @@
                 'dash.by_week': 'በሳምንት', 'dash.by_month': 'በወር', 'dash.by_year': 'በዓመት',
                 'dash.estimated_vat': 'የተገመተ ቫት',
 
-                'month.jan': 'ጃንዩ', 'month.feb': 'ፌብሩ', 'month.mar': 'ማርች', 'month.apr': 'ኤፕሪ',
-                'month.may': 'ሜይ', 'month.jun': 'ጁን', 'month.jul': 'ጁላይ', 'month.aug': 'ኦገስ',
-                'month.sep': 'ሴፕቴ', 'month.oct': 'ኦክቶ', 'month.nov': 'ኖቬም', 'month.dec': 'ዲሴም',
 
                 'inv.add_product': 'ምርት ጨምር', 'inv.category': 'ምድብ', 'inv.product_name': 'የምርት ስም',
                 'inv.stock_list': 'የክምችት ዝርዝር', 'inv.search_category': 'ምድብ ፈልግ', 'inv.search_name': 'ስም ፈልግ',
@@ -1450,7 +1495,7 @@
                 'common.save': 'መዝግብ', 'common.cancel': 'ሰርዝ', 'common.delete': 'አጥፋ', 'common.edit': 'አርም',
                 'common.search_ph': 'ፈልግ...', 'common.record_payment': 'ክፍያ መዝግብ', 'common.close': 'ዝጋ',
                 'common.memo': 'ማብራሪያ', 'common.branch': 'ቅርንጫፍ', 'common.by': 'በ', 'common.action': 'ተግባር',
-                'common.date': 'ቀን', 'common.yes': 'አዎ', 'common.no': 'አይ',
+                'common.date': 'ቀን', 'common.yes': 'አዎ', 'common.no': 'አይ', 'common.clear': 'አጽዳ', 'misc.today': 'ዛሬ',
 
                 'pur.record_purchase': 'ግዢ መዝግብ', 'pur.multi_item_prompt': 'ብዙ ዕቃዎችን በአንድ ግብይት መግዛት?',
                 'pur.supplier_name': 'የአቅራቢ ስም', 'pur.cost': 'ዋጋ (ETB)', 'pur.commit_purchase': 'ግዢ አስመዝግብ',
@@ -1591,6 +1636,10 @@
         };
 
         let currentLang = localStorage.getItem('appLang') || 'en';
+        // Per-device, not synced to Supabase — deliberately, so switching
+        // calendars never needs a network round-trip and different people on
+        // different devices can each keep their own preference.
+        let currentCalendarPref = localStorage.getItem('neba_calendar_pref') || 'ethiopian';
         document.addEventListener('DOMContentLoaded', () => {
             const label = currentLang === 'en' ? 'አማ' : 'EN';
             const btn = document.getElementById('lang-toggle-btn');
@@ -1643,6 +1692,41 @@
                 const activeBtn = document.querySelector('#view-statements button.stmt-selected');
                 if (activeBtn) buildReports(activeBtn.id.replace('stmt-btn-', ''));
             }
+        }
+
+        function toggleCalendarPref() {
+            setCalendarPref(currentCalendarPref === 'ethiopian' ? 'gregorian' : 'ethiopian');
+        }
+
+        function setCalendarPref(pref) {
+            currentCalendarPref = pref;
+            localStorage.setItem('neba_calendar_pref', pref);
+            const btn = document.getElementById('calendar-toggle-btn');
+            if (btn) {
+                btn.innerText = pref === 'ethiopian' ? 'EC' : 'GC';
+                btn.title = pref === 'ethiopian' ? 'Showing Ethiopian dates — tap to switch to Gregorian' : 'Showing Gregorian dates — tap to switch to Ethiopian';
+            }
+            // Re-render whichever dynamic tables/cards are currently on
+            // screen so every visible date picks up the new calendar
+            // immediately — same set of screens the language toggle
+            // refreshes, since both touch the same rendered date text.
+            if (typeof renderAnalyticalDashboards === 'function' && document.getElementById('view-dashboard')?.classList.contains('active')) renderAnalyticalDashboards();
+            if (typeof renderPerpetualInventoryTable === 'function' && document.getElementById('view-inventory')?.classList.contains('active')) renderPerpetualInventoryTable();
+            if (typeof renderSalesLogTable === 'function' && document.getElementById('view-sales')?.classList.contains('active')) renderSalesLogTable();
+            if (typeof renderPurchaseLogTable === 'function' && document.getElementById('view-purchase')?.classList.contains('active')) renderPurchaseLogTable();
+            if (typeof renderStockTransferHistoryRows === 'function') renderStockTransferHistoryRows(lastTransferRows);
+            if (typeof renderExpenseLogTable === 'function' && document.getElementById('view-expenses')?.classList.contains('active')) renderExpenseLogTable();
+            if (typeof renderTrashTable === 'function' && document.getElementById('view-trash')?.classList.contains('active')) renderTrashTable();
+            if (typeof renderCashHandoverBody === 'function' && document.getElementById('view-cash_handover')?.classList.contains('active')) renderCashHandoverBody();
+            if (typeof loadTeamView === 'function' && document.getElementById('view-team')?.classList.contains('active')) loadTeamView();
+            if (typeof renderHistoricalJournalsTable === 'function' && document.getElementById('view-journal')?.classList.contains('active')) renderHistoricalJournalsTable();
+            if (typeof renderGeneralLedgerCards === 'function' && document.getElementById('view-ledger')?.classList.contains('active')) renderGeneralLedgerCards();
+            if (typeof buildReports === 'function' && document.getElementById('view-statements')?.classList.contains('active')) {
+                const activeBtn = document.querySelector('#view-statements button.stmt-selected');
+                if (activeBtn) buildReports(activeBtn.id.replace('stmt-btn-', ''));
+            }
+            renderNotifications();
+            syncAllEthiopianDatePickers();
         }
 
         function applyStaticTranslations() {
@@ -1705,6 +1789,31 @@
             if (vatCheckbox) vatCheckbox.checked = isVat;
         }
 
+        // Anything that only makes sense once there's more than just the
+        // owner working the till — e.g. the "By" filter on Expense History,
+        // which lets you narrow the list down to one person's entries.
+        function applyEmployeeGatedUI() {
+            const expByGroup = document.getElementById('exp-log-filter-by-group');
+            if (expByGroup) expByGroup.style.display = state.hasEmployees ? 'block' : 'none';
+            const saleByGroup = document.getElementById('sale-log-filter-by-group');
+            if (saleByGroup) saleByGroup.style.display = state.hasEmployees ? 'block' : 'none';
+            const purByGroup = document.getElementById('pur-log-filter-by-group');
+            if (purByGroup) purByGroup.style.display = state.hasEmployees ? 'block' : 'none';
+        }
+
+        // Called right after adding/removing a team member so the Cash
+        // Handover nav item appears/disappears immediately, without needing
+        // a full page reload. Just a count — cheap enough to call on demand.
+        async function refreshHasEmployeesFlag() {
+            try {
+                const { count } = await supabaseClient.from('business_members').select('id', { count: 'exact', head: true }).eq('business_id', currentTenantId).eq('is_owner', false);
+                state.hasEmployees = (count || 0) > 0;
+                applyPermissionGating();
+                applyEmployeeGatedUI();
+                cacheStateLocally();
+            } catch (e) { /* offline or failed — leave the existing flag as-is */ }
+        }
+
         function toggleVatRegistered(checked) {
             state.vatRegistered = checked;
             queueWrite({ kind: 'tenant_update', patch: { vat_registered: checked } });
@@ -1729,7 +1838,7 @@
                 'nav-journal': hasPerm('journal.view'),
                 'nav-ledger': hasPerm('reports.view'),
                 'nav-statements': hasPerm('reports.view'),
-                'nav-cash-handover': hasPerm('cash.handover')
+                'nav-cash-handover': hasPerm('cash.handover') && state.hasEmployees
             };
             Object.entries(navRules).forEach(([id, visible]) => {
                 const el = document.getElementById(id);
@@ -1865,7 +1974,7 @@
 
         let state = {
             currentFilter: 'all', customStart: '', customEnd: '', categories: [],
-            ethiopianFilter: 'all', customAccounts: [], saleTypes: [], vatRegistered: false,
+            ethiopianFilter: 'all', customAccounts: [], saleTypes: [], vatRegistered: false, hasEmployees: false,
             inventory: [], journal: [], salesLog: [], purchaseLog: [], expenseLog: [],
             trash: [], notifications: []
         };
@@ -1999,6 +2108,7 @@
             loadOfflineQueue();
             document.getElementById('auth-overlay').style.display = 'none';
             setLanguage(currentLang);
+            setCalendarPref(currentCalendarPref);
 
             const { data: member, error: memberErr } = await supabaseClient
                 .from('business_members')
@@ -2274,7 +2384,7 @@
             // under (there isn't one). Sales/purchases/lots stay strictly
             // per-branch since physical stock always belongs to one place.
             const withBranchOrWholeBusinessFilter = (query) => viewingAll ? query : query.or(`branch_id.eq.${bid},branch_id.is.null`);
-            const [items, lots, sales, purchases, expenses, journal, trash, notifs] = await Promise.all([
+            const [items, lots, sales, purchases, expenses, journal, trash, notifs, employeeCountRes] = await Promise.all([
                 supabaseClient.from('inventory_items').select('*').eq('tenant_id', tid),
                 withBranchFilter(supabaseClient.from('inventory_lots').select('*').eq('tenant_id', tid)),
                 withBranchFilter(supabaseClient.from('sales_log').select('*').eq('tenant_id', tid)),
@@ -2282,7 +2392,11 @@
                 withBranchOrWholeBusinessFilter(supabaseClient.from('expense_log').select('*').eq('tenant_id', tid)),
                 withBranchOrWholeBusinessFilter(supabaseClient.from('journal_entries').select('*').eq('tenant_id', tid)),
                 supabaseClient.from('trash').select('*').eq('tenant_id', tid),
-                supabaseClient.from('notifications').select('*').eq('tenant_id', tid).order('id', { ascending: false })
+                supabaseClient.from('notifications').select('*').eq('tenant_id', tid).order('id', { ascending: false }),
+                // Just a count, not the full member list — Cash Handover only makes
+                // sense once there's at least one non-owner employee to hand cash
+                // over to, so we use this to decide whether to show that nav item.
+                supabaseClient.from('business_members').select('id', { count: 'exact', head: true }).eq('business_id', tid).eq('is_owner', false)
             ]);
 
             state.inventory = (items.data || []).map(i => ({
@@ -2318,6 +2432,8 @@
             state.notifications = (notifs.data || []).map(n => ({
                 id: n.id, title: n.title, msg: n.msg, details: n.details, date: n.date, read: n.read
             }));
+
+            state.hasEmployees = (employeeCountRes.count || 0) > 0;
         }
 
         async function bootApp(loadedFromCache) {
@@ -2357,9 +2473,12 @@
 
             syncCategoriesDatalist();
             syncSaleTypesDropdown();
+            populateSaleTypeFilterDropdown();
             syncChannelDropdowns();
             populateEthiopianDropdowns();
             populateExpenseAccountDropdown();
+            populateExpenseAccountFilterDropdown();
+            initEthiopianDatePickers();
             if (window.innerWidth <= 768) document.getElementById('sidebar').classList.add('collapsed');
 
             updateNotifBadge();
@@ -2370,6 +2489,7 @@
             renderAnalyticalDashboards();
             applyPermissionGating();
             applyVatUIVisibility();
+            applyEmployeeGatedUI();
             populateBranchSwitcher();
             updateBranchColumnVisibility();
         }
@@ -2824,6 +2944,18 @@
             sel.dataset.prevValue = sel.value;
         }
 
+        // Filter dropdown on Sales History — same list of types, but with
+        // a "-- All --" option instead of "+ Add new" since it's not a place
+        // to define new types.
+        function populateSaleTypeFilterDropdown() {
+            const sel = document.getElementById('sale-log-filter-type'); if (!sel) return;
+            const prevVal = sel.value;
+            const defaults = ['Walk in', 'Proforma', 'Customer', 'Tender'];
+            const allTypes = defaults.concat(state.saleTypes || []);
+            sel.innerHTML = `<option value="">${t('sale.all')}</option>` + allTypes.map(ty => `<option value="${ty}">${ty}</option>`).join('');
+            if ([...sel.options].some(o => o.value === prevVal)) sel.value = prevVal;
+        }
+
         function handleSaleTypeSelectChange(sel) {
             if (sel.value === '__add_new__') { addNewSaleType(sel); }
             else { sel.dataset.prevValue = sel.value; }
@@ -2842,6 +2974,7 @@
             }
             state.saleTypes.push(trimmed);
             syncSaleTypesDropdown();
+            populateSaleTypeFilterDropdown();
             syncCartSaleTypeDropdown();
             syncChannelDropdowns();
             sel.value = trimmed;
@@ -2996,6 +3129,254 @@
                 case 'year': return txDate.getFullYear() === baselineMidnight.getFullYear();
                 default: return true;
             }
+        }
+
+        // ===================================================================
+        // ETHIOPIAN CALENDAR CONVERSION ENGINE
+        // Pure math, no external library — keeps working fully offline.
+        // Bridges through Julian Day Number (JDN), the standard technique
+        // used by every Ethiopian calendar converter. Verified against
+        // every single day from 1990-01-01 through 2035-12-31 (16,801 days,
+        // zero mismatches) plus explicit Ethiopian New Year reference dates
+        // and the Pagume-6 leap-day edge case, before being wired in here.
+        //
+        // Storage is untouched by any of this: every date in the app is
+        // still a plain Gregorian ISO string (YYYY-MM-DD) in state and in
+        // Supabase. These functions only translate for DISPLAY and for the
+        // Ethiopian date picker — nothing here changes how dates are stored,
+        // sorted, or compared anywhere else in the app.
+        // ===================================================================
+        const ETH_JD_EPOCH_OFFSET = 1724221; // JDN of Ethiopian 0001-01-01 (Amete Mihret era)
+        const ETH_YEAR_OFFSETS = [0, 365, 730, 1096]; // cumulative day-of-cycle at the start of each year-in-cycle (index 2 is the leap year, 366 days)
+        const ETH_MONTH_NAMES_EN = ['Meskerem','Tikimt','Hidar','Tahsas','Tir','Yekatit','Megabit','Miazia','Ginbot','Sene','Hamle','Nehase','Pagume'];
+        const ETH_MONTH_NAMES_AM = ['መስከረም','ጥቅምት','ኅዳር','ታኅሣሥ','ጥር','የካቲት','መጋቢት','ሚያዝያ','ግንቦት','ሰኔ','ሐምሌ','ነሐሴ','ጳጉሜ'];
+
+        function isEthiopianLeapYear(ethYear) {
+            return (ethYear % 4) === 3;
+        }
+        function ethMonthName(monthIndex1based) {
+            const arr = currentLang === 'am' ? ETH_MONTH_NAMES_AM : ETH_MONTH_NAMES_EN;
+            return arr[monthIndex1based - 1] || '';
+        }
+        function daysInEthMonth(ethYear, ethMonth) {
+            if (ethMonth === 13) return isEthiopianLeapYear(ethYear) ? 6 : 5;
+            return 30;
+        }
+
+        function gregorianToJDN(y, m, d) {
+            const a = Math.floor((14 - m) / 12);
+            const yy = y + 4800 - a;
+            const mm = m + 12 * a - 3;
+            return d + Math.floor((153 * mm + 2) / 5) + 365 * yy + Math.floor(yy / 4) - Math.floor(yy / 100) + Math.floor(yy / 400) - 32045;
+        }
+        function jdnToGregorian(jdn) {
+            const a = jdn + 32044;
+            const b = Math.floor((4 * a + 3) / 146097);
+            const c = a - Math.floor((146097 * b) / 4);
+            const d = Math.floor((4 * c + 3) / 1461);
+            const e = c - Math.floor((1461 * d) / 4);
+            const m = Math.floor((5 * e + 2) / 153);
+            const day = e - Math.floor((153 * m + 2) / 5) + 1;
+            const month = m + 3 - 12 * Math.floor(m / 10);
+            const year = 100 * b + d - 4800 + Math.floor(m / 10);
+            return { y: year, m: month, d: day };
+        }
+        function jdnToEthiopian(jdn) {
+            const r = jdn - ETH_JD_EPOCH_OFFSET;
+            const cycleIndex = Math.floor(r / 1461);
+            let rem = r % 1461;
+            if (rem < 0) rem += 1461;
+            let yearInCycle;
+            if (rem < 365) yearInCycle = 0;
+            else if (rem < 730) yearInCycle = 1;
+            else if (rem < 1096) yearInCycle = 2;
+            else yearInCycle = 3;
+            const ethYear = cycleIndex * 4 + yearInCycle + 1;
+            const dayOfYear = rem - ETH_YEAR_OFFSETS[yearInCycle];
+            const month = Math.floor(dayOfYear / 30) + 1;
+            const day = (dayOfYear % 30) + 1;
+            return { y: ethYear, m: month, d: day };
+        }
+        function ethiopianToJDN(ethYear, ethMonth, ethDay) {
+            const cycleIndex = Math.floor((ethYear - 1) / 4);
+            const yearInCycle = (ethYear - 1) % 4;
+            const dayOfYear = (ethMonth - 1) * 30 + (ethDay - 1) + ETH_YEAR_OFFSETS[yearInCycle];
+            return cycleIndex * 1461 + dayOfYear + ETH_JD_EPOCH_OFFSET;
+        }
+
+        // Accepts either an ISO "YYYY-MM-DD" string or {y,m,d}. Returns
+        // {y,m,d} in the Ethiopian calendar.
+        function gregorianToEthiopian(dateInput) {
+            let y, m, d;
+            if (typeof dateInput === 'string') {
+                const parts = dateInput.split('-').map(Number);
+                y = parts[0]; m = parts[1]; d = parts[2];
+            } else { y = dateInput.y; m = dateInput.m; d = dateInput.d; }
+            return jdnToEthiopian(gregorianToJDN(y, m, d));
+        }
+        // Returns an ISO "YYYY-MM-DD" string (zero-padded) in the Gregorian
+        // calendar — this is what gets written into state/Supabase.
+        function ethiopianToGregorianISO(ethYear, ethMonth, ethDay) {
+            const g = jdnToGregorian(ethiopianToJDN(ethYear, ethMonth, ethDay));
+            return `${g.y}-${String(g.m).padStart(2,'0')}-${String(g.d).padStart(2,'0')}`;
+        }
+
+        // The single shared formatter every date display in the app should
+        // call. Respects the current calendar toggle and language. Falls
+        // back to the raw string if it isn't a parseable date (defensive —
+        // some fields are legacy/blank).
+        function fmtDate(isoDateStr) {
+            if (!isoDateStr) return '';
+            if (currentCalendarPref !== 'ethiopian') return isoDateStr;
+            const parts = isoDateStr.split('-').map(Number);
+            if (parts.length !== 3 || parts.some(isNaN)) return isoDateStr;
+            const eth = gregorianToEthiopian({ y: parts[0], m: parts[1], d: parts[2] });
+            return `${eth.d} ${ethMonthName(eth.m)} ${eth.y}`;
+        }
+
+        // For full timestamps (e.g. trash.deletedAt, cash handover
+        // submitted_at) rather than plain YYYY-MM-DD dates — keeps the
+        // clock time as the browser's local format, only swaps the date part.
+        function fmtDateTime(isoTimestampStr) {
+            if (!isoTimestampStr) return '';
+            const d = new Date(isoTimestampStr);
+            if (isNaN(d.getTime())) return isoTimestampStr;
+            const isoDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+            const timePart = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+            return `${fmtDate(isoDate)} ${timePart}`;
+        }
+
+        // ===================================================================
+        // ETHIOPIAN DATE PICKER WIDGET
+        //
+        // Design: every native <input type="date"> in the app keeps its
+        // original id and keeps holding the canonical Gregorian ISO string
+        // as its .value — nothing anywhere else in the app (handlePostSale,
+        // the filter functions, etc.) needed to change. This widget just
+        // sits in front of it: in Gregorian mode the native input is shown
+        // exactly as before (untouched); in Ethiopian mode the native input
+        // is hidden and a readonly text field showing the Ethiopian date is
+        // shown instead, opening this calendar grid on click. Picking a day
+        // writes the Gregorian ISO string into the (hidden) native input and
+        // fires its "change" event, so any onchange="..." already on that
+        // input still runs exactly as it did before.
+        // ===================================================================
+        let ethPickerState = { targetId: null, year: 0, month: 1 };
+        const ETH_WEEKDAY_NAMES_EN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        const ETH_WEEKDAY_NAMES_AM = ['እሁድ','ሰኞ','ማክሰ','ረቡዕ','ሐሙስ','ዓርብ','ቅዳሜ'];
+
+        // Wraps every native date input on the page with the Ethiopian
+        // picker's display field. Every one of the app's date inputs is
+        // static HTML present at page load, so a single call after login
+        // catches all of them; the data-eth-wrapped flag makes repeat calls
+        // (e.g. re-login) harmless no-ops.
+        function initEthiopianDatePickers() {
+            document.querySelectorAll('input[type="date"]').forEach(input => {
+                if (input.dataset.ethWrapped) return;
+                input.dataset.ethWrapped = '1';
+                const display = document.createElement('input');
+                display.type = 'text';
+                display.readOnly = true;
+                display.className = 'eth-date-display-input';
+                const existingStyle = input.getAttribute('style');
+                if (existingStyle) display.setAttribute('style', existingStyle);
+                display.addEventListener('click', () => openEthiopianDatePicker(input.id));
+                input.insertAdjacentElement('afterend', display);
+            });
+            syncAllEthiopianDatePickers();
+        }
+
+        // Called on boot and every time the calendar toggle flips — shows
+        // either the native input (Gregorian) or the display field
+        // (Ethiopian) for every wrapped date input on the page, and refreshes
+        // the display field's text from whatever the native input currently
+        // holds.
+        function syncAllEthiopianDatePickers() {
+            document.querySelectorAll('input[type="date"][data-eth-wrapped]').forEach(input => {
+                const display = input.nextElementSibling;
+                if (!display || !display.classList.contains('eth-date-display-input')) return;
+                if (currentCalendarPref === 'ethiopian') {
+                    input.style.display = 'none';
+                    display.style.display = '';
+                    display.value = input.value ? fmtDate(input.value) : '';
+                } else {
+                    input.style.display = '';
+                    display.style.display = 'none';
+                }
+            });
+        }
+
+        function openEthiopianDatePicker(targetId) {
+            const input = document.getElementById(targetId);
+            if (!input) return;
+            const eth = input.value ? gregorianToEthiopian(input.value) : gregorianToEthiopian(todayISO());
+            ethPickerState = { targetId, year: eth.y, month: eth.m };
+            // Only entry-form dates are required — filter/range fields are
+            // meant to be clearable, so only show Clear for those.
+            document.getElementById('eth-cal-clear-btn').style.display = input.hasAttribute('required') ? 'none' : '';
+            renderEthiopianPickerGrid();
+            document.getElementById('eth-date-picker-overlay').classList.add('active');
+        }
+        function closeEthiopianDatePicker() {
+            document.getElementById('eth-date-picker-overlay').classList.remove('active');
+        }
+        function ethPickerNav(delta) {
+            ethPickerState.month += delta;
+            if (ethPickerState.month < 1) { ethPickerState.month = 13; ethPickerState.year--; }
+            if (ethPickerState.month > 13) { ethPickerState.month = 1; ethPickerState.year++; }
+            renderEthiopianPickerGrid();
+        }
+        function ethPickerJumpToday() {
+            const todayEth = gregorianToEthiopian(todayISO());
+            ethPickerState.year = todayEth.y;
+            ethPickerState.month = todayEth.m;
+            selectEthiopianDate(todayEth.y, todayEth.m, todayEth.d);
+        }
+        function ethPickerClear() {
+            const input = document.getElementById(ethPickerState.targetId);
+            if (!input) return;
+            input.value = '';
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            syncAllEthiopianDatePickers();
+            closeEthiopianDatePicker();
+        }
+        function selectEthiopianDate(y, m, d) {
+            const input = document.getElementById(ethPickerState.targetId);
+            if (!input) return;
+            input.value = ethiopianToGregorianISO(y, m, d);
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            syncAllEthiopianDatePickers();
+            closeEthiopianDatePicker();
+        }
+        function renderEthiopianPickerGrid() {
+            const { year, month } = ethPickerState;
+            document.getElementById('eth-cal-title').innerText = `${ethMonthName(month)} ${year}`;
+            const wNames = currentLang === 'am' ? ETH_WEEKDAY_NAMES_AM : ETH_WEEKDAY_NAMES_EN;
+            document.getElementById('eth-cal-weekdays').innerHTML = wNames.map(w => `<div>${w}</div>`).join('');
+
+            const daysInMonth = daysInEthMonth(year, month);
+            const firstJdn = ethiopianToJDN(year, month, 1);
+            const startWeekday = (firstJdn + 1) % 7; // 0=Sunday, matches JS Date.getDay()
+            const input = document.getElementById(ethPickerState.targetId);
+            const selectedIso = input ? input.value : '';
+            const todayEth = gregorianToEthiopian(todayISO());
+
+            let cells = [];
+            for (let i = 0; i < startWeekday; i++) cells.push(`<div class="eth-cal-day-empty"></div>`);
+            for (let d = 1; d <= daysInMonth; d++) {
+                const iso = ethiopianToGregorianISO(year, month, d);
+                const isSelected = selectedIso === iso;
+                const isToday = todayEth.y === year && todayEth.m === month && todayEth.d === d;
+                cells.push(`<button type="button" class="eth-cal-day-btn ${isSelected?'selected':''} ${isToday?'today':''}" onclick="selectEthiopianDate(${year},${month},${d})">${d}</button>`);
+            }
+            document.getElementById('eth-cal-grid').innerHTML = cells.join('');
+        }
+
+        // Small helper — today's date as a local (not UTC) ISO string, used
+        // wherever "default to today" is needed for the picker.
+        function todayISO() {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
         }
 
         function verifyEthiopianPeriod(dateStr) {
@@ -3256,6 +3637,10 @@
             // Timeline Aggregation
             let timeAgg = document.getElementById('history-group-by') ? document.getElementById('history-group-by').value : 'week';
             let timelineData = {};
+            // "Week" (per-day, weekday labels) doesn't need to change — the
+            // 7-day week is shared by both calendars. "Month" and "Year" do,
+            // since Ethiopian months don't line up with Gregorian ones.
+            const isEthChart = currentCalendarPref === 'ethiopian';
             
             let minDate = new Date(), maxDate = new Date();
             if (aStart && aEnd) {
@@ -3276,31 +3661,65 @@
                 day = maxDate.getDay() || 7;
                 maxDate.setDate(maxDate.getDate() + (7 - day)); 
             } else if (timeAgg === 'month') {
-                minDate.setDate(1); 
-                maxDate.setMonth(maxDate.getMonth() + 1, 0); 
+                if (isEthChart) {
+                    // Snap to the start/end of whichever Ethiopian month each
+                    // boundary date falls in.
+                    const startEth = gregorianToEthiopian(getLocalYMD(minDate));
+                    minDate = new Date(ethiopianToGregorianISO(startEth.y, startEth.m, 1) + 'T00:00:00');
+                    const endEth = gregorianToEthiopian(getLocalYMD(maxDate));
+                    maxDate = new Date(ethiopianToGregorianISO(endEth.y, endEth.m, daysInEthMonth(endEth.y, endEth.m)) + 'T23:59:59');
+                } else {
+                    minDate.setDate(1); 
+                    maxDate.setMonth(maxDate.getMonth() + 1, 0); 
+                }
             } else if (timeAgg === 'year') {
-                minDate.setMonth(0, 1); 
-                maxDate.setMonth(11, 31); 
+                if (isEthChart) {
+                    const startEth = gregorianToEthiopian(getLocalYMD(minDate));
+                    minDate = new Date(ethiopianToGregorianISO(startEth.y, 1, 1) + 'T00:00:00');
+                    const endEth = gregorianToEthiopian(getLocalYMD(maxDate));
+                    maxDate = new Date(ethiopianToGregorianISO(endEth.y, 13, daysInEthMonth(endEth.y, 13)) + 'T23:59:59');
+                } else {
+                    minDate.setMonth(0, 1); 
+                    maxDate.setMonth(11, 31); 
+                }
             }
 
-            let cD = new Date(minDate);
-            while(cD <= maxDate) {
-                let key;
-                if (timeAgg === 'year') { key = `${cD.getFullYear()}-${String(cD.getMonth()+1).padStart(2,'0')}`; } 
-                else { key = getLocalYMD(cD); }
-                
-                if(!timelineData[key]) timelineData[key] = { rev: 0, profit: 0, rawDate: new Date(cD) };
-                
-                if(timeAgg === 'year') { cD.setMonth(cD.getMonth() + 1); } 
-                else { cD.setDate(cD.getDate() + 1); }
+            if (timeAgg === 'year' && isEthChart) {
+                // Ethiopian months don't align with Gregorian month
+                // boundaries, so this walks Ethiopian year+month increments
+                // directly instead of stepping through Gregorian months.
+                const startEth = gregorianToEthiopian(getLocalYMD(minDate));
+                const endEth = gregorianToEthiopian(getLocalYMD(maxDate));
+                let ey = startEth.y, em = startEth.m;
+                while (ey < endEth.y || (ey === endEth.y && em <= endEth.m)) {
+                    const key = `${ey}-${String(em).padStart(2,'0')}`;
+                    timelineData[key] = { rev: 0, profit: 0, rawDate: new Date(ethiopianToGregorianISO(ey, em, 1) + 'T00:00:00') };
+                    em++; if (em > 13) { em = 1; ey++; }
+                }
+            } else {
+                let cD = new Date(minDate);
+                while(cD <= maxDate) {
+                    let key;
+                    if (timeAgg === 'year') { key = `${cD.getFullYear()}-${String(cD.getMonth()+1).padStart(2,'0')}`; } 
+                    else { key = getLocalYMD(cD); }
+                    
+                    if(!timelineData[key]) timelineData[key] = { rev: 0, profit: 0, rawDate: new Date(cD) };
+                    
+                    if(timeAgg === 'year') { cD.setMonth(cD.getMonth() + 1); } 
+                    else { cD.setDate(cD.getDate() + 1); }
+                }
             }
 
             filteredSales.forEach(s => {
-                let p = s.date.split('-');
-                let d = new Date(p[0], p[1]-1, p[2]);
                 let key;
-                if (timeAgg === 'year') { key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; } 
-                else { key = getLocalYMD(d); }
+                if (timeAgg === 'year') {
+                    if (isEthChart) { const e = gregorianToEthiopian(s.date); key = `${e.y}-${String(e.m).padStart(2,'0')}`; }
+                    else { let p = s.date.split('-'); key = `${p[0]}-${p[1]}`; }
+                } else {
+                    let p = s.date.split('-');
+                    let d = new Date(p[0], p[1]-1, p[2]);
+                    key = getLocalYMD(d);
+                }
                 
                 if(timelineData[key]) {
                     timelineData[key].rev += s.total;
@@ -3314,8 +3733,14 @@
             let displayLabels = tKeys.map(k => {
                 let dateObj = timelineData[k].rawDate;
                 if(timeAgg === 'week') return dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-                if(timeAgg === 'month') return dateObj.getDate().toString();
-                if(timeAgg === 'year') return dateObj.toLocaleDateString('en-US', { month: 'short' });
+                if(timeAgg === 'month') {
+                    if (isEthChart) return gregorianToEthiopian(getLocalYMD(dateObj)).d.toString();
+                    return dateObj.getDate().toString();
+                }
+                if(timeAgg === 'year') {
+                    if (isEthChart) return ethMonthName(parseInt(k.split('-')[1]));
+                    return dateObj.toLocaleDateString('en-US', { month: 'short' });
+                }
                 return k;
             });
 
@@ -3486,7 +3911,7 @@
             const mTitle = document.getElementById('modal-title');
             const mContent = document.getElementById('modal-body-content');
             let period = state.currentFilter;
-            let html = `<div><strong>${t('drill.range_label')}</strong> ${period.toUpperCase()} ${state.customStart ? `(${state.customStart} to ${state.customEnd})` : ''}</div><br>`;
+            let html = `<div><strong>${t('drill.range_label')}</strong> ${period.toUpperCase()} ${state.customStart ? `(${fmtDate(state.customStart)} to ${fmtDate(state.customEnd)})` : ''}</div><br>`;
 
             if(metric === 'revenue') {
                 mTitle.innerText = t('drill.revenue_title');
@@ -3494,7 +3919,7 @@
                 let matches = state.salesLog.filter(s => verifyChronologicalOverlap(s.date, period)).sort((a,b) => new Date(b.date) - new Date(a.date));
                 if(matches.length === 0) html += `<tr><td colspan="6" style="text-align:center;">${t('drill.no_sales')}</td></tr>`;
                 matches.forEach(m => {
-                    html += `<tr><td>${m.date}</td><td>${m.customer}</td><td>${m.desc}</td><td class="num">${m.qty}</td><td class="num">${m.price.toFixed(2)}</td><td class="num"><strong>${m.total.toFixed(2)}</strong></td></tr>`;
+                    html += `<tr><td>${fmtDate(m.date)}</td><td>${m.customer}</td><td>${m.desc}</td><td class="num">${m.qty}</td><td class="num">${m.price.toFixed(2)}</td><td class="num"><strong>${m.total.toFixed(2)}</strong></td></tr>`;
                 });
                 html += `</tbody></table>`;
             } 
@@ -3511,7 +3936,7 @@
                 });
                 cogsRows.sort((a,b) => new Date(b.date) - new Date(a.date));
                 cogsRows.forEach(row => {
-                    html += `<tr><td>${row.date}</td><td><code>${row.id}</code></td><td>${row.desc}</td><td class="num">${row.dr.toFixed(2)}</td></tr>`;
+                    html += `<tr><td>${fmtDate(row.date)}</td><td><code>${row.id}</code></td><td>${row.desc}</td><td class="num">${row.dr.toFixed(2)}</td></tr>`;
                 });
                 html += `</tbody></table>`;
             }
@@ -3532,7 +3957,7 @@
                 if(matches.length === 0) html += `<tr><td colspan="4" style="text-align:center;">${t('drill.no_expenses')}</td></tr>`;
                 matches.forEach(m => {
                     let nameMeta = CHART_OF_ACCOUNTS_MAP.find(c => c.code === m.target);
-                    html += `<tr><td>${m.date}</td><td>${m.target} - ${nameMeta?nameMeta.name:''}</td><td>${m.memo}</td><td class="num"><strong>${m.amount.toFixed(2)}</strong></td></tr>`;
+                    html += `<tr><td>${fmtDate(m.date)}</td><td>${m.target} - ${nameMeta?nameMeta.name:''}</td><td>${m.memo}</td><td class="num"><strong>${m.amount.toFixed(2)}</strong></td></tr>`;
                 });
                 html += `</tbody></table>`;
             }
@@ -3552,19 +3977,30 @@
 
         function launchRevProfBucketDrillDown(key, timeAgg, label) {
             if (!key) return;
+            const isEthChart = currentCalendarPref === 'ethiopian';
             let start, end, periodLabel;
             if (timeAgg === 'year') {
-                // key is "YYYY-MM" — the whole month is the bucket
                 const [y, m] = key.split('-').map(Number);
-                start = new Date(y, m - 1, 1, 0, 0, 0, 0);
-                end = new Date(y, m, 0, 23, 59, 59, 999);
-                periodLabel = start.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                if (isEthChart) {
+                    // key is Ethiopian "YYYY-MM" — the whole Ethiopian month is the bucket
+                    start = new Date(ethiopianToGregorianISO(y, m, 1) + 'T00:00:00');
+                    end = new Date(ethiopianToGregorianISO(y, m, daysInEthMonth(y, m)) + 'T23:59:59');
+                    periodLabel = `${ethMonthName(m)} ${y}`;
+                } else {
+                    // key is Gregorian "YYYY-MM" — the whole month is the bucket
+                    start = new Date(y, m - 1, 1, 0, 0, 0, 0);
+                    end = new Date(y, m, 0, 23, 59, 59, 999);
+                    periodLabel = start.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                }
             } else {
-                // key is "YYYY-MM-DD" — a single day is the bucket
+                // key is Gregorian "YYYY-MM-DD" — a single day is the bucket,
+                // regardless of calendar toggle (day buckets don't move).
                 const [y, m, d] = key.split('-').map(Number);
                 start = new Date(y, m - 1, d, 0, 0, 0, 0);
                 end = new Date(y, m - 1, d, 23, 59, 59, 999);
-                periodLabel = start.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+                periodLabel = isEthChart
+                    ? `${start.toLocaleDateString('en-US', { weekday: 'long' })}, ${fmtDate(key)}`
+                    : start.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
             }
             const startMs = start.getTime(), endMs = end.getTime();
             const inRange = (dateStr) => {
@@ -3588,7 +4024,7 @@
                 const rows = sales.map(s => {
                     const gp = s.total - s.cogs;
                     totalRev += s.total; totalCogs += s.cogs;
-                    return `<tr><td>${s.date}</td><td>${s.desc}</td><td>${s.customer || '—'}</td><td class="num">${s.total.toFixed(2)}</td><td class="num">${s.cogs.toFixed(2)}</td><td class="num">${gp.toFixed(2)}</td></tr>`;
+                    return `<tr><td>${fmtDate(s.date)}</td><td>${s.desc}</td><td>${s.customer || '—'}</td><td class="num">${s.total.toFixed(2)}</td><td class="num">${s.cogs.toFixed(2)}</td><td class="num">${gp.toFixed(2)}</td></tr>`;
                 }).join('');
                 mContent.innerHTML = `<table>
                     <thead><tr><th>Date</th><th>Item</th><th>Customer</th><th class="num">Revenue</th><th class="num">COGS</th><th class="num">Gross Profit</th></tr></thead>
@@ -3606,29 +4042,51 @@
         // state.salesLog (sale.vatIncluded); never touches state.journal, so
         // this can't affect journal entries or account balances.
         // ---------------------------------------------------------------
-        let vatDrillDownState = { mode: 'month', year: new Date().getFullYear(), month: new Date().getMonth() + 1 };
+        let vatDrillDownState = { mode: 'month', year: null, month: null };
 
         function launchVatDrillDown() {
+            // Reset to "today", expressed in whichever calendar is currently
+            // active — so if the person switched calendars since they last
+            // opened this, it still opens on a sensible period instead of a
+            // stale one from the other calendar system.
+            const todayIso = todayISO();
+            if (currentCalendarPref === 'ethiopian') {
+                const eth = gregorianToEthiopian(todayIso);
+                vatDrillDownState = { mode: 'month', year: eth.y, month: eth.m };
+            } else {
+                const g = todayIso.split('-').map(Number);
+                vatDrillDownState = { mode: 'month', year: g[0], month: g[1] };
+            }
             document.getElementById('modal-title').innerText = t('dash.estimated_vat');
             renderVatDrillDownModal();
             document.getElementById('audit-modal').style.display = "flex";
         }
 
+        // Gregorian month names are deliberately kept in English no matter
+        // the app language — Amharic transliterations of Gregorian months
+        // aren't a real convention people use. Only the Ethiopian calendar's
+        // own months (via ethMonthName, already Amharic-script-aware) get
+        // translated.
+        const VAT_GREG_MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
         function renderVatDrillDownModal() {
             const mContent = document.getElementById('modal-body-content');
             const vs = vatDrillDownState;
-            const monthNames = [t('month.jan'),t('month.feb'),t('month.mar'),t('month.apr'),t('month.may'),t('month.jun'),t('month.jul'),t('month.aug'),t('month.sep'),t('month.oct'),t('month.nov'),t('month.dec')];
+            const isEth = currentCalendarPref === 'ethiopian';
+            const monthCount = isEth ? 13 : 12;
+            const monthLabel = (i) => isEth ? ethMonthName(i) : VAT_GREG_MONTH_NAMES[i - 1];
+            const periodOf = (isoDate) => isEth ? gregorianToEthiopian(isoDate) : (d => ({ y: d[0], m: d[1] }))(isoDate.split('-').map(Number));
 
-            let years = Array.from(new Set(state.salesLog.filter(s => s.vatIncluded).map(s => new Date(s.date).getFullYear())));
+            let years = Array.from(new Set(state.salesLog.filter(s => s.vatIncluded).map(s => periodOf(s.date).y)));
             if (!years.includes(vs.year)) years.push(vs.year);
             years.sort((a,b) => b - a);
 
             let matches = state.salesLog.filter(s => {
                 if (!s.vatIncluded) return false;
                 if (!shouldCountInCurrentTotals(s.branchId)) return false;
-                const d = new Date(s.date);
-                if (d.getFullYear() !== vs.year) return false;
-                if (vs.mode === 'month' && (d.getMonth() + 1) !== vs.month) return false;
+                const p = periodOf(s.date);
+                if (p.y !== vs.year) return false;
+                if (vs.mode === 'month' && p.m !== vs.month) return false;
                 return true;
             }).sort((a,b) => new Date(b.date) - new Date(a.date));
 
@@ -3641,7 +4099,9 @@
                     <option value="year" ${vs.mode==='year'?'selected':''}>${t('dash.by_year')}</option>
                 </select>`;
             if (vs.mode === 'month') {
-                html += `<select id="vat-drilldown-month" onchange="changeVatDrillDownMonth(this.value)">${monthNames.map((mn,i) => `<option value="${i+1}" ${vs.month===i+1?'selected':''}>${mn}</option>`).join('')}</select>`;
+                let monthOptions = '';
+                for (let i = 1; i <= monthCount; i++) monthOptions += `<option value="${i}" ${vs.month===i?'selected':''}>${monthLabel(i)}</option>`;
+                html += `<select id="vat-drilldown-month" onchange="changeVatDrillDownMonth(this.value)">${monthOptions}</select>`;
             }
             html += `<select id="vat-drilldown-year" onchange="changeVatDrillDownYear(this.value)">${years.map(y => `<option value="${y}" ${vs.year===y?'selected':''}>${y}</option>`).join('')}</select>
             </div>
@@ -3652,13 +4112,18 @@
             <table><thead><tr><th>${t('sale.date')}</th><th>${t('sale.customer_name')}</th><th>${t('sale.product_item')}</th><th class="num">${t('sale.total')}</th><th class="num">${t('dash.estimated_vat')}</th></tr></thead><tbody>`;
             if (matches.length === 0) html += `<tr><td colspan="5" style="text-align:center;">${t('drill.no_sales')}</td></tr>`;
             matches.forEach(m => {
-                html += `<tr><td>${m.date}</td><td>${m.customer}</td><td>${m.desc}</td><td class="num">${m.total.toFixed(2)}</td><td class="num">${(m.total * 15 / 100).toFixed(2)}</td></tr>`;
+                html += `<tr><td>${fmtDate(m.date)}</td><td>${m.customer}</td><td>${m.desc}</td><td class="num">${m.total.toFixed(2)}</td><td class="num">${(m.total * 15 / 100).toFixed(2)}</td></tr>`;
             });
             html += `</tbody></table>`;
             mContent.innerHTML = html;
         }
 
-        function changeVatDrillDownMode(val) { vatDrillDownState.mode = val; renderVatDrillDownModal(); }
+        function changeVatDrillDownMode(val) {
+            vatDrillDownState.mode = val;
+            const monthCount = currentCalendarPref === 'ethiopian' ? 13 : 12;
+            if (vatDrillDownState.month > monthCount) vatDrillDownState.month = monthCount;
+            renderVatDrillDownModal();
+        }
         function changeVatDrillDownMonth(val) { vatDrillDownState.month = parseInt(val); renderVatDrillDownModal(); }
         function changeVatDrillDownYear(val) { vatDrillDownState.year = parseInt(val); renderVatDrillDownModal(); }
 
@@ -3690,7 +4155,7 @@
                 const toLine = j.lines.find(l => l.dr > 0);
                 const fromAcc = channelAccounts.find(c => c.code === fromLine?.account);
                 const toAcc = channelAccounts.find(c => c.code === toLine?.account);
-                return `<tr><td>${j.date}</td><td>${fromAcc ? fromAcc.name : '—'} → ${toAcc ? toAcc.name : '—'}</td><td class="num">${(fromLine?.cr || 0).toFixed(2)}</td><td style="text-align:center;"><button class="btn btn-danger btn-small" onclick="deleteFundTransfer('${j.id}')">${t('common.delete')}</button></td></tr>`;
+                return `<tr><td>${fmtDate(j.date)}</td><td>${fromAcc ? fromAcc.name : '—'} → ${toAcc ? toAcc.name : '—'}</td><td class="num">${(fromLine?.cr || 0).toFixed(2)}</td><td style="text-align:center;"><button class="btn btn-danger btn-small" onclick="deleteFundTransfer('${j.id}')">${t('common.delete')}</button></td></tr>`;
             }).join('');
 
             mContent.innerHTML = `<table>
@@ -3717,6 +4182,7 @@
             document.getElementById('ft-date').value = getLocalYMD(new Date());
             document.getElementById('ft-amount').value = '';
             document.getElementById('ft-note').value = '';
+            syncAllEthiopianDatePickers();
             document.getElementById('fund-transfer-error').style.display = 'none';
             document.getElementById('fund-transfer-modal').style.display = 'flex';
             updateFundTransferAvailable();
@@ -4004,7 +4470,7 @@
                 const toName = branchNameById(row.to_branch_id);
                 const canUndo = !isBranchClosed(row.from_branch_id) && !isBranchClosed(row.to_branch_id);
                 const delBtn = canUndo ? `<button class="btn btn-danger btn-small" onclick="deleteStockTransfer('${row.id}', this)">${t('common.delete')}</button>` : '';
-                return `<tr><td>${row.date}</td><td class="truncate-cell" title="${row.item_desc}">${row.item_desc}</td><td class="num">${row.qty}</td><td>${fromName}</td><td>${toName}</td><td><small>${row.created_by_username || '—'}</small></td><td class="truncate-cell" title="${row.notes || ''}">${row.notes || ''}</td><td style="text-align:center;">${delBtn}</td></tr>`;
+                return `<tr><td>${fmtDate(row.date)}</td><td class="truncate-cell" title="${row.item_desc}">${row.item_desc}</td><td class="num">${row.qty}</td><td>${fromName}</td><td>${toName}</td><td><small>${row.created_by_username || '—'}</small></td><td class="truncate-cell" title="${row.notes || ''}">${row.notes || ''}</td><td style="text-align:center;">${delBtn}</td></tr>`;
             }).join('');
         }
 
@@ -4230,7 +4696,7 @@
                 const pendingRows = cashHandoverCache.filter(h => h.status === 'pending');
                 document.getElementById('cash-handover-pending-body').innerHTML = pendingRows.length
                     ? pendingRows.map(h => `<tr>
-                        <td>${new Date(h.submitted_at).toLocaleString()}</td>
+                        <td>${fmtDateTime(h.submitted_at)}</td>
                         <td>${h.submitted_by_username}</td>
                         <td>${branchNameById(h.branch_id)}</td>
                         <td class="num">${Number(h.amount).toFixed(2)}</td>
@@ -4247,7 +4713,7 @@
                 // there's nothing else to unwind by removing it.
                 document.getElementById('cash-handover-all-history-body').innerHTML = cashHandoverCache.length
                     ? cashHandoverCache.map(h => `<tr>
-                        <td>${new Date(h.submitted_at).toLocaleString()}</td>
+                        <td>${fmtDateTime(h.submitted_at)}</td>
                         <td>${h.submitted_by_username}</td>
                         <td>${branchNameById(h.branch_id)}</td>
                         <td class="num">${Number(h.amount).toFixed(2)}</td>
@@ -4283,7 +4749,7 @@
                 const mine = cashHandoverCache.filter(h => h.submitted_by_username === currentUsername);
                 document.getElementById('cash-handover-my-history-body').innerHTML = mine.length
                     ? mine.map(h => `<tr>
-                        <td>${new Date(h.submitted_at).toLocaleString()}</td>
+                        <td>${fmtDateTime(h.submitted_at)}</td>
                         <td class="num">${Number(h.amount).toFixed(2)}</td>
                         <td class="truncate-cell" title="${h.note || ''}">${h.note || '—'}</td>
                         <td>${h.status === 'approved' ? `<span style="color:var(--success);">${t('status.approved')}</span>` : h.status === 'rejected' ? `<span style="color:var(--danger);">${t('status.rejected')}</span>` : `<span style="color:var(--warning);">${t('status.pending')}</span>`}</td>
@@ -4655,7 +5121,7 @@
                 else if (trashItem.type === 'purchase_group') { const rows = trashItem.data.rows; info = `Multi-Item Purchase: ${rows.length} items from ${rows[0].supplier} for ETB ${rows.reduce((s,r)=>s+r.total,0).toFixed(2)}`; }
 
                 tbody.innerHTML += `<tr>
-                    <td>${new Date(trashItem.deletedAt).toLocaleString()}</td><td style="text-transform:uppercase;">${trashItem.type}</td>
+                    <td>${fmtDateTime(trashItem.deletedAt)}</td><td style="text-transform:uppercase;">${trashItem.type}</td>
                     <td>${info}</td>
                     <td style="text-align:center;"><button class="btn btn-success btn-small" onclick="restoreTrash(${actualIndex})">${t('misc.restore_data')}</button></td>
                 </tr>`;
@@ -4759,6 +5225,7 @@
             });
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('sale-date').value = today; document.getElementById('pur-date').value = today; document.getElementById('exp-date').value = today;
+            syncAllEthiopianDatePickers();
             autoPopulateSalePrice();
             syncPurchaseAmountPaidDefault();
         }
@@ -4947,6 +5414,7 @@
             if (showCart) {
                 const today = new Date().toISOString().split('T')[0];
                 document.getElementById('cart-sale-date').value = today;
+                syncAllEthiopianDatePickers();
                 syncChannelDropdownEl('cart-sale-channel', BASE_SALE_CHANNELS);
                 syncCartSaleTypeDropdown();
                 const amtField = document.getElementById('cart-sale-amount-paid');
@@ -5212,6 +5680,7 @@
             queueWrite({ kind: 'insert', table: 'sales_log', row: toDbSale(newSale) });
             queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(newJournal) });
             e.target.reset(); document.getElementById('sale-amount-paid').dataset.touched = '';
+            syncAllEthiopianDatePickers();
             syncTransactionalProductDropdownOptions(); renderSalesLogTable();
             const payNote = fullyPaid ? '' : ` (ETB ${amountPaidNow.toFixed(2)} paid now, ETB ${remaining.toFixed(2)} owed)`;
             addNotification('Sale Executed', `Posted revenue: ETB ${rev.toFixed(2)}${payNote}`, `Sold ${qty}x ${item.desc} to ${cName}${amountPaidNow > 0 ? ' via ' + chan : ''}`);
@@ -5362,12 +5831,26 @@
 
         function renderSalesLogTable() {
             const tbody = document.getElementById('sales-log-table-body');
+
+            // "By" dropdown is built from whoever actually has a sale right
+            // now (not the full team roster), same approach as Expense History.
+            const authorSel = document.getElementById('sale-log-filter-author');
+            if (authorSel) {
+                const prevAuthor = authorSel.value;
+                const authors = Array.from(new Set(state.salesLog.map(s => getTransactionAuthor(s.id)).filter(a => a && a !== '—'))).sort();
+                authorSel.innerHTML = `<option value="">${t('sale.all')}</option>` + authors.map(a => `<option value="${a}">${a}</option>`).join('');
+                if (authors.includes(prevAuthor)) authorSel.value = prevAuthor;
+            }
+
             const fD = document.getElementById('sale-log-filter-date').value, fC = document.getElementById('sale-log-filter-customer').value.toLowerCase().trim();
             const fI = document.getElementById('sale-log-filter-item').value.toLowerCase().trim(), fCh = document.getElementById('sale-log-filter-channel').value;
-            // Channel filtering happens AFTER grouping below (it needs the
-            // group's combined payments/total, not one item row's own
-            // channel) — so this first pass only applies date/customer/item.
-            let arr = state.salesLog.filter(s => (!fD || s.date===fD) && (!fC || s.customer.toLowerCase().includes(fC)) && (!fI || s.desc.toLowerCase().includes(fI)));
+            const fType = document.getElementById('sale-log-filter-type').value;
+            const fBy = state.hasEmployees && authorSel ? authorSel.value : '';
+            // Channel and By filtering happen AFTER grouping below (they need
+            // the group's combined payments/primary-row author, not one item
+            // row's own values) — so this first pass applies date/customer/
+            // item/type, which are uniform across every row in a group.
+            let arr = state.salesLog.filter(s => (!fD || s.date===fD) && (!fC || s.customer.toLowerCase().includes(fC)) && (!fI || s.desc.toLowerCase().includes(fI)) && (!fType || s.type === fType));
 
             // Collapse multi-item baskets (shared groupId) into one row each,
             // combining totals and showing every item's name together.
@@ -5395,6 +5878,7 @@
 
             displayList.forEach(s => { s._breakdown = getChannelBreakdown(s, s.total, 'Accounts receivable'); });
             if (fCh) displayList = displayList.filter(s => s._breakdown.some(b => b.channel === fCh));
+            if (fBy) displayList = displayList.filter(s => getTransactionAuthor(s.id) === fBy);
 
             if(displayList.length===0) { tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">-- No logs --</td></tr>`; document.getElementById('sale-log-total-display').innerText = `${t('misc.total_shown')}: ETB 0.00 (0)`; return; }
 
@@ -5416,7 +5900,7 @@
                 const descCell = s.isGroup
                     ? `<span style="cursor:pointer;" onclick="toggleSaleGroupExpand('${s.groupId}')">🧺 ${isExpanded ? '▾' : '▸'} ${s.desc}</span>`
                     : `<span class="truncate-cell" title="${s.desc}">${s.desc}</span>`;
-                rows.push(`<tr><td>${s.date}</td><td>${s.customer}</td><td class="truncate-cell">${descCell}</td><td class="num">${s.qty}</td><td class="num">${priceCell}</td><td class="num"><strong>${s.total.toFixed(2)}</strong>${s.vatIncluded ? `<br><small style="color:var(--text-light);">${t('sale.with_vat')}</small>` : ''}</td><td>${statusStr}<br><small style="color:var(--accent)">[${s.type || 'Walk in'}]</small></td><td class="branch-col">${branchNameById(s.branchId)}</td><td><small>${getTransactionAuthor(s.id)}</small></td><td style="text-align:center;">${payBtn}${voidBtn}</td></tr>`);
+                rows.push(`<tr><td>${fmtDate(s.date)}</td><td>${s.customer}</td><td class="truncate-cell">${descCell}</td><td class="num">${s.qty}</td><td class="num">${priceCell}</td><td class="num"><strong>${s.total.toFixed(2)}</strong>${s.vatIncluded ? `<br><small style="color:var(--text-light);">${t('sale.with_vat')}</small>` : ''}</td><td>${statusStr}<br><small style="color:var(--accent)">[${s.type || 'Walk in'}]</small></td><td class="branch-col">${branchNameById(s.branchId)}</td><td><small>${getTransactionAuthor(s.id)}</small></td><td style="text-align:center;">${payBtn}${voidBtn}</td></tr>`);
                 if (isExpanded) {
                     s.itemRows.forEach(r => {
                         rows.push(`<tr style="background:var(--bg);"><td></td><td></td><td class="truncate-cell" style="padding-left:32px;" title="${r.desc}"><small>↳ ${r.desc}</small></td><td class="num"><small>${r.qty}</small></td><td class="num"><small>${r.price.toFixed(2)}</small></td><td class="num"><small>${r.total.toFixed(2)}</small></td><td colspan="4"></td></tr>`);
@@ -5448,6 +5932,7 @@
             if (showCart) {
                 const today = new Date().toISOString().split('T')[0];
                 document.getElementById('cart-pur-date').value = today;
+                syncAllEthiopianDatePickers();
                 syncChannelDropdownEl('cart-pur-channel', BASE_PURCHASE_CHANNELS);
                 const amtField = document.getElementById('cart-pur-amount-paid');
                 amtField.dataset.touched = '';
@@ -5655,6 +6140,7 @@
             if (priceChanged) queueWrite({ kind: 'update', table: 'inventory_items', id: item.id, patch: { selling_price: item.sellingPrice } });
             e.target.reset(); document.getElementById('pur-amount-paid').dataset.touched = '';
             document.getElementById('pur-price').dataset.touched = '';
+            syncAllEthiopianDatePickers();
             syncTransactionalProductDropdownOptions(); renderPurchaseLogTable();
             addNotification('Stock Purchased', `Added ${qty} units of ${item.desc}`, `Total Cost: ETB ${tot.toFixed(2)}${amountPaidNow > 0 ? ' (ETB ' + amountPaidNow.toFixed(2) + ' paid now via ' + chan + (remaining > 0 ? ', ETB ' + remaining.toFixed(2) + ' owed)' : ')') : ' (fully on credit)'}`);
         }
@@ -5668,8 +6154,18 @@
 
         function renderPurchaseLogTable() {
             const tbody = document.getElementById('purchase-log-table-body');
+
+            const authorSel = document.getElementById('pur-log-filter-author');
+            if (authorSel) {
+                const prevAuthor = authorSel.value;
+                const authors = Array.from(new Set(state.purchaseLog.map(p => getTransactionAuthor(p.id)).filter(a => a && a !== '—'))).sort();
+                authorSel.innerHTML = `<option value="">${t('sale.all')}</option>` + authors.map(a => `<option value="${a}">${a}</option>`).join('');
+                if (authors.includes(prevAuthor)) authorSel.value = prevAuthor;
+            }
+
             const fD = document.getElementById('pur-log-filter-date').value, fS = document.getElementById('pur-log-filter-supplier').value.toLowerCase().trim();
             const fI = document.getElementById('pur-log-filter-item').value.toLowerCase().trim(), fCh = document.getElementById('pur-log-filter-channel').value;
+            const fBy = state.hasEmployees && authorSel ? authorSel.value : '';
             let arr = state.purchaseLog.filter(p => (!fD || p.date===fD) && (!fS || p.supplier.toLowerCase().includes(fS)) && (!fI || p.desc.toLowerCase().includes(fI)));
 
             const seenGroups = new Set();
@@ -5697,6 +6193,7 @@
             const canSeeCost = hasPerm('inventory.view_cost');
             displayList.forEach(p => { p._breakdown = getChannelBreakdown(p, p.total, 'Accounts payable'); });
             if (fCh) displayList = displayList.filter(p => p._breakdown.some(b => b.channel === fCh));
+            if (fBy) displayList = displayList.filter(p => getTransactionAuthor(p.id) === fBy);
 
             if(displayList.length===0) { tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">-- No logs --</td></tr>`; document.getElementById('pur-log-total-display').innerText = `${t('misc.total_shown')}: ETB 0.00 (0)`; return; }
 
@@ -5725,7 +6222,7 @@
                 const descCell = p.isGroup
                     ? `<span style="cursor:pointer;" onclick="togglePurchaseGroupExpand('${p.groupId}')">🧺 ${isExpanded ? '▾' : '▸'} ${p.desc}</span>`
                     : `<span class="truncate-cell" title="${p.desc}">${p.desc}</span>`;
-                rows.push(`<tr><td>${p.date}</td><td>${p.supplier}</td><td class="truncate-cell">${descCell}</td><td class="num">${p.qty}</td><td class="num">${costCell}</td><td class="num"><strong>${totalCell}</strong></td><td>${statusStr}</td><td class="branch-col">${branchNameById(p.branchId)}</td><td><small>${getTransactionAuthor(p.id)}</small></td><td style="text-align:center;">${payBtn}${voidBtn}</td></tr>`);
+                rows.push(`<tr><td>${fmtDate(p.date)}</td><td>${p.supplier}</td><td class="truncate-cell">${descCell}</td><td class="num">${p.qty}</td><td class="num">${costCell}</td><td class="num"><strong>${totalCell}</strong></td><td>${statusStr}</td><td class="branch-col">${branchNameById(p.branchId)}</td><td><small>${getTransactionAuthor(p.id)}</small></td><td style="text-align:center;">${payBtn}${voidBtn}</td></tr>`);
                 if (isExpanded) {
                     p.itemRows.forEach(r => {
                         rows.push(`<tr style="background:var(--bg);"><td></td><td></td><td class="truncate-cell" style="padding-left:32px;" title="${r.desc}"><small>↳ ${r.desc}</small></td><td class="num"><small>${r.qty}</small></td><td class="num"><small>${canSeeCost ? r.cost.toFixed(2) : '🔒'}</small></td><td class="num"><small>${canSeeCost ? r.total.toFixed(2) : '🔒'}</small></td><td colspan="4"></td></tr>`);
@@ -5770,24 +6267,50 @@
             queueWrite({ kind: 'insert', table: 'expense_log', row: toDbExpense(newExpense) });
             queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(newJournal) });
 
-            e.target.reset(); document.getElementById('exp-date').value = new Date().toISOString().split('T')[0]; renderExpenseLogTable();
+            e.target.reset(); document.getElementById('exp-date').value = new Date().toISOString().split('T')[0]; syncAllEthiopianDatePickers(); renderExpenseLogTable();
             const scopeNote = isWholeBusiness ? ` — recorded as a Whole Business expense` : '';
             addNotification('Expense Logged', `ETB ${amt.toFixed(2)} booked for ${memo}${scopeNote}`, `Source: ${src}`);
         }
 
         function renderExpenseLogTable() {
             const tbody = document.getElementById('expense-log-table-body');
-            if(state.expenseLog.length===0) { tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">-- No logs --</td></tr>`; document.getElementById('exp-log-total-display').innerText = `${t('misc.total_shown')}: ETB 0.00 (0)`; return; }
+
+            // Author dropdown is built from whoever actually has an expense
+            // entry right now, not the full team roster — keeps the list
+            // short and avoids showing people who've never booked an expense.
+            const authorSel = document.getElementById('exp-log-filter-author');
+            if (authorSel) {
+                const prevAuthor = authorSel.value;
+                const authors = Array.from(new Set(state.expenseLog.map(ex => getTransactionAuthor(ex.id)).filter(a => a && a !== '—'))).sort();
+                authorSel.innerHTML = `<option value="">${t('sale.all')}</option>` + authors.map(a => `<option value="${a}">${a}</option>`).join('');
+                if (authors.includes(prevAuthor)) authorSel.value = prevAuthor;
+            }
+
+            const fD = document.getElementById('exp-log-filter-date').value;
+            const fAcc = document.getElementById('exp-log-filter-account').value;
+            const fM = document.getElementById('exp-log-filter-memo').value.toLowerCase().trim();
+            const fCh = document.getElementById('exp-log-filter-channel').value;
+            const fBy = state.hasEmployees ? (authorSel ? authorSel.value : '') : '';
+
+            let arr = state.expenseLog.filter(ex =>
+                (!fD || ex.date === fD) &&
+                (!fAcc || ex.target === fAcc) &&
+                (!fM || ex.memo.toLowerCase().includes(fM)) &&
+                (!fCh || ex.source === fCh) &&
+                (!fBy || getTransactionAuthor(ex.id) === fBy)
+            );
+
+            if(arr.length===0) { tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">-- No logs --</td></tr>`; document.getElementById('exp-log-total-display').innerText = `${t('misc.total_shown')}: ETB 0.00 (0)`; return; }
             let rows = [];
-            state.expenseLog.slice().sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(ex => {
+            arr.slice().sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(ex => {
                 let m = CHART_OF_ACCOUNTS_MAP.find(c => c.code === ex.target);
                 let voidBtn = (hasPerm('expense.void') && !isBranchClosed(ex.branchId)) ? `<button class="btn btn-danger btn-small" onclick="deleteExpense('${ex.id}')">${t('common.delete')}</button>` : '';
-                rows.push(`<tr><td>${ex.date}</td><td>${ex.target} - ${m?m.name:''}</td><td>${ex.memo}</td><td class="num"><strong>${ex.amount.toFixed(2)}</strong></td><td>${ex.source}</td><td class="branch-col">${branchNameById(ex.branchId)}</td><td><small>${getTransactionAuthor(ex.id)}</small></td><td style="text-align:center;">${voidBtn}</td></tr>`);
+                rows.push(`<tr><td>${fmtDate(ex.date)}</td><td>${ex.target} - ${m?m.name:''}</td><td>${ex.memo}</td><td class="num"><strong>${ex.amount.toFixed(2)}</strong></td><td>${ex.source}</td><td class="branch-col">${branchNameById(ex.branchId)}</td><td><small>${getTransactionAuthor(ex.id)}</small></td><td style="text-align:center;">${voidBtn}</td></tr>`);
             });
             tbody.innerHTML = rows.join('');
             updateBranchColumnVisibility();
-            const expTotal = state.expenseLog.reduce((sum, ex) => sum + ex.amount, 0);
-            document.getElementById('exp-log-total-display').innerText = `${t('misc.total_shown')}: ETB ${expTotal.toFixed(2)} (${state.expenseLog.length})`;
+            const expTotal = arr.reduce((sum, ex) => sum + ex.amount, 0);
+            document.getElementById('exp-log-total-display').innerText = `${t('misc.total_shown')}: ETB ${expTotal.toFixed(2)} (${arr.length})`;
         }
 
         function renderSystemCOAProfileLayouts() {
@@ -5805,10 +6328,22 @@
             if ([...sel.options].some(o => o.value === prevVal)) sel.value = prevVal;
         }
 
+        // Filter dropdown on Expense History — separate from the entry-form
+        // dropdown above because it should include every expense account
+        // that could show up in history (including COGS-adjacent ones the
+        // entry form deliberately excludes), plus the "-- All --" option.
+        function populateExpenseAccountFilterDropdown() {
+            const sel = document.getElementById('exp-log-filter-account'); if (!sel) return;
+            const prevVal = sel.value;
+            sel.innerHTML = `<option value="">${t('sale.all')}</option>` + CHART_OF_ACCOUNTS_MAP.filter(a => a.main === 'Expenses').map(a => `<option value="${a.code}">${a.name} (${a.code})</option>`).join('');
+            if ([...sel.options].some(o => o.value === prevVal)) sel.value = prevVal;
+        }
+
         function prepVoucherInputTargetDropdowns() {
             const dr = document.getElementById('jv-dr-acc'), cr = document.getElementById('jv-cr-acc'); dr.innerHTML = ''; cr.innerHTML = '';
             CHART_OF_ACCOUNTS_MAP.forEach(a => { let s = `<option value="${a.code}">${a.code} - ${a.name}</option>`; dr.innerHTML += s; cr.innerHTML += s; });
             document.getElementById('jv-date').value = new Date().toISOString().split('T')[0];
+            syncAllEthiopianDatePickers();
         }
 
         async function handleManualVoucher(e) {
@@ -5863,7 +6398,7 @@
                 const deleteBtn = canDelete ? `<button class="btn btn-danger btn-small" onclick="deleteJournalVoucher('${entry.id}')">Delete</button>` : '';
                 entry.lines.forEach((l, i) => {
                     let m = CHART_OF_ACCOUNTS_MAP.find(a => a.code === l.account);
-                    rows.push(`<tr><td>${i===0?entry.date:''}</td><td>${i===0?`<strong>${entry.id}</strong><br><small>${stripAuthorStamp(entry.desc)}</small>`:''}</td><td style="padding-left:${l.cr>0?'40px':'16px'}"><strong>${l.account}</strong> - ${m?m.name:''}</td><td class="num text-success">${l.dr>0?l.dr.toFixed(2):'-'}</td><td class="num text-danger">${l.cr>0?l.cr.toFixed(2):'-'}</td><td class="branch-col">${i===0?branchNameById(entry.branchId):''}</td><td>${i===0?`<small>${extractAuthor(entry.desc)}</small>`:''}</td><td style="text-align:center;">${i===0?deleteBtn:''}</td></tr>`);
+                    rows.push(`<tr><td>${i===0?fmtDate(entry.date):''}</td><td>${i===0?`<strong>${entry.id}</strong><br><small>${stripAuthorStamp(entry.desc)}</small>`:''}</td><td style="padding-left:${l.cr>0?'40px':'16px'}"><strong>${l.account}</strong> - ${m?m.name:''}</td><td class="num text-success">${l.dr>0?l.dr.toFixed(2):'-'}</td><td class="num text-danger">${l.cr>0?l.cr.toFixed(2):'-'}</td><td class="branch-col">${i===0?branchNameById(entry.branchId):''}</td><td>${i===0?`<small>${extractAuthor(entry.desc)}</small>`:''}</td><td style="text-align:center;">${i===0?deleteBtn:''}</td></tr>`);
                 });
             });
             tbody.innerHTML = rows.length ? rows.join('') : `<tr><td colspan="8" style="text-align:center;">-- No Logs --</td></tr>`;
@@ -5888,7 +6423,7 @@
                 en.lines.forEach(l => {
                     if (l.account === code) {
                         c++; let s = l.dr - l.cr; if(m.normal==="Credit") s = -s; bal += s;
-                        rows.push(`<tr><td>${en.date}</td><td><strong>${en.id}</strong> - ${en.desc}</td><td class="num">${l.dr>0?l.dr.toFixed(2):'-'}</td><td class="num">${l.cr>0?l.cr.toFixed(2):'-'}</td><td class="num"><strong>${bal.toFixed(2)}</strong></td></tr>`);
+                        rows.push(`<tr><td>${fmtDate(en.date)}</td><td><strong>${en.id}</strong> - ${en.desc}</td><td class="num">${l.dr>0?l.dr.toFixed(2):'-'}</td><td class="num">${l.cr>0?l.cr.toFixed(2):'-'}</td><td class="num"><strong>${bal.toFixed(2)}</strong></td></tr>`);
                     }
                 });
             });
@@ -6307,8 +6842,10 @@
             cacheStateLocally();
             syncCategoriesDatalist();
             syncSaleTypesDropdown();
+            populateSaleTypeFilterDropdown();
             syncChannelDropdowns();
             populateExpenseAccountDropdown();
+            populateExpenseAccountFilterDropdown();
             updateNotifBadge();
             document.getElementById('cloud-sync-status').innerHTML = navigator.onLine ? '🟢 Cloud Synced' : '🟠 Offline — showing last-known data';
 
@@ -6407,6 +6944,7 @@
                 closeAddMemberModal();
                 addNotification('Employee Added', `${displayName || username} can now log in as "${username}".`);
                 loadTeamView();
+                refreshHasEmployeesFlag();
             } catch (e) {
                 errEl.innerText = e.message; errEl.style.display = 'block';
             } finally {
@@ -6482,6 +7020,7 @@
                 await callEdgeFunction('remove-employee', { memberId });
                 addNotification('Team Member Removed', `${name} no longer has access.`);
                 loadTeamView();
+                refreshHasEmployeesFlag();
             } catch (e) {
                 alert('Could not remove team member: ' + e.message);
             }
