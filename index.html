@@ -88,6 +88,7 @@
         button.btn { background: var(--accent); color: white; border: none; padding: 10px 18px; border-radius: 7px; font-size: 13px; cursor: pointer; font-weight: 600; letter-spacing: 0.2px; box-shadow: var(--shadow-sm); transition: transform 0.12s, box-shadow 0.12s, opacity 0.12s; }
         button.btn:hover { opacity: 0.92; box-shadow: var(--shadow-md); }
         button.btn:active { transform: translateY(1px); }
+        button.btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; transform: none; }
         button.btn-danger { background: var(--danger); }
         button.btn-success { background: var(--success); }
         button.btn-warning { background: var(--warning); }
@@ -211,6 +212,17 @@
     <div id="impersonation-banner" style="display:none; position:fixed; top:0; left:0; width:100%; z-index:6000; background:var(--warning); color:white; padding:10px 16px; text-align:center; font-size:13px; font-weight:600; box-shadow:var(--shadow-md);">
         Viewing as <span id="impersonation-target-name"></span> —
         <button class="btn btn-small" style="margin-left:8px; background:var(--primary); color:white;" onclick="returnToOwnerAccount()" data-i18n="misc.return_to_owner">Return to my account</button>
+    </div>
+
+    <!-- Deliberately styled differently (danger red, not warning amber) from
+         the owner->employee banner above — this one means a NEBA platform
+         admin is signed in as this business's owner, not a same-business
+         role switch. There's no "return to my account" here: the admin has
+         no account inside this tenant to return to, they just end the
+         support session. -->
+    <div id="admin-impersonation-banner" style="display:none; position:fixed; top:0; left:0; width:100%; z-index:6000; background:var(--danger); color:white; padding:10px 16px; text-align:center; font-size:13px; font-weight:600; box-shadow:var(--shadow-md);">
+        🔐 NEBA platform admin session — viewing <span id="admin-impersonation-business-name"></span> as the owner —
+        <button class="btn btn-small" style="margin-left:8px; background:var(--primary); color:white;" onclick="endAdminImpersonationSession()">End Session</button>
     </div>
 
     <!-- ===================== SIGN IN / SIGN UP SCREEN ===================== -->
@@ -971,6 +983,7 @@
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                         <h2 style="border:none; margin-bottom:0;" data-i18n="team.branches">Branches</h2>
                         <div style="display:flex; align-items:center; gap:14px;">
+                            <span id="branch-usage-label" style="font-size:12px; color:var(--text-light);"></span>
                             <label class="check-label" style="font-size:13px; font-weight:normal;"><input type="checkbox" id="show-closed-branches" onchange="renderBranchesTable()"> <span data-i18n="team.show_closed">Show closed branches</span></label>
                             <button class="btn btn-success" id="btn-add-branch" onclick="openAddBranchModal()">+ <span data-i18n="team.add_branch">Add Branch</span></button>
                         </div>
@@ -984,7 +997,10 @@
                 <div class="card">
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                         <h2 style="border:none; margin-bottom:0;" data-i18n="team.members">Team Members</h2>
-                        <button class="btn btn-success" onclick="openAddMemberModal()">+ <span data-i18n="team.add_employee">Add Employee</span></button>
+                        <div style="display:flex; align-items:center; gap:14px;">
+                            <span id="employee-usage-label" style="font-size:12px; color:var(--text-light);"></span>
+                            <button class="btn btn-success" id="btn-add-employee" onclick="openAddMemberModal()">+ <span data-i18n="team.add_employee">Add Employee</span></button>
+                        </div>
                     </div>
                     <table style="margin-top:16px;">
                         <thead><tr><th data-i18n="team.name">Name</th><th data-i18n="team.username">Username</th><th data-i18n="team.role">Role</th><th data-i18n="team.branch_access">Branch Access</th></tr></thead>
@@ -1270,6 +1286,8 @@
         let currentTenantName = '';
         let currentBranchId = null;      // which branch this session is VIEWING — can be a real branch id, or 'all'
         let writeBranchId = null;        // which branch a specific write goes to — always a real branch, never 'all'
+        let currentPlanMaxBranches = null;   // null = unlimited (no plan, or plan has no cap)
+        let currentPlanMaxEmployees = null;  // null = unlimited (no plan, or plan has no cap)
         function syncWriteBranchId() {
             writeBranchId = (currentBranchId === 'all') ? writeBranchId : currentBranchId;
         }
@@ -2213,6 +2231,19 @@
                 return;
             }
 
+            // Plan limits are re-fetched on every boot (never cached) so a
+            // plan change made in the admin panel takes effect the next time
+            // this device loads the app — not just after a manual refresh of
+            // stale local data.
+            if (biz.subscription_plan_id) {
+                const { data: planRow } = await supabaseClient.from('subscription_plans').select('max_branches, max_employees').eq('id', biz.subscription_plan_id).maybeSingle();
+                currentPlanMaxBranches = planRow ? planRow.max_branches : null;
+                currentPlanMaxEmployees = planRow ? planRow.max_employees : null;
+            } else {
+                currentPlanMaxBranches = null;
+                currentPlanMaxEmployees = null;
+            }
+
             currentTenantName = biz.business_name;
             state.categories = biz.categories || [];
             state.customAccounts = biz.custom_accounts || [];
@@ -2440,6 +2471,7 @@
             document.getElementById('app-shell').style.display = 'flex';
             updateOfflineBanner();
             checkImpersonationBanner();
+            checkAdminImpersonationBanner();
 
             if (!loadedFromCache) {
                 document.getElementById('cloud-sync-status').innerHTML = '🟡 Loading your data...';
@@ -6622,9 +6654,41 @@
             renderTeamMembersTable(members || [], branchAccessByMember);
             renderRolesPermissionEditor();
             renderBranchesTable();
+            renderPlanUsageLabels();
 
             const addBranchBtn = document.getElementById('btn-add-branch');
             if (addBranchBtn) addBranchBtn.style.display = hasPerm('branches.manage') ? '' : 'none';
+        }
+
+        // Reflects the plan limits fetched at boot (currentPlanMaxBranches /
+        // currentPlanMaxEmployees). Purely a UX convenience — the actual
+        // enforcement lives in the database trigger, so this staying in sync
+        // isn't a security requirement, just a courtesy.
+        function renderPlanUsageLabels() {
+            const openBranches = teamBranchesCache.filter(b => !b.closed).length;
+            const employees = teamMembersCache.filter(m => !m.is_owner).length;
+
+            const branchLabel = document.getElementById('branch-usage-label');
+            if (branchLabel) {
+                branchLabel.innerText = currentPlanMaxBranches !== null ? `${openBranches} / ${currentPlanMaxBranches} branches` : '';
+            }
+            const branchBtn = document.getElementById('btn-add-branch');
+            if (branchBtn) {
+                const atCap = currentPlanMaxBranches !== null && openBranches >= currentPlanMaxBranches;
+                branchBtn.disabled = atCap;
+                branchBtn.title = atCap ? planLimitMessage('branch', currentPlanMaxBranches) : '';
+            }
+
+            const employeeLabel = document.getElementById('employee-usage-label');
+            if (employeeLabel) {
+                employeeLabel.innerText = currentPlanMaxEmployees !== null ? `${employees} / ${currentPlanMaxEmployees} employees` : '';
+            }
+            const employeeBtn = document.getElementById('btn-add-employee');
+            if (employeeBtn) {
+                const atCap = currentPlanMaxEmployees !== null && employees >= currentPlanMaxEmployees;
+                employeeBtn.disabled = atCap;
+                employeeBtn.title = atCap ? planLimitMessage('employee', currentPlanMaxEmployees) : '';
+            }
         }
 
         // --- BRANCHES ---
@@ -6711,7 +6775,22 @@
             await refreshBranchSwitcher();
         }
 
+        // Friendly text for both the pre-flight client check and, as a
+        // fallback, whatever the database trigger raises if this check is
+        // ever bypassed (e.g. a stale cached page). The trigger is the real
+        // enforcement — this is just so people don't hit a raw SQL error.
+        function planLimitMessage(kind, max) {
+            const noun = kind === 'branch' ? (max === 1 ? 'open branch' : 'open branches') : (max === 1 ? 'employee' : 'employees');
+            return `Your plan allows up to ${max} ${noun}. Ask your provider to upgrade the plan before adding another.`;
+        }
+
         async function reopenBranch(branchId, name) {
+            if (currentPlanMaxBranches !== null) {
+                const openCount = teamBranchesCache.filter(b => !b.closed).length;
+                if (openCount >= currentPlanMaxBranches) {
+                    return alert(planLimitMessage('branch', currentPlanMaxBranches));
+                }
+            }
             const { error } = await supabaseClient.from('branches').update({ closed: false }).eq('id', branchId);
             if (error) return alert(`Could not reopen "${name}": ${error.message}`);
             addNotification('Branch Reopened', `"${name}" is available again.`);
@@ -6736,6 +6815,15 @@
             const address = document.getElementById('new-branch-address').value.trim();
             const errEl = document.getElementById('add-branch-error');
             if (!name) { errEl.innerText = 'Please enter a branch name.'; errEl.style.display = 'block'; return; }
+
+            if (currentPlanMaxBranches !== null) {
+                const openCount = teamBranchesCache.filter(b => !b.closed).length;
+                if (openCount >= currentPlanMaxBranches) {
+                    errEl.innerText = planLimitMessage('branch', currentPlanMaxBranches);
+                    errEl.style.display = 'block';
+                    return;
+                }
+            }
 
             const { error } = await supabaseClient.from('branches').insert({ business_id: currentTenantId, name, address: address || null });
             if (error) { errEl.innerText = error.message; errEl.style.display = 'block'; return; }
@@ -6934,6 +7022,15 @@
             if (!username || !password || !roleId) { errEl.innerText = 'Username, password, and role are required.'; errEl.style.display = 'block'; return; }
             if (!branchIds.length) { errEl.innerText = 'Select at least one branch this person can work in.'; errEl.style.display = 'block'; return; }
 
+            if (currentPlanMaxEmployees !== null) {
+                const employeeCount = teamMembersCache.filter(m => !m.is_owner).length;
+                if (employeeCount >= currentPlanMaxEmployees) {
+                    errEl.innerText = planLimitMessage('employee', currentPlanMaxEmployees);
+                    errEl.style.display = 'block';
+                    return;
+                }
+            }
+
             const btn = document.getElementById('add-member-submit-btn');
             btn.disabled = true; btn.innerText = 'Adding...';
             try {
@@ -7092,6 +7189,57 @@
                 document.getElementById('impersonation-banner').style.display = 'block';
                 document.body.style.paddingTop = '42px';
             }
+        }
+
+        // --- PLATFORM ADMIN "LOGIN AS OWNER" (initiated from admin.html) ---
+        // admin.html hands off a one-time-use Supabase OTP token through
+        // localStorage (the only channel that reaches a brand-new tab on the
+        // same origin) and immediately opens this page in that new tab. We
+        // consume the token exactly once, then delete it regardless of
+        // whether it worked, so it can never be replayed or picked up by a
+        // second tab. It's also rejected outright if it's more than 60
+        // seconds old, in case a stale handoff was somehow left behind.
+        // The underlying OTP itself is single-use at the Supabase Auth level
+        // too, so this is defense in depth, not the only safeguard.
+        async function tryConsumeAdminImpersonationHandoff() {
+            let raw;
+            try { raw = localStorage.getItem('neba_admin_impersonation_handoff'); } catch (e) { return false; }
+            if (!raw) return false;
+            try { localStorage.removeItem('neba_admin_impersonation_handoff'); } catch (e) {}
+
+            let handoff;
+            try { handoff = JSON.parse(raw); } catch (e) { return false; }
+            if (!handoff || !handoff.hashedToken) return false;
+            if (!handoff.issuedAt || (Date.now() - handoff.issuedAt) > 60000) return false;
+
+            const { error } = await supabaseClient.auth.verifyOtp({ token_hash: handoff.hashedToken, type: 'magiclink' });
+            if (error) {
+                alert('This admin-initiated session link is no longer valid: ' + error.message);
+                return false;
+            }
+
+            sessionStorage.setItem('neba_admin_impersonation_active', '1');
+            sessionStorage.setItem('neba_admin_impersonation_business', handoff.businessName || '');
+            return true;
+        }
+
+        function checkAdminImpersonationBanner() {
+            if (sessionStorage.getItem('neba_admin_impersonation_active') !== '1') return;
+            document.getElementById('admin-impersonation-business-name').innerText = sessionStorage.getItem('neba_admin_impersonation_business') || 'this business';
+            document.getElementById('admin-impersonation-banner').style.display = 'block';
+            document.body.style.paddingTop = '42px';
+        }
+
+        // Ends the support session outright — there's no admin account inside
+        // this tenant to "return" to, so this is a full sign-out, not a
+        // session swap. The admin's own admin.html session lives in a
+        // separate browser tab under a separate auth storage key and is
+        // completely unaffected by this.
+        async function endAdminImpersonationSession() {
+            if (!confirm('End this admin support session?')) return;
+            sessionStorage.removeItem('neba_admin_impersonation_active');
+            sessionStorage.removeItem('neba_admin_impersonation_business');
+            await handleSignOut();
         }
 
         // --- ROLES & PERMISSIONS ---
@@ -7356,9 +7504,19 @@
         // (returning visitor), skip straight past the login screen.
         // ---------------------------------------------------------------
         (async function initAuthGate() {
+            // Check for an admin-initiated "login as owner" handoff first —
+            // it always wins over any pre-existing session on this tab
+            // (there normally isn't one anyway, since admin.html opens this
+            // page in a brand-new tab).
+            const tookOverViaAdmin = await tryConsumeAdminImpersonationHandoff();
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (session) {
                 await onLoginSuccess(session.user, false);
+            } else if (tookOverViaAdmin) {
+                // verifyOtp succeeded but getSession() raced ahead of the
+                // client persisting it — extremely unlikely, but don't leave
+                // the person stuck on a blank auth screen if it happens.
+                location.reload();
             }
         })();
 
