@@ -393,6 +393,19 @@
         if (!biz) return;
         const ownerLabel = biz.ownerUsername || biz.ownerEmail || 'the owner';
         if (!confirm(`Log in as ${ownerLabel}, owner of "${biz.businessName}"?\n\nThis opens a new tab with full access to their account, exactly as they see it. This action is logged.`)) return;
+
+        // Must open the tab synchronously, still inside this click handler —
+        // once we `await` anything, the browser no longer treats window.open
+        // as a direct result of the user's click and silently blocks it as a
+        // pop-up. Open a blank tab now, then point it at index.html once the
+        // token is ready.
+        const w = window.open('', '_blank');
+        if (!w) {
+            alert('Could not open a new tab — please allow pop-ups for this site and try again.');
+            return;
+        }
+        w.document.write('Preparing owner session…');
+
         try {
             const result = await callAdminFunction('admin-login-as-owner', { businessId });
             localStorage.setItem('neba_admin_impersonation_handoff', JSON.stringify({
@@ -400,9 +413,9 @@
                 businessName: biz.businessName,
                 issuedAt: Date.now(),
             }));
-            const w = window.open('index.html', '_blank');
-            if (!w) alert('Could not open a new tab — please allow pop-ups for this site and try again.');
+            w.location.href = 'index.html';
         } catch (err) {
+            w.close();
             alert('Could not start an owner session: ' + err.message);
         }
     }
