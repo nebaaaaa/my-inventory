@@ -7,6 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="business-types.config.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+Ethiopic:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -467,6 +468,8 @@
                     </div>
                 </div>
 
+                <div id="vertical-widgets" style="margin-bottom:16px;"></div>
+
                 <div class="grid-5">
                     <div class="metric-box revenue" onclick="launchDrillDown('revenue')"><div class="metric-title" data-i18n="acct.total_revenue">Total Revenue</div><div class="metric-value" id="m-revenue">ETB 0.00</div></div>
                     <div class="metric-box danger" onclick="launchDrillDown('cogs')"><div class="metric-title" data-i18n="acct.cogs">Cost of Goods Sold</div><div class="metric-value" id="m-cogs">ETB 0.00</div></div>
@@ -573,7 +576,7 @@
                     </div>
                     <table>
                         <thead>
-                            <tr><th data-i18n="inv.category">Category</th><th data-i18n="inv.item_spec">Item Specification / Name</th><th class="num" data-i18n="inv.qty_on_hand">Qty On Hand</th><th class="num" data-i18n="inv.cost_layers">Cost Layers FIFO (ETB)</th><th class="num" data-i18n="inv.selling_price">Selling Price (ETB)</th><th class="num" data-i18n="inv.total_asset">Total Asset (ETB)</th><th style="text-align: center;" data-i18n="inv.actions">Actions</th></tr>
+                            <tr><th data-i18n="inv.category">Category</th><th data-i18n="inv.item_spec">Item Specification / Name</th><th class="num" data-i18n="inv.qty_on_hand">Qty On Hand</th><th class="num" data-i18n="inv.cost_layers">Cost Layers FIFO (ETB)</th><th class="num" data-i18n="inv.selling_price">Selling Price (ETB)</th><th class="num" data-i18n="inv.total_asset">Total Asset (ETB)</th><th class="num pharm-col" id="inv-expiry-col-header" style="display:none;">Exp Date</th><th style="text-align: center;" data-i18n="inv.actions">Actions</th></tr>
                         </thead>
                         <tbody id="inventory-table-body"></tbody>
                     </table>
@@ -783,6 +786,7 @@
                             <div id="pur-price-locked-text" style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:180px;">🔒</div>
                         </div>
                         <div class="form-group" id="pur-selling-price-group"><label data-i18n="misc.selling_price_optional">Selling Price (Optional)</label><input type="number" id="pur-selling-price" step="0.01" placeholder="Leave blank to skip"></div>
+                        <div class="form-group" id="pur-expiry-group" style="display:none;"><label>Expiry Date</label><input type="date" id="pur-expiry"></div>
                         <div class="form-group" id="pur-selling-price-locked-note" style="display:none;">
                             <label data-i18n="misc.selling_price">Selling Price</label>
                             <div style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:180px;">🔒 Not editable for your role</div>
@@ -824,6 +828,7 @@
                             <div id="cart-pur-price-locked-text" style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:110px;">🔒</div>
                         </div>
                         <div class="form-group" style="margin-bottom:0;" id="cart-pur-selling-price-group"><label data-i18n="misc.selling_price_optional">Selling Price (Optional)</label><input type="number" id="cart-pur-selling-price" step="0.01" placeholder="Skip to leave" style="min-width:130px;"></div>
+                        <div class="form-group" style="margin-bottom:0; display:none;" id="cart-pur-expiry-group"><label>Expiry Date</label><input type="date" id="cart-pur-expiry" style="min-width:140px;"></div>
                         <div class="form-group" style="margin-bottom:0; display:none;" id="cart-pur-selling-price-locked-note">
                             <label data-i18n="misc.selling_price">Selling Price</label>
                             <div style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:130px;">🔒 Not editable</div>
@@ -1254,7 +1259,8 @@
             { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "6020", name: "Salary", normal: "Debit" },
             { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "6030", name: "Tax/Vat", normal: "Debit" },
             { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "6040", name: "Transport/Fuel", normal: "Debit" },
-            { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "6050", name: "Personal Expenses", normal: "Debit" }
+            { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "6050", name: "Personal Expenses", normal: "Debit" },
+            { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "6060", name: "Inventory Write-off (Loss)", normal: "Debit" }
         ];
         // Base list of accounts, extended by state.customAccounts. The only
         // way custom accounts get created right now is addNewChannel() below
@@ -1284,6 +1290,8 @@
 
         let currentTenantId = null;      // = businesses.id (the shop)
         let currentTenantName = '';
+        let currentBusinessType = 'retail';   // businesses.business_type — drives vertical-specific behavior (see business-types.config.js). 'retail' is the generic catch-all for any product-selling shop that isn't its own defined vertical yet.
+        let currentVerticalModule = null;         // resolved by loadVerticalModule() after login; null for business types with no extra module
         let currentBranchId = null;      // which branch this session is VIEWING — can be a real branch id, or 'all'
         let writeBranchId = null;        // which branch a specific write goes to — always a real branch, never 'all'
         let currentPlanMaxBranches = null;   // null = unlimited (no plan, or plan has no cap)
@@ -1751,6 +1759,30 @@
             document.querySelectorAll('[data-i18n]').forEach(el => { el.innerText = t(el.dataset.i18n); });
             document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
             document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.dataset.i18nTitle); });
+        }
+
+        // Swaps in this tenant's vertical-specific labels (e.g. pharmacy's
+        // "Inventory" -> "Medicines") by patching the English dictionary,
+        // then re-running the normal translation pass. Only English is
+        // patched for now — Amharic label overrides can be added to
+        // business-types.config.js the same way once needed.
+        function applyBusinessTypeLabels() {
+            const config = (typeof BUSINESS_TYPES !== 'undefined') && BUSINESS_TYPES[currentBusinessType];
+            if (config && config.labelOverrides) {
+                Object.assign(I18N.en, config.labelOverrides);
+                applyStaticTranslations();
+            }
+
+            // Expiry date only makes sense for pharmacy (batch tracking) —
+            // hidden for every other business type so the purchase forms
+            // don't grow a field nobody else needs.
+            const showExpiry = currentBusinessType === 'pharmacy';
+            const singleGroup = document.getElementById('pur-expiry-group');
+            const cartGroup = document.getElementById('cart-pur-expiry-group');
+            const invColHeader = document.getElementById('inv-expiry-col-header');
+            if (singleGroup) singleGroup.style.display = showExpiry ? '' : 'none';
+            if (cartGroup) cartGroup.style.display = showExpiry ? '' : 'none';
+            if (invColHeader) invColHeader.style.display = showExpiry ? '' : 'none';
         }
 
         let accessibleBranches = [];     // branches this session is allowed to work in (open only)
@@ -2245,6 +2277,7 @@
             }
 
             currentTenantName = biz.business_name;
+            currentBusinessType = biz.business_type || 'retail';
             state.categories = biz.categories || [];
             state.customAccounts = biz.custom_accounts || [];
             state.saleTypes = biz.sale_types || [];
@@ -2433,7 +2466,7 @@
             state.inventory = (items.data || []).map(i => ({
                 id: i.id, category: i.category, desc: i.desc, sellingPrice: parseFloat(i.selling_price) || 0,
                 history: i.history || [],
-                lots: (lots.data || []).filter(l => l.item_id === i.id).map(l => ({ id: l.id, qty: l.qty, cost: parseFloat(l.cost), branchId: l.branch_id }))
+                lots: (lots.data || []).filter(l => l.item_id === i.id).map(l => ({ id: l.id, qty: l.qty, cost: parseFloat(l.cost), branchId: l.branch_id, expiry: l.expiry_date || null }))
             }));
 
             state.salesLog = (sales.data || []).map(s => ({
@@ -2518,8 +2551,18 @@
                 writeChain = writeChain.then(() => drainQueueOnReconnect());
             }
             document.getElementById('cloud-sync-status').innerHTML = navigator.onLine ? '🟢 Cloud Synced' : '🟠 Offline — showing last-known data';
+            applyBusinessTypeLabels();
             renderAnalyticalDashboards();
             applyPermissionGating();
+
+            // Lazy-load this tenant's vertical module (e.g. pharmacy's
+            // "Expiring soon" card) — no-op for business types that don't
+            // have one yet. Runs after the first dashboard render so
+            // currentVerticalModule is ready by the time the NEXT render
+            // happens (data edits, filter changes, etc.) and refreshes it.
+            loadVerticalModule(currentBusinessType, { state, mountEl: document.getElementById('vertical-widgets') })
+                .then(mod => { currentVerticalModule = mod; })
+                .catch(err => console.error('Vertical module failed to load:', err));
             applyVatUIVisibility();
             applyEmployeeGatedUI();
             populateBranchSwitcher();
@@ -2540,7 +2583,30 @@
         // belonged to, rather than everything landing in whichever branch
         // happens to be active on the device doing the restore.
         function toDbLot(itemId, l) {
-            return { id: l.id, tenant_id: currentTenantId, branch_id: l.branchId || writeBranchId, item_id: itemId, qty: l.qty, cost: l.cost };
+            return { id: l.id, tenant_id: currentTenantId, branch_id: l.branchId || writeBranchId, item_id: itemId, qty: l.qty, cost: l.cost, expiry_date: l.expiry || null };
+        }
+
+        // Which lot gets sold from first. Every business type except
+        // pharmacy keeps plain FIFO (purchase order — the array's own
+        // order, since new lots are always pushed to the end). Pharmacy
+        // sells FEFO instead: whichever lot expires soonest goes first,
+        // since that's the batch most urgent to move. Lots with no
+        // expiry date set (non-medicine pharmacy stock — cosmetics,
+        // supplements, etc.) fall back to plain purchase order, and are
+        // sold only after every dated lot is used up. Returns a new
+        // array of the same lot objects (not copies) in sell order —
+        // mutating a lot's qty still updates the real item.lots entry.
+        function orderLotsForSale(lots) {
+            if (currentBusinessType !== 'pharmacy') return lots;
+            return lots
+                .map((l, i) => ({ l, i }))
+                .sort((a, b) => {
+                    if (a.l.expiry && b.l.expiry) return a.l.expiry.localeCompare(b.l.expiry);
+                    if (a.l.expiry && !b.l.expiry) return -1;
+                    if (!a.l.expiry && b.l.expiry) return 1;
+                    return a.i - b.i; // both undated — keep original purchase order
+                })
+                .map(x => x.l);
         }
         function toDbSale(s) {
             return { id: s.id, tenant_id: currentTenantId, branch_id: s.branchId || writeBranchId, date: s.date, customer: s.customer, desc: s.desc, qty: s.qty, price: s.price, total: s.total, cogs: s.cogs, channel: s.channel, type: s.type, paid: s.paid, paid_channel: s.paidChannel || null, restoration_layers: s.restorationLayers || [], amount_paid: s.amountPaid || 0, payments: s.payments || [], group_id: s.groupId || null, vat_included: !!s.vatIncluded };
@@ -3535,6 +3601,16 @@
             document.getElementById('dash-stock-sum').innerText = `ETB ${invTotal.toLocaleString(undefined,{minimumFractionDigits:2})}`;
             
             renderDeepAnalytics();
+
+            // Vertical-specific widgets (e.g. pharmacy's "Expiring soon"
+            // card) live in their own lazy-loaded module — see
+            // business-types.config.js. currentVerticalModule is only set
+            // once loadVerticalModule() resolves after login, so early
+            // dashboard renders before that just skip this.
+            if (currentVerticalModule && typeof currentVerticalModule.refresh === 'function') {
+                const mountEl = document.getElementById('vertical-widgets');
+                if (mountEl) currentVerticalModule.refresh({ state, mountEl });
+            }
         }
         
         function getExact10Step(maxVal) {
@@ -4312,12 +4388,35 @@
                     ? `<input type="number" step="0.01" style="min-width:100px; padding:4px; text-align:right;" value="${item.sellingPrice.toFixed(2)}" onchange="updateDirectSellingPrice(${index}, this.value)">`
                     : item.sellingPrice.toFixed(2);
 
-                tbody.innerHTML += `<tr>
+                // Only computed/shown for pharmacy tenants — same
+                // urgency thresholds as the dashboard's Expiring Soon
+                // card (verticals/pharmacy.js), kept in sync manually
+                // since this is plain markup, not the lazy-loaded module.
+                let expiryCell = '';
+                let rowBg = '';
+                if (currentBusinessType === 'pharmacy') {
+                    const withExpiry = item.lots.filter(l => l.qty > 0 && l.expiry).sort((a, b) => a.expiry.localeCompare(b.expiry));
+                    if (withExpiry.length) {
+                        const nearest = withExpiry[0].expiry;
+                        const days = Math.ceil((new Date(nearest) - new Date(new Date().toDateString())) / 86400000);
+                        // Background on the row, not the date text: red once
+                        // actually past expiry, yellow while it's getting close.
+                        if (days < 0) rowBg = 'background:#F8D7D2;';
+                        else if (days <= 30) rowBg = 'background:#FFF3B8;';
+                        const multiBatch = item.lots.filter(l => l.qty > 0).length > 1;
+                        expiryCell = `<td class="num pharm-col" style="cursor:pointer;" onclick="launchBatchBreakdownPopup(${index})" title="${multiBatch ? 'Multiple batches — click to see all' : 'Click to see batch details'}">${nearest}${multiBatch ? ' <small>(+)</small>' : ''}</td>`;
+                    } else {
+                        expiryCell = `<td class="num pharm-col" style="color:var(--text-light); cursor:pointer;" onclick="launchBatchBreakdownPopup(${index})">—</td>`;
+                    }
+                }
+
+                tbody.innerHTML += `<tr style="${rowBg}">
                     <td><small>${item.category}</small></td>
                     <td><strong>${item.desc}</strong>${item.history&&item.history.length>0?'<span class="audit-badge badge-edited">EDITED</span>':''}</td>
                     <td class="num">${tQ}</td><td class="num price-trace">${canSeeCost ? cL : '—'}</td>
                     <td class="num">${priceCell}</td>
                     <td class="num"><strong>${canSeeCost ? tV.toFixed(2) : '—'}</strong></td>
+                    ${expiryCell}
                     <td style="text-align: center;">${btns || '<span style="color:var(--text-light); font-size:12px;">—</span>'}</td>
                 </tr>`;
             });
@@ -4889,6 +4988,105 @@
             document.getElementById('audit-modal').style.display = "flex";
         }
 
+        // Shows every stock batch behind an item's single "Exp Date"
+        // summary cell — since that cell only ever shows the soonest date,
+        // this is how a user sees which batch it actually refers to when
+        // the same item has been bought at different times with different
+        // expiry dates. Pharmacy-only, same as the column itself.
+        function launchBatchBreakdownPopup(idx) {
+            const item = state.inventory[idx];
+            document.getElementById('modal-title').innerText = `Batches: ${item.desc}`;
+            const mContent = document.getElementById('modal-body-content');
+            const lots = item.lots.filter(l => l.qty > 0).slice().sort((a, b) => {
+                if (a.expiry && b.expiry) return a.expiry.localeCompare(b.expiry);
+                if (a.expiry && !b.expiry) return -1;
+                if (!a.expiry && b.expiry) return 1;
+                return 0;
+            });
+            const canWriteOff = hasPerm('inventory.edit_products');
+            if (lots.length === 0) {
+                mContent.innerHTML = '<p>No stock on hand.</p>';
+            } else {
+                let html = `<table><thead><tr><th>Branch</th><th>Expiry Date</th><th class="num">Qty</th><th class="num">Cost (ETB)</th>${canWriteOff ? '<th></th>' : ''}</tr></thead><tbody>`;
+                lots.forEach(l => {
+                    const branchName = (allBranchesById[l.branchId] && allBranchesById[l.branchId].name) || '—';
+                    let rowBg = '';
+                    let expiryText = l.expiry || '<span style="color:var(--text-light);">Not set</span>';
+                    if (l.expiry) {
+                        const days = Math.ceil((new Date(l.expiry) - new Date(new Date().toDateString())) / 86400000);
+                        // Same two-tier scheme as the inventory row highlight:
+                        // yellow while it's getting close, red once it's past.
+                        if (days < 0) rowBg = 'background:#F8D7D2;';
+                        else if (days <= 30) rowBg = 'background:#FFF3B8;';
+                        expiryText = l.expiry;
+                    }
+                    const writeOffBtn = canWriteOff ? `<td style="text-align:right;"><button class="btn btn-small btn-danger" onclick="writeOffExpiringLot(${idx}, '${l.id}')">Write Off</button></td>` : '';
+                    html += `<tr style="${rowBg}"><td>${branchName}</td><td>${expiryText}</td><td class="num">${l.qty}</td><td class="num">${l.cost.toFixed(2)}</td>${writeOffBtn}</tr>`;
+                });
+                html += `</tbody></table>`;
+                mContent.innerHTML = html;
+            }
+            document.getElementById('audit-modal').style.display = "flex";
+        }
+
+        // Writes off a batch entirely — used both for stock that's already
+        // expired and for stock a user chooses to write off early while
+        // it's still "expiring soon". Callable from the inventory page's
+        // batch popup and from the dashboard's Expiring soon / Expired
+        // cards (pharmacy.js calls this as a plain global function). Gated
+        // behind the same permission as editing products, since it's
+        // stock-affecting. Also posts the batch's cost as a recorded loss:
+        // debit 6060 Inventory Write-off (Loss), credit 1200 Inventory —
+        // so shrinkage shows up in the books, not just the stock count.
+        function writeOffExpiringLot(itemIndex, lotId) {
+            if (!hasPerm('inventory.edit_products')) return;
+            const item = state.inventory[itemIndex];
+            if (!item) return;
+            const lot = item.lots.find(l => l.id === lotId);
+            if (!lot) return;
+
+            let statusText = 'no expiry set';
+            if (lot.expiry) {
+                const days = Math.ceil((new Date(lot.expiry) - new Date(new Date().toDateString())) / 86400000);
+                statusText = days < 0 ? `expired ${Math.abs(days)} day(s) ago` : `expiring ${lot.expiry}`;
+            }
+            const lossAmount = lot.qty * lot.cost;
+            if (!confirm(`Write off ${lot.qty} unit(s) of "${item.desc}" (batch ${statusText})?\n\nThis removes them from stock, records a loss of ETB ${lossAmount.toFixed(2)} in your accounts, and cannot be undone.`)) return;
+
+            const beforeLots = item.lots.map(l => ({...l}));
+            item.lots = item.lots.filter(l => l.id !== lotId);
+            item.history = item.history || [];
+            item.history.push(`[${new Date().toLocaleString()}] Written off ${lot.qty} unit(s) — batch ${statusText} — ETB ${lossAmount.toFixed(2)} loss recorded`);
+
+            syncItemLots(item, beforeLots);
+            queueWrite({ kind: 'update', table: 'inventory_items', id: item.id, patch: { history: item.history } });
+
+            if (lossAmount > 0) {
+                const jId = `WO-${Date.now().toString().slice(-8)}`;
+                const jDesc = stampDesc(`Inventory write-off: ${lot.qty} x ${item.desc} (batch ${statusText})`);
+                const newJournal = {
+                    id: jId,
+                    date: new Date().toISOString().slice(0, 10),
+                    desc: jDesc,
+                    lines: [ { account: '6060', dr: lossAmount, cr: 0 }, { account: '1200', dr: 0, cr: lossAmount } ],
+                    branchId: lot.branchId || writeBranchId
+                };
+                state.journal.push(newJournal);
+                queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(newJournal) });
+            }
+
+            cacheStateLocally();
+            renderPerpetualInventoryTable();
+            renderAnalyticalDashboards();
+
+            // If the batch popup for this same item is what triggered this,
+            // refresh it in place rather than leaving stale rows on screen.
+            if (document.getElementById('audit-modal').style.display !== 'none' &&
+                document.getElementById('modal-title').innerText === `Batches: ${item.desc}`) {
+                launchBatchBreakdownPopup(itemIndex);
+            }
+        }
+
         async function executeVoidProductState(idx) {
             let item = state.inventory[idx];
             const itemLabel = `[${item.category}] ${item.desc}`;
@@ -5195,11 +5393,14 @@
                 
                 const beforeLots = item.lots.map(l => ({...l}));
                 let qToSell = t.data.qty;
-                while (qToSell > 0 && item.lots.length > 0) {
-                    let oldest = item.lots[0];
-                    if (oldest.qty > qToSell) { oldest.qty -= qToSell; qToSell = 0; } 
-                    else { qToSell -= oldest.qty; item.lots.shift(); }
+                for (const lot of orderLotsForSale(item.lots)) {
+                    if (qToSell <= 0) break;
+                    if (lot.qty <= 0) continue;
+                    const taken = Math.min(qToSell, lot.qty);
+                    lot.qty -= taken;
+                    qToSell -= taken;
                 }
+                item.lots = item.lots.filter(l => l.qty > 0);
                 syncItemLots(item, beforeLots);
                 state.salesLog.push(t.data);
                 queueWrite({ kind: 'insert', table: 'sales_log', row: toDbSale(t.data) });
@@ -5227,11 +5428,14 @@
                     const beforeLots = item.lots.map(l => ({...l}));
                     if (isSale) {
                         let qToSell = row.qty;
-                        while (qToSell > 0 && item.lots.length > 0) {
-                            let oldest = item.lots[0];
-                            if (oldest.qty > qToSell) { oldest.qty -= qToSell; qToSell = 0; }
-                            else { qToSell -= oldest.qty; item.lots.shift(); }
+                        for (const lot of orderLotsForSale(item.lots)) {
+                            if (qToSell <= 0) break;
+                            if (lot.qty <= 0) continue;
+                            const taken = Math.min(qToSell, lot.qty);
+                            lot.qty -= taken;
+                            qToSell -= taken;
                         }
+                        item.lots = item.lots.filter(l => l.qty > 0);
                     } else {
                         item.lots.push({ id: row.id, qty: row.qty, cost: row.cost, branchId: row.branchId });
                     }
@@ -5578,7 +5782,7 @@
 
             saleCart.forEach((c, i) => {
                 const item = state.inventory.find(it => `[${it.category}] ${it.desc}` === c.comp);
-                const branchLots = item.lots.filter(l => l.branchId === targetBranchId);
+                const branchLots = orderLotsForSale(item.lots.filter(l => l.branchId === targetBranchId));
                 let cogs = 0, q = c.qty;
                 let restorationLayers = [];
                 const beforeLots = item.lots.map(l => ({...l}));
@@ -5671,7 +5875,7 @@
             // Only this branch's own lots count toward available stock and
             // FIFO consumption — selling at one branch must never draw down
             // another branch's inventory, even though the catalog is shared.
-            const branchLots = item.lots.filter(l => l.branchId === targetBranchId);
+            const branchLots = orderLotsForSale(item.lots.filter(l => l.branchId === targetBranchId));
             let stock = branchLots.reduce((acc, l) => acc + l.qty, 0);
             if (qty > stock) return alert(`Insufficient stock at this branch. Only ${stock} left.`);
 
@@ -5989,11 +6193,14 @@
             }
             if (!cost || cost <= 0) return alert('Enter a valid cost.');
 
-            purchaseCart.push({ comp, desc: item.desc, qty, cost, sellingPrice: spInput !== '' && !isNaN(parseFloat(spInput)) ? parseFloat(spInput) : null });
+            const expiryInput = document.getElementById('cart-pur-expiry');
+            const expiry = (expiryInput && expiryInput.value) ? expiryInput.value : null;
+            purchaseCart.push({ comp, desc: item.desc, qty, cost, sellingPrice: spInput !== '' && !isNaN(parseFloat(spInput)) ? parseFloat(spInput) : null, expiry });
             document.getElementById('cart-pur-item').value = '';
             document.getElementById('cart-pur-qty').value = 1;
             document.getElementById('cart-pur-price').value = '';
             document.getElementById('cart-pur-selling-price').value = '';
+            if (expiryInput) expiryInput.value = '';
             renderPurchaseCartTable();
         }
 
@@ -6060,7 +6267,7 @@
             purchaseCart.forEach((c, i) => {
                 const item = state.inventory.find(it => `[${it.category}] ${it.desc}` === c.comp);
                 const rowId = `PR-${Date.now().toString().slice(-5)}-${i}`;
-                const newLot = { id: rowId, qty: c.qty, cost: c.cost, branchId: targetBranchId };
+                const newLot = { id: rowId, qty: c.qty, cost: c.cost, branchId: targetBranchId, expiry: c.expiry || null };
                 item.lots.push(newLot);
                 if (c.sellingPrice !== null) {
                     item.sellingPrice = c.sellingPrice;
@@ -6144,7 +6351,8 @@
             writeBranchId = targetBranchId;
 
             let id = `PR-${Date.now().toString().slice(-5)}`;
-            const newLot = { id: id, qty: qty, cost: cost, branchId: targetBranchId };
+            const expiryInput = document.getElementById('pur-expiry');
+            const newLot = { id: id, qty: qty, cost: cost, branchId: targetBranchId, expiry: (expiryInput && expiryInput.value) ? expiryInput.value : null };
             item.lots.push(newLot);
             let priceChanged = false;
             if (spInput !== "" && !isNaN(parseFloat(spInput))) { item.sellingPrice = parseFloat(spInput); priceChanged = true; }
@@ -6514,7 +6722,7 @@
                 inventory: (items.data || []).map(i => ({
                     id: i.id, category: i.category, desc: i.desc, sellingPrice: parseFloat(i.selling_price) || 0,
                     history: i.history || [],
-                    lots: (lots.data || []).filter(l => l.item_id === i.id).map(l => ({ id: l.id, qty: l.qty, cost: parseFloat(l.cost), branchId: l.branch_id }))
+                    lots: (lots.data || []).filter(l => l.item_id === i.id).map(l => ({ id: l.id, qty: l.qty, cost: parseFloat(l.cost), branchId: l.branch_id, expiry: l.expiry_date || null }))
                 })),
                 salesLog: (sales.data || []).map(s => ({
                     id: s.id, date: s.date, customer: s.customer, desc: s.desc, qty: s.qty,
