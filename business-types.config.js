@@ -29,6 +29,21 @@ const BUSINESS_TYPES = {
         // what's actually pharmacy-specific, not the nav label.
         labelOverrides: {},
         modulePath: './verticals/pharmacy.js'
+    },
+    appliance_rental: {
+        label: 'Home Appliance Rental',
+        // Unlike pharmacy, this vertical replaces content on two EXISTING
+        // pages rather than adding a new one: Inventory/Stock gets
+        // Availability + Assets sections in place of the Stock List, and
+        // Sales gets a Bookings section in place of normal sale entry.
+        // index.html hides the default content for those two sections
+        // (see applyBusinessTypeLabels) and gives the module two empty
+        // mount divs (#inventory-rental-mount, #sales-rental-mount) to
+        // render into instead. Add Product / Purchase are reused as-is.
+        // The Sales nav label itself is renamed via this override, since
+        // it no longer records plain sales for this vertical.
+        labelOverrides: { 'nav.sales': 'Booking' },
+        modulePath: './verticals/appliance_rental.js'
     }
 };
 
