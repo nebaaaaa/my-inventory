@@ -472,7 +472,7 @@
 
                 <div class="grid-5">
                     <div class="metric-box revenue" onclick="launchDrillDown('revenue')"><div class="metric-title" data-i18n="acct.total_revenue">Total Revenue</div><div class="metric-value" id="m-revenue">ETB 0.00</div></div>
-                    <div class="metric-box danger" onclick="launchDrillDown('cogs')"><div class="metric-title" data-i18n="acct.cogs">Cost of Goods Sold</div><div class="metric-value" id="m-cogs">ETB 0.00</div></div>
+                    <div class="metric-box danger" id="m-cogs-box" onclick="launchDrillDown('cogs')"><div class="metric-title" data-i18n="acct.cogs">Cost of Goods Sold</div><div class="metric-value" id="m-cogs">ETB 0.00</div></div>
                     <div class="metric-box success" onclick="launchDrillDown('gross')"><div class="metric-title" data-i18n="acct.gross_profit">Gross Profit</div><div class="metric-value" id="m-gross">ETB 0.00</div></div>
                     <div class="metric-box danger" onclick="launchDrillDown('expenses')"><div class="metric-title" data-i18n="acct.total_expenses">Total Expenses</div><div class="metric-value" id="m-expenses">ETB 0.00</div></div>
                     <div class="metric-box success" style="background: #EAF3EE;" onclick="launchDrillDown('net')"><div class="metric-title" data-i18n="acct.net_profit">Net Profit</div><div class="metric-value" id="m-net">ETB 0.00</div></div>
@@ -564,11 +564,14 @@
                         <input type="hidden" id="edit-index" value="">
                         <div class="form-group"><label data-i18n="inv.category">Category</label><input type="text" id="p-category" list="category-list" required autocomplete="off"><datalist id="category-list"></datalist></div>
                         <div class="form-group"><label data-i18n="inv.product_name">Product Name</label><input type="text" id="p-desc" required></div>
+                        <div class="form-group" id="p-daily-rate-group" style="display:none;"><label>Daily Rate (ETB)</label><input type="number" id="p-daily-rate" step="0.01" min="0"></div>
+                        <div class="form-group" id="p-weekly-rate-group" style="display:none;"><label>Weekly Rate (ETB, optional)</label><input type="number" id="p-weekly-rate" step="0.01" min="0"></div>
+                        <div class="form-group" id="p-monthly-rate-group" style="display:none;"><label>Monthly Rate (ETB, optional)</label><input type="number" id="p-monthly-rate" step="0.01" min="0"></div>
                         <div class="form-group" style="padding-top: 22px;"><button type="submit" class="btn" id="inv-btn">Add Product</button><button type="button" class="btn btn-warning" id="inv-cancel" style="display:none;" onclick="resetProductForm()" data-i18n="common.cancel">Cancel</button></div>
                     </form>
                 </div>
 
-                <div class="card">
+                <div class="card" id="inventory-default-stocklist-card">
                     <h2 data-i18n="inv.stock_list">Stock List</h2>
                     <div class="filter-panel">
                         <div class="form-group"><label data-i18n="inv.search_category">Search Category</label><input type="text" id="inv-filter-category" placeholder="Filter category..." oninput="renderPerpetualInventoryTable()"></div>
@@ -581,6 +584,15 @@
                         <tbody id="inventory-table-body"></tbody>
                     </table>
                 </div>
+
+                <!-- Availability + Assets sections for the appliance_rental
+                     vertical are rendered entirely by
+                     verticals/appliance_rental.js into this mount point --
+                     replacing the Stock List above (which is hidden for
+                     that business type). Empty div here so index.html
+                     doesn't grow with rental-specific markup that every
+                     other tenant would load for nothing. -->
+                <div id="inventory-rental-mount"></div>
             </div>
 
             <div id="view-transfer" class="view-panel">
@@ -654,6 +666,7 @@
             </div>
 
             <div id="view-sales" class="view-panel">
+                <div id="sales-default-content">
                 <div class="card" id="sales-entry-card">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <h2 style="border:none; margin-bottom:0; padding-bottom:0;" data-i18n="sale.record_sale">Record Sale</h2>
@@ -763,6 +776,12 @@
                         <tbody id="sales-log-table-body"></tbody>
                     </table>
                 </div>
+                </div>
+                <!-- Booking section for the appliance_rental vertical is
+                     rendered entirely by verticals/appliance_rental.js into
+                     this mount point, replacing the normal sales content
+                     above (hidden for that business type). -->
+                <div id="sales-rental-mount"></div>
             </div>
 
             <div id="view-purchase" class="view-panel">
@@ -1250,17 +1269,21 @@
             { main: "Assets", sub: "Current Assets", stmt: "balance sheet", code: "1020", name: "Mobile banking", normal: "Debit" },
             { main: "Assets", sub: "Current Assets", stmt: "balance sheet", code: "1200", name: "Inventory", normal: "Debit" },
             { main: "Assets", sub: "Current Assets", stmt: "balance sheet", code: "1300", name: "Accounts receivable", normal: "Debit" },
+            { main: "Assets", sub: "Fixed Assets", stmt: "balance sheet", code: "1500", name: "Rental Equipment (Fixed Assets)", normal: "Debit" },
             { main: "Liabilities", sub: "Current Liabilities", stmt: "balance sheet", code: "2010", name: "Accounts payable", normal: "Credit" },
             { main: "Liabilities", sub: "Current Liabilities", stmt: "balance sheet", code: "2020", name: "Loan", normal: "Credit" },
+            { main: "Liabilities", sub: "Current Liabilities", stmt: "balance sheet", code: "2030", name: "Customer Deposits Held", normal: "Credit" },
             { main: "Equity", sub: "Equity", stmt: "balance sheet", code: "3010", name: "Equity Base Capital", normal: "Credit" },
             { main: "Revenue", sub: "Revenue", stmt: "income statement", code: "4010", name: "Sales Operations", normal: "Credit" },
+            { main: "Revenue", sub: "Revenue", stmt: "income statement", code: "4020", name: "Rental Revenue", normal: "Credit" },
             { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "5010", name: "Cost of Goods Sold", normal: "Debit" },
             { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "6010", name: "Utility/Overhead", normal: "Debit" },
             { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "6020", name: "Salary", normal: "Debit" },
             { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "6030", name: "Tax/Vat", normal: "Debit" },
             { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "6040", name: "Transport/Fuel", normal: "Debit" },
             { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "6050", name: "Personal Expenses", normal: "Debit" },
-            { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "6060", name: "Inventory Write-off (Loss)", normal: "Debit" }
+            { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "6060", name: "Inventory Write-off (Loss)", normal: "Debit" },
+            { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "6070", name: "Rental Equipment Write-off (Loss)", normal: "Debit" }
         ];
         // Base list of accounts, extended by state.customAccounts. The only
         // way custom accounts get created right now is addNewChannel() below
@@ -1310,7 +1333,7 @@
             en: {
                 'nav.dashboard': 'Dashboard', 'nav.inventory': 'Inventory/Stock', 'nav.transfer': 'Transfer',
                 'nav.cash_handover': 'Cash Handover', 'nav.sales': 'Sales', 'nav.purchase': 'Purchase',
-                'nav.expense': 'Expense', 'nav.team': 'Team & Branches',
+                'nav.expense': 'Expense', 'nav.team': 'Team & Branches', 'nav.rentals': 'Rentals',
 
                 'dash.all_time': 'All-Time', 'dash.today': 'Today', 'dash.this_week': 'This Week',
                 'dash.this_month': 'This Month', 'dash.this_year': 'This Year', 'dash.custom_range': 'Custom Range',
@@ -1486,7 +1509,7 @@
             am: {
                 'nav.dashboard': 'ዳሽቦርድ', 'nav.inventory': 'የዕቃ ክምችት', 'nav.transfer': 'ዝውውር',
                 'nav.cash_handover': 'ካሽ ርክክብ', 'nav.sales': 'ሽያጭ', 'nav.purchase': 'ግዢ',
-                'nav.expense': 'ወጪ', 'nav.team': 'ቡድን እና ቅርንጫፎች',
+                'nav.expense': 'ወጪ', 'nav.team': 'ቡድን እና ቅርንጫፎች', 'nav.rentals': 'ኪራዮች',
 
                 'dash.all_time': 'ሁሉም ጊዜ', 'dash.today': 'ዛሬ', 'dash.this_week': 'ይህ ሳምንት',
                 'dash.this_month': 'ይህ ወር', 'dash.this_year': 'ይህ ዓመት', 'dash.custom_range': 'በፍላጎት ጊዜ ክልል',
@@ -1753,6 +1776,19 @@
             }
             renderNotifications();
             syncAllEthiopianDatePickers();
+
+            // Rental's Availability calendar and Bookings list show dates
+            // too, but they're module-rendered rather than core functions,
+            // so they need their own refresh call here.
+            if (currentBusinessType === 'appliance_rental' && currentVerticalModule) {
+                const rentalCtx = { state, tenantId: currentTenantId, channelAccountCodes: CHANNEL_ACCOUNT_CODES, supabaseClient, branchId: currentBranchId, calendarPref: currentCalendarPref };
+                if (typeof currentVerticalModule.renderInventorySection === 'function' && document.getElementById('view-inventory')?.classList.contains('active')) {
+                    currentVerticalModule.renderInventorySection({ ...rentalCtx, mountEl: document.getElementById('inventory-rental-mount') });
+                }
+                if (typeof currentVerticalModule.renderBookingSection === 'function' && document.getElementById('view-sales')?.classList.contains('active')) {
+                    currentVerticalModule.renderBookingSection({ ...rentalCtx, mountEl: document.getElementById('sales-rental-mount') });
+                }
+            }
         }
 
         function applyStaticTranslations() {
@@ -1783,6 +1819,33 @@
             if (singleGroup) singleGroup.style.display = showExpiry ? '' : 'none';
             if (cartGroup) cartGroup.style.display = showExpiry ? '' : 'none';
             if (invColHeader) invColHeader.style.display = showExpiry ? '' : 'none';
+
+            // Rental businesses aren't selling goods off a shelf, so there's
+            // no cost-of-goods-sold figure to show -- it would just read
+            // "ETB 0.00" forever and confuse the dashboard.
+            const cogsBox = document.getElementById('m-cogs-box');
+            if (cogsBox) cogsBox.style.display = (currentBusinessType === 'appliance_rental') ? 'none' : '';
+
+            // appliance_rental reuses Add Product / Purchase / Sales
+            // exactly like every other business type -- it just needs
+            // rate fields on the product form, no "Selling Price" on
+            // Purchase (rentals bill by rate, not a per-unit sale price),
+            // and its Stock List / Sales sections replaced by the
+            // Availability+Assets / Booking sections the vertical module
+            // renders into the *-rental-mount divs.
+            const isRental = currentBusinessType === 'appliance_rental';
+            ['p-daily-rate-group', 'p-weekly-rate-group', 'p-monthly-rate-group'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = isRental ? '' : 'none';
+            });
+            ['pur-selling-price-group', 'cart-pur-selling-price-group'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = isRental ? 'none' : '';
+            });
+            const stockListCard = document.getElementById('inventory-default-stocklist-card');
+            if (stockListCard) stockListCard.style.display = isRental ? 'none' : '';
+            const salesDefault = document.getElementById('sales-default-content');
+            if (salesDefault) salesDefault.style.display = isRental ? 'none' : '';
         }
 
         let accessibleBranches = [];     // branches this session is allowed to work in (open only)
@@ -1948,6 +2011,7 @@
             }
         }
         let pendingCloudSync = false; // true when a change couldn't reach Supabase yet because we were offline
+        let activeWriteCount = 0; // true while a save is still on its way to Supabase, even if we're online -- refreshing during this window used to silently lose the change
 
         // ---------------------------------------------------------------
         // OFFLINE RESILIENCE
@@ -2001,8 +2065,15 @@
 
         function looksLikeNetworkError(err) {
             if (!navigator.onLine) return true;
+            // Real Supabase/Postgrest errors are plain objects with a `code`
+            // (e.g. Postgres error codes, RLS violations) -- those are NOT
+            // connectivity issues, so don't misclassify them here.
+            // Genuine connectivity failures (fetch throwing, or a request
+            // timing out on a slow/unstable connection) surface as a
+            // TypeError or AbortError with no `code` at all.
+            if (err && !err.code && (err.name === 'AbortError' || err.name === 'TypeError')) return true;
             const msg = (err && (err.message || err.error_description || String(err))) || '';
-            return /failed to fetch|networkerror|load failed|network request failed/i.test(msg);
+            return /failed to fetch|networkerror|load failed|network request failed|timed? ?out|aborted|internet|offline|ECONNRESET|ETIMEDOUT/i.test(msg);
         }
 
         function updateOfflineBanner() {
@@ -2466,6 +2537,9 @@
             state.inventory = (items.data || []).map(i => ({
                 id: i.id, category: i.category, desc: i.desc, sellingPrice: parseFloat(i.selling_price) || 0,
                 history: i.history || [],
+                dailyRate: i.daily_rate != null ? parseFloat(i.daily_rate) : null,
+                weeklyRate: i.weekly_rate != null ? parseFloat(i.weekly_rate) : null,
+                monthlyRate: i.monthly_rate != null ? parseFloat(i.monthly_rate) : null,
                 lots: (lots.data || []).filter(l => l.item_id === i.id).map(l => ({ id: l.id, qty: l.qty, cost: parseFloat(l.cost), branchId: l.branch_id, expiry: l.expiry_date || null }))
             }));
 
@@ -2560,7 +2634,7 @@
             // have one yet. Runs after the first dashboard render so
             // currentVerticalModule is ready by the time the NEXT render
             // happens (data edits, filter changes, etc.) and refreshes it.
-            loadVerticalModule(currentBusinessType, { state, mountEl: document.getElementById('vertical-widgets') })
+            loadVerticalModule(currentBusinessType, { state, tenantId: currentTenantId, channelAccountCodes: CHANNEL_ACCOUNT_CODES, supabaseClient, mountEl: document.getElementById('vertical-widgets') })
                 .then(mod => { currentVerticalModule = mod; })
                 .catch(err => console.error('Vertical module failed to load:', err));
             applyVatUIVisibility();
@@ -2573,7 +2647,7 @@
         // ROW MAPPERS — convert local JS objects to the exact DB row shape
         // ---------------------------------------------------------------
         function toDbInventoryItem(i) {
-            return { id: i.id, tenant_id: currentTenantId, category: i.category, desc: i.desc, selling_price: i.sellingPrice, history: i.history || [] };
+            return { id: i.id, tenant_id: currentTenantId, category: i.category, desc: i.desc, selling_price: i.sellingPrice, history: i.history || [], daily_rate: i.dailyRate ?? null, weekly_rate: i.weeklyRate ?? null, monthly_rate: i.monthlyRate ?? null };
         }
         // branch_id below prefers the record's OWN branchId (now tracked in
         // state — see loadStateFromSupabase) and only falls back to the
@@ -2730,6 +2804,7 @@
             }
 
             setSyncIndicator('saving');
+            activeWriteCount++;
             try {
                 if (offlineOpQueue.length > 0) await drainOfflineQueueInline(); // catch up on anything queued from an earlier offline spell first, in order
                 await performDbOp(op);
@@ -2746,8 +2821,21 @@
                     setSyncIndicator('failed');
                     alert('We could not save your last change to the cloud. Please check your internet connection and try again.');
                 }
+            } finally {
+                activeWriteCount--;
             }
         }
+
+        // Refreshing or closing the tab while a save is still in flight used to
+        // silently lose that change (it hadn't reached Supabase yet, and hadn't
+        // been queued as "offline" either, since we were online when it started).
+        // This warns the user before that can happen.
+        window.addEventListener('beforeunload', (e) => {
+            if (activeWriteCount > 0 || offlineOpQueue.length > 0) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
 
         async function drainQueueOnReconnect() {
             if (offlineOpQueue.length === 0) { pendingCloudSync = false; return; }
@@ -2779,6 +2867,22 @@
             try {
                 await withRetry(() => supabaseClient.from('businesses').update({ categories: state.categories, custom_accounts: state.customAccounts, sale_types: state.saleTypes }).eq('id', tid));
 
+                // Vertical-owned tables (like appliance_rental's `rentals`)
+                // can hold rows that foreign-key onto inventory_items, so
+                // they have to be emptied before inventory_items is
+                // deleted below, or Postgres blocks that delete with a
+                // foreign key violation. Reinserting happens further down,
+                // after inventory_items exists again, for the same reason
+                // in reverse (those rows would reference item ids that
+                // don't exist yet). Core code here doesn't know the shape
+                // of a vertical's rows -- a loaded vertical exposes
+                // serializeForBulkReplace() on its own window.<name>UI
+                // object to hand back rows to reinsert (empty/no-op for
+                // tenants without that vertical loaded, or when the
+                // vertical's own state was cleared as part of this replace
+                // -- e.g. Factory Reset already empties state.rentalBookings).
+                await withRetry(() => supabaseClient.from('rentals').delete().eq('tenant_id', tid));
+
                 await withRetry(() => supabaseClient.from('inventory_lots').delete().eq('tenant_id', tid));
                 await withRetry(() => supabaseClient.from('inventory_items').delete().eq('tenant_id', tid));
                 if (state.inventory.length) {
@@ -2787,6 +2891,9 @@
                     state.inventory.forEach(i => (i.lots || []).forEach(l => lots.push(toDbLot(i.id, l))));
                     if (lots.length) await withRetry(() => supabaseClient.from('inventory_lots').insert(lots));
                 }
+
+                const rentalRows = window.rentalUI?.serializeForBulkReplace?.() || [];
+                if (rentalRows.length) await withRetry(() => supabaseClient.from('rentals').insert(rentalRows));
 
                 await replaceTable('sales_log', state.salesLog.map(toDbSale));
                 await replaceTable('purchase_log', state.purchaseLog.map(toDbPurchase));
@@ -2996,10 +3103,20 @@
             if (window.innerWidth <= 768) document.getElementById('sidebar').classList.add('collapsed');
 
             if (viewId === 'dashboard') renderAnalyticalDashboards();
-            if (viewId === 'inventory') { resetProductForm(); renderPerpetualInventoryTable(); }
+            if (viewId === 'inventory') {
+                resetProductForm(); renderPerpetualInventoryTable();
+                if (currentVerticalModule && typeof currentVerticalModule.renderInventorySection === 'function') {
+                    currentVerticalModule.renderInventorySection({ state, tenantId: currentTenantId, channelAccountCodes: CHANNEL_ACCOUNT_CODES, supabaseClient, branchId: currentBranchId, calendarPref: currentCalendarPref, mountEl: document.getElementById('inventory-rental-mount') });
+                }
+            }
             if (viewId === 'transfer') initStockTransferCard();
             if (viewId === 'cash_handover') renderCashHandoverView();
-            if (viewId === 'sales') { syncTransactionalProductDropdownOptions(); renderSalesLogTable(); }
+            if (viewId === 'sales') {
+                syncTransactionalProductDropdownOptions(); renderSalesLogTable();
+                if (currentVerticalModule && typeof currentVerticalModule.renderBookingSection === 'function') {
+                    currentVerticalModule.renderBookingSection({ state, tenantId: currentTenantId, channelAccountCodes: CHANNEL_ACCOUNT_CODES, supabaseClient, branchId: currentBranchId, calendarPref: currentCalendarPref, mountEl: document.getElementById('sales-rental-mount') });
+                }
+            }
             if (viewId === 'purchase') { syncTransactionalProductDropdownOptions(); renderPurchaseLogTable(); applyPurchaseCostFieldPermissionUI(); }
             if (viewId === 'expenses') renderExpenseLogTable();
             if (viewId === 'coa') renderSystemCOAProfileLayouts();
@@ -3017,6 +3134,13 @@
                     if(safetyInput === "DELETE") {
                         state.inventory = []; state.salesLog = []; state.purchaseLog = []; state.expenseLog = [];
                         state.journal = []; state.trash = []; state.notifications = [];
+                        // Vertical-owned state (e.g. appliance_rental's
+                        // rentalBookings) isn't a fixed field on every
+                        // tenant's state object, so it's only cleared if
+                        // present -- bulkReplaceAllData() reads it back via
+                        // window.rentalUI.serializeForBulkReplace(), so this
+                        // is what makes that come back empty.
+                        if ('rentalBookings' in state) state.rentalBookings = [];
                         await bulkReplaceAllData();
                         location.reload();
                     }
@@ -3575,7 +3699,7 @@
             let p = state.currentFilter, r = 0, c = 0, e = 0;
             state.journal.forEach(j => {
                 if (verifyChronologicalOverlap(j.date, p) && shouldCountInCurrentTotals(j.branchId)) {
-                    j.lines.forEach(l => { if(l.account === "4010") r += l.cr; if(l.account === "5010") c += l.dr; if(["6010","6020","6030"].includes(l.account)) e += l.dr; });
+                    j.lines.forEach(l => { if(l.account === "4010" || l.account === "4020") r += l.cr; if(l.account === "5010") c += l.dr; if(["6010","6020","6030"].includes(l.account)) e += l.dr; });
                 }
             });
             document.getElementById('m-revenue').innerText = `ETB ${r.toLocaleString(undefined,{minimumFractionDigits:2})}`;
@@ -4030,6 +4154,19 @@
                     html += `<tr><td>${fmtDate(m.date)}</td><td>${m.customer}</td><td>${m.desc}</td><td class="num">${m.qty}</td><td class="num">${m.price.toFixed(2)}</td><td class="num"><strong>${m.total.toFixed(2)}</strong></td></tr>`;
                 });
                 html += `</tbody></table>`;
+                // Rental Revenue (4020) posts separately from Sales (4010) --
+                // see the appliance_rental vertical -- so it's broken out as
+                // its own table here rather than forced into the Sales
+                // columns above (a booking has no single unit "price").
+                const rentalMatches = (state.rentalBookings || []).filter(b => verifyChronologicalOverlap(b.date || b.startDate, period) && shouldCountInCurrentTotals(b.branchId)).sort((a,b) => new Date(b.date || b.startDate) - new Date(a.date || a.startDate));
+                if (rentalMatches.length > 0) {
+                    html += `<br><div><strong>Rental Bookings (4020)</strong></div><table><thead><tr><th>${t('sale.date')}</th><th>${t('sale.customer_name')}</th><th>${t('sale.product_item')}</th><th class="num">${t('tr.quantity')}</th><th class="num">${t('sale.total')}</th></tr></thead><tbody>`;
+                    rentalMatches.forEach(b => {
+                        const item = state.inventory.find(i => i.id === b.itemId);
+                        html += `<tr><td>${fmtDate(b.date || b.startDate)}</td><td>${b.customerName}</td><td>${item ? `[${item.category}] ${item.desc}` : '—'}</td><td class="num">${b.qty}</td><td class="num"><strong>${b.amount.toFixed(2)}</strong></td></tr>`;
+                    });
+                    html += `</tbody></table>`;
+                }
             } 
             else if(metric === 'cogs') {
                 mTitle.innerText = t('drill.cogs_title');
@@ -4053,7 +4190,7 @@
                 let revSum = 0, cogsSum = 0;
                 state.journal.forEach(j => {
                     if(verifyChronologicalOverlap(j.date, period) && shouldCountInCurrentTotals(j.branchId)) {
-                        j.lines.forEach(l => { if(l.account === '4010') revSum += l.cr; if(l.account === '5010') cogsSum += l.dr; });
+                        j.lines.forEach(l => { if(l.account === '4010' || l.account === '4020') revSum += l.cr; if(l.account === '5010') cogsSum += l.dr; });
                     }
                 });
                 html += `<div style="font-size:14px; padding:10px; background:#ECEDF2; border-radius:4px;">${t('acct.total_revenue')}: <strong>ETB ${revSum.toFixed(2)}</strong><br>${t('acct.cogs')}: <strong>ETB (${cogsSum.toFixed(2)})</strong><br><hr style="margin:8px 0; border-color:#cfd1da;">${t('acct.gross_profit')}: <strong style="color:var(--success);">ETB ${(revSum - cogsSum).toFixed(2)}</strong></div>`;
@@ -4074,7 +4211,7 @@
                 let r = 0, c = 0, e = 0;
                 state.journal.forEach(j => {
                     if(verifyChronologicalOverlap(j.date, period) && shouldCountInCurrentTotals(j.branchId)) {
-                        j.lines.forEach(l => { if(l.account === '4010') r += l.cr; if(l.account === '5010') c += l.dr; if(['6010','6020','6030'].includes(l.account)) e += l.dr; });
+                        j.lines.forEach(l => { if(l.account === '4010' || l.account === '4020') r += l.cr; if(l.account === '5010') c += l.dr; if(['6010','6020','6030'].includes(l.account)) e += l.dr; });
                     }
                 });
                 html += `<div style="font-size:14px; padding:12px; background:#171B34; color:white; border-radius:4px; font-family:monospace;">[+] ${t('acct.total_revenue')}: ETB ${r.toFixed(2)}<br>[-] ${t('acct.cogs')}: ETB (${c.toFixed(2)})<br>[-] ${t('acct.total_expenses')}: ETB (${e.toFixed(2)})<br><hr style="margin:8px 0; border-color:rgba(255,255,255,0.2);">[=] ${t('acct.net_profit')}: ETB ${(r - c - e).toFixed(2)}</div>`;
@@ -4899,8 +5036,15 @@
                 return alert("You can only delete your own handover submissions, and only while they're still pending.");
             }
             if (!confirm('Delete this handover record? This only removes the log entry — it never affected your books.')) return;
-            const { error } = await supabaseClient.from('cash_handovers').delete().eq('id', id);
+            // .select() is required to get the deleted row(s) back -- without
+            // it, Supabase reports success with zero rows affected as if
+            // nothing were wrong, which is exactly what a missing/misscoped
+            // DELETE policy in row-level security looks like from here.
+            const { data, error } = await supabaseClient.from('cash_handovers').delete().eq('id', id).select();
             if (error) return alert('Could not delete this record: ' + error.message);
+            if (!data || data.length === 0) {
+                return alert("Nothing was deleted. This usually means your database's row-level security policy doesn't allow DELETE on cash_handovers -- check that in the Supabase SQL editor.");
+            }
             renderCashHandoverView();
         }
 
@@ -4942,7 +5086,14 @@
         function handleDefineProduct(e) {
             e.preventDefault();
             const idx = document.getElementById('edit-index').value, cat = document.getElementById('p-category').value.trim(), desc = document.getElementById('p-desc').value.trim();
-            if(!state.categories.includes(cat)) {
+            const isRental = currentBusinessType === 'appliance_rental';
+            const dailyRate = isRental ? (parseFloat(document.getElementById('p-daily-rate').value) || 0) : null;
+            if (isRental && dailyRate <= 0) return alert("Enter a daily rate for this asset.");
+            const weeklyRaw = isRental ? document.getElementById('p-weekly-rate').value : '';
+            const monthlyRaw = isRental ? document.getElementById('p-monthly-rate').value : '';
+            const weeklyRate = weeklyRaw !== '' ? parseFloat(weeklyRaw) : null;
+            const monthlyRate = monthlyRaw !== '' ? parseFloat(monthlyRaw) : null;
+            if (!state.categories.includes(cat)) {
                 state.categories.push(cat); syncCategoriesDatalist();
                 queueWrite({ kind: 'tenant_update', patch: { categories: state.categories } });
             }
@@ -4951,7 +5102,7 @@
                 if (state.inventory.find(i => i.desc.toLowerCase()===desc.toLowerCase() && i.category.toLowerCase()===cat.toLowerCase())) {
                     return alert(`Rejection: "${desc}" already exists inside "${cat}".`);
                 }
-                const newItem = { id: crypto.randomUUID(), category: cat, desc, sellingPrice: 0, lots: [], history: [] };
+                const newItem = { id: crypto.randomUUID(), category: cat, desc, sellingPrice: 0, lots: [], history: [], dailyRate, weeklyRate, monthlyRate };
                 state.inventory.push(newItem);
                 queueWrite({ kind: 'insert', table: 'inventory_items', row: toDbInventoryItem(newItem) });
                 addNotification('Product Added', `Created new master item: [${cat}] ${desc}`);
@@ -4964,15 +5115,28 @@
                 if(!t.history) t.history = [];
                 t.history.push(`[${new Date().toLocaleString()}] Replaced: [${t.category}] ${t.desc}`);
                 t.category = cat; t.desc = desc;
-                queueWrite({ kind: 'update', table: 'inventory_items', id: t.id, patch: { category: t.category, desc: t.desc, history: t.history } });
+                const patch = { category: t.category, desc: t.desc, history: t.history };
+                if (isRental) {
+                    t.dailyRate = dailyRate; t.weeklyRate = weeklyRate; t.monthlyRate = monthlyRate;
+                    patch.daily_rate = dailyRate; patch.weekly_rate = weeklyRate; patch.monthly_rate = monthlyRate;
+                }
+                queueWrite({ kind: 'update', table: 'inventory_items', id: t.id, patch });
                 addNotification('Product Edited', `Item modified.`, `Original: [${oldCat}] ${oldDesc}\nUpdated: [${cat}] ${desc}`);
             }
             resetProductForm(); renderPerpetualInventoryTable();
+            if (isRental && currentVerticalModule && typeof currentVerticalModule.renderInventorySection === 'function') {
+                currentVerticalModule.renderInventorySection({ state, tenantId: currentTenantId, channelAccountCodes: CHANNEL_ACCOUNT_CODES, supabaseClient, branchId: currentBranchId, calendarPref: currentCalendarPref, mountEl: document.getElementById('inventory-rental-mount') });
+            }
         }
 
         function initiateEditProductDefinition(idx) {
             let i = state.inventory[idx];
             document.getElementById('edit-index').value = idx; document.getElementById('p-category').value = i.category; document.getElementById('p-desc').value = i.desc;
+            if (currentBusinessType === 'appliance_rental') {
+                document.getElementById('p-daily-rate').value = i.dailyRate ?? '';
+                document.getElementById('p-weekly-rate').value = i.weeklyRate ?? '';
+                document.getElementById('p-monthly-rate').value = i.monthlyRate ?? '';
+            }
             document.getElementById('inv-btn').innerText = "Save Changes"; document.getElementById('inv-cancel').style.display = "inline-block";
         }
 
@@ -5038,37 +5202,49 @@
         // stock-affecting. Also posts the batch's cost as a recorded loss:
         // debit 6060 Inventory Write-off (Loss), credit 1200 Inventory —
         // so shrinkage shows up in the books, not just the stock count.
-        function writeOffExpiringLot(itemIndex, lotId) {
-            if (!hasPerm('inventory.edit_products')) return;
+        function writeOffExpiringLot(itemIndex, lotId, qtyToWriteOff) {
+            const requiredPerm = currentBusinessType === 'appliance_rental' ? 'rentals.write_off' : 'inventory.edit_products';
+            if (!hasPerm(requiredPerm)) return;
             const item = state.inventory[itemIndex];
             if (!item) return;
             const lot = item.lots.find(l => l.id === lotId);
             if (!lot) return;
+
+            // Optional 3rd arg lets a caller (e.g. the rental Write Off
+            // modal) remove only part of a batch. Falls back to the whole
+            // lot when omitted, so pharmacy's existing write-off button
+            // behaves exactly as before.
+            const qty = (qtyToWriteOff != null && qtyToWriteOff > 0 && qtyToWriteOff < lot.qty) ? qtyToWriteOff : lot.qty;
+            const partial = qty < lot.qty;
 
             let statusText = 'no expiry set';
             if (lot.expiry) {
                 const days = Math.ceil((new Date(lot.expiry) - new Date(new Date().toDateString())) / 86400000);
                 statusText = days < 0 ? `expired ${Math.abs(days)} day(s) ago` : `expiring ${lot.expiry}`;
             }
-            const lossAmount = lot.qty * lot.cost;
-            if (!confirm(`Write off ${lot.qty} unit(s) of "${item.desc}" (batch ${statusText})?\n\nThis removes them from stock, records a loss of ETB ${lossAmount.toFixed(2)} in your accounts, and cannot be undone.`)) return;
+            const lossAmount = qty * lot.cost;
+            if (!confirm(`Write off ${qty} unit(s) of "${item.desc}" (batch ${statusText})?\n\nThis removes them from stock, records a loss of ETB ${lossAmount.toFixed(2)} in your accounts, and cannot be undone.`)) return;
 
             const beforeLots = item.lots.map(l => ({...l}));
-            item.lots = item.lots.filter(l => l.id !== lotId);
+            if (partial) {
+                lot.qty -= qty; // rest of the batch stays in stock at the same unit cost
+            } else {
+                item.lots = item.lots.filter(l => l.id !== lotId);
+            }
             item.history = item.history || [];
-            item.history.push(`[${new Date().toLocaleString()}] Written off ${lot.qty} unit(s) — batch ${statusText} — ETB ${lossAmount.toFixed(2)} loss recorded`);
+            item.history.push(`[${new Date().toLocaleString()}] Written off ${qty} unit(s) — batch ${statusText} — ETB ${lossAmount.toFixed(2)} loss recorded`);
 
             syncItemLots(item, beforeLots);
             queueWrite({ kind: 'update', table: 'inventory_items', id: item.id, patch: { history: item.history } });
 
             if (lossAmount > 0) {
                 const jId = `WO-${Date.now().toString().slice(-8)}`;
-                const jDesc = stampDesc(`Inventory write-off: ${lot.qty} x ${item.desc} (batch ${statusText})`);
+                const jDesc = stampDesc(`Inventory write-off: ${qty} x ${item.desc} (batch ${statusText})`);
                 const newJournal = {
                     id: jId,
                     date: new Date().toISOString().slice(0, 10),
                     desc: jDesc,
-                    lines: [ { account: '6060', dr: lossAmount, cr: 0 }, { account: '1200', dr: 0, cr: lossAmount } ],
+                    lines: [ { account: (currentBusinessType === 'appliance_rental' ? '6070' : '6060'), dr: lossAmount, cr: 0 }, { account: (currentBusinessType === 'appliance_rental' ? '1500' : '1200'), dr: 0, cr: lossAmount } ],
                     branchId: lot.branchId || writeBranchId
                 };
                 state.journal.push(newJournal);
@@ -6288,7 +6464,7 @@
                 queueWrite({ kind: 'insert', table: 'inventory_lots', row: toDbLot(item.id, newLot) });
             });
 
-            const journalLines = [{ account: "1200", dr: total, cr: 0 }];
+            const journalLines = [{ account: (currentBusinessType === 'appliance_rental' ? '1500' : '1200'), dr: total, cr: 0 }];
             if (amountPaidNow > 0) journalLines.push({ account: CHANNEL_ACCOUNT_CODES[chan], cr: amountPaidNow, dr: 0 });
             if (remaining > 0) journalLines.push({ account: "2010", cr: remaining, dr: 0 });
             const newJournal = {
@@ -6364,7 +6540,7 @@
                 paid: fullyPaid, paidChannel: fullyPaid ? chan : null, amountPaid: amountPaidNow, payments,
                 branchId: targetBranchId
             };
-            const journalLines = [{ account: "1200", dr: tot, cr: 0 }]; // inventory received at full cost
+            const journalLines = [{ account: (currentBusinessType === 'appliance_rental' ? '1500' : '1200'), dr: tot, cr: 0 }]; // rental equipment (fixed asset) vs inventory received at full cost
             if (amountPaidNow > 0) journalLines.push({ account: CHANNEL_ACCOUNT_CODES[chan], cr: amountPaidNow, dr: 0 });
             if (remaining > 0) journalLines.push({ account: "2010", cr: remaining, dr: 0 }); // Accounts payable
             const newJournal = {
@@ -6685,13 +6861,13 @@
                 });
                 out.innerHTML = s + `<tr class="total-row"><td>${t('acct.totals')}</td><td></td><td class="num">${d.toFixed(2)}</td><td class="num">${c.toFixed(2)}</td></tr></tbody></table>`;
             } else if (type === 'income') {
-                let r = bal["4010"]||0, cgs = bal["5010"]||0, gp = r - cgs;
+                let salesR = bal["4010"]||0, rentalR = bal["4020"]||0, r = salesR + rentalR, cgs = bal["5010"]||0, gp = r - cgs;
                 let u = bal["6010"]||0, sal = bal["6020"]||0, tx = bal["6030"]||0, ex = u+sal+tx, net = gp - ex;
-                out.innerHTML = `<h2>${t('acct.income_statement_heading')}</h2><table><tr style="background:#ECEDF2;"><td colspan="2"><strong>${t('acct.revenues')}</strong></td></tr><tr><td style="padding-left:24px;">Sales (4010)</td><td class="num">${r.toFixed(2)}</td></tr><tr class="total-row"><td>${t('acct.total_revenue')}</td><td class="num">${r.toFixed(2)}</td></tr><tr style="background:#ECEDF2;"><td colspan="2"><strong>${t('acct.costs_section')}</strong></td></tr><tr><td style="padding-left:24px;">COGS (5010)</td><td class="num">(${cgs.toFixed(2)})</td></tr><tr class="total-row"><td>${t('acct.gross_profit')}</td><td class="num">${gp.toFixed(2)}</td></tr><tr style="background:#ECEDF2;"><td colspan="2"><strong>${t('acct.expenses_section')}</strong></td></tr><tr><td style="padding-left:24px;">Utility (6010)</td><td class="num">${u.toFixed(2)}</td></tr><tr><td style="padding-left:24px;">Salary (6020)</td><td class="num">${sal.toFixed(2)}</td></tr><tr><td style="padding-left:24px;">Taxes (6030)</td><td class="num">${tx.toFixed(2)}</td></tr><tr class="total-row"><td>${t('acct.total_expenses')}</td><td class="num">(${ex.toFixed(2)})</td></tr><tr class="total-row" style="background:#EAF3EE;"><td>${t('acct.net_income')}</td><td class="num text-success">${net.toFixed(2)}</td></tr></table>`;
+                out.innerHTML = `<h2>${t('acct.income_statement_heading')}</h2><table><tr style="background:#ECEDF2;"><td colspan="2"><strong>${t('acct.revenues')}</strong></td></tr><tr><td style="padding-left:24px;">Sales (4010)</td><td class="num">${salesR.toFixed(2)}</td></tr><tr><td style="padding-left:24px;">Rental (4020)</td><td class="num">${rentalR.toFixed(2)}</td></tr><tr class="total-row"><td>${t('acct.total_revenue')}</td><td class="num">${r.toFixed(2)}</td></tr><tr style="background:#ECEDF2;"><td colspan="2"><strong>${t('acct.costs_section')}</strong></td></tr><tr><td style="padding-left:24px;">COGS (5010)</td><td class="num">(${cgs.toFixed(2)})</td></tr><tr class="total-row"><td>${t('acct.gross_profit')}</td><td class="num">${gp.toFixed(2)}</td></tr><tr style="background:#ECEDF2;"><td colspan="2"><strong>${t('acct.expenses_section')}</strong></td></tr><tr><td style="padding-left:24px;">Utility (6010)</td><td class="num">${u.toFixed(2)}</td></tr><tr><td style="padding-left:24px;">Salary (6020)</td><td class="num">${sal.toFixed(2)}</td></tr><tr><td style="padding-left:24px;">Taxes (6030)</td><td class="num">${tx.toFixed(2)}</td></tr><tr class="total-row"><td>${t('acct.total_expenses')}</td><td class="num">(${ex.toFixed(2)})</td></tr><tr class="total-row" style="background:#EAF3EE;"><td>${t('acct.net_income')}</td><td class="num text-success">${net.toFixed(2)}</td></tr></table>`;
             } else if (type === 'balance') {
                 let csh = bal["1010"]||0, mb = bal["1020"]||0, ar = bal["1300"]||0, inv = state.inventory.reduce((acc, i)=>acc+i.lots.reduce((a,l)=>a+(l.qty*l.cost),0),0);
                 let ast = csh + mb + inv + ar, ap = bal["2010"]||0, eq = bal["3010"]||0;
-                let r = bal["4010"]||0, cgs = bal["5010"]||0, ex = (bal["6010"]||0)+(bal["6020"]||0)+(bal["6030"]||0), ret = r - cgs - ex;
+                let r = (bal["4010"]||0) + (bal["4020"]||0), cgs = bal["5010"]||0, ex = (bal["6010"]||0)+(bal["6020"]||0)+(bal["6030"]||0), ret = r - cgs - ex;
                 out.innerHTML = `<h2>${t('acct.balance_sheet_heading')}</h2><table><thead><tr style="background:var(--secondary); color:white;"><th colspan="2">${t('acct.assets')}</th></tr></thead><tbody><tr><td>Cash (1010)</td><td class="num">${csh.toFixed(2)}</td></tr><tr><td>Mobile banking (1020)</td><td class="num">${mb.toFixed(2)}</td></tr><tr><td>Inventory (1200)</td><td class="num">${inv.toFixed(2)}</td></tr><tr><td>Accounts receivable (1300)</td><td class="num">${ar.toFixed(2)}</td></tr><tr class="total-row" style="background:#e3e4ea;"><td>${t('acct.total_assets')}</td><td class="num">${ast.toFixed(2)}</td></tr><thead><tr style="background:var(--secondary); color:white;"><th colspan="2">${t('acct.liabilities_equity')}</th></tr></thead><tr><td>Accounts payable (2010)</td><td class="num">${ap.toFixed(2)}</td></tr><tr><td>Equity Capital (3010)</td><td class="num">${eq.toFixed(2)}</td></tr><tr><td>${t('acct.retained_earnings')}</td><td class="num">${ret.toFixed(2)}</td></tr><tr class="total-row" style="background:#e3e4ea;"><td>${t('acct.total_liabilities_equity')}</td><td class="num">${(ap+eq+ret).toFixed(2)}</td></tr></tbody></table>`;
             }
         }
@@ -7465,13 +7641,15 @@
                 { key: 'inventory.edit_products', label: 'Add / edit product catalog' },
                 { key: 'inventory.adjust_price', label: 'Change selling prices' },
                 { key: 'inventory.view_cost', label: 'View cost prices / cost of goods' },
-                { key: 'inventory.transfer', label: 'Transfer stock between branches' }
+                { key: 'inventory.transfer', label: 'Transfer stock between branches' },
+                { key: 'rentals.write_off', label: 'Write off rental stock as a loss' }
             ]},
             { key: 'cash_handover', label: 'Cash Handover', viewPerm: 'cash.handover', actions: [] },
             { key: 'sales', label: 'Sales', viewPerm: 'sales.view', actions: [
                 { key: 'sales.create', label: 'Record sales' },
                 { key: 'sales.void', label: 'Void / delete sales' },
-                { key: 'sales.mark_paid', label: 'Settle accounts receivable' }
+                { key: 'sales.mark_paid', label: 'Settle accounts receivable' },
+                { key: 'rentals.checkin', label: 'Check in / process rental returns' }
             ]},
             { key: 'purchase', label: 'Purchase', viewPerm: 'purchase.view', actions: [
                 { key: 'purchase.create', label: 'Record purchases' },
