@@ -25,6 +25,11 @@
 // v3 -- run the migration snippet below once against an existing database.
 // fromDbBooking() falls back gracefully if these columns aren't there yet.
 //
+// `rental_write_offs` (jsonb, default '[]') was added to `inventory_items`
+// to support dated write-offs -- run this once against an existing database:
+//   ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS rental_write_offs jsonb DEFAULT '[]'::jsonb;
+// Falls back to [] gracefully if the column doesn't exist yet.
+//
 // Quantity model: an item's lots (added via Purchase) are its total Qty
 // on hand and are NEVER touched by booking/check-out/check-in -- only a
 // new Purchase changes them. "Available now" is simply Qty on hand minus
@@ -52,8 +57,13 @@ const isBranchClosed = (...a) => window.isBranchClosed(...a);
 const getChannelBreakdown = (...a) => window.getChannelBreakdown(...a);
 const renderChannelBreakdownHtml = (...a) => window.renderChannelBreakdownHtml(...a);
 const updateBranchColumnVisibility = (...a) => window.updateBranchColumnVisibility(...a);
+const syncItemLots = (...a) => window.syncItemLots(...a);
+const printReceiptFor = (...a) => window.printReceiptFor(...a);
+const printInvoiceFor = (...a) => window.printInvoiceFor(...a);
+const buyerInfoStackHTML = (...a) => window.buyerInfoStackHTML(...a);
 
 let ctx = null; // { state, tenantId, supabaseClient, channelAccountCodes, branchId, calendarPref, mountEl }
+let widgetMountEl = null; // mount for the dashboard's Out/Overdue/Due-soon widget -- kept separate from ctx.mountEl, see refresh() below
 let inventoryActiveTab = 'availability';
 // Category / name filters shared by the Availability and Assets tabs (kept
 // in module state, not just the DOM, so they survive a tab switch or a
@@ -133,7 +143,8 @@ function fromDbBooking(row) {
         rateType: row.rate_type, amount: Number(row.amount) || 0, amountPaid: Number(row.amount_paid) || 0,
         depositAmount: Number(row.deposit_amount) || 0, depositStatus: row.deposit_status || 'held',
         depositForfeitedAmount: Number(row.deposit_forfeited_amount) || 0,
-        status: row.status, damageNotes: row.damage_notes || '', payments: row.payments || []
+        status: row.status, damageNotes: row.damage_notes || '', payments: row.payments || [],
+        buyerTin: row.buyer_tin || '', buyerTradeName: row.buyer_trade_name || ''
     };
 }
 function toDbBooking(b) {
@@ -144,7 +155,8 @@ function toDbBooking(b) {
         qty: b.qty, start_date: b.startDate, expected_return_date: b.expectedReturnDate, actual_return_date: b.actualReturnDate || null,
         rate_type: b.rateType, amount: b.amount, amount_paid: b.amountPaid,
         deposit_amount: b.depositAmount, deposit_status: b.depositStatus, deposit_forfeited_amount: b.depositForfeitedAmount,
-        status: b.status, damage_notes: b.damageNotes || null, payments: b.payments || []
+        status: b.status, damage_notes: b.damageNotes || null, payments: b.payments || [],
+        buyer_tin: b.buyerTin || null, buyer_trade_name: b.buyerTradeName || null
     };
 }
 
@@ -182,6 +194,17 @@ function rateTypeLabel(rt) { return rt ? rt.charAt(0).toUpperCase() + rt.slice(1
 function itemLabel(item) { return item ? `[${item.category}] ${item.desc}` : '—'; }
 
 function qtyOnHand(item) { return (item.lots || []).reduce((s, l) => s + (l.qty || 0), 0); }
+// Dated write-off log support -- item.rentalWriteOffs is a list of
+// { date, qty } events (see recordRentalWriteOff below and the matching
+// core-side logic in writeOffExpiringLot, index.html). qtyOnHand() always
+// reflects TODAY's true total (lots are reduced immediately). For any
+// OTHER day being asked about, add back whatever was written off strictly
+// AFTER that day -- so a unit removed today still shows as in stock on
+// every day before today, and only disappears from today onward.
+function qtyOnHandAsOf(item, dateIso) {
+    const future = (item.rentalWriteOffs || []).filter(w => w.date > dateIso).reduce((s, w) => s + w.qty, 0);
+    return qtyOnHand(item) + future;
+}
 function qtyOutOrReserved(item) {
     return bookings().filter(b => b.itemId === item.id && (b.status === 'reserved' || b.status === 'out')).reduce((s, b) => s + b.qty, 0);
 }
@@ -192,7 +215,7 @@ function qtyAvailable(item) { return Math.max(0, qtyOnHand(item) - qtyOutOrReser
 function qtyAvailableOnDate(item, dateIso) {
     const committed = bookings().filter(b => b.itemId === item.id && (b.status === 'reserved' || b.status === 'out')
         && dateIso >= b.startDate && dateIso < b.expectedReturnDate).reduce((s, b) => s + b.qty, 0);
-    return Math.max(0, qtyOnHand(item) - committed);
+    return Math.max(0, qtyOnHandAsOf(item, dateIso) - committed);
 }
 // What's actually free across a WHOLE date range (the New Booking modal's
 // Add Asset list needs this, not the blanket "available right now" figure
@@ -245,11 +268,33 @@ function perUnitAmount(item, rateType, days) {
 // ---------------------------------------------------------------
 export async function init(c) {
     ctx = c;
+    widgetMountEl = c.mountEl;
     await fetchBookings();
     renderDashboardWidget();
+    // Bookings load asynchronously and finish well after the Dashboard's
+    // first render (see the login sequence in index.html: Deep Sales
+    // Analytics renders before loadVerticalModule() even starts loading
+    // this file). Without this, a rental tenant would open the app to an
+    // empty Deep Sales Analytics card and only see their data after
+    // clicking to another page and back. Only refresh it if the Dashboard
+    // happens to still be the active view -- no need to touch it otherwise.
+    if (typeof window.renderAnalyticalDashboards === 'function' && document.getElementById('view-dashboard')?.classList.contains('active')) {
+        window.renderAnalyticalDashboards();
+    }
 }
+// Called every time the dashboard's mini "Out / Overdue / Due in 3 days"
+// widget needs to refresh (e.g. after any write-off, booking change, etc.
+// -- see renderAnalyticalDashboards() in index.html). IMPORTANT: this must
+// NOT merge c.mountEl into the shared ctx, or it clobbers whatever page
+// mount (Inventory's #inventory-rental-mount or Sales'
+// #sales-rental-mount) was set there last -- that used to leave the
+// Inventory/Sales page pointed at the wrong (hidden) mount element after
+// any background dashboard refresh, making tab switches like Availability
+// silently render into the dashboard widget instead of the visible page.
 export function refresh(c) {
-    ctx = { ...ctx, ...c };
+    const { mountEl, ...rest } = c;
+    ctx = { ...ctx, ...rest };
+    if (mountEl) widgetMountEl = mountEl;
     renderDashboardWidget();
 }
 export async function renderInventorySection(c) {
@@ -267,24 +312,55 @@ export async function renderBookingSection(c) {
 // Dashboard widget
 // ---------------------------------------------------------------
 function renderDashboardWidget() {
-    if (!ctx || !ctx.mountEl) return;
+    if (!widgetMountEl) return;
     const bs = bookings();
-    const outCount = bs.filter(b => b.status === 'out' && !isOverdue(b)).reduce((s, b) => s + b.qty, 0);
-    const overdueCount = bs.filter(isOverdue).reduce((s, b) => s + b.qty, 0);
-    const upcoming = bs.filter(b => b.status === 'reserved' && b.startDate >= todayISO() && b.startDate <= addDays(todayISO(), 3)).reduce((s, b) => s + b.qty, 0);
-    ctx.mountEl.style.maxWidth = '380px';
-    ctx.mountEl.innerHTML = `
+    const outCount = bs.filter(b => b.status === 'out' && !isOverdue(b)).length;
+    const overdueCount = bs.filter(isOverdue).length;
+    const upcoming = bs.filter(b => b.status === 'reserved' && b.startDate >= todayISO() && b.startDate <= addDays(todayISO(), 3)).length;
+    widgetMountEl.style.maxWidth = '380px';
+    widgetMountEl.innerHTML = `
         <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
-            ${miniStat('Out', outCount, 'var(--warning)')}
-            ${miniStat('Overdue', overdueCount, 'var(--danger)')}
-            ${miniStat('Due in 3 days', upcoming, 'var(--info)')}
+            ${miniStat('Out', outCount, 'var(--warning)', 'out')}
+            ${miniStat('Overdue', overdueCount, 'var(--danger)', 'overdue')}
+            ${miniStat('Due in 3 days', upcoming, 'var(--info)', 'due_soon')}
         </div>`;
 }
-function miniStat(label, value, color) {
-    return `<div style="flex:1; min-width:100px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:10px 12px; box-shadow:var(--shadow-sm);">
+function miniStat(label, value, color, filterKey) {
+    return `<div style="flex:1; min-width:100px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:10px 12px; box-shadow:var(--shadow-sm); cursor:pointer;" onclick="rentalUI.openStatusPopup('${filterKey}', '${label}')" title="View these bookings">
         <p style="font-size:11px; color:var(--text-light); margin:0 0 4px;">${label}</p>
         <p style="font-family:'IBM Plex Mono',monospace; font-size:18px; font-weight:600; color:${value ? color : 'var(--text)'}; margin:0;">${value}</p>
     </div>`;
+}
+// Same status predicates renderBookingsTableBody() uses for the Bookings
+// page's own Active/Overdue/etc. filter, reused here so the popup always
+// lists exactly what the box counted.
+function statusMatchFor(filterKey) {
+    if (filterKey === 'out') return b => b.status === 'out' && !isOverdue(b);
+    if (filterKey === 'overdue') return isOverdue;
+    if (filterKey === 'due_soon') return b => b.status === 'reserved' && b.startDate >= todayISO() && b.startDate <= addDays(todayISO(), 3);
+    return () => true;
+}
+// Popup for a dashboard box (Out / Overdue / Due in 3 days) -- shows the
+// matching bookings right there in a modal, the same way the Total
+// Revenue/Expenses/Net Profit boxes use launchDrillDown() + the shared
+// audit-modal, instead of navigating away to the Bookings page.
+function openStatusPopup(filterKey, label) {
+    const matches = bookings().filter(statusMatchFor(filterKey))
+        .sort((a, b) => (a.expectedReturnDate || a.startDate).localeCompare(b.expectedReturnDate || b.startDate));
+    let html = '';
+    if (matches.length === 0) {
+        html = `<p style="color:var(--text-light); font-size:13px;">No bookings in this category right now.</p>`;
+    } else {
+        html = `<table><thead><tr><th>Customer</th><th>Asset</th><th class="num">Qty</th><th>Start</th><th>Expected Return</th><th style="text-align:center;">Status</th></tr></thead><tbody>
+            ${matches.map(b => {
+                const item = itemById(b.itemId);
+                return `<tr><td>${b.customerName}</td><td>${itemLabel(item)}</td><td class="num">${b.qty}</td><td>${fmtDate(b.startDate)}</td><td>${fmtDate(b.expectedReturnDate)}</td><td style="text-align:center;">${statusBadge(displayStatus(b))}</td></tr>`;
+            }).join('')}
+        </tbody></table>`;
+    }
+    document.getElementById('modal-title').innerText = label;
+    document.getElementById('modal-body-content').innerHTML = html;
+    document.getElementById('audit-modal').style.display = 'flex';
 }
 
 // ---------------------------------------------------------------
@@ -351,7 +427,13 @@ function renderAvailabilityBody() {
     const dates = Array.from({ length: CALENDAR_DAYS }, (_, i) => addDays(calendarStart, i));
     const canBook = hasPerm('sales.create');
     el.innerHTML = list.length === 0 ? `<p style="color:var(--text-light); font-size:13px;">${items().length === 0 ? 'Add a product above to get started.' : 'No assets match this filter.'}</p>` : `
-        <div style="display:flex; border:1px solid var(--border); border-radius:8px; overflow:hidden;">
+        <!-- Grows to full length with the page as rows are added -- both
+             header rows (Asset + dates) stay pinned to the top of the page's
+             scroll area while scrolling through rows, same table-scroll
+             pattern as the Sales/Purchase history tables. The inner
+             #rental-cal-scroll div still handles horizontal scrolling of the
+             date columns only. -->
+        <div class="table-scroll" style="display:flex; border:1px solid var(--border); border-radius:8px;">
             <div style="flex-shrink:0;">
                 <table style="margin:0;">
                     <thead><tr><th style="min-width:150px; height:36px;">Asset</th></tr></thead>
@@ -360,8 +442,8 @@ function renderAvailabilityBody() {
                     </tbody>
                 </table>
             </div>
-            <!-- Only this inner strip scrolls -- the Asset column above
-                 stays put as the user scrolls through dates. -->
+            <!-- Only this inner strip scrolls horizontally -- the Asset
+                 column stays put as the user scrolls through dates. -->
             <div id="rental-cal-scroll" style="overflow-x:auto; flex:1;">
                 <table style="margin:0;">
                     <thead><tr>${dates.map(d => `<th style="text-align:center; font-size:11px; min-width:${CAL_COL_WIDTH}px; height:36px; ${d === todayISO() ? 'background:var(--bg); border-bottom:2px solid var(--primary);' : ''}">${fmtCal(d)}</th>`).join('')}</tr></thead>
@@ -373,7 +455,7 @@ function renderAvailabilityBody() {
         </div>`;
 }
 function calendarCell(item, dateIso, canBook) {
-    const total = qtyOnHand(item);
+    const total = qtyOnHandAsOf(item, dateIso);
     const avail = qtyAvailableOnDate(item, dateIso);
     const bg = total === 0 ? '#eee' : (avail <= 0 ? '#F8D7D2' : (avail < total ? '#FCEEDD' : '#E2EFE8'));
     const clickable = canBook && avail > 0;
@@ -484,6 +566,78 @@ function closeWriteOffModal() {
 }
 
 // ---------------------------------------------------------------
+// Automatic write-off for units never brought back at Check In --
+// distinct from the Write Off button above (which lets someone pick a
+// batch by hand for damaged/lost stock sitting on the shelf). This one
+// has no picker: it just needs to remove `qty` units, oldest batch
+// first, the same order a sale would consume stock in.
+// ---------------------------------------------------------------
+function recordRentalWriteOff(item, qty, dateIso) {
+    item.rentalWriteOffs = item.rentalWriteOffs || [];
+    item.rentalWriteOffs.push({ id: crypto.randomUUID(), date: dateIso, qty });
+    queueWrite({ kind: 'update', table: 'inventory_items', id: item.id, patch: { rental_write_offs: item.rentalWriteOffs } });
+}
+function consumeLotsFIFO(item, qty) {
+    const beforeLots = item.lots.map(l => ({ ...l }));
+    let remaining = qty, lossAmount = 0;
+    item.lots.forEach(lot => {
+        if (remaining <= 0) return;
+        const take = Math.min(remaining, lot.qty);
+        lossAmount += take * lot.cost;
+        lot.qty -= take;
+        remaining -= take;
+    });
+    item.lots = item.lots.filter(l => l.qty > 0);
+    syncItemLots(item, beforeLots);
+    return { lossAmount, consumedQty: qty - remaining };
+}
+// Called from Check In when the qty actually handed back is less than
+// what was booked out (see submitCheckIn). Removes the missing units
+// from stock -- dated as today, so the Availability calendar still shows
+// them as in stock on every day before today (see qtyOnHandAsOf) -- posts
+// the usual inventory-loss journal, and, if the booking was already
+// overdue, bills extra for every day it sat unreturned past the expected
+// return date, at the item's daily rate. That's rental income the
+// business would otherwise lose entirely along with the asset.
+function writeOffMissingUnits(item, missingQty, booking) {
+    const date = todayISO();
+    const { lossAmount, consumedQty } = consumeLotsFIFO(item, missingQty);
+    if (consumedQty > 0) {
+        recordRentalWriteOff(item, consumedQty, date);
+        item.history = item.history || [];
+        item.history.push(`[${new Date().toLocaleString()}] ${consumedQty} unit(s) not returned by ${booking.customerName} (Booking ${booking.id}) — written off, ETB ${lossAmount.toFixed(2)} loss recorded`);
+        queueWrite({ kind: 'update', table: 'inventory_items', id: item.id, patch: { history: item.history } });
+    }
+    if (lossAmount > 0) {
+        const lossJournal = {
+            id: crypto.randomUUID(), date, branchId: booking.branchId,
+            desc: stampDesc(`Rental equipment write-off: ${consumedQty} x ${item.desc} not returned (Booking ${booking.id})`),
+            lines: [{ account: '6070', dr: lossAmount, cr: 0 }, { account: '1500', cr: lossAmount, dr: 0 }]
+        };
+        ctx.state.journal.push(lossJournal);
+        queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(lossJournal) });
+    }
+
+    let overdueCharge = 0;
+    if (isOverdue(booking) && item.dailyRate) {
+        const daysOverdue = Math.max(0, daysBetween(booking.expectedReturnDate, date));
+        overdueCharge = +(consumedQty * item.dailyRate * daysOverdue).toFixed(2);
+        if (overdueCharge > 0) {
+            booking.amount += overdueCharge;
+            queueWrite({ kind: 'update', table: 'rentals', id: booking.id, patch: { amount: booking.amount } });
+            const chargeJournal = {
+                id: crypto.randomUUID(), date, branchId: booking.branchId,
+                desc: stampDesc(`Overdue charge: ${consumedQty} x ${item.desc} not returned, ${daysOverdue} day(s) overdue (Booking ${booking.id})`),
+                lines: [{ account: '1300', dr: overdueCharge, cr: 0 }, { account: '4020', cr: overdueCharge, dr: 0 }]
+            };
+            ctx.state.journal.push(chargeJournal);
+            queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(chargeJournal) });
+        }
+    }
+    return { lossAmount, overdueCharge, consumedQty };
+}
+
+// ---------------------------------------------------------------
 // Sales page content: Bookings
 // ---------------------------------------------------------------
 function bookingsHTML() {
@@ -512,7 +666,12 @@ function bookingsHTML() {
                     <select id="rbk-filter-author" onchange="rentalUI.applyBookingsFilter()"><option value="">-- All --</option></select>
                 </div>
             </div>
-            <div id="bookings-table-wrap"></div>
+            <div id="bookings-total-display" style="font-size:13px; font-weight:600; color:var(--primary);"></div>
+        </div>
+        <div class="card">
+            <div class="table-scroll">
+                <div id="bookings-table-wrap"></div>
+            </div>
         </div>
         <div id="sales-rentals-modals"></div>`;
 }
@@ -548,6 +707,8 @@ function renderBookingsTableBody() {
     if (bookingsFilter === 'active') statusMatch = b => b.status === 'reserved' || b.status === 'out';
     else if (bookingsFilter === 'overdue') statusMatch = isOverdue;
     else if (bookingsFilter === 'returned') statusMatch = b => b.status === 'returned';
+    else if (bookingsFilter === 'out') statusMatch = b => b.status === 'out' && !isOverdue(b);
+    else if (bookingsFilter === 'due_soon') statusMatch = b => b.status === 'reserved' && b.startDate >= todayISO() && b.startDate <= addDays(todayISO(), 3);
     else statusMatch = () => true; // 'all' -- the search fields below then filter across every status instead of just one
 
     const fD = bookingsFilterDate;
@@ -613,13 +774,14 @@ function renderBookingsTableBody() {
     const totalShown = fCh
         ? displayList.reduce((sum, entry) => sum + entry._breakdown.filter(b => b.channel === fCh).reduce((a, b) => a + b.amount, 0), 0)
         : displayList.reduce((sum, entry) => sum + entry._total, 0);
-    const totalHtml = `<div style="font-size:13px; font-weight:600; color:var(--primary); margin-bottom:8px;">Total shown: ETB ${totalShown.toFixed(2)} (${displayList.length})</div>`;
+    const totalEl = document.getElementById('bookings-total-display');
+    if (totalEl) totalEl.innerText = `Total shown: ETB ${totalShown.toFixed(2)} (${displayList.length})`;
 
-    el.innerHTML = totalHtml + (displayList.length === 0 ? `<p style="color:var(--text-light); font-size:13px;">No bookings match this filter.</p>` : `
+    el.innerHTML = displayList.length === 0 ? `<p style="color:var(--text-light); font-size:13px;">No bookings match this filter.</p>` : `
             <table>
                 <thead><tr><th>Date</th><th>Customer Name</th><th>Product Item</th><th class="num">Quantity</th><th>Start</th><th>Expected Return</th><th>Status</th><th class="num">Amount</th><th>Channel / Status / Type</th><th class="branch-col">Branch</th><th>By</th><th style="text-align:center;">Action</th></tr></thead>
                 <tbody>${displayList.map(entry => entry.isGroup ? bookingGroupRowsHTML(entry) : bookingRow(entry.row)).join('')}</tbody>
-            </table>`);
+            </table>`;
 }
 // Status tab click -- swaps just the button styling and the table body,
 // leaving the search filters (and any focus in them) untouched.
@@ -736,10 +898,10 @@ function bookingRow(b) {
     const balance = Math.max(0, b.amount - b.amountPaid);
     const status = displayStatus(b);
     let actions = lineActions(b);
-    if (balance > 0.001 && hasPerm('sales.mark_paid')) actions += `<button class="btn btn-small" style="background:var(--bg); color:var(--text); border:1px solid var(--border);" onclick="rentalUI.openPaymentModal('${b.id}')">Record Payment</button>`;
+    if (balance > 0.001 && hasPerm('sales.mark_paid')) actions += `<button class="btn btn-small" style="background:var(--bg); color:var(--text); border:1px solid var(--border);" onclick="rentalUI.openPaymentModal('${b.id}')">Record Payment</button> `;
     return `<tr>
         <td>${fmtDate(b.date)}</td>
-        <td>${b.customerName}${b.customerPhone ? `<br><span style="font-size:11px; color:var(--text-light);">${b.customerPhone}</span>` : ''}</td>
+        <td>${b.customerName}${b.customerPhone ? `<br><span style="font-size:11px; color:var(--text-light);">${b.customerPhone}</span>` : ''}${buyerInfoStackHTML(b)}</td>
         <td class="truncate-cell" title="${itemLabel(item)}">${itemLabel(item)}</td>
         <td class="num">${b.qty}</td>
         <td>${fmtDate(b.startDate)}</td>
@@ -791,6 +953,68 @@ function groupTransactionActions(groupId, rows, balance) {
     if (progressed && hasPerm('sales.void')) html += `<button class="btn btn-small btn-danger" onclick="rentalUI.voidBookingGroup('${groupId}')">Void</button> `;
     return html;
 }
+
+// ---------------------------------------------------------------
+// Printing -- thermal Receipt and full-page Invoice, using the same
+// engine/layout core Sales & Purchase History use (see printReceiptFor/
+// printInvoiceFor and their renderReceiptHTML/renderInvoiceHTML, index.html).
+// This just builds the generic { lines, total, ... } shape from a booking
+// or booking group -- deposit/rental-period info goes in extraNotes since
+// that's rental-specific and neither core document knows about it.
+// ---------------------------------------------------------------
+function printBookingButtons(id, isGroup) {
+    return `<button class="btn btn-small" style="background:var(--bg); color:var(--text); border:1px solid var(--border);" onclick="rentalUI.printBookingReceipt('${id}', ${!!isGroup})" title="Print thermal receipt">🧾 Receipt</button> <button class="btn btn-small" style="background:var(--bg); color:var(--text); border:1px solid var(--border);" onclick="rentalUI.printBookingInvoice('${id}', ${!!isGroup})" title="Print full-page invoice">📄 Invoice</button> `;
+}
+function buildBookingPrintData(id, isGroup) {
+    const rows = isGroup ? bookingGroupRows(id) : [bookingById(id)].filter(Boolean);
+    if (rows.length === 0) return null;
+    const primary = rows[0];
+    const total = rows.reduce((s, r) => s + r.amount, 0);
+    const amountPaid = rows.reduce((s, r) => s + r.amountPaid, 0);
+    const record = { payments: rows.flatMap(r => r.payments || []), amountPaid };
+    const extraNotes = rows.map(r => {
+        const item = itemById(r.itemId);
+        let note = `${r.qty}x ${item ? item.desc : '—'}: ${fmtDate(r.startDate)} to ${fmtDate(r.expectedReturnDate)} (${rateTypeLabel(r.rateType)})`;
+        if (r.depositAmount > 0) note += ` — Deposit ${r.depositStatus === 'refunded' ? 'refunded' : (r.depositStatus === 'forfeited' ? 'forfeited' : (r.depositStatus === 'partial' ? 'partly settled' : 'held'))}: ETB ${r.depositAmount.toFixed(2)}`;
+        return note;
+    });
+    return {
+        docNumber: String(id).slice(-8), date: primary.date, branchId: primary.branchId,
+        docLabel: 'Rental Booking Receipt', counterpartyLabel: 'Customer',
+        counterpartyName: primary.customerName, counterpartyPhone: primary.customerPhone || '',
+        buyerTin: primary.buyerTin || '', buyerTradeName: primary.buyerTradeName || '',
+        lines: rows.map(r => ({ desc: itemLabel(itemById(r.itemId)), qty: r.qty, unit: r.qty ? r.amount / r.qty : r.amount, total: r.amount })),
+        total, amountPaid, vatIncluded: false,
+        channelBreakdown: getChannelBreakdown(record, total, 'Accounts receivable'),
+        extraNotes
+    };
+}
+// Printing goes through the shared buyer-info prompt in index.html (asks
+// for TIN/trade name, remembers it on this booking or group for next time)
+// before actually building the document and printing it -- see
+// openBuyerInfoModal/confirmBuyerInfoAndPrint there, which calls back into
+// buildBookingPrintDataPublic below once the info is saved.
+function printBookingReceipt(id, isGroup) { window.openBuyerInfoModal('booking', id, isGroup, 'receipt'); }
+function printBookingInvoice(id, isGroup) { window.openBuyerInfoModal('booking', id, isGroup, 'invoice'); }
+function buildBookingPrintDataPublic(id, isGroup) { return buildBookingPrintData(id, isGroup); }
+function getBookingBuyerInfo(id, isGroup) {
+    const rows = isGroup ? bookingGroupRows(id) : [bookingById(id)].filter(Boolean);
+    return rows[0] ? { tin: rows[0].buyerTin || '', name: rows[0].buyerTradeName || '' } : { tin: '', name: '' };
+}
+function saveBookingBuyerInfo(id, isGroup, tin, name) {
+    const rows = isGroup ? bookingGroupRows(id) : [bookingById(id)].filter(Boolean);
+    rows.forEach(r => {
+        r.buyerTin = tin; r.buyerTradeName = name;
+        queueWrite({ kind: 'update', table: 'rentals', id: r.id, patch: { buyer_tin: tin, buyer_trade_name: name } });
+    });
+    renderBookingContent();
+}
+function collectBookingBuyerInfo() {
+    const tins = new Set(), names = new Set();
+    bookings().forEach(b => { if (b.buyerTin) tins.add(b.buyerTin); if (b.buyerTradeName) names.add(b.buyerTradeName); });
+    return { tins: [...tins], names: [...names] };
+}
+
 function bookingGroupRowsHTML(entry) {
     const { groupId, rows } = entry;
     const primary = rows[0];
@@ -804,7 +1028,7 @@ function bookingGroupRowsHTML(entry) {
     const descCell = `<span style="cursor:pointer;" onclick="rentalUI.toggleBookingGroupExpand('${groupId}')">🧺 ${isExpanded ? '▾' : '▸'} ${rows.length} items</span>`;
     let html = `<tr>
         <td>${fmtDate(primary.date)}</td>
-        <td>${primary.customerName}${primary.customerPhone ? `<br><span style="font-size:11px; color:var(--text-light);">${primary.customerPhone}</span>` : ''}</td>
+        <td>${primary.customerName}${primary.customerPhone ? `<br><span style="font-size:11px; color:var(--text-light);">${primary.customerPhone}</span>` : ''}${buyerInfoStackHTML(primary)}</td>
         <td class="truncate-cell">${descCell}</td>
         <td class="num">${totalQty}</td>
         <td>${fmtDate(primary.startDate)}</td>
@@ -826,8 +1050,8 @@ function bookingGroupRowsHTML(entry) {
                 <td></td><td></td>
                 <td>${statusBadge(displayStatus(r))}</td>
                 <td class="num"><small>ETB ${r.amount.toFixed(2)}</small></td>
-                <td colspan="3"></td>
                 <td style="text-align:center; white-space:nowrap;">${lineActionsForGroupChild(r)}</td>
+                <td colspan="3"></td>
             </tr>`;
         });
     }
@@ -1200,6 +1424,8 @@ function openCheckInModal(id) {
     <div class="modal-overlay active" onclick="rentalUI.closeCheckInModal()">
         <div class="modal-box" onclick="event.stopPropagation()" style="max-width:400px;">
             <h3 style="color:var(--primary); margin-bottom:14px;">Check In — ${b.customerName}</h3>
+            <div class="form-group" style="margin-bottom:10px;"><label>Qty Returned (of ${b.qty})</label><input type="number" id="ci-qty-returned" min="0" max="${b.qty}" value="${b.qty}" style="width:100%;" oninput="rentalUI.updateCheckInMissingHint()"></div>
+            <p id="ci-missing-hint" style="display:none; font-size:12px; color:var(--warning); margin:-4px 0 10px;"></p>
             <div class="form-group" style="margin-bottom:10px;"><label>Condition Notes (optional)</label><input type="text" id="ci-notes" style="width:100%;" placeholder="e.g. minor scratch on casing"></div>
             ${b.depositAmount > 0 ? `
             <div class="form-group" style="margin-bottom:10px;"><label>Deposit Held (ETB ${b.depositAmount.toFixed(2)})</label>
@@ -1222,6 +1448,23 @@ function openCheckInModal(id) {
     </div>`;
 }
 function closeCheckInModal() { const el = document.getElementById('sales-rentals-modals'); if (el) el.innerHTML = ''; checkinContext = null; }
+// Live preview while typing the returned qty -- warns before Confirm
+// Return is even clicked that some units will be written off (and, if
+// the booking's overdue, billed extra), rather than that only showing
+// up after the fact in the item's history.
+function updateCheckInMissingHint() {
+    const b = bookingById(checkinContext);
+    const hint = document.getElementById('ci-missing-hint');
+    const qtyInput = document.getElementById('ci-qty-returned');
+    if (!b || !hint || !qtyInput) return;
+    const returned = Math.max(0, Math.min(b.qty, parseInt(qtyInput.value) || 0));
+    const missing = b.qty - returned;
+    if (missing <= 0) { hint.style.display = 'none'; return; }
+    const item = itemById(b.itemId);
+    const overdueNote = (isOverdue(b) && item && item.dailyRate) ? ' — will also be billed extra for the overdue days.' : '';
+    hint.innerText = `${missing} unit(s) won't be returned. They'll be written off${overdueNote}`;
+    hint.style.display = 'block';
+}
 function toggleForfeitField() {
     const action = document.getElementById('ci-deposit-action').value;
     document.getElementById('ci-forfeit-group').style.display = action === 'forfeit_partial' ? 'block' : 'none';
@@ -1232,6 +1475,12 @@ function submitCheckIn() {
     const errEl = document.getElementById('ci-error');
     const notes = document.getElementById('ci-notes') ? document.getElementById('ci-notes').value.trim() : '';
     const item = itemById(b.itemId);
+
+    const qtyInput = document.getElementById('ci-qty-returned');
+    let qtyReturned = qtyInput ? parseInt(qtyInput.value) : b.qty;
+    if (isNaN(qtyReturned) || qtyReturned < 0) qtyReturned = 0;
+    if (qtyReturned > b.qty) qtyReturned = b.qty;
+    const missingQty = b.qty - qtyReturned;
 
     let forfeited = 0, refunded = 0, channel = null;
     if (b.depositAmount > 0) {
@@ -1245,9 +1494,17 @@ function submitCheckIn() {
         refunded = Math.max(0, b.depositAmount - forfeited);
     }
 
+    // Handle any units that never came back BEFORE flipping the booking to
+    // 'returned' -- writeOffMissingUnits checks isOverdue(b), which only
+    // reads true while status is still 'out'.
+    let writeOffResult = null;
+    if (missingQty > 0 && item) writeOffResult = writeOffMissingUnits(item, missingQty, b);
+
     b.status = 'returned';
     b.actualReturnDate = todayISO();
-    b.damageNotes = notes;
+    b.damageNotes = notes + (writeOffResult && writeOffResult.consumedQty > 0
+        ? `${notes ? ' | ' : ''}${writeOffResult.consumedQty} unit(s) not returned — written off` + (writeOffResult.overdueCharge > 0 ? `, ETB ${writeOffResult.overdueCharge.toFixed(2)} overdue charge added` : '') + '.'
+        : '');
     b.depositForfeitedAmount = forfeited;
     b.depositStatus = forfeited === 0 ? 'refunded' : (refunded === 0 ? 'forfeited' : 'partial');
     queueWrite({
@@ -1258,15 +1515,19 @@ function submitCheckIn() {
     if (b.depositAmount > 0) {
         const lines = [];
         if (refunded > 0) lines.push({ account: '2030', dr: refunded, cr: 0 }, { account: ctx.channelAccountCodes[channel], cr: refunded, dr: 0 });
-        if (forfeited > 0) lines.push({ account: '2030', dr: forfeited, cr: 0 }, { account: '4020', cr: forfeited, dr: 0 });
+        // Forfeited deposits post to 4030 (Other Income), not 4020 (Rental
+        // Revenue) -- it's money the business keeps, but it's a damage/loss
+        // recovery, not rental income, so it's kept out of revenue reports.
+        if (forfeited > 0) lines.push({ account: '2030', dr: forfeited, cr: 0 }, { account: '4030', cr: forfeited, dr: 0 });
         if (lines.length) {
-            const settleJournal = { id: crypto.randomUUID(), date: todayISO(), desc: stampDesc(`Deposit settled: ${item ? item.desc : ''} / Cust: ${b.customerName} (Booking ${b.id})`), lines, branchId: b.branchId };
+            const settleJournal = { id: crypto.randomUUID(), date: todayISO(), desc: stampDesc(`Deposit settled via ${channel}: ${item ? item.desc : ''} / Cust: ${b.customerName} (Booking ${b.id})`), lines, branchId: b.branchId };
             ctx.state.journal.push(settleJournal);
             queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(settleJournal) });
         }
     }
 
-    addNotification('Rental Returned', `${item ? item.desc : 'Asset'} checked in from ${b.customerName}`, notes || undefined);
+    addNotification('Rental Returned', `${item ? item.desc : 'Asset'} checked in from ${b.customerName}`,
+        writeOffResult && writeOffResult.consumedQty > 0 ? `${writeOffResult.consumedQty} unit(s) not returned — written off.` : (notes || undefined));
     closeCheckInModal();
     renderBookingContent();
 }
@@ -1354,13 +1615,15 @@ function submitPayment() {
 // window/global scope, not this module's scope) can reach these.
 window.rentalUI = {
     switchInventoryTab, shiftCalendar, jumpCalendarToDate, applyInventoryFilter,
-    setBookingsFilter, applyBookingsFilter, toggleBookingGroupExpand,
+    setBookingsFilter, applyBookingsFilter, toggleBookingGroupExpand, openStatusPopup,
     openWriteOffModal, closeWriteOffModal, confirmWriteOff,
     openBookingModal, closeBookingModal, recalcBooking, syncPaidNow, updateAddItemAvailability, addCartLine, removeCartLine, submitBookingForm,
     checkOutBooking, cancelBooking, voidBooking,
     checkOutBookingGroup, cancelBookingGroup, voidBookingGroup,
-    openCheckInModal, closeCheckInModal, toggleForfeitField, submitCheckIn,
+    openCheckInModal, closeCheckInModal, toggleForfeitField, updateCheckInMissingHint, submitCheckIn,
     openPaymentModal, closePaymentModal, submitPayment,
+    printBookingReceipt, printBookingInvoice, buildBookingPrintDataPublic,
+    getBookingBuyerInfo, saveBookingBuyerInfo, collectBookingBuyerInfo,
     // Called by the core app's bulkReplaceAllData() (Factory Reset,
     // Restore Backup, onboarding import) -- those flows wipe and reinsert
     // inventory_items, and any surviving `rentals` row referencing a
