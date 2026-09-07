@@ -100,6 +100,14 @@
         table { width: 100%; border-collapse: collapse; margin-top: 12px; text-align: left; white-space: nowrap; }
         th, td { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; }
         th { background: var(--bg); color: var(--primary); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
+        /* Wraps a history table so it grows to full length with the page
+           (no internal vertical scrollbar) while the header row stays
+           pinned to the top of the page's scroll area as you scroll
+           through the rows. overflow-x is kept so wide tables can still
+           scroll sideways on narrow screens. */
+        .table-scroll { overflow-x: auto; }
+        .table-scroll table { margin-top: 0; }
+        .table-scroll thead th { position: sticky; top: 0; z-index: 1; }
         tr:hover { background: var(--bg); }
         tr.clickable-row { cursor: pointer; }
         tr.clickable-row:hover { background: #EFEBE0; }
@@ -272,16 +280,33 @@
                     <input type="tel" id="auth-phone" style="width:100%;" placeholder="e.g. 0911 234 567">
                 </div>
                 <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
+                    <label data-i18n="auth.business_type">Business Type</label>
+                    <select id="auth-business-type" style="width:100%;" onchange="updateAuthVatDetailFields()"></select>
+                    <p style="font-size:12px; color:var(--text-light); margin-top:4px;" data-i18n="auth.business_type_hint">This can't be changed later, so pick the one that matches what you sell.</p>
+                </div>
+                <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                     <label data-i18n="auth.your_username">Your Username</label>
                     <input type="text" id="auth-username" style="width:100%;" placeholder="e.g. kebede (used to log in later)" autocomplete="off">
                 </div>
-                <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
+                <div id="auth-vat-registered-group" class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                     <label data-i18n="auth.vat_registered">Is your shop VAT registered?</label>
-                    <select id="auth-vat-registered" style="width:100%;">
+                    <select id="auth-vat-registered" style="width:100%;" onchange="updateAuthVatDetailFields()">
                         <option value="no" data-i18n="common.no">No</option>
                         <option value="yes" data-i18n="common.yes">Yes</option>
                     </select>
                     <p style="font-size:12px; color:var(--text-light); margin-top:4px;" data-i18n="auth.vat_registered_hint">You can change this anytime later from Team &amp; Branches.</p>
+                </div>
+                <div id="auth-vat-details-group" style="display:none;">
+                    <p style="font-size:12px; color:var(--text-light); margin:-6px 0 10px;" data-i18n="auth.vat_details_hint">Needed for VAT invoices — this goes on every receipt and invoice you print.</p>
+                    <div style="display:flex; gap:10px 14px; flex-wrap:wrap;">
+                        <div class="form-group" style="margin-bottom:14px; flex:1 1 160px;"><label data-i18n="auth.vat_tin">TIN Number</label><input type="text" id="auth-vat-tin" style="width:100%;"></div>
+                        <div class="form-group" style="margin-bottom:14px; flex:1 1 220px;"><label data-i18n="auth.owner_full_name">Owner's Full Name (with grandfather's name)</label><input type="text" id="auth-owner-full-name" style="width:100%;" placeholder="e.g. Dereje Eyasu Gebresilassie"></div>
+                        <div class="form-group" style="margin-bottom:14px; flex:1 1 140px;"><label data-i18n="auth.vat_city">City</label><input type="text" id="auth-vat-city" style="width:100%;"></div>
+                        <div class="form-group" style="margin-bottom:14px; flex:1 1 140px;"><label data-i18n="auth.vat_sub_city">Sub City</label><input type="text" id="auth-vat-sub-city" style="width:100%;"></div>
+                        <div class="form-group" style="margin-bottom:14px; flex:1 1 140px;"><label data-i18n="auth.vat_kebele">Kebele</label><input type="text" id="auth-vat-kebele" style="width:100%;"></div>
+                        <div class="form-group" style="margin-bottom:14px; flex:1 1 140px;"><label data-i18n="auth.vat_tel">Tel</label><input type="tel" id="auth-vat-tel" style="width:100%;"></div>
+                        <div class="form-group" style="margin-bottom:14px; flex:1 1 220px;"><label data-i18n="auth.vat_address">Address</label><input type="text" id="auth-vat-address" style="width:100%;"></div>
+                    </div>
                 </div>
                 <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                     <label data-i18n="auth.email">Email</label>
@@ -370,9 +395,50 @@
             </div>
             <div style="display:flex; gap:10px;">
                 <button class="btn" style="flex:1;" onclick="finishOnboarding(true)" data-i18n="misc.import_file">Import This File</button>
-                <button class="btn" style="flex:1; background:#4a4e63;" onclick="finishOnboarding(false)" data-i18n="misc.start_fresh">Start Fresh (Skip)</button>
+                <button class="btn" style="flex:1; background:#4a4e63;" onclick="showInitialInventorySetup()" data-i18n="misc.start_fresh">Start Fresh (Skip)</button>
             </div>
             <div id="onboarding-loading" style="display:none; text-align:center; margin-top:14px; font-size:12px; color:var(--text-light);">Importing your data, please wait...</div>
+        </div>
+    </div>
+
+    <!-- ===================== INITIAL INVENTORY SETUP SCREEN =====================
+         Shown right after "Start Fresh (Skip)" on a brand-new shop. Lets the
+         owner list out everything they're opening with -- one basket-style
+         entry at a time -- then registers the whole batch in one shot as an
+         opening-stock Multi-Item Purchase (Supp: N/A, paid by Mobile banking),
+         plus a second journal entry that injects the same amount as owner
+         Equity Base Capital so the books balance without implying a real
+         supplier or a real cash outflow. See completeInitialInventorySetup(). -->
+    <div id="initial-inventory-overlay" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:5000; align-items:center; justify-content:center; padding:40px 16px; overflow-y:auto;">
+        <div class="modal-box" style="max-width:980px; width:100%;">
+            <h2 style="color:var(--primary); margin-bottom:6px;">Set up your opening inventory</h2>
+            <p style="font-size:13px; color:var(--text-light); margin-bottom:16px;">Add everything you're stocking up with right now. Each item you add below gets listed in the basket -- once the list looks right, click "Complete Setup" and it'll all be registered at once, funded as owner capital.</p>
+            <div style="display:flex; gap:10px 14px; flex-wrap:wrap; align-items:flex-end; border-bottom:1px solid var(--border); padding-bottom:16px; margin-bottom:16px;">
+                <div class="form-group" style="margin-bottom:0; flex:1 1 110px;"><label>Category</label><input type="text" id="init-inv-category" list="category-list" placeholder="e.g., Cables" style="width:100%; min-width:100px;" autocomplete="off"></div>
+                <div class="form-group" style="margin-bottom:0; flex:1 1 150px;"><label>Product Name</label><input type="text" id="init-inv-name" placeholder="e.g., 2.5mm Twin Cable" style="width:100%; min-width:140px;" autocomplete="off"></div>
+                <div class="form-group" style="margin-bottom:0; flex:0 1 80px;"><label>Qty On Hand</label><input type="number" id="init-inv-qty" min="1" value="1" style="width:100%; min-width:70px;"></div>
+                <div class="form-group" style="margin-bottom:0; flex:0 1 100px;"><label>Cost (ETB)</label><input type="number" id="init-inv-cost" step="0.01" min="0.01" style="width:100%; min-width:90px;"></div>
+                <div class="form-group" style="margin-bottom:0; flex:0 1 130px;" id="init-inv-expiry-group"><label>Expiry Date</label><input type="date" id="init-inv-expiry" style="width:100%; min-width:120px;"></div>
+                <div class="form-group" style="margin-bottom:0; flex:0 1 110px;" id="init-inv-selling-price-group"><label>Selling Price (ETB)</label><input type="number" id="init-inv-selling-price" step="0.01" min="0" style="width:100%; min-width:100px;"></div>
+                <div class="form-group" style="margin-bottom:0; flex:0 1 100px;" id="init-inv-daily-rate-group"><label>Daily Rate (ETB)</label><input type="number" id="init-inv-daily-rate" step="0.01" min="0" style="width:100%; min-width:90px;"></div>
+                <div class="form-group" style="margin-bottom:0; flex:0 1 110px;" id="init-inv-weekly-rate-group"><label>Weekly Rate (ETB, optional)</label><input type="number" id="init-inv-weekly-rate" step="0.01" min="0" style="width:100%; min-width:100px;"></div>
+                <div class="form-group" style="margin-bottom:0; flex:0 1 110px;" id="init-inv-monthly-rate-group"><label>Monthly Rate (ETB, optional)</label><input type="number" id="init-inv-monthly-rate" step="0.01" min="0" style="width:100%; min-width:100px;"></div>
+                <button type="button" class="btn" style="flex:0 0 auto;" onclick="addToInitialInventoryCart()">+ Add</button>
+            </div>
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead id="initial-inventory-cart-table-head"></thead>
+                    <tbody id="initial-inventory-cart-table-body"><tr><td colspan="7" style="text-align:center; color:var(--text-light);">No items added yet.</td></tr></tbody>
+                </table>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; flex-wrap:wrap; gap:12px;">
+                <div style="font-size:15px; font-weight:700; color:var(--primary);">Opening Stock Value: <span id="initial-inventory-cart-total">ETB 0.00</span></div>
+                <div style="display:flex; gap:10px;">
+                    <button type="button" class="btn" style="background:#4a4e63;" onclick="skipInitialInventorySetup()">Skip / Add Products Later</button>
+                    <button type="button" class="btn" onclick="completeInitialInventorySetup()">Complete Setup</button>
+                </div>
+            </div>
+            <div id="initial-inventory-loading" style="display:none; text-align:center; margin-top:14px; font-size:12px; color:var(--text-light);">Registering your opening inventory, please wait...</div>
         </div>
     </div>
 
@@ -473,7 +539,7 @@
                 <div class="grid-5">
                     <div class="metric-box revenue" onclick="launchDrillDown('revenue')"><div class="metric-title" data-i18n="acct.total_revenue">Total Revenue</div><div class="metric-value" id="m-revenue">ETB 0.00</div></div>
                     <div class="metric-box danger" id="m-cogs-box" onclick="launchDrillDown('cogs')"><div class="metric-title" data-i18n="acct.cogs">Cost of Goods Sold</div><div class="metric-value" id="m-cogs">ETB 0.00</div></div>
-                    <div class="metric-box success" onclick="launchDrillDown('gross')"><div class="metric-title" data-i18n="acct.gross_profit">Gross Profit</div><div class="metric-value" id="m-gross">ETB 0.00</div></div>
+                    <div class="metric-box success" id="m-gross-box" onclick="launchDrillDown('gross')"><div class="metric-title" data-i18n="acct.gross_profit">Gross Profit</div><div class="metric-value" id="m-gross">ETB 0.00</div></div>
                     <div class="metric-box danger" onclick="launchDrillDown('expenses')"><div class="metric-title" data-i18n="acct.total_expenses">Total Expenses</div><div class="metric-value" id="m-expenses">ETB 0.00</div></div>
                     <div class="metric-box success" style="background: #EAF3EE;" onclick="launchDrillDown('net')"><div class="metric-title" data-i18n="acct.net_profit">Net Profit</div><div class="metric-value" id="m-net">ETB 0.00</div></div>
                     <div class="metric-box" id="m-vat-box" style="display:none; background:#FDF3E7; border-top-color:#C97A22;" onclick="launchVatDrillDown()"><div class="metric-title" data-i18n="dash.estimated_vat">Estimated VAT</div><div class="metric-value" id="m-vat">ETB 0.00</div></div>
@@ -536,7 +602,7 @@
                         </div>
 
                         <h3 style="color: var(--primary); margin-bottom: 12px; font-size: 18px;" data-i18n="dash.item_matrix">Item Performance Matrix (Velocity &amp; Margins)</h3>
-                        <div style="overflow-x: auto; margin-top: 8px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid var(--border);">
+                        <div class="table-scroll" style="margin-top: 8px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid var(--border);">
                             <table style="margin-top: 0; width: 100%; border-collapse: separate; border-spacing: 0;">
                                 <thead style="background: linear-gradient(to right, #F4F5F8, #ECEDF2);">
                                     <tr>
@@ -768,13 +834,17 @@
                         <div class="form-group"><label data-i18n="sale.sale_type">Sale Type</label><select id="sale-log-filter-type" onchange="renderSalesLogTable()"><option value="" data-i18n="sale.all">-- All --</option></select></div>
                         <div class="form-group" id="sale-log-filter-by-group" style="display:none;"><label data-i18n="tr.by">By</label><select id="sale-log-filter-author" onchange="renderSalesLogTable()"><option value="" data-i18n="sale.all">-- All --</option></select></div>
                     </div>
-                    <div id="sale-log-total-display" style="font-size:13px; font-weight:600; color:var(--primary); margin-bottom:8px;"></div>
+                    <div id="sale-log-total-display" style="font-size:13px; font-weight:600; color:var(--primary);"></div>
+                </div>
+                <div class="card">
+                    <div class="table-scroll">
                     <table>
                         <thead>
                             <tr><th data-i18n="sale.date">Date</th><th data-i18n="sale.customer_name">Customer Name</th><th data-i18n="sale.product_item">Product Item</th><th class="num" data-i18n="tr.quantity">Quantity</th><th class="num" data-i18n="sale.unit_price">Unit Price</th><th class="num" data-i18n="sale.total">Total</th><th>Channel / Status / Type</th><th class="branch-col" data-i18n="sale.branch">Branch</th><th data-i18n="tr.by">By</th><th style="text-align:center;" data-i18n="sale.action">Action</th></tr>
                         </thead>
                         <tbody id="sales-log-table-body"></tbody>
                     </table>
+                    </div>
                 </div>
                 </div>
                 <!-- Booking section for the appliance_rental vertical is
@@ -889,13 +959,17 @@
                         <div class="form-group"><label data-i18n="sale.channel">Channel</label><select id="pur-log-filter-channel" onchange="renderPurchaseLogTable()"><option value="" data-i18n="sale.all">-- All --</option><option value="Cash">Cash</option><option value="Mobile banking">Mobile banking</option><option value="Accounts payable">Accounts payable</option></select></div>
                         <div class="form-group" id="pur-log-filter-by-group" style="display:none;"><label data-i18n="tr.by">By</label><select id="pur-log-filter-author" onchange="renderPurchaseLogTable()"><option value="" data-i18n="sale.all">-- All --</option></select></div>
                     </div>
-                    <div id="pur-log-total-display" style="font-size:13px; font-weight:600; color:var(--primary); margin-bottom:8px;"></div>
+                    <div id="pur-log-total-display" style="font-size:13px; font-weight:600; color:var(--primary);"></div>
+                </div>
+                <div class="card">
+                    <div class="table-scroll">
                     <table>
                         <thead>
                             <tr><th data-i18n="sale.date">Date</th><th data-i18n="pur.supplier_name">Supplier Name</th><th data-i18n="sale.product_item">Product Item</th><th class="num" data-i18n="tr.quantity">Quantity</th><th class="num" data-i18n="pur.unit_cost">Unit Cost</th><th class="num" data-i18n="sale.total">Total</th><th>Channel / Status</th><th class="branch-col" data-i18n="sale.branch">Branch</th><th data-i18n="tr.by">By</th><th style="text-align:center;" data-i18n="sale.action">Action</th></tr>
                         </thead>
                         <tbody id="purchase-log-table-body"></tbody>
                     </table>
+                    </div>
                 </div>
             </div>
 
@@ -1002,6 +1076,20 @@
                     <h2 style="border:none; margin-bottom:10px;" data-i18n="team.vat_registration">VAT Registration</h2>
                     <p style="font-size:13px; color:var(--text-light); margin-bottom:12px;" data-i18n="team.vat_registration_hint">Turning this on adds an "Include VAT (15%)" checkbox to the Sales page and shows an Estimated VAT box on the Dashboard. This is only an estimate for your own planning — it does not affect your journal entries or accounts.</p>
                     <label class="check-label" style="font-size:14px;"><input type="checkbox" id="settings-vat-registered" onchange="toggleVatRegistered(this.checked)"> <span data-i18n="team.vat_registered_label">This shop is VAT registered</span></label>
+                    <div id="settings-vat-details-group" style="display:none; margin-top:16px; border-top:1px solid var(--border); padding-top:16px;">
+                        <p style="font-size:12px; color:var(--text-light); margin:0 0 10px;" data-i18n="auth.vat_details_hint">Needed for VAT invoices — this goes on every receipt and invoice you print.</p>
+                        <div style="display:flex; gap:10px 14px; flex-wrap:wrap;">
+                            <div class="form-group" style="margin-bottom:14px; flex:1 1 160px;"><label data-i18n="auth.vat_tin">TIN Number</label><input type="text" id="settings-vat-tin" style="width:100%;"></div>
+                            <div class="form-group" style="margin-bottom:14px; flex:1 1 220px;"><label data-i18n="auth.owner_full_name">Owner's Full Name (with grandfather's name)</label><input type="text" id="settings-owner-full-name" style="width:100%;"></div>
+                            <div class="form-group" style="margin-bottom:14px; flex:1 1 140px;"><label data-i18n="auth.vat_city">City</label><input type="text" id="settings-vat-city" style="width:100%;"></div>
+                            <div class="form-group" style="margin-bottom:14px; flex:1 1 140px;"><label data-i18n="auth.vat_sub_city">Sub City</label><input type="text" id="settings-vat-sub-city" style="width:100%;"></div>
+                            <div class="form-group" style="margin-bottom:14px; flex:1 1 140px;"><label data-i18n="auth.vat_kebele">Kebele</label><input type="text" id="settings-vat-kebele" style="width:100%;"></div>
+                            <div class="form-group" style="margin-bottom:14px; flex:1 1 140px;"><label data-i18n="auth.vat_tel">Tel</label><input type="tel" id="settings-vat-tel" style="width:100%;"></div>
+                            <div class="form-group" style="margin-bottom:14px; flex:1 1 220px;"><label data-i18n="auth.vat_address">Address</label><input type="text" id="settings-vat-address" style="width:100%;"></div>
+                        </div>
+                        <button type="button" class="btn" onclick="saveVatDetails()" data-i18n="team.save_vat_details">Save VAT Details</button>
+                        <span id="settings-vat-details-saved" style="display:none; color:var(--success); font-size:13px; margin-left:10px;">Saved ✓</span>
+                    </div>
                 </div>
                 <div class="card">
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
@@ -1262,6 +1350,21 @@
         </div>
     </div>
 
+    <datalist id="buyer-tin-list"></datalist>
+    <datalist id="buyer-trade-name-list"></datalist>
+    <div id="buyer-info-modal" class="modal-overlay" onclick="closeBuyerInfoModal()">
+        <div class="modal-box" onclick="event.stopPropagation()" style="max-width:420px;">
+            <h3 style="color:var(--primary); margin-bottom:6px;">Buyer Details</h3>
+            <p style="font-size:12px; color:var(--text-light); margin-bottom:14px;">Optional -- prints on the receipt/invoice. Saved for this transaction, so it's remembered next time you print the other document for it.</p>
+            <div class="form-group" style="margin-bottom:12px;"><label>Buyer's TIN</label><input type="text" id="buyer-info-tin" list="buyer-tin-list" style="width:100%;" autocomplete="off" oninput="handleBuyerTinInput()"></div>
+            <div class="form-group" style="margin-bottom:16px;"><label>Customer Name / Trade Name</label><input type="text" id="buyer-info-name" list="buyer-trade-name-list" style="width:100%;" autocomplete="off" oninput="handleBuyerNameInput()"></div>
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button type="button" class="btn" style="background:#4a4e63;" onclick="closeBuyerInfoModal()">Cancel</button>
+                <button type="button" class="btn" onclick="confirmBuyerInfoAndPrint()">Print</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // --- MASTER ACCOUNTS ---
         const BASE_CHART_OF_ACCOUNTS = [
@@ -1276,6 +1379,11 @@
             { main: "Equity", sub: "Equity", stmt: "balance sheet", code: "3010", name: "Equity Base Capital", normal: "Credit" },
             { main: "Revenue", sub: "Revenue", stmt: "income statement", code: "4010", name: "Sales Operations", normal: "Credit" },
             { main: "Revenue", sub: "Revenue", stmt: "income statement", code: "4020", name: "Rental Revenue", normal: "Credit" },
+            // Deposit forfeitures (damage, etc.) post here instead of 4020
+            // -- it's money the business keeps, but not rental income, so
+            // it's deliberately left out of the 4010/4020 revenue rollups
+            // used for sales/revenue reporting (see renderAnalyticalDashboards).
+            { main: "Revenue", sub: "Other Income", stmt: "income statement", code: "4030", name: "Forfeited Deposits (Other Income)", normal: "Credit" },
             { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "5010", name: "Cost of Goods Sold", normal: "Debit" },
             { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "6010", name: "Utility/Overhead", normal: "Debit" },
             { main: "Expenses", sub: "Expenses", stmt: "income statement", code: "6020", name: "Salary", normal: "Debit" },
@@ -1421,6 +1529,7 @@
                 'team.vat_registration': 'VAT Registration',
                 'team.vat_registration_hint': 'Turning this on adds an "Include VAT (15%)" checkbox to the Sales page and shows an Estimated VAT box on the Dashboard. This is only an estimate for your own planning — it does not affect your journal entries or accounts.',
                 'team.vat_registered_label': 'This shop is VAT registered',
+                'team.save_vat_details': 'Save VAT Details',
 
                 'pagetitle.dashboard': 'Dashboard', 'pagetitle.inventory': 'Inventory/Stock', 'pagetitle.transfer': 'Transfer',
                 'pagetitle.cash_handover': 'Cash Handover', 'pagetitle.sales': 'Sales', 'pagetitle.purchase': 'Purchase',
@@ -1440,6 +1549,11 @@
                 'auth.create_one': 'Create one', 'auth.already_have_account': 'Already have an account?', 'auth.sign_in_link': 'Sign in',
                 'auth.vat_registered': 'Is your shop VAT registered?',
                 'auth.vat_registered_hint': 'You can change this anytime later from Team & Branches.',
+                'auth.business_type': 'Business Type',
+                'auth.business_type_hint': "This can't be changed later, so pick the one that matches what you sell.",
+                'auth.vat_details_hint': 'Needed for VAT invoices — this goes on every receipt and invoice you print.',
+                'auth.vat_tin': 'TIN Number', 'auth.owner_full_name': "Owner's Full Name (with grandfather's name)",
+                'auth.vat_city': 'City', 'auth.vat_sub_city': 'Sub City', 'auth.vat_kebele': 'Kebele', 'auth.vat_tel': 'Tel', 'auth.vat_address': 'Address',
 
                 'misc.restore_data': 'Restore Data', 'misc.delete_role': 'Delete Role', 'misc.clear_all': 'Clear All',
                 'misc.logs': 'Logs', 'misc.record_customer_payment': 'Record Customer Payment', 'misc.record_supplier_payment': 'Record Supplier Payment',
@@ -1597,6 +1711,7 @@
                 'team.vat_registration': 'የቫት ምዝገባ',
                 'team.vat_registration_hint': 'ይህንን ማብራት በሽያጭ ገጽ ላይ "ቫት አካትት (15%)" የሚል አማራጭ ይጨምራል እና በዳሽቦርድ ላይ የተገመተ ቫት ሳጥን ያሳያል። ይህ ለራስዎ እቅድ ማውጫ ብቻ የተገመተ ነው — በጆርናል ግቤቶችዎ ወይም በሂሳቦችዎ ላይ ተጽዕኖ አያመጣም።',
                 'team.vat_registered_label': 'ይህ ሱቅ በቫት ተመዝግቧል',
+                'team.save_vat_details': 'የቫት ዝርዝሮችን አስቀምጥ',
 
                 'pagetitle.dashboard': 'ዳሽቦርድ', 'pagetitle.inventory': 'የዕቃ ክምችት', 'pagetitle.transfer': 'ዝውውር',
                 'pagetitle.cash_handover': 'ካሽ ርክክብ', 'pagetitle.sales': 'ሽያጭ', 'pagetitle.purchase': 'ግዢ',
@@ -1616,6 +1731,11 @@
                 'auth.create_one': 'አንድ ይፍጠሩ', 'auth.already_have_account': 'አካውንት አለዎት?', 'auth.sign_in_link': 'ግባ',
                 'auth.vat_registered': 'ሱቅዎ በቫት ተመዝግቧል?',
                 'auth.vat_registered_hint': 'ይህንን ከጊዜ በኋላ ከቡድን እና ቅርንጫፎች መቀየር ይችላሉ።',
+                'auth.business_type': 'የንግድ አይነት',
+                'auth.business_type_hint': 'ይህ በኋላ ሊቀየር ስለማይችል፣ ከሚሸጡት ጋር የሚስማማውን ይምረጡ።',
+                'auth.vat_details_hint': 'ለቫት ደረሰኞች ያስፈልጋል — በሚያትሙት እያንዳንዱ ደረሰኝ እና ኢንቮይስ ላይ ይወጣል።',
+                'auth.vat_tin': 'የቲን ቁጥር', 'auth.owner_full_name': 'የባለቤት ሙሉ ስም (የአያት ስም ጨምሮ)',
+                'auth.vat_city': 'ከተማ', 'auth.vat_sub_city': 'ክፍለ ከተማ', 'auth.vat_kebele': 'ቀበሌ', 'auth.vat_tel': 'ስልክ', 'auth.vat_address': 'አድራሻ',
 
                 'misc.restore_data': 'ውሂብ መልስ', 'misc.delete_role': 'ሚና አጥፋ', 'misc.clear_all': 'ሁሉንም አጽዳ',
                 'misc.logs': 'ታሪክ', 'misc.record_customer_payment': 'የደንበኛ ክፍያ መዝግብ', 'misc.record_supplier_payment': 'የአቅራቢ ክፍያ መዝግብ',
@@ -1696,7 +1816,35 @@
             const authBtn = document.getElementById('lang-toggle-btn-auth');
             if (authBtn) authBtn.innerText = label;
             applyStaticTranslations();
+            populateBusinessTypeSignupOptions();
         });
+
+        // Fills the signup "Business Type" select straight from
+        // BUSINESS_TYPES (business-types.config.js) -- so adding a new
+        // vertical there is the only change needed to offer it at signup
+        // too. 'retail' is listed first since it's the default catch-all.
+        function populateBusinessTypeSignupOptions() {
+            const sel = document.getElementById('auth-business-type');
+            if (!sel || typeof BUSINESS_TYPES === 'undefined') return;
+            const keys = Object.keys(BUSINESS_TYPES).sort((a, b) => (a === 'retail' ? -1 : b === 'retail' ? 1 : 0));
+            sel.innerHTML = keys.map(k => `<option value="${k}">${BUSINESS_TYPES[k].label}</option>`).join('');
+            updateAuthVatDetailFields();
+        }
+        // Appliance rental has no VAT registration option at all (the whole
+        // question is hidden); every other business type shows the extra
+        // TIN/owner/address fields once "Yes" is picked -- those go on every
+        // receipt & invoice, so they're collected up front.
+        function updateAuthVatDetailFields() {
+            const typeSel = document.getElementById('auth-business-type');
+            const vatGroup = document.getElementById('auth-vat-registered-group');
+            const vatSel = document.getElementById('auth-vat-registered');
+            const detailsGroup = document.getElementById('auth-vat-details-group');
+            if (!typeSel || !vatGroup || !vatSel || !detailsGroup) return;
+            const isRental = typeSel.value === 'appliance_rental';
+            vatGroup.style.display = isRental ? 'none' : 'block';
+            if (isRental) vatSel.value = 'no';
+            detailsGroup.style.display = (!isRental && vatSel.value === 'yes') ? 'block' : 'none';
+        }
 
         function t(key) {
             return (I18N[currentLang] && I18N[currentLang][key]) || I18N.en[key] || key;
@@ -1822,9 +1970,13 @@
 
             // Rental businesses aren't selling goods off a shelf, so there's
             // no cost-of-goods-sold figure to show -- it would just read
-            // "ETB 0.00" forever and confuse the dashboard.
+            // "ETB 0.00" forever and confuse the dashboard. Gross Profit is
+            // derived straight from COGS, so it's just as meaningless here
+            // and hidden for the same reason.
             const cogsBox = document.getElementById('m-cogs-box');
+            const grossBox = document.getElementById('m-gross-box');
             if (cogsBox) cogsBox.style.display = (currentBusinessType === 'appliance_rental') ? 'none' : '';
+            if (grossBox) grossBox.style.display = (currentBusinessType === 'appliance_rental') ? 'none' : '';
 
             // appliance_rental reuses Add Product / Purchase / Sales
             // exactly like every other business type -- it just needs
@@ -1890,6 +2042,7 @@
         // concern — none of this touches journal entries or accounts.
         function applyVatUIVisibility() {
             const isVat = !!state.vatRegistered;
+            const isRental = currentBusinessType === 'appliance_rental';
             const saleVatGroup = document.getElementById('sale-vat-group');
             if (saleVatGroup) saleVatGroup.style.display = isVat ? 'block' : 'none';
             const cartVatGroup = document.getElementById('cart-sale-vat-group');
@@ -1897,9 +2050,23 @@
             const vatBox = document.getElementById('m-vat-box');
             if (vatBox) vatBox.style.display = isVat ? 'block' : 'none';
             const vatSettingsCard = document.getElementById('vat-settings-card');
-            if (vatSettingsCard) vatSettingsCard.style.display = currentIsOwner ? 'block' : 'none';
+            // Appliance rental has no VAT registration concept at all -- the
+            // whole card (and thus the option to turn it on) is hidden, the
+            // same as at signup.
+            if (vatSettingsCard) vatSettingsCard.style.display = (currentIsOwner && !isRental) ? 'block' : 'none';
             const vatCheckbox = document.getElementById('settings-vat-registered');
             if (vatCheckbox) vatCheckbox.checked = isVat;
+            const detailsGroup = document.getElementById('settings-vat-details-group');
+            if (detailsGroup) {
+                detailsGroup.style.display = isVat ? 'block' : 'none';
+                if (isVat) {
+                    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+                    setVal('settings-vat-tin', state.vatTin); setVal('settings-owner-full-name', state.ownerFullName);
+                    setVal('settings-vat-city', state.vatCity); setVal('settings-vat-sub-city', state.vatSubCity);
+                    setVal('settings-vat-kebele', state.vatKebele); setVal('settings-vat-tel', state.vatTel);
+                    setVal('settings-vat-address', state.vatAddress);
+                }
+            }
         }
 
         // Anything that only makes sense once there's more than just the
@@ -1932,6 +2099,26 @@
             queueWrite({ kind: 'tenant_update', patch: { vat_registered: checked } });
             applyVatUIVisibility();
             renderAnalyticalDashboards();
+        }
+        // Saves the TIN/owner/address block shown once VAT registration is
+        // turned on -- these are what get printed on every receipt/invoice
+        // from here on (see docHeaderLines/renderReceiptHTML/renderInvoiceHTML).
+        // Ethiopian TINs are 10-12 digits.
+        function isValidTin(tin) { return /^\d{10,12}$/.test((tin || '').trim()); }
+        function saveVatDetails() {
+            const getVal = id => (document.getElementById(id)?.value || '').trim();
+            const tinVal = getVal('settings-vat-tin');
+            if (tinVal && !isValidTin(tinVal)) return alert('TIN Number must be 10 to 12 digits.');
+            state.vatTin = tinVal;
+            state.ownerFullName = getVal('settings-owner-full-name');
+            state.vatCity = getVal('settings-vat-city');
+            state.vatSubCity = getVal('settings-vat-sub-city');
+            state.vatKebele = getVal('settings-vat-kebele');
+            state.vatTel = getVal('settings-vat-tel');
+            state.vatAddress = getVal('settings-vat-address');
+            queueWrite({ kind: 'tenant_update', patch: { vat_tin: state.vatTin, owner_full_name: state.ownerFullName, vat_city: state.vatCity, vat_sub_city: state.vatSubCity, vat_kebele: state.vatKebele, vat_tel: state.vatTel, vat_address: state.vatAddress } });
+            const saved = document.getElementById('settings-vat-details-saved');
+            if (saved) { saved.style.display = 'inline'; setTimeout(() => saved.style.display = 'none', 2000); }
         }
 
         // Hides/shows nav items, entry-form cards, and account-level buttons
@@ -2096,6 +2283,7 @@
         let state = {
             currentFilter: 'all', customStart: '', customEnd: '', categories: [],
             ethiopianFilter: 'all', customAccounts: [], saleTypes: [], vatRegistered: false, hasEmployees: false,
+            vatTin: '', ownerFullName: '', vatCity: '', vatSubCity: '', vatKebele: '', vatTel: '', vatAddress: '',
             inventory: [], journal: [], salesLog: [], purchaseLog: [], expenseLog: [],
             trash: [], notifications: []
         };
@@ -2151,8 +2339,8 @@
         // login on this device can finish creating the business automatically.
         // If they confirm on a different device, completeBusinessSetup() below
         // asks for these same three fields again.
-        function savePendingSignupInfo(bizName, phone, username, vatRegistered) {
-            try { sessionStorage.setItem('neba_pending_signup', JSON.stringify({ bizName, phone, username, vatRegistered })); } catch (e) {}
+        function savePendingSignupInfo(bizName, phone, username, vatRegistered, businessType, vatDetails) {
+            try { sessionStorage.setItem('neba_pending_signup', JSON.stringify({ bizName, phone, username, vatRegistered, businessType, vatDetails })); } catch (e) {}
         }
         function takePendingSignupInfo() {
             try {
@@ -2171,6 +2359,16 @@
             const password = document.getElementById('auth-password').value;
             const passwordConfirm = document.getElementById('auth-password-confirm').value;
             const vatRegistered = document.getElementById('auth-vat-registered').value === 'yes';
+            const businessType = document.getElementById('auth-business-type').value || 'retail';
+            const vatDetails = {
+                tin: document.getElementById('auth-vat-tin').value.trim(),
+                ownerFullName: document.getElementById('auth-owner-full-name').value.trim(),
+                city: document.getElementById('auth-vat-city').value.trim(),
+                subCity: document.getElementById('auth-vat-sub-city').value.trim(),
+                kebele: document.getElementById('auth-vat-kebele').value.trim(),
+                tel: document.getElementById('auth-vat-tel').value.trim(),
+                address: document.getElementById('auth-vat-address').value.trim()
+            };
             document.getElementById('auth-error').style.display = 'none';
             if (!bizName) return showAuthError('Please enter your shop / business name.');
             if (!phone) return showAuthError('Please enter a phone number.');
@@ -2178,13 +2376,19 @@
             if (!email || !password) return showAuthError('Please enter an email and password.');
             if (password.length < 6) return showAuthError('Password must be at least 6 characters.');
             if (password !== passwordConfirm) return showAuthError('Passwords do not match. Please re-type them.');
+            if (vatRegistered && businessType !== 'appliance_rental' && (!vatDetails.tin || !vatDetails.ownerFullName)) {
+                return showAuthError('Please enter at least the TIN number and owner\'s full name for a VAT-registered shop.');
+            }
+            if (vatDetails.tin && !isValidTin(vatDetails.tin)) {
+                return showAuthError('TIN Number must be 10 to 12 digits.');
+            }
 
             setAuthLoading(true);
             const { data, error } = await supabaseClient.auth.signUp({ email, password });
             setAuthLoading(false);
             if (error) return showAuthError(error.message);
 
-            savePendingSignupInfo(bizName, phone, username, vatRegistered);
+            savePendingSignupInfo(bizName, phone, username, vatRegistered, businessType, vatDetails);
 
             if (!data.session) {
                 return showAuthError('Account created! Check your email to confirm your address, then sign in below to finish setting up your shop.');
@@ -2278,11 +2482,14 @@
                         alert('Could not finish setting up your shop: ' + createErr.message);
                         return handleSignOut();
                     }
-                    // create_business_with_owner doesn't take a VAT flag, so we
-                    // stash the choice here and apply it as a normal tenant_update
-                    // patch once currentTenantId is known, a few lines below in
-                    // this same function on the recursive call.
+                    // create_business_with_owner doesn't take a VAT flag or a
+                    // business type, so we stash both choices here and apply
+                    // them as normal tenant_update patches once currentTenantId
+                    // is known, a few lines below in this same function on the
+                    // recursive call.
                     try { sessionStorage.setItem('neba_pending_vat_registered', pending.vatRegistered ? '1' : '0'); } catch (e) {}
+                    try { sessionStorage.setItem('neba_pending_business_type', pending.businessType || 'retail'); } catch (e) {}
+                    try { if (pending.vatRegistered && pending.vatDetails) sessionStorage.setItem('neba_pending_vat_details', JSON.stringify(pending.vatDetails)); } catch (e) {}
                     return onLoginSuccess(user, true);
                 }
                 // Genuine edge case: no pending info to work with (e.g. this
@@ -2353,6 +2560,23 @@
             state.customAccounts = biz.custom_accounts || [];
             state.saleTypes = biz.sale_types || [];
             state.vatRegistered = !!biz.vat_registered;
+            state.vatTin = biz.vat_tin || '';
+            state.ownerFullName = biz.owner_full_name || '';
+            state.vatCity = biz.vat_city || '';
+            state.vatSubCity = biz.vat_sub_city || '';
+            state.vatKebele = biz.vat_kebele || '';
+            state.vatTel = biz.vat_tel || '';
+            state.vatAddress = biz.vat_address || '';
+            try {
+                const pendingBizType = sessionStorage.getItem('neba_pending_business_type');
+                if (pendingBizType !== null) {
+                    sessionStorage.removeItem('neba_pending_business_type');
+                    if (pendingBizType !== currentBusinessType) {
+                        currentBusinessType = pendingBizType;
+                        queueWrite({ kind: 'tenant_update', patch: { business_type: pendingBizType } });
+                    }
+                }
+            } catch (e) {}
             try {
                 const pendingVat = sessionStorage.getItem('neba_pending_vat_registered');
                 if (pendingVat !== null) {
@@ -2362,6 +2586,15 @@
                         state.vatRegistered = wantVat;
                         queueWrite({ kind: 'tenant_update', patch: { vat_registered: wantVat } });
                     }
+                }
+            } catch (e) {}
+            try {
+                const pendingVatDetailsRaw = sessionStorage.getItem('neba_pending_vat_details');
+                if (pendingVatDetailsRaw !== null) {
+                    sessionStorage.removeItem('neba_pending_vat_details');
+                    const d = JSON.parse(pendingVatDetailsRaw);
+                    Object.assign(state, { vatTin: d.tin || '', ownerFullName: d.ownerFullName || '', vatCity: d.city || '', vatSubCity: d.subCity || '', vatKebele: d.kebele || '', vatTel: d.tel || '', vatAddress: d.address || '' });
+                    queueWrite({ kind: 'tenant_update', patch: { vat_tin: state.vatTin, owner_full_name: state.ownerFullName, vat_city: state.vatCity, vat_sub_city: state.vatSubCity, vat_kebele: state.vatKebele, vat_tel: state.vatTel, vat_address: state.vatAddress } });
                 }
             } catch (e) {}
             rebuildChartOfAccounts();
@@ -2442,6 +2675,212 @@
                 document.getElementById('onboarding-loading').style.display = 'none';
             }
             document.getElementById('onboarding-overlay').style.display = 'none';
+            await bootApp();
+        }
+
+        // ---------------------------------------------------------------
+        // INITIAL INVENTORY SETUP (opening stock for a brand-new shop)
+        // ---------------------------------------------------------------
+        let initialInventoryCart = [];
+
+        // Same per-vertical field logic as applyBusinessTypeLabels(), just
+        // applied to this overlay's own fields/table instead of the normal
+        // Add Product / Purchase forms (which haven't been shown yet at
+        // this point in onboarding, so that function hasn't run).
+        function applyInitialInventoryFieldVisibility() {
+            const isPharmacy = currentBusinessType === 'pharmacy';
+            const isRental = currentBusinessType === 'appliance_rental';
+            document.getElementById('init-inv-expiry-group').style.display = isPharmacy ? '' : 'none';
+            document.getElementById('init-inv-selling-price-group').style.display = isRental ? 'none' : '';
+            ['init-inv-daily-rate-group', 'init-inv-weekly-rate-group', 'init-inv-monthly-rate-group'].forEach(id => {
+                document.getElementById(id).style.display = isRental ? '' : 'none';
+            });
+
+            const head = document.getElementById('initial-inventory-cart-table-head');
+            let cols = ['Category', 'Product Name', 'Qty'];
+            if (isPharmacy) cols.push('Expiry');
+            cols.push('Cost');
+            cols = cols.concat(isRental ? ['Daily Rate', 'Weekly Rate', 'Monthly Rate'] : ['Selling Price']);
+            cols.push('Line Total');
+            head.innerHTML = `<tr>${cols.map(c => `<th${c !== 'Category' && c !== 'Product Name' ? ' class="num"' : ''}>${c}</th>`).join('')}<th style="text-align:center;">Remove</th></tr>`;
+        }
+
+        function showInitialInventorySetup() {
+            document.getElementById('onboarding-overlay').style.display = 'none';
+            initialInventoryCart = [];
+            applyInitialInventoryFieldVisibility();
+            renderInitialInventoryCartTable();
+            syncCategoriesDatalist();
+            document.getElementById('initial-inventory-overlay').style.display = 'flex';
+        }
+
+        function addToInitialInventoryCart() {
+            const isPharmacy = currentBusinessType === 'pharmacy';
+            const isRental = currentBusinessType === 'appliance_rental';
+            const cat = document.getElementById('init-inv-category').value.trim();
+            const name = document.getElementById('init-inv-name').value.trim();
+            const qty = parseInt(document.getElementById('init-inv-qty').value);
+            const cost = parseFloat(document.getElementById('init-inv-cost').value);
+            if (!cat) return alert('Enter a category.');
+            if (!name) return alert('Enter a product name.');
+            if (!qty || qty <= 0) return alert('Enter a valid Qty On Hand.');
+            if (!cost || cost <= 0) return alert('Enter a valid Cost.');
+            if (initialInventoryCart.some(c => c.category.toLowerCase() === cat.toLowerCase() && c.name.toLowerCase() === name.toLowerCase())) {
+                return alert(`"${name}" is already in the basket under "${cat}". Remove it first (✕) if you need to correct it.`);
+            }
+
+            const item = { category: cat, name, qty, cost };
+
+            if (isRental) {
+                const dailyRate = parseFloat(document.getElementById('init-inv-daily-rate').value);
+                if (!dailyRate || dailyRate <= 0) return alert('Enter a valid Daily Rate.');
+                const weeklyRaw = document.getElementById('init-inv-weekly-rate').value;
+                const monthlyRaw = document.getElementById('init-inv-monthly-rate').value;
+                item.dailyRate = dailyRate;
+                item.weeklyRate = weeklyRaw !== '' ? parseFloat(weeklyRaw) : null;
+                item.monthlyRate = monthlyRaw !== '' ? parseFloat(monthlyRaw) : null;
+            } else {
+                const sellingPrice = parseFloat(document.getElementById('init-inv-selling-price').value);
+                if (isNaN(sellingPrice) || sellingPrice < 0) return alert('Enter a valid Selling Price.');
+                item.sellingPrice = sellingPrice;
+            }
+            if (isPharmacy) {
+                const expiry = document.getElementById('init-inv-expiry').value;
+                item.expiry = expiry || null; // optional, same as the normal Purchase form
+            }
+
+            initialInventoryCart.push(item);
+            document.getElementById('init-inv-category').value = '';
+            document.getElementById('init-inv-name').value = '';
+            document.getElementById('init-inv-qty').value = '1';
+            document.getElementById('init-inv-cost').value = '';
+            if (isRental) {
+                document.getElementById('init-inv-daily-rate').value = '';
+                document.getElementById('init-inv-weekly-rate').value = '';
+                document.getElementById('init-inv-monthly-rate').value = '';
+            } else {
+                document.getElementById('init-inv-selling-price').value = '';
+            }
+            if (isPharmacy) document.getElementById('init-inv-expiry').value = '';
+            renderInitialInventoryCartTable();
+            document.getElementById('init-inv-category').focus();
+        }
+
+        function removeFromInitialInventoryCart(index) {
+            initialInventoryCart.splice(index, 1);
+            renderInitialInventoryCartTable();
+        }
+
+        function renderInitialInventoryCartTable() {
+            const isPharmacy = currentBusinessType === 'pharmacy';
+            const isRental = currentBusinessType === 'appliance_rental';
+            const colCount = 4 + (isPharmacy ? 1 : 0) + (isRental ? 3 : 1) + 1; // category+name+qty+cost, expiry, rate(s)/selling price, remove
+            const tbody = document.getElementById('initial-inventory-cart-table-body');
+            if (!initialInventoryCart.length) {
+                tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center; color:var(--text-light);">No items added yet.</td></tr>`;
+            } else {
+                tbody.innerHTML = initialInventoryCart.map((c, i) => {
+                    let row = `<td>${c.category}</td><td>${c.name}</td><td class="num">${c.qty}</td>`;
+                    if (isPharmacy) row += `<td class="num">${c.expiry || '—'}</td>`;
+                    row += `<td class="num">${c.cost.toFixed(2)}</td>`;
+                    row += isRental
+                        ? `<td class="num">${c.dailyRate.toFixed(2)}</td><td class="num">${c.weeklyRate != null ? c.weeklyRate.toFixed(2) : '—'}</td><td class="num">${c.monthlyRate != null ? c.monthlyRate.toFixed(2) : '—'}</td>`
+                        : `<td class="num">${c.sellingPrice.toFixed(2)}</td>`;
+                    row += `<td class="num">${(c.qty * c.cost).toFixed(2)}</td>`;
+                    row += `<td style="text-align:center;"><button class="btn btn-danger btn-small" onclick="removeFromInitialInventoryCart(${i})">✕</button></td>`;
+                    return `<tr>${row}</tr>`;
+                }).join('');
+            }
+            const total = initialInventoryCart.reduce((sum, c) => sum + c.qty * c.cost, 0);
+            document.getElementById('initial-inventory-cart-total').innerText = `ETB ${total.toFixed(2)}`;
+        }
+
+        async function skipInitialInventorySetup() {
+            document.getElementById('initial-inventory-overlay').style.display = 'none';
+            initialInventoryCart = [];
+            await bootApp();
+        }
+
+        // Registers the whole basket at once: creates each item with its
+        // opening lot, logs it as a normal Multi-Item Purchase (Supp: N/A,
+        // fully paid by Mobile banking so nothing lands in Accounts
+        // payable), then adds a second journal entry that funds that same
+        // Mobile banking outlay from Equity Base Capital -- net effect is
+        // Dr Inventory / Cr Equity, with 1020 washing through at zero,
+        // same as if the owner had put personal capital into the till and
+        // immediately spent it on opening stock.
+        async function completeInitialInventorySetup() {
+            if (!initialInventoryCart.length) return alert('Add at least one item first, or use "Skip / Add Products Later".');
+
+            const targetBranchId = await resolveTransactionBranch();
+            if (!targetBranchId) return;
+            writeBranchId = targetBranchId;
+
+            document.getElementById('initial-inventory-loading').style.display = 'block';
+            const date = new Date().toISOString().slice(0, 10);
+            const groupId = `GRP-${Date.now().toString().slice(-6)}`;
+            const newRows = [];
+            const total = initialInventoryCart.reduce((sum, c) => sum + c.qty * c.cost, 0);
+
+            initialInventoryCart.forEach((c, i) => {
+                if (!state.categories.includes(c.category)) {
+                    state.categories.push(c.category);
+                    queueWrite({ kind: 'tenant_update', patch: { categories: state.categories } });
+                }
+                const rowId = `PR-${Date.now().toString().slice(-5)}-${i}`;
+                const newItem = {
+                    id: crypto.randomUUID(), category: c.category, desc: c.name,
+                    sellingPrice: c.sellingPrice ?? 0, lots: [], history: [],
+                    dailyRate: c.dailyRate ?? null, weeklyRate: c.weeklyRate ?? null, monthlyRate: c.monthlyRate ?? null
+                };
+                const newLot = { id: rowId, qty: c.qty, cost: c.cost, branchId: targetBranchId, expiry: c.expiry || null };
+                newItem.lots.push(newLot);
+                state.inventory.push(newItem);
+                queueWrite({ kind: 'insert', table: 'inventory_items', row: toDbInventoryItem(newItem) });
+                queueWrite({ kind: 'insert', table: 'inventory_lots', row: toDbLot(newItem.id, newLot) });
+
+                const lineTotal = c.qty * c.cost;
+                // The basket's single combined payment record lives on the
+                // primary (first) row only, matching the convention used by
+                // the normal multi-item purchase cart -- every other row is
+                // just marked paid/amountPaid for its own line, with no
+                // separate payment entry of its own.
+                const isPrimary = i === 0;
+                const row = {
+                    id: rowId, date, supplier: 'N/A', desc: `[${c.category}] ${c.name}`, qty: c.qty, cost: c.cost, total: lineTotal,
+                    channel: 'Mobile banking', paid: true, paidChannel: 'Mobile banking',
+                    amountPaid: isPrimary ? total : lineTotal,
+                    payments: isPrimary ? [{ date, amount: total, channel: 'Mobile banking' }] : [],
+                    branchId: targetBranchId, groupId
+                };
+                newRows.push(row);
+                state.purchaseLog.push(row);
+                queueWrite({ kind: 'insert', table: 'purchase_log', row: toDbPurchase(row) });
+            });
+
+            const invAccount = currentBusinessType === 'appliance_rental' ? '1500' : '1200';
+            const purchaseJournal = {
+                id: newRows[0].id, date, desc: stampDesc(`Multi-Item Purchase: ${initialInventoryCart.length} items / Supp: N/A`),
+                lines: [{ account: invAccount, dr: total, cr: 0 }, { account: '1020', cr: total, dr: 0 }],
+                branchId: targetBranchId
+            };
+            state.journal.push(purchaseJournal);
+            queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(purchaseJournal) });
+
+            const capitalJournal = {
+                id: `CAP-${Date.now().toString().slice(-5)}`, date,
+                desc: stampDesc(`Owner Capital Injection: Opening Inventory Funding (${initialInventoryCart.length} items)`),
+                lines: [{ account: '1020', dr: total, cr: 0 }, { account: '3010', cr: total, dr: 0 }],
+                branchId: targetBranchId
+            };
+            state.journal.push(capitalJournal);
+            queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(capitalJournal) });
+
+            addNotification('Initial Inventory Set Up', `Added ${newRows.length} products worth ETB ${total.toFixed(2)} as opening stock, funded by owner capital.`);
+
+            initialInventoryCart = [];
+            document.getElementById('initial-inventory-loading').style.display = 'none';
+            document.getElementById('initial-inventory-overlay').style.display = 'none';
             await bootApp();
         }
 
@@ -2540,6 +2979,10 @@
                 dailyRate: i.daily_rate != null ? parseFloat(i.daily_rate) : null,
                 weeklyRate: i.weekly_rate != null ? parseFloat(i.weekly_rate) : null,
                 monthlyRate: i.monthly_rate != null ? parseFloat(i.monthly_rate) : null,
+                // Dated write-off log (appliance_rental only) -- see the
+                // migration note in verticals/appliance_rental.js. Falls
+                // back to [] gracefully if the column doesn't exist yet.
+                rentalWriteOffs: i.rental_write_offs || [],
                 lots: (lots.data || []).filter(l => l.item_id === i.id).map(l => ({ id: l.id, qty: l.qty, cost: parseFloat(l.cost), branchId: l.branch_id, expiry: l.expiry_date || null }))
             }));
 
@@ -2549,14 +2992,15 @@
                 channel: s.channel, type: s.type, paid: s.paid, paidChannel: s.paid_channel,
                 restorationLayers: s.restoration_layers || [], branchId: s.branch_id,
                 amountPaid: parseFloat(s.amount_paid) || 0, payments: s.payments || [], groupId: s.group_id || null,
-                vatIncluded: !!s.vat_included
+                vatIncluded: !!s.vat_included, buyerTin: s.buyer_tin || '', buyerTradeName: s.buyer_trade_name || ''
             }));
 
             state.purchaseLog = (purchases.data || []).map(p => ({
                 id: p.id, date: p.date, supplier: p.supplier, desc: p.desc, qty: p.qty,
                 cost: parseFloat(p.cost), total: parseFloat(p.total), channel: p.channel,
                 paid: p.paid, paidChannel: p.paid_channel, branchId: p.branch_id,
-                amountPaid: parseFloat(p.amount_paid) || 0, payments: p.payments || [], groupId: p.group_id || null
+                amountPaid: parseFloat(p.amount_paid) || 0, payments: p.payments || [], groupId: p.group_id || null,
+                buyerTin: p.buyer_tin || '', buyerTradeName: p.buyer_trade_name || ''
             }));
 
             state.expenseLog = (expenses.data || []).map(e => ({
@@ -2647,7 +3091,7 @@
         // ROW MAPPERS — convert local JS objects to the exact DB row shape
         // ---------------------------------------------------------------
         function toDbInventoryItem(i) {
-            return { id: i.id, tenant_id: currentTenantId, category: i.category, desc: i.desc, selling_price: i.sellingPrice, history: i.history || [], daily_rate: i.dailyRate ?? null, weekly_rate: i.weeklyRate ?? null, monthly_rate: i.monthlyRate ?? null };
+            return { id: i.id, tenant_id: currentTenantId, category: i.category, desc: i.desc, selling_price: i.sellingPrice, history: i.history || [], daily_rate: i.dailyRate ?? null, weekly_rate: i.weeklyRate ?? null, monthly_rate: i.monthlyRate ?? null, rental_write_offs: i.rentalWriteOffs || [] };
         }
         // branch_id below prefers the record's OWN branchId (now tracked in
         // state — see loadStateFromSupabase) and only falls back to the
@@ -2683,10 +3127,10 @@
                 .map(x => x.l);
         }
         function toDbSale(s) {
-            return { id: s.id, tenant_id: currentTenantId, branch_id: s.branchId || writeBranchId, date: s.date, customer: s.customer, desc: s.desc, qty: s.qty, price: s.price, total: s.total, cogs: s.cogs, channel: s.channel, type: s.type, paid: s.paid, paid_channel: s.paidChannel || null, restoration_layers: s.restorationLayers || [], amount_paid: s.amountPaid || 0, payments: s.payments || [], group_id: s.groupId || null, vat_included: !!s.vatIncluded };
+            return { id: s.id, tenant_id: currentTenantId, branch_id: s.branchId || writeBranchId, date: s.date, customer: s.customer, desc: s.desc, qty: s.qty, price: s.price, total: s.total, cogs: s.cogs, channel: s.channel, type: s.type, paid: s.paid, paid_channel: s.paidChannel || null, restoration_layers: s.restorationLayers || [], amount_paid: s.amountPaid || 0, payments: s.payments || [], group_id: s.groupId || null, vat_included: !!s.vatIncluded, buyer_tin: s.buyerTin || null, buyer_trade_name: s.buyerTradeName || null };
         }
         function toDbPurchase(p) {
-            return { id: p.id, tenant_id: currentTenantId, branch_id: p.branchId || writeBranchId, date: p.date, supplier: p.supplier, desc: p.desc, qty: p.qty, cost: p.cost, total: p.total, channel: p.channel, paid: p.paid, paid_channel: p.paidChannel || null, amount_paid: p.amountPaid || 0, payments: p.payments || [], group_id: p.groupId || null };
+            return { id: p.id, tenant_id: currentTenantId, branch_id: p.branchId || writeBranchId, date: p.date, supplier: p.supplier, desc: p.desc, qty: p.qty, cost: p.cost, total: p.total, channel: p.channel, paid: p.paid, paid_channel: p.paidChannel || null, amount_paid: p.amountPaid || 0, payments: p.payments || [], group_id: p.groupId || null, buyer_tin: p.buyerTin || null, buyer_trade_name: p.buyerTradeName || null };
         }
         function toDbExpense(ex) {
             // 'branchId' in ex: true even when its value is explicitly null
@@ -3709,10 +4153,17 @@
             document.getElementById('m-net').innerText = `ETB ${(r-c-e).toLocaleString(undefined,{minimumFractionDigits:2})}`;
 
             // Estimated VAT is a standalone estimate, not pulled from the
-            // journal — it's a flat 15% of the total of whichever sales had
-            // "Include VAT" checked (VAT = total × 15/100). Purely informational.
-            let vatSum = state.salesLog.filter(s => s.vatIncluded && verifyChronologicalOverlap(s.date, p) && shouldCountInCurrentTotals(s.branchId))
-                .reduce((sum, s) => sum + (s.total * 15 / 100), 0);
+            // journal. sale.total is VAT-inclusive, so the VAT portion is
+            // total - (total / 1.15), not total * 15%. This box always shows
+            // the CURRENT Ethiopian calendar month (1-30, regardless of
+            // whichever period the rest of the dashboard is filtered to).
+            // Purely informational.
+            const vatEthNow = gregorianToEthiopian(todayISO());
+            let vatSum = state.salesLog.filter(s => {
+                if (!s.vatIncluded || !shouldCountInCurrentTotals(s.branchId)) return false;
+                const eth = gregorianToEthiopian(s.date);
+                return eth.y === vatEthNow.y && eth.m === vatEthNow.m;
+            }).reduce((sum, s) => sum + (s.total - s.total / 1.15), 0);
             const vatEl = document.getElementById('m-vat');
             if (vatEl) vatEl.innerText = `ETB ${vatSum.toLocaleString(undefined,{minimumFractionDigits:2})}`;
 
@@ -3771,11 +4222,38 @@
         }
         
         // --- DEEP ANALYTICS ENGINE ---
+        // Deep Analytics normally reads only state.salesLog, but that stays
+        // empty for appliance_rental tenants -- their revenue comes from
+        // state.rentalBookings instead (see verticals/appliance_rental.js),
+        // which has a different shape (itemId instead of desc, amount
+        // instead of total, no cogs). This maps each booking into the same
+        // { date, desc, qty, total, cogs, type } shape a sales_log row has,
+        // so every chart and the Item Performance Matrix below picks it up
+        // for free. cogs is always 0 here -- rentals have no per-booking
+        // cost of goods (see applyBusinessTypeLabels(), which hides the
+        // COGS/Gross Profit boxes for this same reason) -- so profit comes
+        // out equal to revenue and margin/ROI read as pure-profit, which is
+        // the correct reading for a rental, not a bug. Harmless no-op for
+        // retail/pharmacy, since they never have any rentalBookings.
+        function bookingsAsAnalyticsRows() {
+            return (state.rentalBookings || []).map(b => {
+                const item = state.inventory.find(i => i.id === b.itemId);
+                return {
+                    date: b.date || b.startDate,
+                    desc: item ? `[${item.category}] ${item.desc}` : '—',
+                    qty: b.qty,
+                    total: b.amount,
+                    cogs: 0,
+                    type: 'Rental'
+                };
+            });
+        }
+
         function renderDeepAnalytics(isSortingOnly = false) {
             let aStart = document.getElementById('analytics-start').value;
             let aEnd = document.getElementById('analytics-end').value;
 
-            let filteredSales = state.salesLog.filter(s => {
+            let filteredSales = [...state.salesLog, ...bookingsAsAnalyticsRows()].filter(s => {
                 let p = s.date.split('-');
                 let d = new Date(p[0], p[1]-1, p[2]).getTime();
                 let pass = true;
@@ -4336,7 +4814,7 @@
             }).sort((a,b) => new Date(b.date) - new Date(a.date));
 
             let totalSum = matches.reduce((sum, s) => sum + s.total, 0);
-            let vatSum = matches.reduce((sum, s) => sum + (s.total * 15 / 100), 0);
+            let vatSum = matches.reduce((sum, s) => sum + (s.total - s.total / 1.15), 0);
 
             let html = `<div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
                 <select id="vat-drilldown-mode" onchange="changeVatDrillDownMode(this.value)" style="min-width:110px;">
@@ -4357,7 +4835,7 @@
             <table><thead><tr><th>${t('sale.date')}</th><th>${t('sale.customer_name')}</th><th>${t('sale.product_item')}</th><th class="num">${t('sale.total')}</th><th class="num">${t('dash.estimated_vat')}</th></tr></thead><tbody>`;
             if (matches.length === 0) html += `<tr><td colspan="5" style="text-align:center;">${t('drill.no_sales')}</td></tr>`;
             matches.forEach(m => {
-                html += `<tr><td>${fmtDate(m.date)}</td><td>${m.customer}</td><td>${m.desc}</td><td class="num">${m.total.toFixed(2)}</td><td class="num">${(m.total * 15 / 100).toFixed(2)}</td></tr>`;
+                html += `<tr><td>${fmtDate(m.date)}</td><td>${m.customer}</td><td>${m.desc}</td><td class="num">${m.total.toFixed(2)}</td><td class="num">${(m.total - m.total / 1.15).toFixed(2)}</td></tr>`;
             });
             html += `</tbody></table>`;
             mContent.innerHTML = html;
@@ -5236,6 +5714,17 @@
 
             syncItemLots(item, beforeLots);
             queueWrite({ kind: 'update', table: 'inventory_items', id: item.id, patch: { history: item.history } });
+
+            // Rental only: keep a dated record of this write-off so the
+            // Availability calendar can tell past days (before today) from
+            // today onward -- see qtyOnHandAsOf() in appliance_rental.js.
+            // Without this, writing off a unit would look like it was
+            // never in stock even on days before the write-off happened.
+            if (currentBusinessType === 'appliance_rental') {
+                item.rentalWriteOffs = item.rentalWriteOffs || [];
+                item.rentalWriteOffs.push({ id: crypto.randomUUID(), date: new Date().toISOString().slice(0, 10), qty });
+                queueWrite({ kind: 'update', table: 'inventory_items', id: item.id, patch: { rental_write_offs: item.rentalWriteOffs } });
+            }
 
             if (lossAmount > 0) {
                 const jId = `WO-${Date.now().toString().slice(-8)}`;
@@ -6241,6 +6730,389 @@
             return breakdown.map(b => `<small>${b.channel}: ${b.amount.toFixed(2)}</small>`).join('<br>');
         }
 
+        // ---------------------------------------------------------------
+        // PRINTING -- thermal Receipt (cash register roll) and full-page
+        // Invoice (attachment, sent to a normal printer). Shared by every
+        // business type: Sales/Purchase History call this directly, and
+        // the appliance_rental module calls the same window.* entry
+        // points for Bookings, so every record type prints identically.
+        //
+        // Both documents are built from one plain-object shape so callers
+        // (buildSalePrintData, buildPurchasePrintData, and the rental
+        // module's own adapter) don't need to know anything about layout:
+        //   {
+        //     docNumber, date, branchId, docLabel, counterpartyLabel,
+        //     counterpartyName, counterpartyPhone,
+        //     lines: [{ desc, qty, unit, total }],   // unit may be null
+        //     total, amountPaid, vatIncluded,
+        //     channelBreakdown: [{channel, amount}],
+        //     extraNotes: ['Deposit held: ETB 500 (Cash)', ...]           // optional
+        //   }
+        // ---------------------------------------------------------------
+        function branchAddressById(id) {
+            return (id && allBranchesById[id] && allBranchesById[id].address) || '';
+        }
+        // Prints via a throwaway hidden iframe rather than window.print()
+        // directly on the page -- that way the receipt/invoice's own
+        // narrow-paper or A4 @page rules never leak into (or get
+        // clobbered by) whatever the user happens to be looking at.
+        function printDocumentHTML(html) {
+            const iframe = document.createElement('iframe');
+            Object.assign(iframe.style, { position: 'fixed', right: '0', bottom: '0', width: '0', height: '0', border: '0' });
+            document.body.appendChild(iframe);
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+            doc.open(); doc.write(html); doc.close();
+            setTimeout(() => {
+                try { iframe.contentWindow.focus(); iframe.contentWindow.print(); } catch (e) {}
+                setTimeout(() => iframe.remove(), 1000);
+            }, 150);
+        }
+        // Small stacked line under a Customer/Supplier cell when a buyer
+        // TIN/trade name has been captured for that row (see
+        // openBuyerInfoModal) -- shared by Sales, Purchases, and Bookings.
+        function buyerInfoStackHTML(row) {
+            if (!row.buyerTin && !row.buyerTradeName) return '';
+            const parts = [];
+            if (row.buyerTradeName) parts.push(row.buyerTradeName);
+            if (row.buyerTin) parts.push(`TIN: ${row.buyerTin}`);
+            return `<br><small style="color:var(--text-light);">${parts.join(' · ')}</small>`;
+        }
+        function docHeaderLines(data) {
+            const addr = branchAddressById(data.branchId);
+            const branchName = data.branchId ? branchNameById(data.branchId) : '';
+            const lines = [];
+            // VAT-registered businesses print their TIN/owner/address block on
+            // every receipt & invoice (collected at signup or Team & Branches --
+            // see saveVatDetails). Appliance rental never has this since VAT
+            // registration isn't offered for that business type at all.
+            if (state.vatRegistered) {
+                if (state.vatTin) lines.push(`TIN: ${state.vatTin}`);
+                if (state.ownerFullName) lines.push(state.ownerFullName);
+                const cityLine = [state.vatCity ? `City: ${state.vatCity}` : '', state.vatSubCity ? `S/C: ${state.vatSubCity}` : ''].filter(Boolean).join(', ');
+                if (cityLine) lines.push(cityLine);
+                if (state.vatKebele) lines.push(`Kebele: ${state.vatKebele}`);
+                if (state.vatTel) lines.push(`Tel: ${state.vatTel}`);
+                if (state.vatAddress) lines.push(state.vatAddress);
+            }
+            if (branchName && branchName !== 'Whole Business') lines.push(branchName);
+            if (addr) lines.push(addr);
+            return lines;
+        }
+        // Receipts/invoices always print the Gregorian date, regardless of
+        // the Ethiopian-calendar display preference used everywhere else in
+        // the app (fmtDate) -- these are formal documents that need to match
+        // what's on file, not the shop's own day-to-day calendar view.
+        function fmtDateGregorian(isoDateStr) {
+            if (!isoDateStr) return '';
+            const parts = isoDateStr.split('-').map(Number);
+            if (parts.length !== 3 || parts.some(isNaN)) return isoDateStr;
+            return `${String(parts[2]).padStart(2, '0')}/${String(parts[1]).padStart(2, '0')}/${parts[0]}`;
+        }
+        // Government-format header block for VAT-registered shops, used only
+        // by the thermal receipt (renderReceiptHTML) to match the standard
+        // ERCA-style cash register layout -- TIN/owner/city/sub-city/kebele/
+        // tell/address all print in upper case there. The A4 invoice keeps
+        // using the plain docHeaderLines() above, unchanged.
+        // H.NO has no dedicated settings field yet, so it always prints as
+        // "===" the way an unregistered house number would on a real receipt.
+        function fiscalHeaderLines() {
+            const lines = [];
+            if (state.vatTin) lines.push(`TIN: ${state.vatTin}`.toUpperCase());
+            if (state.ownerFullName) lines.push(state.ownerFullName.toUpperCase());
+            const cityBits = [];
+            if (state.vatCity) cityBits.push(`CITY:-${state.vatCity}`.toUpperCase());
+            if (state.vatSubCity) cityBits.push(`S/C:-${state.vatSubCity}`.toUpperCase());
+            if (cityBits.length) lines.push(cityBits.join(','));
+            if (state.vatKebele) lines.push(`KEBELE:-${state.vatKebele.toUpperCase()},H.NO:-===`);
+            if (state.vatTel) lines.push(`TELL:-${state.vatTel}/`);
+            if (state.vatAddress) lines.push(`AROUND---${state.vatAddress}`.toUpperCase());
+            return lines;
+        }
+        function renderReceiptHTML(data) {
+            const fiscal = !!state.vatRegistered; // only VAT-registered shops get the fiscal-style layout
+            const taxable = data.vatIncluded ? data.total / 1.15 : null;
+            const vatAmt = data.vatIncluded ? data.total - taxable : 0;
+            const tendered = data.total;
+            const payLabel = (data.channelBreakdown && data.channelBreakdown[0] && data.channelBreakdown[0].channel)
+                ? data.channelBreakdown[0].channel.toUpperCase() : 'CASH';
+            // Item unit price & line total print BEFORE VAT on a real fiscal
+            // receipt, even though the figures stored on the sale include it.
+            const itemRows = data.lines.map(l => {
+                const unit = (data.vatIncluded && l.unit != null) ? l.unit / 1.15 : l.unit;
+                const lineTotal = data.vatIncluded ? l.total / 1.15 : l.total;
+                return `<tr><td></td><td class="right">${l.qty} X</td><td class="right">*${unit != null ? unit.toFixed(2) : '—'}</td></tr>
+                        <tr><td>${l.desc}</td><td></td><td class="right">*${lineTotal.toFixed(2)}</td></tr>`;
+            }).join('');
+            const sharedStyle = `
+                @page { size: 80mm auto; margin: 0; }
+                * { box-sizing: border-box; }
+                body { width: 72mm; margin: 0 auto; padding: 8px; font-family: 'Courier New', monospace; font-size: 11px; color: #000; }
+                .center { text-align: center; }
+                .b { font-weight: bold; }
+                hr { border: none; border-top: 1px dashed #000; margin: 6px 0; }
+                table { width: 100%; border-collapse: collapse; font-size: 10px; }
+                td { padding: 2px 0; vertical-align: top; }
+                .right { text-align: right; }
+                .totrow td { font-weight: bold; font-size: 12px; border-top: 1px dashed #000; padding-top: 5px; }
+                .small { font-size: 9px; color: #333; }
+                .datetime { display: flex; justify-content: space-between; }
+            `;
+            if (!fiscal) {
+                // Non-VAT-registered shops: plain receipt, no fiscal-style layout.
+                return `<!doctype html><html><head><meta charset="utf-8"><title>${data.docLabel}</title><style>${sharedStyle}</style></head><body>
+                    <div class="center b" style="font-size:13px;">${currentTenantName || 'Your Shop'}</div>
+                    <div class="center small">${fmtDateGregorian(data.date)}</div>
+                    <hr>
+                    <div class="b">${data.docLabel}</div>
+                    <div>${data.counterpartyLabel}: ${data.counterpartyName || '—'}</div>
+                    <hr>
+                    <table>
+                        <tr class="small b"><td>Item</td><td class="right">Qty</td><td class="right">Total</td></tr>
+                        ${data.lines.map(l => `<tr><td>${l.desc}</td><td class="right">${l.qty}</td><td class="right">${l.total.toFixed(2)}</td></tr>`).join('')}
+                    </table>
+                    <hr>
+                    <table><tr class="totrow"><td>TOTAL</td><td class="right" colspan="2">ETB ${data.total.toFixed(2)}</td></tr></table>
+                    <hr>
+                    <div class="center small">Ref: ${data.docNumber}</div>
+                    <div class="center small" style="margin-top:6px;">Prepared by Meleya Software Solutions.</div>
+                ${'</bo' + 'dy></html>'}`;
+            }
+            const headerLines = fiscalHeaderLines();
+            // Placeholders -- wire these to real values once you have a
+            // per-branch sequential FS No. counter and a registered fiscal
+            // device serial number. Deliberately plain/unstyled (no color,
+            // no bold) since they vary receipt to receipt.
+            const fsNo = data.fsNo || 'PLACEHOLDER';
+            const etSerial = data.etSerial || 'PLACEHOLDER';
+            const now = new Date();
+            const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            return `<!doctype html><html><head><meta charset="utf-8"><title>${data.docLabel}</title><style>${sharedStyle}</style></head><body>
+                ${headerLines.map(l => `<div class="center">${l}</div>`).join('')}
+                <div>FS No. ${fsNo}</div>
+                <div class="datetime"><span>${fmtDateGregorian(data.date)}</span><span>${timeStr}</span></div>
+                <div class="center b">=========== CASH INVOICE ===========</div>
+                ${data.buyerTin ? `<div>Buyer's T I N: ${data.buyerTin}</div>` : ''}
+                <div>${data.counterpartyLabel}: ${data.counterpartyName || '—'}</div>
+                <div>Ref: ${data.docNumber}</div>
+                <div>Operator: ${data.operator || '—'}</div>
+                <table>
+                    <tr class="small b"><td>Description</td><td class="right">Qty</td><td class="right">Price</td></tr>
+                    <tr><td colspan="3"><hr></td></tr>
+                    ${itemRows}
+                </table>
+                <hr>
+                <table>
+                    ${data.vatIncluded ? `<tr><td colspan="2">TXBL1</td><td class="right">*${taxable.toFixed(2)}</td></tr><tr><td colspan="2">TAX1&nbsp;&nbsp;15.00%</td><td class="right">*${vatAmt.toFixed(2)}</td></tr>` : ''}
+                    <tr class="totrow"><td colspan="2">TOTAL</td><td class="right">*${data.total.toFixed(2)}</td></tr>
+                    <tr><td colspan="2"></td><td class="right">*${tendered.toFixed(2)}</td></tr>
+                </table>
+                <div>${payLabel}</div>
+                <div>ITEM # ${data.lines.length}</div>
+                <div class="center" style="margin-top:6px;">ET ${etSerial}</div>
+                <div class="center small" style="margin-top:6px;">Prepared by Meleya Software Solutions.</div>
+            ${'</bo' + 'dy></html>'}`;
+        }
+        function renderInvoiceHTML(data) {
+            const balance = Math.max(0, data.total - (data.amountPaid || 0));
+            const headerLines = docHeaderLines(data);
+            const taxable = data.vatIncluded ? data.total / 1.15 : null;
+            const vatAmt = data.vatIncluded ? data.total - taxable : 0;
+            return `<!doctype html><html><head><meta charset="utf-8"><title>${data.docLabel}</title><style>
+                @page { size: A4; margin: 18mm; }
+                * { box-sizing: border-box; }
+                body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #111; }
+                .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #333; padding-bottom: 14px; margin-bottom: 18px; }
+                .biz-name { font-size: 20px; font-weight: 700; }
+                .doc-title { font-size: 20px; font-weight: 700; text-align: right; }
+                table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+                th, td { border: 1px solid #ccc; padding: 7px 9px; font-size: 12px; text-align: left; }
+                th { background: #f2f2f2; }
+                .right { text-align: right; }
+                .totals { width: 300px; margin-left: auto; margin-top: 10px; }
+                .totals td { border: none; padding: 4px 9px; }
+                .totals .lbl { font-weight: 600; }
+                .totals .grand td { border-top: 2px solid #333; font-weight: 700; font-size: 14px; }
+                .notes { margin-top: 18px; font-size: 12px; color: #333; }
+                .footer { margin-top: 40px; font-size: 11px; color: #666; }
+            </style></head><body>
+                <div class="header">
+                    <div>
+                        <div class="biz-name">${currentTenantName || 'Your Shop'}</div>
+                        ${headerLines.map(l => `<div>${l}</div>`).join('')}
+                    </div>
+                    <div>
+                        <div class="doc-title">${data.docLabel}</div>
+                        <div style="text-align:right;">Ref: ${data.docNumber}</div>
+                        <div style="text-align:right;">Date: ${fmtDateGregorian(data.date)}</div>
+                    </div>
+                </div>
+                ${data.buyerTin ? `<div>Buyer's TIN: ${data.buyerTin}</div>` : ''}
+                <div style="margin-bottom:10px;"><strong>${data.counterpartyLabel}:</strong> ${data.counterpartyName || '—'}${data.counterpartyPhone ? ` &middot; ${data.counterpartyPhone}` : ''}${data.buyerTradeName ? ` &middot; Trade Name: ${data.buyerTradeName}` : ''}</div>
+                <table>
+                    <thead><tr><th>Description</th><th class="right">Qty</th><th class="right">Unit Price</th><th class="right">Total</th></tr></thead>
+                    <tbody>
+                        ${data.lines.map(l => `<tr><td>${l.desc}</td><td class="right">${l.qty}</td><td class="right">${l.unit != null ? l.unit.toFixed(2) : '—'}</td><td class="right">${l.total.toFixed(2)}</td></tr>`).join('')}
+                    </tbody>
+                </table>
+                <table class="totals">
+                    ${data.vatIncluded ? `<tr><td class="lbl">TXBL1</td><td class="right">ETB ${taxable.toFixed(2)}</td></tr><tr><td class="lbl">TAX1 15.00%</td><td class="right">ETB ${vatAmt.toFixed(2)}</td></tr>` : ''}
+                    <tr class="grand"><td class="lbl">Total</td><td class="right">ETB ${data.total.toFixed(2)}</td></tr>
+                    <tr><td class="lbl">Paid</td><td class="right">ETB ${(data.amountPaid || 0).toFixed(2)}</td></tr>
+                    <tr><td class="lbl">Balance Due</td><td class="right">ETB ${balance.toFixed(2)}</td></tr>
+                </table>
+                ${(data.extraNotes || []).length ? `<div class="notes">${data.extraNotes.join('<br>')}</div>` : ''}
+                <div class="footer">Thank you for your business.</div>
+                <div class="footer" style="margin-top:4px;">Prepared by Meleya Software Solutions.</div>
+            ${'</bo' + 'dy></html>'}`;
+        }
+        function printReceiptFor(data) { if (data) printDocumentHTML(renderReceiptHTML(data)); }
+        function printInvoiceFor(data) { if (data) printDocumentHTML(renderInvoiceHTML(data)); }
+
+        // ---- Buyer TIN / Trade Name capture ----
+        // Shown before every Receipt/Invoice print (sale, purchase, or
+        // booking) so the buyer's TIN and trade name can be printed on the
+        // document. Whatever's entered is saved back onto that specific
+        // transaction, so printing the OTHER document type for the same row
+        // later reuses it automatically instead of asking again.
+        let pendingPrintCtx = null;
+        function getExistingBuyerInfo(kind, id, isGroup) {
+            if (kind === 'sale') {
+                const rows = isGroup ? state.salesLog.filter(s => s.groupId === id) : state.salesLog.filter(s => s.id === id);
+                return rows[0] ? { tin: rows[0].buyerTin || '', name: rows[0].buyerTradeName || '' } : { tin: '', name: '' };
+            }
+            if (kind === 'purchase') {
+                const rows = isGroup ? state.purchaseLog.filter(p => p.groupId === id) : state.purchaseLog.filter(p => p.id === id);
+                return rows[0] ? { tin: rows[0].buyerTin || '', name: rows[0].buyerTradeName || '' } : { tin: '', name: '' };
+            }
+            if (kind === 'booking' && window.rentalUI && window.rentalUI.getBookingBuyerInfo) return window.rentalUI.getBookingBuyerInfo(id, isGroup) || { tin: '', name: '' };
+            return { tin: '', name: '' };
+        }
+        function saveBuyerInfo(kind, id, isGroup, tin, name) {
+            if (kind === 'sale') {
+                const rows = isGroup ? state.salesLog.filter(s => s.groupId === id) : state.salesLog.filter(s => s.id === id);
+                rows.forEach(r => { r.buyerTin = tin; r.buyerTradeName = name; queueWrite({ kind: 'update', table: 'sales_log', id: r.id, patch: { buyer_tin: tin, buyer_trade_name: name } }); });
+                renderSalesLogTable();
+            } else if (kind === 'purchase') {
+                const rows = isGroup ? state.purchaseLog.filter(p => p.groupId === id) : state.purchaseLog.filter(p => p.id === id);
+                rows.forEach(r => { r.buyerTin = tin; r.buyerTradeName = name; queueWrite({ kind: 'update', table: 'purchase_log', id: r.id, patch: { buyer_tin: tin, buyer_trade_name: name } }); });
+                renderPurchaseLogTable();
+            } else if (kind === 'booking' && window.rentalUI && window.rentalUI.saveBookingBuyerInfo) {
+                window.rentalUI.saveBookingBuyerInfo(id, isGroup, tin, name);
+            }
+        }
+        function syncBuyerDatalists() {
+            const tins = new Set(), names = new Set();
+            (state.salesLog || []).forEach(r => { if (r.buyerTin) tins.add(r.buyerTin); if (r.buyerTradeName) names.add(r.buyerTradeName); });
+            (state.purchaseLog || []).forEach(r => { if (r.buyerTin) tins.add(r.buyerTin); if (r.buyerTradeName) names.add(r.buyerTradeName); });
+            if (window.rentalUI && window.rentalUI.collectBookingBuyerInfo) {
+                const extra = window.rentalUI.collectBookingBuyerInfo() || { tins: [], names: [] };
+                extra.tins.forEach(t => tins.add(t)); extra.names.forEach(n => names.add(n));
+            }
+            const tinList = document.getElementById('buyer-tin-list');
+            const nameList = document.getElementById('buyer-trade-name-list');
+            if (tinList) tinList.innerHTML = [...tins].map(t => `<option value="${t.replace(/"/g, '&quot;')}"></option>`).join('');
+            if (nameList) nameList.innerHTML = [...names].map(n => `<option value="${n.replace(/"/g, '&quot;')}"></option>`).join('');
+        }
+        // Pairs a previously-used Buyer's TIN with the Customer Name/Trade
+        // Name it was recorded alongside, from sales and purchase history.
+        // Whichever pairing was saved most recently (later in the log) wins
+        // if the same TIN or name was ever typed differently. Rebuilt each
+        // time the modal opens, since history can't change while it's open.
+        let buyerInfoMaps = { nameByTin: new Map(), tinByName: new Map() };
+        function buildBuyerInfoMaps() {
+            const nameByTin = new Map(), tinByName = new Map();
+            const record = (tin, name) => {
+                if (tin && name) { nameByTin.set(tin, name); tinByName.set(name.trim().toLowerCase(), tin); }
+            };
+            (state.salesLog || []).forEach(r => record(r.buyerTin, r.buyerTradeName));
+            (state.purchaseLog || []).forEach(r => record(r.buyerTin, r.buyerTradeName));
+            return { nameByTin, tinByName };
+        }
+        function handleBuyerTinInput() {
+            const match = buyerInfoMaps.nameByTin.get(document.getElementById('buyer-info-tin').value.trim());
+            if (match) document.getElementById('buyer-info-name').value = match;
+        }
+        function handleBuyerNameInput() {
+            const match = buyerInfoMaps.tinByName.get(document.getElementById('buyer-info-name').value.trim().toLowerCase());
+            if (match) document.getElementById('buyer-info-tin').value = match;
+        }
+        function openBuyerInfoModal(kind, id, isGroup, docType) {
+            pendingPrintCtx = { kind, id, isGroup, docType };
+            const existing = getExistingBuyerInfo(kind, id, isGroup);
+            syncBuyerDatalists();
+            buyerInfoMaps = buildBuyerInfoMaps();
+            document.getElementById('buyer-info-tin').value = existing.tin;
+            document.getElementById('buyer-info-name').value = existing.name;
+            document.getElementById('buyer-info-modal').classList.add('active');
+        }
+        function closeBuyerInfoModal() {
+            document.getElementById('buyer-info-modal').classList.remove('active');
+            pendingPrintCtx = null;
+        }
+        function confirmBuyerInfoAndPrint() {
+            if (!pendingPrintCtx) return;
+            const { kind, id, isGroup, docType } = pendingPrintCtx;
+            const tin = document.getElementById('buyer-info-tin').value.trim();
+            if (tin && !isValidTin(tin)) return alert("Buyer's TIN must be 10 to 12 digits.");
+            const name = document.getElementById('buyer-info-name').value.trim();
+            saveBuyerInfo(kind, id, isGroup, tin, name);
+            closeBuyerInfoModal();
+            let data = null;
+            if (kind === 'sale') data = buildSalePrintData(id, isGroup);
+            else if (kind === 'purchase') data = buildPurchasePrintData(id, isGroup);
+            else if (kind === 'booking' && window.rentalUI && window.rentalUI.buildBookingPrintDataPublic) data = window.rentalUI.buildBookingPrintDataPublic(id, isGroup);
+            if (!data) return;
+            if (docType === 'invoice') { data.docLabel = 'INVOICE'; printInvoiceFor(data); } else printReceiptFor(data);
+        }
+
+        // ---- Sale / Purchase adapters (bookings' own adapter lives in
+        // verticals/appliance_rental.js and calls printReceiptFor/
+        // printInvoiceFor directly) ----
+        function buildSalePrintData(id, isGroup) {
+            const rows = isGroup ? state.salesLog.filter(s => s.groupId === id) : state.salesLog.filter(s => s.id === id);
+            if (!rows.length) return null;
+            const primary = isGroup ? findPrimaryGroupRow('sale', id) : rows[0];
+            const total = rows.reduce((s, r) => s + r.total, 0);
+            const amountPaid = rows.reduce((s, r) => s + (r.amountPaid || 0), 0);
+            const record = { payments: rows.flatMap(r => r.payments || []), amountPaid };
+            return {
+                docNumber: String(isGroup ? id : primary.id).slice(-8),
+                date: primary.date, branchId: primary.branchId,
+                docLabel: 'Sales Receipt', counterpartyLabel: 'Customer',
+                counterpartyName: primary.customer, counterpartyPhone: '',
+                buyerTin: primary.buyerTin || '', buyerTradeName: primary.buyerTradeName || '',
+                operator: getTransactionAuthor(primary.id),
+                lines: rows.map(r => ({ desc: r.desc, qty: r.qty, unit: r.price, total: r.total })),
+                total, amountPaid, vatIncluded: rows.some(r => r.vatIncluded),
+                channelBreakdown: getChannelBreakdown(record, total, 'Accounts receivable')
+            };
+        }
+        function buildPurchasePrintData(id, isGroup) {
+            const rows = isGroup ? state.purchaseLog.filter(p => p.groupId === id) : state.purchaseLog.filter(p => p.id === id);
+            if (!rows.length) return null;
+            const primary = isGroup ? findPrimaryGroupRow('purchase', id) : rows[0];
+            const canSeeCost = hasPerm('inventory.view_cost');
+            const total = rows.reduce((s, r) => s + r.total, 0);
+            const amountPaid = rows.reduce((s, r) => s + (r.amountPaid || 0), 0);
+            const record = { payments: rows.flatMap(r => r.payments || []), amountPaid };
+            return {
+                docNumber: String(isGroup ? id : primary.id).slice(-8),
+                date: primary.date, branchId: primary.branchId,
+                docLabel: 'Purchase Receipt', counterpartyLabel: 'Supplier',
+                counterpartyName: primary.supplier, counterpartyPhone: '',
+                buyerTin: primary.buyerTin || '', buyerTradeName: primary.buyerTradeName || '',
+                operator: getTransactionAuthor(primary.id),
+                lines: rows.map(r => ({ desc: r.desc, qty: r.qty, unit: canSeeCost ? r.cost : null, total: canSeeCost ? r.total : 0 })),
+                total: canSeeCost ? total : 0, amountPaid: canSeeCost ? amountPaid : 0,
+                vatIncluded: false,
+                channelBreakdown: canSeeCost ? getChannelBreakdown(record, total, 'Accounts payable') : []
+            };
+        }
+        function printSaleReceipt(id, isGroup) { openBuyerInfoModal('sale', id, isGroup, 'receipt'); }
+        function printSaleInvoice(id, isGroup) { openBuyerInfoModal('sale', id, isGroup, 'invoice'); }
+        function printPurchaseReceipt(id, isGroup) { openBuyerInfoModal('purchase', id, isGroup, 'receipt'); }
+        function printPurchaseInvoice(id, isGroup) { openBuyerInfoModal('purchase', id, isGroup, 'invoice'); }
+
         function renderSalesLogTable() {
             const tbody = document.getElementById('sales-log-table-body');
 
@@ -6281,7 +7153,8 @@
                         qty: groupRows.reduce((sum,r) => sum + r.qty, 0), price: null,
                         total: groupRows.reduce((sum,r) => sum + r.total, 0),
                         channel: primary.channel, type: primary.type, amountPaid: primary.amountPaid,
-                        payments: primary.payments, branchId: primary.branchId, id: primary.id, vatIncluded: primary.vatIncluded
+                        payments: primary.payments, branchId: primary.branchId, id: primary.id, vatIncluded: primary.vatIncluded,
+                        buyerTin: primary.buyerTin, buyerTradeName: primary.buyerTradeName
                     });
                 } else {
                     displayList.push({ isGroup: false, ...s });
@@ -6307,12 +7180,17 @@
                 }
                 let payBtn = (remaining > 0.001 && hasPerm('sales.mark_paid') && !isBranchClosed(s.branchId)) ? `<button class="btn btn-success btn-small" onclick="openRecordPaymentModal('sale', '${s.id}')">${t('common.record_payment')}</button>` : '';
                 let voidBtn = (hasPerm('sales.void') && !isBranchClosed(s.branchId)) ? `<button class="btn btn-danger btn-small" onclick="deleteSale('${s.id}')">${s.isGroup ? 'Delete Basket' : t('common.delete')}</button>` : '';
+                const printId = s.isGroup ? s.groupId : s.id;
+                // Receipt/Invoice only make sense once a sale is an actual
+                // VAT invoice -- so the buttons only appear when "Include
+                // VAT (15%)" was checked at Post Sale, not for every row.
+                let printBtns = s.vatIncluded ? `<button class="btn btn-small" style="background:var(--bg); color:var(--text); border:1px solid var(--border);" onclick="printSaleReceipt('${printId}', ${!!s.isGroup})" title="Print thermal receipt">🧾 Receipt</button> <button class="btn btn-small" style="background:var(--bg); color:var(--text); border:1px solid var(--border);" onclick="printSaleInvoice('${printId}', ${!!s.isGroup})" title="Print full-page invoice">📄 Invoice</button>` : '';
                 const priceCell = s.price === null ? '—' : s.price.toFixed(2);
                 const isExpanded = s.isGroup && expandedSaleGroups.has(s.groupId);
                 const descCell = s.isGroup
                     ? `<span style="cursor:pointer;" onclick="toggleSaleGroupExpand('${s.groupId}')">🧺 ${isExpanded ? '▾' : '▸'} ${s.desc}</span>`
                     : `<span class="truncate-cell" title="${s.desc}">${s.desc}</span>`;
-                rows.push(`<tr><td>${fmtDate(s.date)}</td><td>${s.customer}</td><td class="truncate-cell">${descCell}</td><td class="num">${s.qty}</td><td class="num">${priceCell}</td><td class="num"><strong>${s.total.toFixed(2)}</strong>${s.vatIncluded ? `<br><small style="color:var(--text-light);">${t('sale.with_vat')}</small>` : ''}</td><td>${statusStr}<br><small style="color:var(--accent)">[${s.type || 'Walk in'}]</small></td><td class="branch-col">${branchNameById(s.branchId)}</td><td><small>${getTransactionAuthor(s.id)}</small></td><td style="text-align:center;">${payBtn}${voidBtn}</td></tr>`);
+                rows.push(`<tr><td>${fmtDate(s.date)}</td><td>${s.customer}${buyerInfoStackHTML(s)}</td><td class="truncate-cell">${descCell}</td><td class="num">${s.qty}</td><td class="num">${priceCell}</td><td class="num"><strong>${s.total.toFixed(2)}</strong>${s.vatIncluded ? `<br><small style="color:var(--text-light);">${t('sale.with_vat')}</small>` : ''}</td><td>${statusStr}<br><small style="color:var(--accent)">[${s.type || 'Walk in'}]</small></td><td class="branch-col">${branchNameById(s.branchId)}</td><td><small>${getTransactionAuthor(s.id)}</small></td><td style="text-align:center; white-space:nowrap;">${payBtn}${voidBtn}${printBtns}</td></tr>`);
                 if (isExpanded) {
                     s.itemRows.forEach(r => {
                         rows.push(`<tr style="background:var(--bg);"><td></td><td></td><td class="truncate-cell" style="padding-left:32px;" title="${r.desc}"><small>↳ ${r.desc}</small></td><td class="num"><small>${r.qty}</small></td><td class="num"><small>${r.price.toFixed(2)}</small></td><td class="num"><small>${r.total.toFixed(2)}</small></td><td colspan="4"></td></tr>`);
@@ -6599,7 +7477,8 @@
                         qty: groupRows.reduce((sum,r) => sum + r.qty, 0), cost: null,
                         total: groupRows.reduce((sum,r) => sum + r.total, 0),
                         channel: primary.channel, amountPaid: primary.amountPaid,
-                        payments: primary.payments, branchId: primary.branchId, id: primary.id
+                        payments: primary.payments, branchId: primary.branchId, id: primary.id,
+                        buyerTin: primary.buyerTin, buyerTradeName: primary.buyerTradeName
                     });
                 } else {
                     displayList.push({ isGroup: false, ...p });
@@ -6632,13 +7511,17 @@
                 }
                 let payBtn = (remaining > 0.001 && hasPerm('purchase.mark_paid') && !isBranchClosed(p.branchId)) ? `<button class="btn btn-success btn-small" onclick="openRecordPaymentModal('purchase', '${p.id}')">${t('common.record_payment')}</button>` : '';
                 let voidBtn = (hasPerm('purchase.void') && !isBranchClosed(p.branchId)) ? `<button class="btn btn-danger btn-small" onclick="deletePurchase('${p.id}')">${p.isGroup ? 'Delete Basket' : t('common.delete')}</button>` : '';
+                const printId = p.isGroup ? p.groupId : p.id;
+                // Purchases don't issue a receipt/invoice -- the shop is the
+                // buyer here, so there's no print button for this row.
+                let printBtns = '';
                 const costCell = !canSeeCost ? '🔒' : (p.cost === null ? '—' : p.cost.toFixed(2));
                 const totalCell = canSeeCost ? p.total.toFixed(2) : '🔒';
                 const isExpanded = p.isGroup && expandedPurchaseGroups.has(p.groupId);
                 const descCell = p.isGroup
                     ? `<span style="cursor:pointer;" onclick="togglePurchaseGroupExpand('${p.groupId}')">🧺 ${isExpanded ? '▾' : '▸'} ${p.desc}</span>`
                     : `<span class="truncate-cell" title="${p.desc}">${p.desc}</span>`;
-                rows.push(`<tr><td>${fmtDate(p.date)}</td><td>${p.supplier}</td><td class="truncate-cell">${descCell}</td><td class="num">${p.qty}</td><td class="num">${costCell}</td><td class="num"><strong>${totalCell}</strong></td><td>${statusStr}</td><td class="branch-col">${branchNameById(p.branchId)}</td><td><small>${getTransactionAuthor(p.id)}</small></td><td style="text-align:center;">${payBtn}${voidBtn}</td></tr>`);
+                rows.push(`<tr><td>${fmtDate(p.date)}</td><td>${p.supplier}${buyerInfoStackHTML(p)}</td><td class="truncate-cell">${descCell}</td><td class="num">${p.qty}</td><td class="num">${costCell}</td><td class="num"><strong>${totalCell}</strong></td><td>${statusStr}</td><td class="branch-col">${branchNameById(p.branchId)}</td><td><small>${getTransactionAuthor(p.id)}</small></td><td style="text-align:center; white-space:nowrap;">${payBtn}${voidBtn}${printBtns}</td></tr>`);
                 if (isExpanded) {
                     p.itemRows.forEach(r => {
                         rows.push(`<tr style="background:var(--bg);"><td></td><td></td><td class="truncate-cell" style="padding-left:32px;" title="${r.desc}"><small>↳ ${r.desc}</small></td><td class="num"><small>${r.qty}</small></td><td class="num"><small>${canSeeCost ? r.cost.toFixed(2) : '🔒'}</small></td><td class="num"><small>${canSeeCost ? r.total.toFixed(2) : '🔒'}</small></td><td colspan="4"></td></tr>`);
@@ -6898,6 +7781,7 @@
                 inventory: (items.data || []).map(i => ({
                     id: i.id, category: i.category, desc: i.desc, sellingPrice: parseFloat(i.selling_price) || 0,
                     history: i.history || [],
+                    rentalWriteOffs: i.rental_write_offs || [],
                     lots: (lots.data || []).filter(l => l.item_id === i.id).map(l => ({ id: l.id, qty: l.qty, cost: parseFloat(l.cost), branchId: l.branch_id, expiry: l.expiry_date || null }))
                 })),
                 salesLog: (sales.data || []).map(s => ({
@@ -6906,13 +7790,14 @@
                     channel: s.channel, type: s.type, paid: s.paid, paidChannel: s.paid_channel,
                     restorationLayers: s.restoration_layers || [], branchId: s.branch_id,
                     amountPaid: parseFloat(s.amount_paid) || 0, payments: s.payments || [], groupId: s.group_id || null,
-                    vatIncluded: !!s.vat_included
+                    vatIncluded: !!s.vat_included, buyerTin: s.buyer_tin || '', buyerTradeName: s.buyer_trade_name || ''
                 })),
                 purchaseLog: (purchases.data || []).map(p => ({
                     id: p.id, date: p.date, supplier: p.supplier, desc: p.desc, qty: p.qty,
                     cost: parseFloat(p.cost), total: parseFloat(p.total), channel: p.channel,
                     paid: p.paid, paidChannel: p.paid_channel, branchId: p.branch_id,
-                    amountPaid: parseFloat(p.amount_paid) || 0, payments: p.payments || [], groupId: p.group_id || null
+                    amountPaid: parseFloat(p.amount_paid) || 0, payments: p.payments || [], groupId: p.group_id || null,
+                    buyerTin: p.buyer_tin || '', buyerTradeName: p.buyer_trade_name || ''
                 })),
                 expenseLog: (expenses.data || []).map(e => ({
                     id: e.id, date: e.date, target: e.target, amount: parseFloat(e.amount), source: e.source, memo: e.memo, branchId: e.branch_id
@@ -7639,17 +8524,22 @@
             ] },
             { key: 'inventory', label: 'Inventory/Stock', viewPerm: 'inventory.view', actions: [
                 { key: 'inventory.edit_products', label: 'Add / edit product catalog' },
-                { key: 'inventory.adjust_price', label: 'Change selling prices' },
+                // Meaningless for appliance_rental -- rentals bill by rate, not
+                // a shelf selling price, and the whole price-editing UI this
+                // permission gates (core Stock List price cell + Purchase's
+                // Selling Price field) is hidden outright for that business
+                // type (see applyBusinessTypeLabels() in index.html).
+                { key: 'inventory.adjust_price', label: 'Change selling prices', hideFor: ['appliance_rental'] },
                 { key: 'inventory.view_cost', label: 'View cost prices / cost of goods' },
                 { key: 'inventory.transfer', label: 'Transfer stock between branches' },
-                { key: 'rentals.write_off', label: 'Write off rental stock as a loss' }
+                { key: 'rentals.write_off', label: 'Write off rental stock as a loss', onlyFor: ['appliance_rental'] }
             ]},
             { key: 'cash_handover', label: 'Cash Handover', viewPerm: 'cash.handover', actions: [] },
             { key: 'sales', label: 'Sales', viewPerm: 'sales.view', actions: [
                 { key: 'sales.create', label: 'Record sales' },
                 { key: 'sales.void', label: 'Void / delete sales' },
                 { key: 'sales.mark_paid', label: 'Settle accounts receivable' },
-                { key: 'rentals.checkin', label: 'Check in / process rental returns' }
+                { key: 'rentals.checkin', label: 'Check in / process rental returns', onlyFor: ['appliance_rental'] }
             ]},
             { key: 'purchase', label: 'Purchase', viewPerm: 'purchase.view', actions: [
                 { key: 'purchase.create', label: 'Record purchases' },
@@ -7675,19 +8565,47 @@
             ]}
         ];
 
+        // Some actions only make sense for one business type (e.g. rental
+        // check-in/write-off) or are dead weight for one (e.g. "Change
+        // selling prices" for rentals, which don't have a selling price UI
+        // at all). Rather than showing every owner the same full checklist
+        // regardless of what their business actually does, filter each
+        // page's action list down to what's relevant to currentBusinessType
+        // before it's ever rendered -- an owner setting up a Cashier role
+        // for a pharmacy should never have to puzzle over a "rental" or
+        // "adjust price" checkbox that does nothing for them.
+        function actionsForCurrentBusinessType(page) {
+            return page.actions.filter(a =>
+                (!a.onlyFor || a.onlyFor.includes(currentBusinessType)) &&
+                (!a.hideFor || !a.hideFor.includes(currentBusinessType))
+            );
+        }
+        // Mirrors the same nav-label rename a business type gets elsewhere
+        // (e.g. appliance_rental's Sales -> "Booking", see
+        // business-types.config.js / applyBusinessTypeLabels()) so the Roles
+        // & Permissions page reads consistently with the rest of the app,
+        // instead of an owner granting access to "Sales" that then shows up
+        // in their nav as "Booking".
+        function pageLabelForCurrentBusinessType(page) {
+            const config = (typeof BUSINESS_TYPES !== 'undefined') && BUSINESS_TYPES[currentBusinessType];
+            const override = config && config.labelOverrides && config.labelOverrides['nav.' + page.key];
+            return override || page.label;
+        }
+
         function renderPageRow(role, page, granted) {
+            const actions = actionsForCurrentBusinessType(page);
             const viewChecked = granted.has(page.viewPerm);
-            const editChecked = viewChecked && page.actions.some(a => granted.has(a.key));
-            const hasActions = page.actions.length > 0;
+            const editChecked = viewChecked && actions.some(a => granted.has(a.key));
+            const hasActions = actions.length > 0;
             return `
             <div class="perm-page-row">
                 <div style="display:flex; align-items:center; gap:18px; flex-wrap:wrap;">
-                    <strong style="min-width:220px; font-size:13px; color:var(--primary);">${page.label}</strong>
+                    <strong style="min-width:220px; font-size:13px; color:var(--primary);">${pageLabelForCurrentBusinessType(page)}</strong>
                     <label class="check-label"><input type="checkbox" class="perm-view-cb" data-page="${page.key}" data-perm="${page.viewPerm}" ${viewChecked ? 'checked' : ''} onchange="handlePageViewToggle(this)">View</label>
                     ${hasActions ? `<label class="check-label"><input type="checkbox" class="perm-edit-cb" data-page="${page.key}" ${editChecked ? 'checked' : ''} ${viewChecked ? '' : 'disabled'} onchange="handlePageEditToggle(this)">Edit</label>` : ''}
                 </div>
                 ${hasActions ? `<div class="perm-actions-sub" data-page="${page.key}" style="display:${editChecked ? 'flex' : 'none'};">
-                    ${page.actions.map(a => `<label class="check-label"><input type="checkbox" id="perm-${role.id}-${a.key}" data-perm="${a.key}" ${granted.has(a.key) ? 'checked' : ''} ${a.key === 'inventory.view_cost' ? `onchange="syncPurchaseMarkPaidLock('${role.id}')"` : ''}>${a.label}</label>`).join('')}
+                    ${actions.map(a => `<label class="check-label"><input type="checkbox" id="perm-${role.id}-${a.key}" data-perm="${a.key}" ${granted.has(a.key) ? 'checked' : ''} ${a.key === 'inventory.view_cost' ? `onchange="syncPurchaseMarkPaidLock('${role.id}')"` : ''}>${a.label}</label>`).join('')}
                 </div>` : ''}
             </div>`;
         }
@@ -7695,9 +8613,9 @@
         function renderDataRow(page, granted) {
             return `
             <div class="perm-page-row">
-                <strong style="font-size:13px; color:var(--primary);">${page.label}</strong>
+                <strong style="font-size:13px; color:var(--primary);">${pageLabelForCurrentBusinessType(page)}</strong>
                 <div class="perm-actions-sub" style="display:flex; margin-top:8px;">
-                    ${page.actions.map(a => `<label class="check-label"><input type="checkbox" data-perm="${a.key}" ${granted.has(a.key) ? 'checked' : ''}>${a.label}</label>`).join('')}
+                    ${actionsForCurrentBusinessType(page).map(a => `<label class="check-label"><input type="checkbox" data-perm="${a.key}" ${granted.has(a.key) ? 'checked' : ''}>${a.label}</label>`).join('')}
                 </div>
             </div>`;
         }
@@ -7819,7 +8737,7 @@
 
             PAGE_DEFINITIONS.forEach(page => {
                 if (page.key === 'data') {
-                    page.actions.forEach(a => {
+                    actionsForCurrentBusinessType(page).forEach(a => {
                         const cb = permsContainer.querySelector(`input[data-perm="${a.key}"]`);
                         if (cb && cb.checked) toSave.add(a.key);
                     });
@@ -7830,7 +8748,7 @@
                 if (!viewCb || !viewCb.checked) return; // View off => nothing for this page is saved
                 toSave.add(page.viewPerm);
                 if (editCb && editCb.checked) {
-                    page.actions.forEach(a => {
+                    actionsForCurrentBusinessType(page).forEach(a => {
                         const cb = permsContainer.querySelector(`input[data-perm="${a.key}"]`);
                         if (cb && cb.checked) toSave.add(a.key);
                     });
