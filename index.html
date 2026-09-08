@@ -123,7 +123,10 @@
            scrollbar once content is taller than that, and the sticky
            header pins against that internal scrollbar. Short tables that
            fit within max-height never show a scrollbar and just look
-           like a normal block, same as before. */
+           like a normal block, same as before. This is also what lets a
+           table have BOTH a sticky top header row AND a sticky left
+           column (see the Appliance Rental Availability grid) at once --
+           both stick relative to this same local scroll container. */
         .table-scroll { overflow: auto; max-height: 65vh; }
         .table-scroll table { margin-top: 0; }
         .table-scroll thead th { position: sticky; top: 0; z-index: 2; background: var(--bg); }
@@ -6424,7 +6427,7 @@
             if (!qty || qty < 1) return alert('Enter a valid quantity.');
             if (!price || price <= 0) return alert('Enter a valid price.');
 
-            saleCart.push({ comp, desc: item.desc, qty, price });
+            saleCart.push({ comp, desc: item.desc, category: item.category, qty, price });
             document.getElementById('cart-sale-item').value = '';
             document.getElementById('cart-sale-qty').value = 1;
             document.getElementById('cart-sale-price').value = '';
@@ -6442,7 +6445,7 @@
                 tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-light);">No items added yet.</td></tr>`;
             } else {
                 tbody.innerHTML = saleCart.map((c, i) => `<tr>
-                    <td>${c.desc}</td><td class="num">${c.qty}</td><td class="num">${c.price.toFixed(2)}</td>
+                    <td><span style="color:var(--text-light); font-size:11px;">${c.category}</span><br>${c.desc}</td><td class="num">${c.qty}</td><td class="num">${c.price.toFixed(2)}</td>
                     <td class="num">${(c.qty * c.price).toFixed(2)}</td>
                     <td style="text-align:center;"><button class="btn btn-danger btn-small" onclick="removeFromSaleCart(${i})">✕</button></td>
                 </tr>`).join('');
@@ -7301,7 +7304,7 @@
 
             const expiryInput = document.getElementById('cart-pur-expiry');
             const expiry = (expiryInput && expiryInput.value) ? expiryInput.value : null;
-            purchaseCart.push({ comp, desc: item.desc, qty, cost, sellingPrice: spInput !== '' && !isNaN(parseFloat(spInput)) ? parseFloat(spInput) : null, expiry });
+            purchaseCart.push({ comp, desc: item.desc, category: item.category, qty, cost, sellingPrice: spInput !== '' && !isNaN(parseFloat(spInput)) ? parseFloat(spInput) : null, expiry });
             document.getElementById('cart-pur-item').value = '';
             document.getElementById('cart-pur-qty').value = 1;
             document.getElementById('cart-pur-price').value = '';
@@ -7322,7 +7325,7 @@
                 tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-light);">No items added yet.</td></tr>`;
             } else {
                 tbody.innerHTML = purchaseCart.map((c, i) => `<tr>
-                    <td>${c.desc}</td><td class="num">${c.qty}</td><td class="num">${canSeeCost ? c.cost.toFixed(2) : '🔒'}</td>
+                    <td><span style="color:var(--text-light); font-size:11px;">${c.category}</span><br>${c.desc}</td><td class="num">${c.qty}</td><td class="num">${canSeeCost ? c.cost.toFixed(2) : '🔒'}</td>
                     <td class="num">${canSeeCost ? (c.qty * c.cost).toFixed(2) : '🔒'}</td>
                     <td style="text-align:center;"><button class="btn btn-danger btn-small" onclick="removeFromPurchaseCart(${i})">✕</button></td>
                 </tr>`).join('');
