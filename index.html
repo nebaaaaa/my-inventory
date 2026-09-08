@@ -62,14 +62,22 @@
         .menu-toggle-btn { background: none; border: none; font-size: 20px; color: var(--primary); cursor: pointer; padding: 6px; display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: background 0.2s; position: relative; }
         .menu-toggle-btn:hover { background: var(--bg); }
         
-        .content-area { padding: 28px; overflow-y: auto; overflow-x: hidden; flex: 1; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
-        .view-panel { display: none; width: 100%; }
+        .content-area { padding: 0; overflow-y: auto; overflow-x: hidden; flex: 1; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+        /* Padding moved here from .content-area -- sticky elements treat a
+           scroll container's own padding as a permanent floor they can't
+           get closer to than that. With padding on .content-area itself,
+           sticky headers stopped ~28px short of the real top/left edge,
+           leaving a gap where the previous row/column peeked through.
+           .view-panel doesn't scroll internally, so padding here is just
+           normal space that scrolls through it -- sticky can still reach
+           all the way to .content-area's true edge (top:0 / left:0). */
+        .view-panel { display: none; width: 100%; padding: 28px; box-sizing: border-box; }
         .view-panel.active { display: block; }
 
         /* Form Controls & Tables */
         h2 { margin-bottom: 18px; color: var(--primary); font-size: 18px; font-weight: 600; letter-spacing: -0.2px; padding-bottom: 10px; border-bottom: 2px solid var(--border); position: relative; }
         h2::before { content: ''; position: absolute; left: 0; bottom: -2px; width: 32px; height: 2px; background: var(--accent); }
-        .card { background: var(--surface); padding: 24px; border-radius: 12px; border: 1px solid var(--border); box-shadow: var(--shadow-sm); margin-bottom: 24px; overflow-x: auto; width: 100%; }
+        .card { background: var(--surface); padding: 24px; border-radius: 12px; border: 1px solid var(--border); box-shadow: var(--shadow-sm); margin-bottom: 24px; width: 100%; }
         .form-group { margin-bottom: 16px; display: inline-block; margin-right: 16px; vertical-align: top; }
         .filter-panel { background: var(--bg); padding: 12px 16px; border-radius: 10px; margin-bottom: 16px; border: 1px solid var(--border); }
         .filter-panel .form-group { margin-bottom: 0; }
@@ -100,14 +108,25 @@
         table { width: 100%; border-collapse: collapse; margin-top: 12px; text-align: left; white-space: nowrap; }
         th, td { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; }
         th { background: var(--bg); color: var(--primary); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
-        /* Wraps a history table so it grows to full length with the page
-           (no internal vertical scrollbar) while the header row stays
-           pinned to the top of the page's scroll area as you scroll
-           through the rows. overflow-x is kept so wide tables can still
-           scroll sideways on narrow screens. */
-        .table-scroll { overflow-x: auto; }
+        /* Wraps a history table so its header row stays visible while you
+           scroll through the rows, AND wide tables scroll sideways
+           without dragging the rest of the page with them.
+           Both of those need this div to be an actual scroll container
+           (overflow-x AND overflow-y both non-visible) -- a container is
+           only exempt from the sticky lookup on an axis it's not
+           scrollable on (overflow-*: clip), but as soon as ANY axis here
+           is scrollable (overflow-x: auto, for sideways scroll), the div
+           becomes a scroll container on both axes and every position:
+           sticky descendant binds to IT, not to .content-area further up.
+           So instead of fighting that, this div owns the vertical scroll
+           too: max-height caps it, overflow-y:auto gives it its own
+           scrollbar once content is taller than that, and the sticky
+           header pins against that internal scrollbar. Short tables that
+           fit within max-height never show a scrollbar and just look
+           like a normal block, same as before. */
+        .table-scroll { overflow: auto; max-height: 65vh; }
         .table-scroll table { margin-top: 0; }
-        .table-scroll thead th { position: sticky; top: 0; z-index: 1; }
+        .table-scroll thead th { position: sticky; top: 0; z-index: 2; background: var(--bg); }
         tr:hover { background: var(--bg); }
         tr.clickable-row { cursor: pointer; }
         tr.clickable-row:hover { background: #EFEBE0; }
@@ -409,7 +428,7 @@
          plus a second journal entry that injects the same amount as owner
          Equity Base Capital so the books balance without implying a real
          supplier or a real cash outflow. See completeInitialInventorySetup(). -->
-    <div id="initial-inventory-overlay" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:5000; align-items:center; justify-content:center; padding:40px 16px; overflow-y:auto;">
+    <div id="initial-inventory-overlay" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:5000; align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto;">
         <div class="modal-box" style="max-width:980px; width:100%;">
             <h2 style="color:var(--primary); margin-bottom:6px;">Set up your opening inventory</h2>
             <p style="font-size:13px; color:var(--text-light); margin-bottom:16px;">Add everything you're stocking up with right now. Each item you add below gets listed in the basket -- once the list looks right, click "Complete Setup" and it'll all be registered at once, funded as owner capital.</p>
@@ -643,12 +662,14 @@
                         <div class="form-group"><label data-i18n="inv.search_category">Search Category</label><input type="text" id="inv-filter-category" placeholder="Filter category..." oninput="renderPerpetualInventoryTable()"></div>
                         <div class="form-group"><label data-i18n="inv.search_name">Search Name</label><input type="text" id="inv-filter-name" placeholder="Filter name..." oninput="renderPerpetualInventoryTable()"></div>
                     </div>
+                    <div class="table-scroll">
                     <table>
                         <thead>
                             <tr><th data-i18n="inv.category">Category</th><th data-i18n="inv.item_spec">Item Specification / Name</th><th class="num" data-i18n="inv.qty_on_hand">Qty On Hand</th><th class="num" data-i18n="inv.cost_layers">Cost Layers FIFO (ETB)</th><th class="num" data-i18n="inv.selling_price">Selling Price (ETB)</th><th class="num" data-i18n="inv.total_asset">Total Asset (ETB)</th><th class="num pharm-col" id="inv-expiry-col-header" style="display:none;">Exp Date</th><th style="text-align: center;" data-i18n="inv.actions">Actions</th></tr>
                         </thead>
                         <tbody id="inventory-table-body"></tbody>
                     </table>
+                    </div>
                 </div>
 
                 <!-- Availability + Assets sections for the appliance_rental
@@ -677,10 +698,12 @@
                         <div class="form-group" style="padding-top: 22px;"><button type="submit" class="btn" id="transfer-submit-btn" data-i18n="tr.transfer_stock">Transfer Stock</button></div>
                     </form>
                     <h2 style="margin-top:24px;" data-i18n="tr.history">Transfer History</h2>
+                    <div class="table-scroll">
                     <table>
                         <thead><tr><th data-i18n="sale.date">Date</th><th data-i18n="sale.item">Item</th><th class="num" data-i18n="tr.quantity">Qty</th><th data-i18n="tr.from">From</th><th data-i18n="tr.to">To</th><th data-i18n="tr.by">By</th><th data-i18n="tr.notes">Notes</th><th style="text-align:center;" data-i18n="inv.actions">Actions</th></tr></thead>
                         <tbody id="stock-transfer-table-body"></tbody>
                     </table>
+                    </div>
                 </div>
                 <div class="card" id="stock-transfer-unavailable-card" style="display:none;">
                     <h2 data-i18n="tr.title">Transfer Stock Between Branches</h2>
@@ -706,23 +729,29 @@
                     </form>
                     <p style="font-size:12px; color:var(--text-light); margin-top:-8px;" data-i18n="ch.pending_note">This won't reduce your balance above until the owner approves it.</p>
                     <h2 style="margin-top:24px;" data-i18n="ch.my_history">Your Handover History</h2>
+                    <div class="table-scroll">
                     <table>
                         <thead><tr><th data-i18n="sale.date">Date</th><th class="num" data-i18n="ch.amount">Amount</th><th data-i18n="tr.notes">Note</th><th data-i18n="ch.status">Status</th><th style="text-align:center;" data-i18n="inv.actions">Actions</th></tr></thead>
                         <tbody id="cash-handover-my-history-body"></tbody>
                     </table>
+                    </div>
                 </div>
 
                 <div class="card" id="cash-handover-owner-pending-card" style="display:none;">
                     <h2 data-i18n="ch.pending_title">Pending Cash Handovers</h2>
+                    <div class="table-scroll">
                     <table>
                         <thead><tr><th data-i18n="sale.date">Date</th><th data-i18n="ch.employee">Employee</th><th data-i18n="sale.branch">Branch</th><th class="num" data-i18n="ch.amount">Amount</th><th data-i18n="tr.notes">Note</th><th style="text-align:center;" data-i18n="inv.actions">Actions</th></tr></thead>
                         <tbody id="cash-handover-pending-body"></tbody>
                     </table>
+                    </div>
                     <h2 style="margin-top:24px;" data-i18n="ch.all_history">All Handover History</h2>
+                    <div class="table-scroll">
                     <table>
                         <thead><tr><th data-i18n="sale.date">Date</th><th data-i18n="ch.employee">Employee</th><th data-i18n="sale.branch">Branch</th><th class="num" data-i18n="ch.amount">Amount</th><th data-i18n="tr.notes">Note</th><th data-i18n="ch.status">Status</th><th data-i18n="ch.decided_by">Decided By</th><th style="text-align:center;" data-i18n="inv.actions">Actions</th></tr></thead>
                         <tbody id="cash-handover-all-history-body"></tbody>
                     </table>
+                    </div>
                 </div>
 
                 <div class="card" id="cash-handover-unavailable-card" style="display:none;">
@@ -799,10 +828,12 @@
                         <div class="form-group" style="margin-bottom:0;"><label data-i18n="sale.price">Price (ETB)</label><input type="number" id="cart-sale-price" step="0.01" min="0.01" style="min-width:110px;"></div>
                         <button type="button" class="btn" onclick="addToSaleCart()">+ <span data-i18n="sale.add_to_basket">Add to Basket</span></button>
                     </div>
-                    <table>
-                        <thead><tr><th data-i18n="sale.item">Item</th><th class="num" data-i18n="tr.quantity">Qty</th><th class="num" data-i18n="sale.price">Price</th><th class="num" data-i18n="sale.line_total">Line Total</th><th style="text-align:center;" data-i18n="sale.remove">Remove</th></tr></thead>
-                        <tbody id="sale-cart-table-body"><tr><td colspan="5" style="text-align:center; color:var(--text-light);" data-i18n="sale.no_items_yet">No items added yet.</td></tr></tbody>
-                    </table>
+                    <div style="overflow-x:auto;">
+                        <table>
+                            <thead><tr><th data-i18n="sale.item">Item</th><th class="num" data-i18n="tr.quantity">Qty</th><th class="num" data-i18n="sale.price">Price</th><th class="num" data-i18n="sale.line_total">Line Total</th><th style="text-align:center;" data-i18n="sale.remove">Remove</th></tr></thead>
+                            <tbody id="sale-cart-table-body"><tr><td colspan="5" style="text-align:center; color:var(--text-light);" data-i18n="sale.no_items_yet">No items added yet.</td></tr></tbody>
+                        </table>
+                    </div>
                     <div style="display:flex; justify-content:flex-end; margin-top:16px;">
                         <div style="min-width:280px;">
                             <div style="display:flex; justify-content:space-between; font-size:15px; font-weight:700; color:var(--primary); margin-bottom:12px;">
@@ -924,10 +955,12 @@
                         </div>
                         <button type="button" class="btn" onclick="addToPurchaseCart()">+ <span data-i18n="sale.add_to_basket">Add to Basket</span></button>
                     </div>
-                    <table>
-                        <thead><tr><th data-i18n="sale.item">Item</th><th class="num" data-i18n="tr.quantity">Qty</th><th class="num">Cost</th><th class="num" data-i18n="sale.line_total">Line Total</th><th style="text-align:center;" data-i18n="sale.remove">Remove</th></tr></thead>
-                        <tbody id="purchase-cart-table-body"><tr><td colspan="5" style="text-align:center; color:var(--text-light);" data-i18n="sale.no_items_yet">No items added yet.</td></tr></tbody>
-                    </table>
+                    <div style="overflow-x:auto;">
+                        <table>
+                            <thead><tr><th data-i18n="sale.item">Item</th><th class="num" data-i18n="tr.quantity">Qty</th><th class="num">Cost</th><th class="num" data-i18n="sale.line_total">Line Total</th><th style="text-align:center;" data-i18n="sale.remove">Remove</th></tr></thead>
+                            <tbody id="purchase-cart-table-body"><tr><td colspan="5" style="text-align:center; color:var(--text-light);" data-i18n="sale.no_items_yet">No items added yet.</td></tr></tbody>
+                        </table>
+                    </div>
                     <div style="display:flex; justify-content:flex-end; margin-top:16px;">
                         <div style="min-width:280px;">
                             <div style="display:flex; justify-content:space-between; font-size:15px; font-weight:700; color:var(--primary); margin-bottom:12px;">
@@ -996,10 +1029,12 @@
                         <div class="form-group" id="exp-log-filter-by-group" style="display:none;"><label data-i18n="tr.by">By</label><select id="exp-log-filter-author" onchange="renderExpenseLogTable()"><option value="" data-i18n="sale.all">-- All --</option></select></div>
                     </div>
                     <div id="exp-log-total-display" style="font-size:13px; font-weight:600; color:var(--primary); margin-bottom:8px;"></div>
+                    <div class="table-scroll">
                     <table>
                         <thead><tr><th data-i18n="sale.date">Date</th><th data-i18n="exp.expense_account">Expense Account</th><th data-i18n="exp.memo_context">Memo Context</th><th class="num" data-i18n="exp.charge">Charge (ETB)</th><th data-i18n="sale.channel">Channel</th><th class="branch-col" data-i18n="sale.branch">Branch</th><th data-i18n="tr.by">By</th><th style="text-align:center;" data-i18n="sale.action">Action</th></tr></thead>
                         <tbody id="expense-log-table-body"></tbody>
                     </table>
+                    </div>
                 </div>
             </div>
 
@@ -1007,20 +1042,24 @@
                 <div class="card">
                     <h2 data-i18n="trash.title">Trash</h2>
                     <p style="font-size: 13px; color: var(--text-light); margin-bottom:16px;" data-i18n="trash.desc">Deleted records are held here for 30 days before permanent deletion. Restoring an item recalculates its inventory and ledger balances.</p>
+                    <div class="table-scroll">
                     <table>
                         <thead><tr><th data-i18n="trash.date_deleted">Date Deleted</th><th data-i18n="trash.record_type">Record Type</th><th data-i18n="trash.data_details">Data Details</th><th style="text-align:center;" data-i18n="sale.action">Action</th></tr></thead>
                         <tbody id="trash-table-body"></tbody>
                     </table>
+                    </div>
                 </div>
             </div>
 
             <div id="view-coa" class="view-panel">
                 <div class="card">
                     <h2 data-i18n="acct.coa">Chart of Accounts</h2>
+                    <div class="table-scroll">
                     <table>
                         <thead><tr><th data-i18n="acct.classification">Classification</th><th data-i18n="acct.subaccount_level">Sub-Account Level</th><th data-i18n="acct.code">Code</th><th data-i18n="acct.account_title">Individual Account Title</th><th data-i18n="acct.statement">Statement</th><th data-i18n="acct.normal_balance">Normal Balance</th></tr></thead>
                         <tbody id="coa-table-body"></tbody>
                     </table>
+                    </div>
                 </div>
             </div>
 
@@ -1040,10 +1079,12 @@
                 <div class="card">
                     <h2 data-i18n="acct.journal_history">Journal History</h2>
                     <div class="form-group"><label data-i18n="acct.ethiopian_period">Ethiopian Accounting Period</label><select id="jv-ethiopian-filter" class="ethiopian-period-select" onchange="updateEthiopianPeriod(this.value)"></select></div>
+                    <div class="table-scroll">
                     <table>
                         <thead><tr><th data-i18n="sale.date">Date</th><th data-i18n="acct.reference_id">Reference ID</th><th data-i18n="acct.account_criteria">Account Criteria</th><th class="num" data-i18n="acct.debit_target">Debit Target (ETB)</th><th class="num" data-i18n="acct.credit_target">Credit Target (ETB)</th><th class="branch-col" data-i18n="sale.branch">Branch</th><th data-i18n="tr.by">By</th><th style="text-align:center;" data-i18n="sale.action">Action</th></tr></thead>
                         <tbody id="journal-table-body"></tbody>
                     </table>
+                    </div>
                 </div>
             </div>
 
@@ -1054,10 +1095,12 @@
                 </div>
                 <div class="card">
                     <h2 data-i18n="acct.ledger">Ledger</h2>
+                    <div class="table-scroll">
                     <table>
                         <thead><tr><th data-i18n="sale.date">Date</th><th data-i18n="acct.voucher_context">Voucher Context</th><th class="num" data-i18n="acct.debit_charge">Debit Charge</th><th class="num" data-i18n="acct.credit_charge">Credit Charge</th><th class="num" data-i18n="acct.running_balance">Running Balance</th></tr></thead>
                         <tbody id="ledger-table-body"></tbody>
                     </table>
+                    </div>
                 </div>
             </div>
 
@@ -1100,10 +1143,12 @@
                             <button class="btn btn-success" id="btn-add-branch" onclick="openAddBranchModal()">+ <span data-i18n="team.add_branch">Add Branch</span></button>
                         </div>
                     </div>
+                    <div class="table-scroll">
                     <table style="margin-top:16px;">
                         <thead><tr><th data-i18n="team.name">Name</th><th data-i18n="team.address">Address</th></tr></thead>
                         <tbody id="branches-table-body"></tbody>
                     </table>
+                    </div>
                 </div>
 
                 <div class="card">
@@ -1114,10 +1159,12 @@
                             <button class="btn btn-success" id="btn-add-employee" onclick="openAddMemberModal()">+ <span data-i18n="team.add_employee">Add Employee</span></button>
                         </div>
                     </div>
+                    <div class="table-scroll">
                     <table style="margin-top:16px;">
                         <thead><tr><th data-i18n="team.name">Name</th><th data-i18n="team.username">Username</th><th data-i18n="team.role">Role</th><th data-i18n="team.branch_access">Branch Access</th></tr></thead>
                         <tbody id="team-members-table-body"></tbody>
                     </table>
+                    </div>
                 </div>
 
                 <div class="card">
@@ -2747,6 +2794,11 @@
             if (isPharmacy) {
                 const expiry = document.getElementById('init-inv-expiry').value;
                 item.expiry = expiry || null; // optional, same as the normal Purchase form
+            }
+
+            if (!state.categories.includes(cat)) {
+                state.categories.push(cat); syncCategoriesDatalist();
+                queueWrite({ kind: 'tenant_update', patch: { categories: state.categories } });
             }
 
             initialInventoryCart.push(item);
