@@ -433,14 +433,16 @@ function renderAvailabilityBody() {
     const canBook = hasPerm('sales.create');
     el.innerHTML = list.length === 0 ? `<p style="color:var(--text-light); font-size:13px;">${items().length === 0 ? 'Add a product above to get started.' : 'No assets match this filter.'}</p>` : `
         <!-- Single table (not two side-by-side ones) so the Asset column and
-             the date columns share the same scroll context. .content-area
-             is the one and only scrolling ancestor (see the note above the
-             .table-scroll CSS rule) -- that's what lets the Asset column
-             stick to the LEFT as you scroll dates sideways, and the header
-             row stick to the TOP as you scroll rows down, at the same time.
-             A local overflow-x wrapper here would break the top-stick for
-             the date header, the same way it used to. -->
-        <div class="table-scroll" style="border:1px solid var(--border); border-radius:8px;">
+             the date columns share the same scroll context: this div is a
+             .table-scroll (see its CSS rule), which scrolls both ways
+             locally and is what the sticky Asset column (left:0) and
+             sticky date header (top:0) both anchor to. That's what keeps
+             every asset row moving together with its calendar cells as
+             you scroll vertically, while only the dates (not the Asset
+             column, not the rest of the page) move as you scroll
+             sideways -- see shiftCalendar()/jumpCalendarToDate() below,
+             which scroll this same div. -->
+        <div class="table-scroll" id="rental-availability-scroll" style="border:1px solid var(--border); border-radius:8px;">
             <table style="margin:0;">
                 <thead>
                     <tr>
@@ -450,7 +452,10 @@ function renderAvailabilityBody() {
                 </thead>
                 <tbody>
                     ${list.map(i => `<tr style="height:44px;">
-                        <td style="position:sticky; left:0; z-index:1; min-width:${ASSET_COL_WIDTH}px; background:var(--surface);">${i.desc}</td>
+                        <td style="position:sticky; left:0; z-index:1; min-width:${ASSET_COL_WIDTH}px; background:var(--surface);">
+                            <div style="font-size:11px; color:var(--text-light); line-height:1.2;">${i.category}</div>
+                            <div style="line-height:1.2;">${i.desc}</div>
+                        </td>
                         ${dates.map(d => calendarCell(i, d, canBook)).join('')}
                     </tr>`).join('')}
                 </tbody>
@@ -466,10 +471,10 @@ function calendarCell(item, dateIso, canBook) {
     return `<td title="${avail} of ${total} available ${fmtDate(dateIso)}"${onclick}><div style="width:100%; height:22px; background:${bg}; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:10px; color:var(--text-light);">${total > 0 ? avail : ''}</div></td>`;
 }
 function shiftCalendar(days) {
-    // Horizontal scrolling now happens on .content-area itself (same
-    // place the sticky Asset column and sticky date header both anchor
-    // to), not a local wrapper -- see renderAvailabilityBody().
-    const container = document.querySelector('.content-area');
+    // Horizontal scrolling happens on this table's own .table-scroll div
+    // (the same element the sticky Asset column and sticky date header
+    // both anchor to), not the page -- see renderAvailabilityBody().
+    const container = document.getElementById('rental-availability-scroll');
     if (container) container.scrollLeft += days * CAL_COL_WIDTH;
 }
 function jumpCalendarToDate() {
@@ -486,7 +491,7 @@ function jumpCalendarToDate() {
         offset = 5;
     }
     requestAnimationFrame(() => {
-        const container = document.querySelector('.content-area');
+        const container = document.getElementById('rental-availability-scroll');
         if (container) container.scrollLeft = Math.max(0, ASSET_COL_WIDTH + (offset - 1) * CAL_COL_WIDTH);
     });
 }
@@ -504,7 +509,8 @@ function renderAssetsBody() {
     if (!el) return;
     const list = filteredItems();
     el.innerHTML = list.length === 0 ? `<p style="color:var(--text-light); font-size:13px;">${items().length === 0 ? 'No assets yet — use Add Product above.' : 'No assets match this filter.'}</p>` : `
-        <table>
+        <div class="table-scroll" style="border:1px solid var(--border); border-radius:8px;">
+        <table style="margin:0;">
             <thead><tr><th>Category</th><th>Item Specification / Name</th><th class="num">Qty</th><th class="num">Daily</th><th class="num">Weekly</th><th class="num">Monthly</th><th style="text-align:center;">Action</th></tr></thead>
             <tbody>
                 ${list.map(i => `<tr>
@@ -520,7 +526,8 @@ function renderAssetsBody() {
                     </td>
                 </tr>`).join('')}
             </tbody>
-        </table>`;
+        </table>
+        </div>`;
 }
 
 // ---------------------------------------------------------------
