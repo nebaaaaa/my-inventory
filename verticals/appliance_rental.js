@@ -78,6 +78,11 @@ let expandedBookingGroups = new Set();
 // Starts at today so the first column visible on load is the current day.
 const CALENDAR_DAYS = 45;
 const CAL_COL_WIDTH = 56;
+// Must match the Asset column's min-width in renderAvailabilityBody() --
+// now that Asset and the dates share one scrollable table, jump-to-date
+// needs to account for the sticky Asset column sitting in front of the
+// date columns, or it'll land a date right behind it.
+const ASSET_COL_WIDTH = 150;
 let calendarStart = todayISO();
 let bookingsFilter = 'active';
 // Search-box filters layered on top of the Active/Overdue/Returned/All
@@ -427,31 +432,29 @@ function renderAvailabilityBody() {
     const dates = Array.from({ length: CALENDAR_DAYS }, (_, i) => addDays(calendarStart, i));
     const canBook = hasPerm('sales.create');
     el.innerHTML = list.length === 0 ? `<p style="color:var(--text-light); font-size:13px;">${items().length === 0 ? 'Add a product above to get started.' : 'No assets match this filter.'}</p>` : `
-        <!-- Grows to full length with the page as rows are added -- both
-             header rows (Asset + dates) stay pinned to the top of the page's
-             scroll area while scrolling through rows, same table-scroll
-             pattern as the Sales/Purchase history tables. The inner
-             #rental-cal-scroll div still handles horizontal scrolling of the
-             date columns only. -->
-        <div class="table-scroll" style="display:flex; border:1px solid var(--border); border-radius:8px;">
-            <div style="flex-shrink:0;">
-                <table style="margin:0;">
-                    <thead><tr><th style="min-width:150px; height:36px;">Asset</th></tr></thead>
-                    <tbody>
-                        ${list.map(i => `<tr style="height:44px;"><td>${i.desc}</td></tr>`).join('')}
-                    </tbody>
-                </table>
-            </div>
-            <!-- Only this inner strip scrolls horizontally -- the Asset
-                 column stays put as the user scrolls through dates. -->
-            <div id="rental-cal-scroll" style="overflow-x:auto; flex:1;">
-                <table style="margin:0;">
-                    <thead><tr>${dates.map(d => `<th style="text-align:center; font-size:11px; min-width:${CAL_COL_WIDTH}px; height:36px; ${d === todayISO() ? 'background:var(--bg); border-bottom:2px solid var(--primary);' : ''}">${fmtCal(d)}</th>`).join('')}</tr></thead>
-                    <tbody>
-                        ${list.map(i => `<tr style="height:44px;">${dates.map(d => calendarCell(i, d, canBook)).join('')}</tr>`).join('')}
-                    </tbody>
-                </table>
-            </div>
+        <!-- Single table (not two side-by-side ones) so the Asset column and
+             the date columns share the same scroll context. .content-area
+             is the one and only scrolling ancestor (see the note above the
+             .table-scroll CSS rule) -- that's what lets the Asset column
+             stick to the LEFT as you scroll dates sideways, and the header
+             row stick to the TOP as you scroll rows down, at the same time.
+             A local overflow-x wrapper here would break the top-stick for
+             the date header, the same way it used to. -->
+        <div class="table-scroll" style="border:1px solid var(--border); border-radius:8px;">
+            <table style="margin:0;">
+                <thead>
+                    <tr>
+                        <th style="position:sticky; left:0; z-index:3; min-width:${ASSET_COL_WIDTH}px; height:36px; background:var(--bg);">Asset</th>
+                        ${dates.map(d => `<th style="text-align:center; font-size:11px; min-width:${CAL_COL_WIDTH}px; height:36px; ${d === todayISO() ? 'background:var(--bg); border-bottom:2px solid var(--primary);' : ''}">${fmtCal(d)}</th>`).join('')}
+                    </tr>
+                </thead>
+                <tbody>
+                    ${list.map(i => `<tr style="height:44px;">
+                        <td style="position:sticky; left:0; z-index:1; min-width:${ASSET_COL_WIDTH}px; background:var(--surface);">${i.desc}</td>
+                        ${dates.map(d => calendarCell(i, d, canBook)).join('')}
+                    </tr>`).join('')}
+                </tbody>
+            </table>
         </div>`;
 }
 function calendarCell(item, dateIso, canBook) {
@@ -463,7 +466,10 @@ function calendarCell(item, dateIso, canBook) {
     return `<td title="${avail} of ${total} available ${fmtDate(dateIso)}"${onclick}><div style="width:100%; height:22px; background:${bg}; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:10px; color:var(--text-light);">${total > 0 ? avail : ''}</div></td>`;
 }
 function shiftCalendar(days) {
-    const container = document.getElementById('rental-cal-scroll');
+    // Horizontal scrolling now happens on .content-area itself (same
+    // place the sticky Asset column and sticky date header both anchor
+    // to), not a local wrapper -- see renderAvailabilityBody().
+    const container = document.querySelector('.content-area');
     if (container) container.scrollLeft += days * CAL_COL_WIDTH;
 }
 function jumpCalendarToDate() {
@@ -480,8 +486,8 @@ function jumpCalendarToDate() {
         offset = 5;
     }
     requestAnimationFrame(() => {
-        const container = document.getElementById('rental-cal-scroll');
-        if (container) container.scrollLeft = Math.max(0, (offset - 1) * CAL_COL_WIDTH);
+        const container = document.querySelector('.content-area');
+        if (container) container.scrollLeft = Math.max(0, ASSET_COL_WIDTH + (offset - 1) * CAL_COL_WIDTH);
     });
 }
 
