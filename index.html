@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Inventory</title>
+    <title>MELEYA</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -259,7 +259,7 @@
     <!-- ===================== SIGN IN / SIGN UP SCREEN ===================== -->
     <div id="auth-overlay" style="position:fixed; inset:0; z-index:5000; display:flex; align-items:center; justify-content:center; padding:40px 16px; overflow-y:auto;">
         <button id="lang-toggle-btn-auth" onclick="toggleLanguage()" title="Switch language" style="position:fixed; top:16px; right:16px; z-index:5001; font-size:12px; font-weight:700; min-width:44px; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:white; cursor:pointer;">አማ</button>
-        <div class="auth-brand-mark-fixed"><span class="accent">MY</span> <span class="dark">INVENTORY</span></div>
+        <div class="auth-brand-mark-fixed"><span class="accent">M</span><span class="dark">ELEYA</span></div>
 
         <svg class="auth-bg-chart" viewBox="0 0 1200 400" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
             <polyline points="0,340 90,336 180,260 270,150 360,120 450,135 540,110 630,190 720,165 810,230 900,270 990,310 1080,330 1200,345" fill="none" stroke="#A9752F" stroke-width="4" opacity="0.30"/>
@@ -355,7 +355,7 @@
             <div id="auth-loading" style="display:none; text-align:center; margin-top:14px; font-size:12px; color:var(--text-light);">Working, please wait...</div>
         </div>
 
-        <div class="auth-footer-note">&copy; 2026 MY INVENTORY. All rights reserved.</div>
+        <div class="auth-footer-note">&copy; 2026 MELEYA. All rights reserved.</div>
     </div>
 
     <!-- ===================== SET NEW PASSWORD SCREEN (after clicking reset email link) ===================== -->
@@ -410,7 +410,7 @@
     <div id="onboarding-overlay" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:5000; align-items:center; justify-content:center; padding:40px 16px; overflow-y:auto;">
         <div class="modal-box" style="max-width:480px; width:100%;">
             <h2 style="color:var(--primary); margin-bottom:12px;">Welcome! Let's set up your shop.</h2>
-            <p style="font-size:13px; color:var(--text-light); margin-bottom:16px;">If you already have a My Inventory backup file (a <code>.json</code> file exported using the "Backup" button), upload it now to bring your existing data over. Otherwise, just start fresh with an empty shop.</p>
+            <p style="font-size:13px; color:var(--text-light); margin-bottom:16px;">If you already have a MELEYA backup file (a <code>.json</code> file exported using the "Backup" button), upload it now to bring your existing data over. Otherwise, just start fresh with an empty shop.</p>
             <div class="form-group" style="display:block; width:100%; margin-bottom:16px;">
                 <label data-i18n="misc.upload_backup">Upload Backup File (optional)</label>
                 <input type="file" id="onboarding-file" accept=".json" style="width:100%;">
@@ -477,7 +477,7 @@
     <aside id="sidebar">
         <div class="sidebar-scroll-inner">
         <div>
-            <div class="brand" id="shop-brand-name">MY INVENTORY</div>
+            <div class="brand" id="shop-brand-name">MELEYA</div>
             <nav>
                 <button onclick="switchView('dashboard')" class="active" id="nav-dashboard">📊 <span data-i18n="nav.dashboard">Dashboard</span></button>
                 <button onclick="switchView('inventory')" id="nav-inventory">📦 <span data-i18n="nav.inventory">Inventory/Stock</span></button>
@@ -2719,7 +2719,7 @@
                     await bulkReplaceAllData();
                 } catch (err) {
                     document.getElementById('onboarding-loading').style.display = 'none';
-                    alert('That file could not be read. Please check it is a valid My Inventory backup .json file.');
+                    alert('That file could not be read. Please check it is a valid MELEYA backup .json file.');
                     return;
                 }
                 document.getElementById('onboarding-loading').style.display = 'none';

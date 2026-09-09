@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NEBA ERP — Platform Admin</title>
+<title>MELEYA — Platform Admin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -55,7 +55,7 @@
 
 <div id="auth-screen">
     <div class="card" style="max-width: 380px; width: 100%;">
-        <h2>NEBA ERP <span style="color:var(--accent);">Admin</span></h2>
+        <h2>MELEYA <span style="color:var(--accent);">Admin</span></h2>
         <p style="font-size: 13px; color: var(--text-light); margin-top: -8px; margin-bottom: 16px;">Platform administrator sign-in only.</p>
         <div id="auth-error" class="error-box"></div>
         <div class="form-group"><label>Email</label><input type="email" id="admin-email"></div>
@@ -66,7 +66,7 @@
 
 <div id="admin-app" style="display:none;">
     <div class="top-bar">
-        <div class="brand">NEBA ERP <span class="accent">Admin</span></div>
+        <div class="brand">MELEYA <span class="accent">Admin</span></div>
         <div>
             <span id="admin-email-display" style="font-size:13px; margin-right:16px; opacity:0.8;"></span>
             <button class="btn btn-outline" style="background:transparent; color:white; border-color:rgba(255,255,255,0.3);" onclick="handleAdminSignOut()">Sign Out</button>
@@ -172,16 +172,7 @@
 <script>
     const SUPABASE_URL = "https://nwkrrcatdhppvlceuzwg.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im53a3JyY2F0ZGhwcHZsY2V1endnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzMjEzNjUsImV4cCI6MjA5OTg5NzM2NX0.kELqbONKGQIs2Z99Zx8rEcwuYekTCugLYtbsYW3_0h8";
-    // A distinct storageKey keeps the admin panel's own session in a
-    // separate localStorage slot from the main app's (index.html uses the
-    // client library's default key). Without this, the "Login as Owner"
-    // feature below — which opens index.html and signs it in as a business
-    // owner — would silently overwrite the admin's own session everywhere
-    // on this origin, since Supabase persists sessions to localStorage and
-    // localStorage is shared across same-origin tabs.
-    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-        auth: { storageKey: 'neba-admin-auth' }
-    });
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let businesses = [];
     let plans = [];
@@ -339,7 +330,6 @@
                 <td><small>${expiresText}</small></td>
                 <td style="text-align:center; white-space:nowrap;">
                     <button class="btn btn-outline btn-small" onclick="openDetailModal('${b.id}')">View</button>
-                    <button class="btn btn-success btn-small" onclick="loginAsBusinessOwner('${b.id}')">Login as Owner</button>
                     <button class="btn btn-warning btn-small" onclick="openSubscriptionModal('${b.id}')">Plan</button>
                     <button class="btn btn-danger btn-small" onclick="openDeleteModal('${b.id}')">Delete</button>
                 </td>
@@ -378,47 +368,6 @@
         }
     }
     function closeDetailModal() { document.getElementById('detail-modal').classList.remove('active'); }
-
-    // --- LOGIN AS OWNER ---
-    // Opens the main app in a NEW TAB, signed in as this business's owner.
-    // The one-time token never touches the URL (no query string, no browser
-    // history, nothing a referrer header could leak) — it's handed off
-    // through localStorage, consumed exactly once by index.html on load,
-    // and deleted immediately either way. The backend (admin-login-as-owner)
-    // re-checks that the caller is a platform admin and logs the event on
-    // its own; this function does not and must not assume the click alone
-    // is authorization.
-    async function loginAsBusinessOwner(businessId) {
-        const biz = businesses.find(b => b.id === businessId);
-        if (!biz) return;
-        const ownerLabel = biz.ownerUsername || biz.ownerEmail || 'the owner';
-        if (!confirm(`Log in as ${ownerLabel}, owner of "${biz.businessName}"?\n\nThis opens a new tab with full access to their account, exactly as they see it. This action is logged.`)) return;
-
-        // Must open the tab synchronously, still inside this click handler —
-        // once we `await` anything, the browser no longer treats window.open
-        // as a direct result of the user's click and silently blocks it as a
-        // pop-up. Open a blank tab now, then point it at index.html once the
-        // token is ready.
-        const w = window.open('', '_blank');
-        if (!w) {
-            alert('Could not open a new tab — please allow pop-ups for this site and try again.');
-            return;
-        }
-        w.document.write('Preparing owner session…');
-
-        try {
-            const result = await callAdminFunction('admin-login-as-owner', { businessId });
-            localStorage.setItem('neba_admin_impersonation_handoff', JSON.stringify({
-                hashedToken: result.hashedToken,
-                businessName: biz.businessName,
-                issuedAt: Date.now(),
-            }));
-            w.location.href = 'index.html';
-        } catch (err) {
-            w.close();
-            alert('Could not start an owner session: ' + err.message);
-        }
-    }
 
     function openSubscriptionModal(businessId) {
         const biz = businesses.find(b => b.id === businessId);
