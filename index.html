@@ -252,7 +252,7 @@
          no account inside this tenant to return to, they just end the
          support session. -->
     <div id="admin-impersonation-banner" style="display:none; position:fixed; top:0; left:0; width:100%; z-index:6000; background:var(--danger); color:white; padding:10px 16px; text-align:center; font-size:13px; font-weight:600; box-shadow:var(--shadow-md);">
-        🔐 NEBA platform admin session — viewing <span id="admin-impersonation-business-name"></span> as the owner —
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> NEBA platform admin session — viewing <span id="admin-impersonation-business-name"></span> as the owner —
         <button class="btn btn-small" style="margin-left:8px; background:var(--primary); color:white;" onclick="endAdminImpersonationSession()">End Session</button>
     </div>
 
@@ -479,18 +479,18 @@
         <div>
             <div class="brand" id="shop-brand-name">MELEYA</div>
             <nav>
-                <button onclick="switchView('dashboard')" class="active" id="nav-dashboard">📊 <span data-i18n="nav.dashboard">Dashboard</span></button>
-                <button onclick="switchView('inventory')" id="nav-inventory">📦 <span data-i18n="nav.inventory">Inventory/Stock</span></button>
-                <button onclick="switchView('transfer')" id="nav-transfer" style="display:none;">🔀 <span data-i18n="nav.transfer">Transfer</span></button>
-                <button onclick="switchView('cash_handover')" id="nav-cash-handover" style="display:none;">💵 <span data-i18n="nav.cash_handover">Cash Handover</span></button>
-                <button onclick="switchView('sales')" id="nav-sales">💰 <span data-i18n="nav.sales">Sales</span></button>
-                <button onclick="switchView('purchase')" id="nav-purchase">🛒 <span data-i18n="nav.purchase">Purchase</span></button>
-                <button onclick="switchView('expenses')" id="nav-expenses">💸 <span data-i18n="nav.expense">Expense</span></button>
-                <button onclick="switchView('coa')" id="nav-coa">📋 Chart of Accounts</button>
-                <button onclick="switchView('journal')" id="nav-journal">✍️ Journal Entries</button>
-                <button onclick="switchView('ledger')" id="nav-ledger">📖 General Ledger</button>
-                <button onclick="switchView('statements')" id="nav-statements">🏦 Financial Statements</button>
-                <button onclick="switchView('team')" id="nav-team" style="display:none;">👥 <span data-i18n="nav.team">Team &amp; Branches</span></button>
+                <button onclick="switchView('dashboard')" class="active" id="nav-dashboard"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> <span data-i18n="nav.dashboard">Dashboard</span></button>
+                <button onclick="switchView('inventory')" id="nav-inventory"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M16.5 9.4 7.55 4.24"></path><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.29 7 12 12 20.71 7"></polyline><line x1="12" y1="22" x2="12" y2="12"></line></svg> <span data-i18n="nav.inventory">Inventory/Stock</span></button>
+                <button onclick="switchView('transfer')" id="nav-transfer" style="display:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> <span data-i18n="nav.transfer">Transfer</span></button>
+                <button onclick="switchView('cash_handover')" id="nav-cash-handover" style="display:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg> <span data-i18n="nav.cash_handover">Cash Handover</span></button>
+                <button onclick="switchView('sales')" id="nav-sales"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg> <span data-i18n="nav.sales">Sales</span></button>
+                <button onclick="switchView('purchase')" id="nav-purchase"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg> <span data-i18n="nav.purchase">Purchase</span></button>
+                <button onclick="switchView('expenses')" id="nav-expenses"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline><polyline points="17 18 23 18 23 12"></polyline></svg> <span data-i18n="nav.expense">Expense</span></button>
+                <button onclick="switchView('coa')" id="nav-coa"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Chart of Accounts</button>
+                <button onclick="switchView('journal')" id="nav-journal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg> Journal Entries</button>
+                <button onclick="switchView('ledger')" id="nav-ledger"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg> General Ledger</button>
+                <button onclick="switchView('statements')" id="nav-statements"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><line x1="3" y1="22" x2="21" y2="22"></line><line x1="6" y1="18" x2="6" y2="11"></line><line x1="10" y1="18" x2="10" y2="11"></line><line x1="14" y1="18" x2="14" y2="11"></line><line x1="18" y1="18" x2="18" y2="11"></line><polygon points="12 2 20 7 4 7"></polygon></svg> Financial Statements</button>
+                <button onclick="switchView('team')" id="nav-team" style="display:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg> <span data-i18n="nav.team">Team &amp; Branches</span></button>
             </nav>
         </div>
         <div class="aside-footer">
@@ -499,12 +499,12 @@
                 Download Excel Report
             </button>
             <div class="footer-buttons">
-                <button class="btn" onclick="handleSignOut()" style="padding: 8px; font-size: 11px; flex:1; background:#A9752F; color:white;">🚪 Sign Out</button>
-                <button class="btn btn-warning" id="btn-backup" onclick="exportBackupData()" style="padding: 8px; font-size: 11px; flex:1;">💾 Backup</button>
-                <button class="btn" id="btn-restore" onclick="importBackupData()" style="padding: 8px; font-size: 11px; flex:1; background:#4a4e63;">📂 Restore</button>
-                <button class="btn btn-danger" id="btn-factory-reset" onclick="factoryReset()" style="padding: 8px; font-size: 11px; flex:1; background:#B23A2E;">⚠️ Reset</button>
+                <button class="btn" onclick="handleSignOut()" style="padding: 8px; font-size: 11px; flex:1; background:#A9752F; color:white;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> Sign Out</button>
+                <button class="btn btn-warning" id="btn-backup" onclick="exportBackupData()" style="padding: 8px; font-size: 11px; flex:1;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Backup</button>
+                <button class="btn" id="btn-restore" onclick="importBackupData()" style="padding: 8px; font-size: 11px; flex:1; background:#4a4e63;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg> Restore</button>
+                <button class="btn btn-danger" id="btn-factory-reset" onclick="factoryReset()" style="padding: 8px; font-size: 11px; flex:1; background:#B23A2E;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Reset</button>
             </div>
-            <div id="cloud-sync-status" class="sync-status">🟢 Cloud Synced</div>
+            <div id="cloud-sync-status" class="sync-status"><svg width="9" height="9" viewBox="0 0 24 24" style="vertical-align:1px;flex-shrink:0;"><circle cx="12" cy="12" r="10" fill="currentColor"></circle></svg> Cloud Synced</div>
         </div>
         </div>
     </aside>
@@ -512,7 +512,7 @@
     <main>
         <header>
             <div class="header-left">
-                <button class="menu-toggle-btn" onclick="toggleSidebar()">☰</button>
+                <button class="menu-toggle-btn" onclick="toggleSidebar()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
                 <h1 id="page-title">Dashboard</h1>
             </div>
             <div class="header-right">
@@ -521,9 +521,9 @@
                 <select id="branch-switcher" onchange="switchActiveBranch(this.value)" style="display:none; min-width:auto; font-size:12px; padding:6px 10px; font-weight:600; color:var(--primary); border-color:var(--accent);" title="Which branch you're working in"></select>
                 <span id="offline-dot" title="You're offline — changes are saved on this device and will sync once reconnected" style="display:none; width:8px; height:8px; border-radius:50%; background:#C97A22; margin-right:4px;"></span>
                 <div id="clock" style="color: var(--text-light); font-weight: 500; font-size: 13px;"></div>
-                <button class="menu-toggle-btn" id="btn-trash" onclick="switchView('trash')" title="Trash">🗑️</button>
+                <button class="menu-toggle-btn" id="btn-trash" onclick="switchView('trash')" title="Trash"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
                 <button class="menu-toggle-btn" id="bell-btn" onclick="toggleNotifications(event)" title="Notifications">
-                    🔔 <span id="notif-badge">0</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg> <span id="notif-badge">0</span>
                 </button>
             </div>
         </header>
@@ -906,13 +906,13 @@
                         <div class="form-group" id="pur-price-group"><label data-i18n="pur.cost">Cost (ETB)</label><input type="number" id="pur-price" step="0.01" min="0.01" required oninput="this.dataset.touched='1'; syncPurchaseAmountPaidDefault()"></div>
                         <div class="form-group" id="pur-price-locked-note" style="display:none;">
                             <label data-i18n="pur.cost">Cost (ETB)</label>
-                            <div id="pur-price-locked-text" style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:180px;">🔒</div>
+                            <div id="pur-price-locked-text" style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:180px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div>
                         </div>
                         <div class="form-group" id="pur-selling-price-group"><label data-i18n="misc.selling_price_optional">Selling Price (Optional)</label><input type="number" id="pur-selling-price" step="0.01" placeholder="Leave blank to skip"></div>
                         <div class="form-group" id="pur-expiry-group" style="display:none;"><label>Expiry Date</label><input type="date" id="pur-expiry"></div>
                         <div class="form-group" id="pur-selling-price-locked-note" style="display:none;">
                             <label data-i18n="misc.selling_price">Selling Price</label>
-                            <div style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:180px;">🔒 Not editable for your role</div>
+                            <div style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:180px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Not editable for your role</div>
                         </div>
                         <div class="form-group" id="pur-amount-paid-group">
                             <label data-i18n="sale.amount_paid_now">Amount Paid Now (ETB)</label>
@@ -920,7 +920,7 @@
                         </div>
                         <div class="form-group" id="pur-amount-paid-locked-note" style="display:none;">
                             <label data-i18n="sale.amount_paid_now">Amount Paid Now (ETB)</label>
-                            <div style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:180px;">🔒</div>
+                            <div style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:180px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div>
                         </div>
                         <div class="form-group" id="pur-channel-group">
                             <label data-i18n="sale.channel">Channel</label>
@@ -948,13 +948,13 @@
                         <div class="form-group" style="margin-bottom:0;" id="cart-pur-price-group"><label data-i18n="pur.cost">Cost (ETB)</label><input type="number" id="cart-pur-price" step="0.01" min="0.01" style="min-width:110px;"></div>
                         <div class="form-group" style="margin-bottom:0; display:none;" id="cart-pur-price-locked-note">
                             <label data-i18n="pur.cost">Cost (ETB)</label>
-                            <div id="cart-pur-price-locked-text" style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:110px;">🔒</div>
+                            <div id="cart-pur-price-locked-text" style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:110px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div>
                         </div>
                         <div class="form-group" style="margin-bottom:0;" id="cart-pur-selling-price-group"><label data-i18n="misc.selling_price_optional">Selling Price (Optional)</label><input type="number" id="cart-pur-selling-price" step="0.01" placeholder="Skip to leave" style="min-width:130px;"></div>
                         <div class="form-group" style="margin-bottom:0; display:none;" id="cart-pur-expiry-group"><label>Expiry Date</label><input type="date" id="cart-pur-expiry" style="min-width:140px;"></div>
                         <div class="form-group" style="margin-bottom:0; display:none;" id="cart-pur-selling-price-locked-note">
                             <label data-i18n="misc.selling_price">Selling Price</label>
-                            <div style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:130px;">🔒 Not editable</div>
+                            <div style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:130px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Not editable</div>
                         </div>
                         <button type="button" class="btn" onclick="addToPurchaseCart()">+ <span data-i18n="sale.add_to_basket">Add to Basket</span></button>
                     </div>
@@ -975,7 +975,7 @@
                             </div>
                             <div class="form-group" id="cart-pur-amount-paid-locked-note" style="display:none; width:100%; margin-bottom:12px;">
                                 <label data-i18n="sale.amount_paid_now">Amount Paid Now (ETB)</label>
-                                <div style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border);">🔒</div>
+                                <div style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border);"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div>
                             </div>
                             <div class="form-group" id="cart-pur-channel-group" style="display:block; width:100%; margin-bottom:12px;">
                                 <label data-i18n="sale.channel">Channel</label>
@@ -1327,7 +1327,7 @@
                 <input type="number" id="record-payment-amount" step="0.01" min="0.01" style="width:100%;">
             </div>
             <div class="form-group" id="record-payment-amount-locked-note" style="display:none; width:100%; margin-bottom:14px; font-size:13px; color:var(--text-light);">
-                🔒 Amount is hidden for your role — this will record the full remaining balance as paid.
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Amount is hidden for your role — this will record the full remaining balance as paid.
             </div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                 <label>Channel</label>
@@ -1366,7 +1366,7 @@
 
     <div id="export-modal" class="modal-overlay" onclick="closeExportHub()">
         <div class="modal-box" onclick="event.stopPropagation()" style="max-width: 500px;">
-            <h3 style="color:var(--primary); margin-bottom:12px;">📊 Advanced Excel Export Hub</h3>
+            <h3 style="color:var(--primary); margin-bottom:12px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Advanced Excel Export Hub</h3>
             <p style="font-size: 13px; color: var(--text-light); margin-bottom: 20px;">Download structured binary XLSX files directly from your offline base.</p>
             
             <div class="form-group" style="width:100%;">
@@ -2322,7 +2322,7 @@
         window.addEventListener('offline', () => {
             updateOfflineBanner();
             const ind = document.getElementById('cloud-sync-status');
-            if (ind) { ind.style.color = '#C97A22'; ind.innerHTML = '🟠 Offline — saved on this device'; }
+            if (ind) { ind.style.color = '#C97A22'; ind.innerHTML = '<svg width="9" height="9" viewBox="0 0 24 24" style="vertical-align:1px;flex-shrink:0;"><circle cx="12" cy="12" r="10" fill="currentColor"></circle></svg> Offline — saved on this device'; }
         });
         window.addEventListener('online', () => {
             updateOfflineBanner();
@@ -2473,7 +2473,7 @@
             // That means a change could still be in flight when someone
             // clicks Sign Out — waiting here ensures it actually reaches
             // Supabase before the session is invalidated and the page reloads.
-            document.getElementById('cloud-sync-status') && (document.getElementById('cloud-sync-status').innerHTML = '🟡 Saving last changes...');
+            document.getElementById('cloud-sync-status') && (document.getElementById('cloud-sync-status').innerHTML = '<svg width="9" height="9" viewBox="0 0 24 24" style="vertical-align:1px;flex-shrink:0;"><circle cx="12" cy="12" r="10" fill="currentColor"></circle></svg> Saving last changes...');
             try { await writeChain; } catch (e) { console.error('Pending write failed during sign-out:', e); }
             await supabaseClient.auth.signOut();
             location.reload();
@@ -3080,7 +3080,7 @@
             checkAdminImpersonationBanner();
 
             if (!loadedFromCache) {
-                document.getElementById('cloud-sync-status').innerHTML = '🟡 Loading your data...';
+                document.getElementById('cloud-sync-status').innerHTML = '<svg width="9" height="9" viewBox="0 0 24 24" style="vertical-align:1px;flex-shrink:0;"><circle cx="12" cy="12" r="10" fill="currentColor"></circle></svg> Loading your data...';
                 try {
                     await loadStateFromSupabase();
                     cacheStateLocally();
@@ -3123,7 +3123,7 @@
             if (navigator.onLine && offlineOpQueue.length > 0) {
                 writeChain = writeChain.then(() => drainQueueOnReconnect());
             }
-            document.getElementById('cloud-sync-status').innerHTML = navigator.onLine ? '🟢 Cloud Synced' : '🟠 Offline — showing last-known data';
+            document.getElementById('cloud-sync-status').innerHTML = navigator.onLine ? '<svg width="9" height="9" viewBox="0 0 24 24" style="vertical-align:1px;flex-shrink:0;"><circle cx="12" cy="12" r="10" fill="currentColor"></circle></svg> Cloud Synced' : '<svg width="9" height="9" viewBox="0 0 24 24" style="vertical-align:1px;flex-shrink:0;"><circle cx="12" cy="12" r="10" fill="currentColor"></circle></svg> Offline — showing last-known data';
             applyBusinessTypeLabels();
             renderAnalyticalDashboards();
             applyPermissionGating();
@@ -3253,10 +3253,10 @@
         function setSyncIndicator(mode) {
             const ind = document.getElementById('cloud-sync-status');
             if (!ind) return;
-            if (mode === 'saving') { ind.style.color = '#C97A22'; ind.innerHTML = '🟡 Saving to Cloud...'; }
-            else if (mode === 'synced') { ind.style.color = '#3E9B78'; ind.innerHTML = '🟢 Cloud Synced'; }
-            else if (mode === 'offline') { ind.style.color = '#C97A22'; ind.innerHTML = '🟠 Offline — saved on this device'; }
-            else if (mode === 'failed') { ind.style.color = '#B2564A'; ind.innerHTML = '🔴 Save Failed'; }
+            if (mode === 'saving') { ind.style.color = '#C97A22'; ind.innerHTML = '<svg width="9" height="9" viewBox="0 0 24 24" style="vertical-align:1px;flex-shrink:0;"><circle cx="12" cy="12" r="10" fill="currentColor"></circle></svg> Saving to Cloud...'; }
+            else if (mode === 'synced') { ind.style.color = '#3E9B78'; ind.innerHTML = '<svg width="9" height="9" viewBox="0 0 24 24" style="vertical-align:1px;flex-shrink:0;"><circle cx="12" cy="12" r="10" fill="currentColor"></circle></svg> Cloud Synced'; }
+            else if (mode === 'offline') { ind.style.color = '#C97A22'; ind.innerHTML = '<svg width="9" height="9" viewBox="0 0 24 24" style="vertical-align:1px;flex-shrink:0;"><circle cx="12" cy="12" r="10" fill="currentColor"></circle></svg> Offline — saved on this device'; }
+            else if (mode === 'failed') { ind.style.color = '#B2564A'; ind.innerHTML = '<svg width="9" height="9" viewBox="0 0 24 24" style="vertical-align:1px;flex-shrink:0;"><circle cx="12" cy="12" r="10" fill="currentColor"></circle></svg> Save Failed'; }
         }
 
         async function performDbOp(op) {
@@ -4941,7 +4941,7 @@
                 <tbody>${rows}</tbody>
                 <tfoot><tr style="font-weight:700; border-top:2px solid var(--border);"><td>${t('sale.total')}</td><td class="num">ETB ${total.toLocaleString(undefined,{minimumFractionDigits:2})}</td></tr></tfoot>
             </table>
-            ${canTransferFunds ? `<div style="margin-top:16px; text-align:right;"><button class="btn" onclick="openFundTransferModal()">🔁 ${t('ft.title')}</button></div>` : ''}
+            ${canTransferFunds ? `<div style="margin-top:16px; text-align:right;"><button class="btn" onclick="openFundTransferModal()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> ${t('ft.title')}</button></div>` : ''}
             ${canTransferFunds && recentTransfers.length ? `<h4 style="margin-top:18px; margin-bottom:8px; font-size:13px; color:var(--text-light);">${t('ft.recent')}</h4>
             <table>
                 <thead><tr><th>${t('sale.date')}</th><th>${t('ft.movement')}</th><th class="num">${t('ft.amount')}</th><th style="text-align:center;">${t('inv.actions')}</th></tr></thead>
@@ -6306,8 +6306,8 @@
                 const noteEl = document.getElementById('pur-price-locked-text');
                 if (noteEl) {
                     noteEl.textContent = lastCost !== null
-                        ? '🔒 Set automatically from last purchase'
-                        : '⚠️ No purchase history yet — ask an owner to record the first purchase for this item';
+                        ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Set automatically from last purchase'
+                        : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> No purchase history yet — ask an owner to record the first purchase for this item';
                 }
             } else if (priceField.dataset.touched !== '1' && lastCost !== null) {
                 // Convenience prefill only; they can still change it.
@@ -6327,7 +6327,7 @@
                 priceField.value = lastCost !== null ? lastCost : '';
                 const noteEl = document.getElementById('cart-pur-price-locked-text');
                 if (noteEl) {
-                    noteEl.textContent = lastCost !== null ? '🔒 Auto' : '⚠️ No history';
+                    noteEl.textContent = lastCost !== null ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Auto' : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> No history';
                 }
             } else if (!priceField.value && lastCost !== null) {
                 priceField.value = lastCost;
@@ -6670,7 +6670,7 @@
             // same way the purchase form and history table already do.
             const hideAmount = type === 'purchase' && !hasPerm('inventory.view_cost');
             document.getElementById('record-payment-subtitle').innerText = hideAmount
-                ? '🔒 Amount owed is hidden for your role.'
+                ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Amount owed is hidden for your role.'
                 : `Owed: ETB ${remaining.toFixed(2)} of ETB ${effectiveTotal.toFixed(2)} total`;
             document.getElementById('record-payment-error').style.display = 'none';
             const amtInput = document.getElementById('record-payment-amount');
@@ -7239,11 +7239,11 @@
                 // Receipt/Invoice only make sense once a sale is an actual
                 // VAT invoice -- so the buttons only appear when "Include
                 // VAT (15%)" was checked at Post Sale, not for every row.
-                let printBtns = s.vatIncluded ? `<button class="btn btn-small" style="background:var(--bg); color:var(--text); border:1px solid var(--border);" onclick="printSaleReceipt('${printId}', ${!!s.isGroup})" title="Print thermal receipt">🧾 Receipt</button> <button class="btn btn-small" style="background:var(--bg); color:var(--text); border:1px solid var(--border);" onclick="printSaleInvoice('${printId}', ${!!s.isGroup})" title="Print full-page invoice">📄 Invoice</button>` : '';
+                let printBtns = s.vatIncluded ? `<button class="btn btn-small" style="background:var(--bg); color:var(--text); border:1px solid var(--border);" onclick="printSaleReceipt('${printId}', ${!!s.isGroup})" title="Print thermal receipt"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg> Receipt</button> <button class="btn btn-small" style="background:var(--bg); color:var(--text); border:1px solid var(--border);" onclick="printSaleInvoice('${printId}', ${!!s.isGroup})" title="Print full-page invoice"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg> Invoice</button>` : '';
                 const priceCell = s.price === null ? '—' : s.price.toFixed(2);
                 const isExpanded = s.isGroup && expandedSaleGroups.has(s.groupId);
                 const descCell = s.isGroup
-                    ? `<span style="cursor:pointer;" onclick="toggleSaleGroupExpand('${s.groupId}')">🧺 ${isExpanded ? '▾' : '▸'} ${s.desc}</span>`
+                    ? `<span style="cursor:pointer;" onclick="toggleSaleGroupExpand('${s.groupId}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="m5 11 4-7"></path><path d="m19 11-4-7"></path><path d="M2 11h20"></path><path d="m3.5 11 1.6 7.4a2 2 0 0 0 2 1.6h9.8a2 2 0 0 0 2-1.6l1.7-7.4"></path><path d="M4.5 15.5h15"></path></svg> ${isExpanded ? '▾' : '▸'} ${s.desc}</span>`
                     : `<span class="truncate-cell" title="${s.desc}">${s.desc}</span>`;
                 rows.push(`<tr><td>${fmtDate(s.date)}</td><td>${s.customer}${buyerInfoStackHTML(s)}</td><td class="truncate-cell">${descCell}</td><td class="num">${s.qty}</td><td class="num">${priceCell}</td><td class="num"><strong>${s.total.toFixed(2)}</strong>${s.vatIncluded ? `<br><small style="color:var(--text-light);">${t('sale.with_vat')}</small>` : ''}</td><td>${statusStr}<br><small style="color:var(--accent)">[${s.type || 'Walk in'}]</small></td><td class="branch-col">${branchNameById(s.branchId)}</td><td><small>${getTransactionAuthor(s.id)}</small></td><td style="text-align:center; white-space:nowrap;">${payBtn}${voidBtn}${printBtns}</td></tr>`);
                 if (isExpanded) {
@@ -7325,13 +7325,13 @@
                 tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-light);">No items added yet.</td></tr>`;
             } else {
                 tbody.innerHTML = purchaseCart.map((c, i) => `<tr>
-                    <td><span style="color:var(--text-light); font-size:11px;">${c.category}</span><br>${c.desc}</td><td class="num">${c.qty}</td><td class="num">${canSeeCost ? c.cost.toFixed(2) : '🔒'}</td>
-                    <td class="num">${canSeeCost ? (c.qty * c.cost).toFixed(2) : '🔒'}</td>
+                    <td><span style="color:var(--text-light); font-size:11px;">${c.category}</span><br>${c.desc}</td><td class="num">${c.qty}</td><td class="num">${canSeeCost ? c.cost.toFixed(2) : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'}</td>
+                    <td class="num">${canSeeCost ? (c.qty * c.cost).toFixed(2) : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'}</td>
                     <td style="text-align:center;"><button class="btn btn-danger btn-small" onclick="removeFromPurchaseCart(${i})">✕</button></td>
                 </tr>`).join('');
             }
             const total = purchaseCart.reduce((sum, c) => sum + c.qty * c.cost, 0);
-            document.getElementById('purchase-cart-total').innerText = canSeeCost ? `ETB ${total.toFixed(2)}` : '🔒 Hidden';
+            document.getElementById('purchase-cart-total').innerText = canSeeCost ? `ETB ${total.toFixed(2)}` : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Hidden';
             const amtField = document.getElementById('cart-pur-amount-paid');
             if (amtField.dataset.touched !== '1') amtField.value = total.toFixed(2);
             updateCartPurchaseChannelVisibility();
@@ -7570,16 +7570,16 @@
                 // Purchases don't issue a receipt/invoice -- the shop is the
                 // buyer here, so there's no print button for this row.
                 let printBtns = '';
-                const costCell = !canSeeCost ? '🔒' : (p.cost === null ? '—' : p.cost.toFixed(2));
-                const totalCell = canSeeCost ? p.total.toFixed(2) : '🔒';
+                const costCell = !canSeeCost ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>' : (p.cost === null ? '—' : p.cost.toFixed(2));
+                const totalCell = canSeeCost ? p.total.toFixed(2) : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
                 const isExpanded = p.isGroup && expandedPurchaseGroups.has(p.groupId);
                 const descCell = p.isGroup
-                    ? `<span style="cursor:pointer;" onclick="togglePurchaseGroupExpand('${p.groupId}')">🧺 ${isExpanded ? '▾' : '▸'} ${p.desc}</span>`
+                    ? `<span style="cursor:pointer;" onclick="togglePurchaseGroupExpand('${p.groupId}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="m5 11 4-7"></path><path d="m19 11-4-7"></path><path d="M2 11h20"></path><path d="m3.5 11 1.6 7.4a2 2 0 0 0 2 1.6h9.8a2 2 0 0 0 2-1.6l1.7-7.4"></path><path d="M4.5 15.5h15"></path></svg> ${isExpanded ? '▾' : '▸'} ${p.desc}</span>`
                     : `<span class="truncate-cell" title="${p.desc}">${p.desc}</span>`;
                 rows.push(`<tr><td>${fmtDate(p.date)}</td><td>${p.supplier}${buyerInfoStackHTML(p)}</td><td class="truncate-cell">${descCell}</td><td class="num">${p.qty}</td><td class="num">${costCell}</td><td class="num"><strong>${totalCell}</strong></td><td>${statusStr}</td><td class="branch-col">${branchNameById(p.branchId)}</td><td><small>${getTransactionAuthor(p.id)}</small></td><td style="text-align:center; white-space:nowrap;">${payBtn}${voidBtn}${printBtns}</td></tr>`);
                 if (isExpanded) {
                     p.itemRows.forEach(r => {
-                        rows.push(`<tr style="background:var(--bg);"><td></td><td></td><td class="truncate-cell" style="padding-left:32px;" title="${r.desc}"><small>↳ ${r.desc}</small></td><td class="num"><small>${r.qty}</small></td><td class="num"><small>${canSeeCost ? r.cost.toFixed(2) : '🔒'}</small></td><td class="num"><small>${canSeeCost ? r.total.toFixed(2) : '🔒'}</small></td><td colspan="4"></td></tr>`);
+                        rows.push(`<tr style="background:var(--bg);"><td></td><td></td><td class="truncate-cell" style="padding-left:32px;" title="${r.desc}"><small>↳ ${r.desc}</small></td><td class="num"><small>${r.qty}</small></td><td class="num"><small>${canSeeCost ? r.cost.toFixed(2) : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'}</small></td><td class="num"><small>${canSeeCost ? r.total.toFixed(2) : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'}</small></td><td colspan="4"></td></tr>`);
                     });
                 }
             });
@@ -7592,7 +7592,7 @@
                     : displayList.reduce((sum, p) => sum + p.total, 0);
                 purTotalEl.innerText = `${t('misc.total_shown')}: ETB ${purTotal.toFixed(2)} (${displayList.length})`;
             } else {
-                purTotalEl.innerText = `🔒 ${t('misc.total_shown')} (${displayList.length})`;
+                purTotalEl.innerText = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> ${t('misc.total_shown')} (${displayList.length})`;
             }
         }
 
@@ -7865,7 +7865,7 @@
 
         async function exportBackupData() {
             const btn = document.getElementById('btn-backup');
-            if (btn) { btn.disabled = true; btn.innerText = '💾 Preparing...'; }
+            if (btn) { btn.disabled = true; btn.innerText = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Preparing...'; }
             try {
                 const fullBackup = await buildFullBusinessBackup();
                 let blob = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(fullBackup));
@@ -7874,7 +7874,7 @@
             } catch (err) {
                 alert('Could not prepare the backup: ' + err.message);
             } finally {
-                if (btn) { btn.disabled = false; btn.innerText = '💾 Backup'; }
+                if (btn) { btn.disabled = false; btn.innerText = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Backup'; }
             }
         }
 
@@ -8249,7 +8249,7 @@
             syncWriteBranchId(); // keeps writeBranchId pointed at a real branch even when viewing "All"
             localStorage.setItem('neba_active_branch_' + currentTenantId, newBranchId);
 
-            document.getElementById('cloud-sync-status').innerHTML = '🟡 Switching branch...';
+            document.getElementById('cloud-sync-status').innerHTML = '<svg width="9" height="9" viewBox="0 0 24 24" style="vertical-align:1px;flex-shrink:0;"><circle cx="12" cy="12" r="10" fill="currentColor"></circle></svg> Switching branch...';
             await loadStateFromSupabase();
             cacheStateLocally();
             syncCategoriesDatalist();
@@ -8259,7 +8259,7 @@
             populateExpenseAccountDropdown();
             populateExpenseAccountFilterDropdown();
             updateNotifBadge();
-            document.getElementById('cloud-sync-status').innerHTML = navigator.onLine ? '🟢 Cloud Synced' : '🟠 Offline — showing last-known data';
+            document.getElementById('cloud-sync-status').innerHTML = navigator.onLine ? '<svg width="9" height="9" viewBox="0 0 24 24" style="vertical-align:1px;flex-shrink:0;"><circle cx="12" cy="12" r="10" fill="currentColor"></circle></svg> Cloud Synced' : '<svg width="9" height="9" viewBox="0 0 24 24" style="vertical-align:1px;flex-shrink:0;"><circle cx="12" cy="12" r="10" fill="currentColor"></circle></svg> Offline — showing last-known data';
 
             // Re-render whatever's currently on screen (and the dashboard,
             // which isn't always the active view) so branch-scoped data
