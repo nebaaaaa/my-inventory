@@ -109,6 +109,10 @@
         #auth-overlay { padding: 24px 14px; }
         .auth-brand-mark-fixed { top: 14px; left: 14px; font-size: 16px; }
         .auth-welcome-heading { font-size: 22px; }
+        .receipt-review-row { flex-direction: column; }
+        .receipt-preview-img { width: 100% !important; max-width: 220px; }
+        .date-part-grid { grid-template-columns: repeat(3, 1fr) !important; }
+        .date-part-grid > div:last-child { grid-column: 1 / -1; }
     }
 </style>
 </head>
@@ -1843,9 +1847,9 @@ If there are multiple line items, pick only the SINGLE item with the largest amo
         return `
             <div class="card">
                 ${progress}
-                <div style="display:flex; gap:18px;">
-                    ${addFlow.preview ? `<img src="${addFlow.preview}" style="width:130px; border-radius:4px; border:1px solid var(--paper-line); align-self:flex-start;">` : ''}
-                    <div style="flex:1;">
+                <div class="receipt-review-row" style="display:flex; gap:18px;">
+                    ${addFlow.preview ? `<img src="${addFlow.preview}" class="receipt-preview-img" style="width:130px; border-radius:4px; border:1px solid var(--paper-line); align-self:flex-start;">` : ''}
+                    <div style="flex:1; min-width:0;">
                         ${addFlow.error ? `<div class="notice notice-warn">${icon('alert-triangle', 14)} ${esc(addFlow.error)}</div>` : ''}
                         <div style="display:flex; gap:16px; margin-bottom:14px; flex-wrap:wrap;">
                             <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="entry-type" style="width:auto;" ${f.type === 'payment' ? 'checked' : ''} onchange="addFlow.form.type='payment'"> Purchase (payment out)</label>
@@ -1865,7 +1869,7 @@ If there are multiple line items, pick only the SINGLE item with the largest amo
                                 <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; cursor:pointer;"><input type="radio" name="cal" style="width:auto;" ${f.calendar === 'EC' ? 'checked' : ''} onchange="setDateCalendar('EC')"> Ethiopian calendar date</label>
                                 <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; cursor:pointer;"><input type="radio" name="cal" style="width:auto;" ${f.calendar === 'GC' ? 'checked' : ''} onchange="setDateCalendar('GC')"> Gregorian calendar date</label>
                             </div>
-                            <div style="display:grid; grid-template-columns:repeat(3,90px) 1fr; gap:10px; align-items:end;">
+                            <div class="date-part-grid" style="display:grid; grid-template-columns:repeat(3,90px) 1fr; gap:10px; align-items:end;">
                                 <div><label>Year</label><input id="f-ecYear" class="mono" value="${esc(f.ecYear)}" oninput="setDatePart('ecYear',this.value)"></div>
                                 <div><label>Month</label><input id="f-ecMonth" class="mono" value="${esc(f.ecMonth)}" oninput="setDatePart('ecMonth',this.value)"></div>
                                 <div><label>Day</label><input id="f-ecDay" class="mono" value="${esc(f.ecDay)}" oninput="setDatePart('ecDay',this.value)"></div>
