@@ -330,11 +330,37 @@
                 <td><small>${expiresText}</small></td>
                 <td style="text-align:center; white-space:nowrap;">
                     <button class="btn btn-outline btn-small" onclick="openDetailModal('${b.id}')">View</button>
+                    <button class="btn btn-outline btn-small" onclick="loginAsOwner('${b.id}')">Login as Owner</button>
                     <button class="btn btn-warning btn-small" onclick="openSubscriptionModal('${b.id}')">Plan</button>
                     <button class="btn btn-danger btn-small" onclick="openDeleteModal('${b.id}')">Delete</button>
                 </td>
             </tr>`;
         }).join('');
+    }
+
+    async function loginAsOwner(businessId) {
+        const btn = event.target;
+        const originalText = btn.innerText;
+        btn.innerText = 'Signing in…';
+        btn.disabled = true;
+        try {
+            const data = await callAdminFunction('admin-login-as-owner', { businessId });
+            // Hand off to a fresh index.html tab via localStorage — that tab
+            // consumes this exact-once OTP token (see
+            // tryConsumeAdminImpersonationHandoff in index.html) and must see
+            // it within 60 seconds of issuedAt, or it treats it as stale.
+            localStorage.setItem('neba_admin_impersonation_handoff', JSON.stringify({
+                hashedToken: data.hashedToken,
+                businessName: data.businessName,
+                issuedAt: Date.now(),
+            }));
+            window.open('./index.html', '_blank');
+        } catch (err) {
+            alert(`Could not log in as owner: ${err.message}`);
+        } finally {
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
     }
 
     async function openDetailModal(businessId) {
