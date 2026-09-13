@@ -118,6 +118,8 @@
         </div>
 
         <div id="auth-signup-view" style="display:none;">
+            <div class="form-group"><label>Your full name</label><input type="text" id="auth-full-name" placeholder="e.g. Mekdes Alemu"></div>
+            <div class="form-group"><label>Phone number</label><input type="tel" id="auth-phone" placeholder="e.g. 0911 234 567"></div>
             <div class="form-group"><label>Email</label><input type="email" id="auth-email"></div>
             <div class="form-group">
                 <label>Password</label>
@@ -594,9 +596,13 @@
     }
     async function handleSignUp() {
         clearAuthError();
+        const fullName = document.getElementById('auth-full-name').value.trim();
+        const phone = document.getElementById('auth-phone').value.trim();
         const email = document.getElementById('auth-email').value.trim();
         const password = document.getElementById('auth-password').value;
         const passwordConfirm = document.getElementById('auth-password-confirm').value;
+        if (!fullName) return showAuthError('Please enter your full name.');
+        if (!phone) return showAuthError('Please enter your phone number.');
         if (!email || !password) return showAuthError('Please enter an email and password.');
         if (password.length < 6) return showAuthError('Password must be at least 6 characters.');
         if (password !== passwordConfirm) return showAuthError('Passwords do not match. Please re-type them.');
@@ -604,6 +610,13 @@
         const { data, error } = await supabaseClient.auth.signUp({ email, password });
         setAuthLoading(false);
         if (error) return showAuthError(error.message);
+        // Saved here rather than as part of the signUp() call itself, since
+        // the accountant_profiles row needs an authenticated session to
+        // write (RLS checks auth.uid() = user_id) -- which doesn't exist
+        // yet if email confirmation is required. Picked up by afterSignIn()
+        // whenever a session first becomes available, same pattern MELEYA's
+        // own signup uses for pending business details.
+        try { sessionStorage.setItem('meleya_acct_pending_profile', JSON.stringify({ full_name: fullName, phone })); } catch (e) {}
         if (!data.session) return showAuthError('Account created! Check your email to confirm your address, then sign in below.');
         await afterSignIn();
     }
@@ -628,11 +641,25 @@
         document.getElementById('app').style.display = 'block';
         const { data: { user } } = await supabaseClient.auth.getUser();
         currentUserId = user ? user.id : null;
+        await applyPendingAccountantProfile();
         await loadAccountantProfile();
         await loadClients();
         await refreshMyLinks();
         subscribeToAccountantLinks();
         render();
+    }
+    // Creates the accountant_profiles row from the name/phone collected at
+    // signup, the first time a session becomes available for this browser
+    // (right away if no email confirmation is required, or on the first
+    // sign-in after confirming). Does nothing once the pending value has
+    // been consumed, or if the person never signed up on this device.
+    async function applyPendingAccountantProfile() {
+        if (!currentUserId) return;
+        let pending = null;
+        try { pending = JSON.parse(sessionStorage.getItem('meleya_acct_pending_profile') || 'null'); } catch (e) {}
+        if (!pending) return;
+        try { sessionStorage.removeItem('meleya_acct_pending_profile'); } catch (e) {}
+        await supabaseClient.from('accountant_profiles').upsert({ user_id: currentUserId, full_name: pending.full_name, phone: pending.phone });
     }
     // Live-updates the requests inbox and any link status the instant it
     // changes on either side (client approves/declines/revokes, etc.) —
