@@ -1,0 +1,1751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MELEYA — Accountant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.js"></script>
+<style>
+    :root {
+        --ink: #1B3A2F; --paper: #F4F2EA; --paper-line: #E3DFD0;
+        --amber: #B5762A; --amber-bg: #FBEFDD; --text: #2A2A24; --text-soft: #6B6B5F;
+        --danger: #B23A2E; --danger-bg: #F6E2DE;
+    }
+    * { box-sizing: border-box; }
+    body { font-family: 'IBM Plex Sans', sans-serif; background: var(--paper); color: var(--text); margin: 0; }
+    .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+    h1, h2, h3 { margin: 0; }
+    .wrap { max-width: 1000px; margin: 0 auto; padding: 28px 32px 64px; }
+    .wrap-narrow { max-width: 660px; }
+    .header { background: var(--ink); color: var(--paper); padding: 20px 32px; }
+    .header .wrap { padding: 0; }
+    .header .brand { font-size: 13px; letter-spacing: 1px; color: #C9DACF; }
+    .header h1 { font-size: 22px; font-weight: 600; margin-top: 4px; }
+    .header .sub { font-size: 12.5px; color: #B8CBBE; margin-top: 2px; }
+    .back-link { background: none; border: none; color: #C9DACF; display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; padding: 0; margin-bottom: 10px; font-family: inherit; }
+    .signout-link { background: none; border: none; color: #C9DACF; cursor: pointer; font-size: 12.5px; font-family: inherit; }
+    .tabs { background: #fff; border-bottom: 1px solid var(--paper-line); }
+    .tabs .wrap { display: flex; gap: 4px; padding: 0 32px; }
+    .tab-btn { display: flex; align-items: center; gap: 6px; padding: 13px 6px; margin: 0 12px 0 0; background: none; border: none; cursor: pointer; border-bottom: 2px solid transparent; color: var(--text-soft); font-weight: 500; font-size: 13.5px; font-family: inherit; }
+    .tab-btn.active { border-bottom-color: var(--ink); color: var(--ink); font-weight: 600; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; border: none; border-radius: 5px; padding: 9px 14px; font-size: 13.5px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .btn-primary { background: var(--ink); color: #fff; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-ghost { background: #fff; color: var(--ink); border: 1px solid var(--ink); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-icon { background: none; border: none; cursor: pointer; color: var(--text-soft); padding: 4px; }
+    .card { border: 1px solid var(--paper-line); border-radius: 6px; background: #fff; padding: 22px; margin-bottom: 20px; }
+    .empty { border: 1px dashed var(--paper-line); border-radius: 6px; padding: 48px 24px; text-align: center; color: var(--text-soft); }
+    .empty svg { opacity: 0.5; margin-bottom: 10px; }
+    .list { border: 1px solid var(--paper-line); border-radius: 6px; overflow: hidden; background: #fff; }
+    .list-row { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; cursor: pointer; border-top: 1px solid var(--paper-line); border-left: 3px solid var(--ink); }
+    .list-row:first-child { border-top: none; }
+    .list-row .name { font-weight: 600; font-size: 15px; }
+    .list-row .meta { font-size: 12.5px; color: var(--text-soft); margin-top: 2px; }
+    label { font-size: 11px; color: var(--text-soft); display: block; margin-bottom: 3px; }
+    input, select { width: 100%; padding: 7px 9px; font-size: 13px; border-radius: 4px; border: 1px solid var(--paper-line); font-family: inherit; box-sizing: border-box; background: #fff; }
+    input.flagged { border-color: var(--amber); background: var(--amber-bg); }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .section-title { font-size: 13px; font-weight: 600; margin-bottom: 10px; color: var(--ink); }
+    .section { margin-bottom: 22px; }
+    .notice { display: flex; gap: 6px; align-items: flex-start; padding: 8px 10px; border-radius: 4px; font-size: 12.5px; margin-bottom: 12px; }
+    .notice-ok { background: #EAF3EC; color: var(--ink); }
+    .notice-warn { background: var(--amber-bg); color: var(--amber); }
+    .notice-muted { background: var(--paper-line); color: var(--text-soft); }
+    .rule-row { display: grid; grid-template-columns: 220px 1fr 100px; gap: 10px; align-items: center; margin-bottom: 8px; }
+    .rule-row .label { font-size: 13px; color: var(--text-soft); }
+    .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; }
+    .filter-bar select { width: auto; }
+    table.entries { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table.entries th { text-align: left; font-size: 11.5px; color: var(--text-soft); background: var(--paper); font-weight: 600; padding: 10px 16px; }
+    table.entries td { padding: 12px 16px; border-top: 1px solid var(--paper-line); vertical-align: middle; }
+    table.entries td.num { text-align: right; }
+    .export-row { border: 1px solid var(--paper-line); border-radius: 6px; background: #fff; padding: 14px 16px; display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+    .export-row .icon-box { width: 34px; height: 34px; border-radius: 5px; background: var(--paper); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .export-row .title { font-size: 13.5px; font-weight: 600; }
+    .export-row .desc { font-size: 12px; color: var(--text-soft); margin-top: 1px; }
+    .export-row .info { flex: 1; }
+    .form-group { margin-bottom: 14px; }
+    .spin { animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .centered { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+
+    /* Auth screen — same layout/feel as index.html's welcome screen */
+    #auth-overlay { position: fixed; inset: 0; z-index: 500; display: flex; align-items: center; justify-content: center; padding: 40px 16px; overflow-y: auto; background: var(--paper); }
+    .auth-brand-mark-fixed { position: fixed; top: 22px; left: 24px; font-size: 18px; font-weight: 700; letter-spacing: 1px; z-index: 2; }
+    .auth-brand-mark-fixed .accent { color: var(--amber); }
+    .auth-brand-mark-fixed .dark { color: var(--ink); }
+    .auth-bg-chart { position: absolute; top: 50%; left: 0; width: 100%; height: 420px; transform: translateY(-50%); z-index: 0; pointer-events: none; }
+    .auth-welcome-heading { font-size: 28px; font-weight: 700; color: var(--ink); margin: 0 0 4px; text-align: center; }
+    .auth-welcome-subtitle { font-size: 13.5px; color: var(--text-soft); text-align: center; margin: 0 0 22px; }
+    .auth-footer-note { position: absolute; bottom: 20px; left: 0; width: 100%; text-align: center; font-size: 12px; color: var(--text-soft); z-index: 1; }
+    .auth-box { max-width: 400px; width: 100%; position: relative; z-index: 2; }
+    .pw-toggle { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 4px; display: flex; }
+</style>
+</head>
+<body>
+
+<div id="auth-overlay">
+    <div class="auth-brand-mark-fixed"><span class="accent">M</span><span class="dark">ELEYA</span></div>
+    <svg class="auth-bg-chart" viewBox="0 0 1200 400" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <polyline points="0,340 90,336 180,260 270,150 360,120 450,135 540,110 630,190 720,165 810,230 900,270 990,310 1080,330 1200,345" fill="none" stroke="#B5762A" stroke-width="4" opacity="0.25"/>
+        <polyline points="0,345 90,344 180,320 270,290 360,282 450,288 540,282 630,296 720,306 810,320 900,336 990,346 1080,352 1200,358" fill="none" stroke="#1B3A2F" stroke-width="4" opacity="0.25"/>
+    </svg>
+
+    <div class="card auth-box">
+        <h1 class="auth-welcome-heading">Welcome</h1>
+        <p class="auth-welcome-subtitle">Sign in to your bookkeeping workspace.</p>
+        <div id="auth-error" class="notice notice-warn" style="display:none;"></div>
+
+        <div id="auth-signin-view">
+            <div class="form-group"><label>Email</label><input type="email" id="signin-email"></div>
+            <div class="form-group">
+                <label>Password</label>
+                <div style="position:relative;">
+                    <input type="password" id="signin-password" style="padding-right:38px;">
+                    <button type="button" class="pw-toggle" onclick="togglePasswordVisibility('signin-password', this)"><svg viewBox="0 0 576 512" width="17" height="17"><path fill="#6B6B5F" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#6B6B5F"/></svg></button>
+                </div>
+            </div>
+            <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="handleSignIn()">Sign In</button>
+            <p style="text-align:center; font-size:13px; margin-top:12px;"><a href="#" onclick="handleForgotPassword(); return false;" style="color:var(--text-soft);">Forgot password?</a></p>
+            <p style="text-align:center; font-size:13px; margin-top:4px; color:var(--text-soft);">Don't have an account yet? <a href="#" onclick="showAuthView('signup'); return false;" style="color:var(--amber); font-weight:600;">Create one</a></p>
+        </div>
+
+        <div id="auth-signup-view" style="display:none;">
+            <div class="form-group"><label>Email</label><input type="email" id="auth-email"></div>
+            <div class="form-group">
+                <label>Password</label>
+                <div style="position:relative;">
+                    <input type="password" id="auth-password" style="padding-right:38px;" placeholder="At least 6 characters">
+                    <button type="button" class="pw-toggle" onclick="togglePasswordVisibility('auth-password', this)"><svg viewBox="0 0 576 512" width="17" height="17"><path fill="#6B6B5F" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#6B6B5F"/></svg></button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Confirm Password</label>
+                <div style="position:relative;">
+                    <input type="password" id="auth-password-confirm" style="padding-right:38px;">
+                    <button type="button" class="pw-toggle" onclick="togglePasswordVisibility('auth-password-confirm', this)"><svg viewBox="0 0 576 512" width="17" height="17"><path fill="#6B6B5F" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#6B6B5F"/></svg></button>
+                </div>
+            </div>
+            <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="handleSignUp()">Create Account</button>
+            <p style="text-align:center; font-size:13px; margin-top:16px; color:var(--text-soft);">Already have an account? <a href="#" onclick="showAuthView('signin'); return false;" style="color:var(--amber); font-weight:600;">Sign in</a></p>
+        </div>
+
+        <div id="auth-loading" style="display:none; text-align:center; margin-top:14px; font-size:12px; color:var(--text-soft);">Working, please wait…</div>
+    </div>
+    <div class="auth-footer-note">&copy; 2026 MELEYA. All rights reserved.</div>
+</div>
+
+<div id="app" style="display:none;">
+    <div id="view-root"></div>
+</div>
+
+<script>
+    // ------------------------------------------------------------------------
+    // Config — same Supabase project as the rest of the Meleya platform
+    // ------------------------------------------------------------------------
+    const SUPABASE_URL = "https://nwkrrcatdhppvlceuzwg.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im53a3JyY2F0ZGhwcHZsY2V1endnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzMjEzNjUsImV4cCI6MjA5OTg5NzM2NX0.kELqbONKGQIs2Z99Zx8rEcwuYekTCugLYtbsYW3_0h8";
+    // Free Gemini API key — get one at https://aistudio.google.com/apikey
+    // (Google account, no card). Replace this placeholder before using the
+    // receipt-scan feature. Free tier (Flash-Lite): ~1,000 requests/day.
+    const GEMINI_API_KEY = "AQ.Ab8RN6JuTgPqc96t1AuRSXkShnIY2kY5Z_jKzzT8G_phpjeI6A";
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    function esc(s) {
+        return String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function refreshIcons() { if (window.lucide) lucide.createIcons(); }
+    function icon(name, size) { return `<i data-lucide="${name}" style="width:${size||15}px;height:${size||15}px;"></i>`; }
+
+    // ------------------------------------------------------------------------
+    // EC calendar helpers (Fliegel & Van Flandern JDN on the Gregorian side,
+    // calibrated against Meskerem 1, 2017 EC = Sep 11 2024 GC)
+    // ------------------------------------------------------------------------
+    const EC_OFFSET = 1724220;
+    const EC_MONTHS = ['Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yekatit', 'Megabit', 'Miyazia', 'Ginbot', 'Sene', 'Hamle', 'Nehase', 'Pagume'];
+
+    function gregorianToJdn(y, m, d) {
+        const a = Math.floor((14 - m) / 12);
+        const yy = y + 4800 - a;
+        const mm = m + 12 * a - 3;
+        return d + Math.floor((153 * mm + 2) / 5) + 365 * yy + Math.floor(yy / 4) - Math.floor(yy / 100) + Math.floor(yy / 400) - 32045;
+    }
+    function jdnToGregorian(jdn) {
+        const a = jdn + 32044;
+        const b = Math.floor((4 * a + 3) / 146097);
+        const c = a - Math.floor((146097 * b) / 4);
+        const d = Math.floor((4 * c + 3) / 1461);
+        const e = c - Math.floor((1461 * d) / 4);
+        const m = Math.floor((5 * e + 2) / 153);
+        const day = e - Math.floor((153 * m + 2) / 5) + 1;
+        const month = m + 3 - 12 * Math.floor(m / 10);
+        const year = 100 * b + d - 4800 + Math.floor(m / 10);
+        return { year, month, day };
+    }
+    function ethiopianToJdn(y, m, d) { return d + (m - 1) * 30 + (y - 1) * 365 + Math.floor(y / 4) + EC_OFFSET; }
+    function ecToGc(y, m, d) {
+        const { year, month, day } = jdnToGregorian(ethiopianToJdn(y, m, d));
+        return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+    function daysInEcMonth(y, m) {
+        if (m !== 13) return 30;
+        return ethiopianToJdn(y + 1, 1, 1) - ethiopianToJdn(y, 13, 1); // Pagume is 5 or 6 days
+    }
+    function lastGcDateOfEcPeriod(periodKey) {
+        const [y, m] = periodKey.split('-').map(Number);
+        // Month 12 in a period key is the merged Nehase+Pagume period, so its
+        // last day is the last day of Pagume, not day 30 of Nehase.
+        if (m === 12) return ecToGc(y, 13, daysInEcMonth(y, 13));
+        return ecToGc(y, m, 30);
+    }
+    function gcToEc(isoDate) {
+        if (!isoDate) return null;
+        const [gy, gm, gd] = isoDate.split('-').map(Number);
+        const jdn = gregorianToJdn(gy, gm, gd);
+        const approx = gy - 8;
+        for (let ey = approx - 1; ey <= approx + 2; ey++) {
+            const start = ethiopianToJdn(ey, 1, 1);
+            const end = ethiopianToJdn(ey + 1, 1, 1);
+            if (jdn >= start && jdn < end) {
+                const rem = jdn - start;
+                const month = Math.floor(rem / 30) + 1;
+                const day = (rem % 30) + 1;
+                return { year: ey, month, day };
+            }
+        }
+        return null;
+    }
+    function ecPeriodKey(ec) {
+        if (!ec) return '';
+        // Pagume (the short 13th month) is merged into Nehase for reporting —
+        // both share one grouping key, one journal total, one check number.
+        const m = ec.month === 13 ? 12 : ec.month;
+        return `${ec.year}-${String(m).padStart(2, '0')}`;
+    }
+    function periodMonthLabel(m) { return m === 12 ? 'Nehase-Pagume' : EC_MONTHS[m - 1]; }
+    function ecPeriodLabel(key) {
+        if (!key) return 'Undated';
+        const [y, m] = key.split('-').map(Number);
+        return `${periodMonthLabel(m)} ${y}`;
+    }
+    function entryEcKey(e) { return ecPeriodKey(gcToEc(e.date)); }
+    function ecPeriodsFor(entries) {
+        const keys = Array.from(new Set(entries.map(entryEcKey).filter(Boolean)));
+        return keys.sort();
+    }
+    function currentEcYear() {
+        const today = new Date();
+        const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        const ec = gcToEc(iso);
+        return ec ? ec.year : 2017;
+    }
+    function ecYearsFor(entries) {
+        const periods = ecPeriodsFor(entries);
+        const years = periods.map((p) => Number(p.split('-')[0]));
+        const cur = currentEcYear();
+        const min = years.length ? Math.min(...years, cur) : cur - 1;
+        const max = years.length ? Math.max(...years, cur) : cur + 1;
+        const out = [];
+        for (let y = min - 1; y <= max + 1; y++) out.push(y);
+        return out;
+    }
+    function money(n) { return (Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+    // ------------------------------------------------------------------------
+    // GL rule defaults
+    // ------------------------------------------------------------------------
+    const RULE_SLOTS = {
+        payments: [['nonVat', 'Non-VAT purchases'], ['vatBefore', 'VAT purchases, before VAT'], ['vatAmount', 'VAT recoverable']],
+        receipts: [['sales', 'VAT sales, before VAT'], ['nonVatSales', 'Non-VAT sales'], ['vatPay', 'VAT payable'], ['vatWithholding', 'VAT withholding']],
+    };
+
+    // ------------------------------------------------------------------------
+    // File download / CSV helpers
+    // ------------------------------------------------------------------------
+    function downloadBlob(content, filename, mime) {
+        const blob = content instanceof Blob ? content : new Blob([content], { type: mime });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+    }
+    function csvEscape(v) {
+        const s = String(v ?? '');
+        if (s.includes(',') || s.includes('"') || s.includes('\n')) return '"' + s.replace(/"/g, '""') + '"';
+        return s;
+    }
+    function toCsv(rows) { return rows.map((r) => r.map(csvEscape).join(',')).join('\r\n'); }
+
+    // ------------------------------------------------------------------------
+    // CSV / XLSX builders — unchanged logic from the original tool
+    // ------------------------------------------------------------------------
+    // Both journal builders now walk each EC month inside the picked range
+    // separately, instead of adding every receipt in the range into one
+    // combined total. Each month gets its own set of G/L lines.
+    function buildPaymentsCsv(client, fromKey, toKey) {
+        const entries = client.entries.filter((e) => e.type === 'payment' && entryEcKey(e) >= fromKey && entryEcKey(e) <= toKey);
+        if (!entries.length) return null;
+        const periods = Array.from(new Set(entries.map(entryEcKey))).sort();
+        const rule = client.paymentsRule;
+        let counter = client.pvCounter;
+        const allRows = [];
+        periods.forEach((periodKey) => {
+            const periodEntries = entries.filter((e) => entryEcKey(e) === periodKey);
+            let nonVat = 0, vatBefore = 0, vatAmount = 0;
+            periodEntries.forEach((e) => {
+                if (e.isVat) { vatBefore += Number(e.beforeVat) || 0; vatAmount += Number(e.vat) || 0; }
+                else { nonVat += Number(e.total ?? e.beforeVat) || 0; }
+            });
+            const lines = [
+                { d: rule.nonVat.desc, a: rule.nonVat.acct, amt: nonVat },
+                { d: rule.vatBefore.desc, a: rule.vatBefore.acct, amt: vatBefore },
+                { d: rule.vatAmount.desc, a: rule.vatAmount.acct, amt: vatAmount },
+            ].filter((l) => Math.abs(l.amt) > 0.001);
+            if (!lines.length) return;
+            const checkNo = `PV ${String(counter).padStart(4, '0')}`;
+            // Use the last calendar day of the EC month/period, not the date
+            // of the last individual receipt, e.g. Meskerem 2017 -> 10/10/24.
+            const repDate = lastGcDateOfEcPeriod(periodKey);
+            const [y, m, d] = repDate.split('-');
+            const date = `${m}/${d}/${y.slice(2)}`;
+            lines.forEach((l) => allRows.push(['Cashier', checkNo, date, client.cashAccount, 'Yes', String(lines.length), '', l.d, l.a, l.amt.toFixed(2)]));
+            counter += 1; // one check number per EC month, not per download
+        });
+        if (!allRows.length) return null;
+        const header = ['Vendor Name', 'Check Number', 'Date', 'Cash Account', 'Detailed Payment', 'Number of Distributions', 'Invoice Paid', 'Description', 'G/L Account', 'Amount'];
+        return { csv: toCsv([header, ...allRows]), nextCounter: counter };
+    }
+    function buildReceiptsCsv(client, fromKey, toKey) {
+        const entries = client.entries.filter((e) => e.type === 'receipt' && entryEcKey(e) >= fromKey && entryEcKey(e) <= toKey);
+        if (!entries.length) return null;
+        const periods = Array.from(new Set(entries.map(entryEcKey))).sort();
+        const rule = client.receiptsRule;
+        const allRows = [];
+        periods.forEach((periodKey) => {
+            const periodEntries = entries.filter((e) => entryEcKey(e) === periodKey);
+            let sales = 0, nonVatSales = 0, vatPay = 0, vatWithholding = 0;
+            periodEntries.forEach((e) => {
+                if (e.isVat) { sales += Number(e.beforeVat) || 0; vatPay += Number(e.vat) || 0; }
+                else { nonVatSales += Number(e.total ?? e.beforeVat) || 0; }
+            });
+            const ref = periodMonthLabel(Number(periodKey.split('-')[1])); // e.g. "Meskerem" or "Nehase-Pagume"
+            const repDate = periodEntries.map((e) => e.date).sort().slice(-1)[0];
+            const [y, m, d] = repDate.split('-');
+            const date = `${m}/${d}/${y.slice(2)}`;
+            const lines = [
+                { d: rule.sales.desc, a: rule.sales.acct, amt: -sales },
+                { d: rule.nonVatSales.desc, a: rule.nonVatSales.acct, amt: -nonVatSales },
+                { d: rule.vatPay.desc, a: rule.vatPay.acct, amt: -vatPay },
+                { d: rule.vatWithholding.desc, a: rule.vatWithholding.acct, amt: vatWithholding },
+            ].filter((l) => Math.abs(l.amt) > 0.001);
+            if (!lines.length) return;
+            lines.forEach((l) => allRows.push(['Cashier', ref, ref, date, client.cashAccount, String(lines.length), '', l.d, l.a, l.amt.toFixed(2)]));
+        });
+        if (!allRows.length) return null;
+        const header = ['Customer Name', 'Reference', 'Receipt Number', 'Date', 'Cash Account', 'Number of Distributions', 'Invoice Paid', 'Description', 'G/L Account', 'Amount'];
+        return { csv: toCsv([header, ...allRows]) };
+    }
+    // Exact-template VAT Purchase Detail workbook: matches the taxpayer's own
+    // official template cell-for-cell (merges, Nyala font, borders, gray
+    // totals row) rather than a generic export.
+    const ACCT_FMT = '_(* #,##0.00_);_(* \\(#,##0.00\\);_(* "-"??_);_(@_)';
+    const THIN_BORDER = { style: 'thin' };
+    const ALL_THIN_BORDER = { top: THIN_BORDER, bottom: THIN_BORDER, left: THIN_BORDER, right: THIN_BORDER };
+    function vatCellRef(r, c) { return XLSX.utils.encode_cell({ r, c }); }
+    function vatSetMerge(ws, r1, c1, r2, c2, style, value) {
+        for (let r = r1; r <= r2; r++) {
+            for (let c = c1; c <= c2; c++) {
+                ws[vatCellRef(r, c)] = { v: (r === r1 && c === c1) ? (value ?? '') : '', t: 's', s: style };
+            }
+        }
+    }
+    function isoToDisplayDate(iso) {
+        if (!iso) return '';
+        const [y, m, d] = iso.split('-');
+        return `${d}/${m}/${y}`;
+    }
+    function buildVatWorkbook(client, fromKey, toKey) {
+        const entries = client.entries
+            .filter((e) => e.type === 'payment')
+            .filter((e) => { const k = entryEcKey(e); return k >= fromKey && k <= toKey; })
+            .sort((a, b) => a.date.localeCompare(b.date));
+
+        const ws = {};
+        const merges = [];
+        const labelStyle = { font: { name: 'Nyala', sz: 16, bold: true }, alignment: { horizontal: 'right' } };
+        const valueStyle = { font: { name: 'Nyala', sz: 16, bold: true }, alignment: { horizontal: 'center' }, border: { bottom: THIN_BORDER } };
+        const infoRows = [
+            ['        1. TAXPAYER NAME/የግብር ከፋይ ስም ፡           ', client.name],
+            ['        2. BUYER TIN/ የገዢ ቲን        ፡ ', client.tin],
+            ['        3. VAT GEGSTRATION NO./ የቫት ምዝገባ ቁጥር  ', client.vatRegNo],
+            ['        4.TRADE TYPE/የንግዱ ዓይነት  ፡          ', client.tradeType],
+        ];
+        infoRows.forEach(([label, value], i) => {
+            vatSetMerge(ws, i, 0, i, 5, labelStyle, label);
+            merges.push({ s: { r: i, c: 0 }, e: { r: i, c: 5 } });
+            vatSetMerge(ws, i, 6, i, 7, valueStyle, value || '');
+            merges.push({ s: { r: i, c: 6 }, e: { r: i, c: 7 } });
+        });
+
+        const titleStyle = { font: { name: 'Nyala', sz: 16, bold: true }, alignment: { horizontal: 'center' }, border: { bottom: THIN_BORDER } };
+        vatSetMerge(ws, 5, 0, 5, 13, titleStyle, 'የተጨማሪ እሴት ታክስ ግዢ ማሳወቂያ ቅፅ/VAT PURCHASE DETAIL');
+        merges.push({ s: { r: 5, c: 0 }, e: { r: 5, c: 13 } });
+
+        const headerStyle = { font: { name: 'Nyala', sz: 10, bold: true }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true }, border: ALL_THIN_BORDER };
+        const headers = ['No', 'Taxpayer Name/        የግብር ከፋይ ስም', 'Seller Tin/የሻጭ ቲን', 'Vat         registration   no/   የቫት ምዝገባ ቁጥር', 'MRC/ የሽ/መ/መ/ቁ', 'date of purchase/ ግዢው የተከናወነበት ቀን', 'vat Receipt Number/ የደረሠኝ ቁጥር', 'Product Description/ የዕቃው ዓይነት', 'measurement/ መለኪያ', 'Quantity/ ብዛት', 'unit price/  ያንዱ ዋጋ', 'value befor vat/    ከቫት በፊት', 'vat paid on purchase / የተከፈለ ቫት', 'value after tax /           ከቫት  በኋላ'];
+        headers.forEach((h, c) => { ws[vatCellRef(6, c)] = { v: h, t: 's', s: headerStyle }; });
+
+        const dataStyle = { font: { name: 'Nyala', sz: 10 }, border: ALL_THIN_BORDER };
+        const numStyle = { font: { name: 'Nyala', sz: 10 }, border: ALL_THIN_BORDER, numFmt: ACCT_FMT };
+        const dateStyle = { font: { name: 'Nyala', sz: 10 }, border: ALL_THIN_BORDER, alignment: { horizontal: 'right' } };
+        const firstDataRow0 = 7;
+        entries.forEach((e, i) => {
+            const r = firstDataRow0 + i;
+            const sheetRow = r + 1;
+            ws[vatCellRef(r, 0)] = { v: String(i + 1), t: 's', s: dataStyle };
+            ws[vatCellRef(r, 1)] = { v: e.sellerName || '', t: 's', s: dataStyle };
+            ws[vatCellRef(r, 2)] = { v: e.sellerTin || '', t: 's', s: dataStyle };
+            ws[vatCellRef(r, 3)] = { v: e.vatRegNo || '', t: 's', s: dataStyle };
+            ws[vatCellRef(r, 4)] = { v: e.mrc || '', t: 's', s: dataStyle };
+            ws[vatCellRef(r, 5)] = { v: isoToDisplayDate(e.date), t: 's', s: dateStyle };
+            ws[vatCellRef(r, 6)] = { v: e.receiptNo || '', t: 's', s: dataStyle };
+            ws[vatCellRef(r, 7)] = { v: e.description || '', t: 's', s: dataStyle };
+            ws[vatCellRef(r, 8)] = { v: e.measurement || '', t: 's', s: dataStyle };
+            ws[vatCellRef(r, 9)] = e.quantity != null ? { v: e.quantity, t: 'n', s: numStyle } : { v: '', t: 's', s: numStyle };
+            ws[vatCellRef(r, 10)] = e.unitPrice != null ? { v: e.unitPrice, t: 'n', s: numStyle } : { v: '', t: 's', s: numStyle };
+            ws[vatCellRef(r, 11)] = { v: Number(e.beforeVat) || 0, t: 'n', s: numStyle };
+            ws[vatCellRef(r, 12)] = { t: 'n', f: `L${sheetRow}*0.15`, s: numStyle };
+            ws[vatCellRef(r, 13)] = { t: 'n', f: `L${sheetRow}+M${sheetRow}`, s: numStyle };
+        });
+
+        const totalsRow0 = firstDataRow0 + entries.length;
+        const totalsSheetRow = totalsRow0 + 1;
+        const firstSheetRow = firstDataRow0 + 1;
+        const lastSheetRow = firstDataRow0 + Math.max(entries.length, 1);
+        const blankStyle = { font: { name: 'Nyala', sz: 10 }, border: ALL_THIN_BORDER };
+        const totalNumStyle = { font: { name: 'Nyala', sz: 10 }, border: ALL_THIN_BORDER, fill: { patternType: 'solid', fgColor: { rgb: 'E7E6E6' } }, numFmt: ACCT_FMT };
+        for (let c = 0; c <= 10; c++) ws[vatCellRef(totalsRow0, c)] = { v: '', t: 's', s: blankStyle };
+        ws[vatCellRef(totalsRow0, 11)] = { t: 'n', f: `SUM(L${firstSheetRow}:L${lastSheetRow})`, s: totalNumStyle };
+        ws[vatCellRef(totalsRow0, 12)] = { t: 'n', f: `SUM(L${totalsSheetRow}*0.15)`, s: totalNumStyle };
+        ws[vatCellRef(totalsRow0, 13)] = { t: 'n', f: `L${totalsSheetRow}+M${totalsSheetRow}`, s: totalNumStyle };
+
+        const spacerRow0 = totalsRow0 + 1;
+        for (let c = 0; c <= 13; c++) ws[vatCellRef(spacerRow0, c)] = { v: '', t: 's', s: blankStyle };
+
+        const sigRow0 = spacerRow0 + 1;
+        const sigStyle = { font: { name: 'Nyala', sz: 11, bold: true }, alignment: { horizontal: 'center' } };
+        vatSetMerge(ws, sigRow0, 5, sigRow0, 8, sigStyle, 'ፊርማ/SIGNATURE……………………………………..');
+        merges.push({ s: { r: sigRow0, c: 5 }, e: { r: sigRow0, c: 8 } });
+        vatSetMerge(ws, sigRow0, 10, sigRow0, 13, sigStyle, '');
+        merges.push({ s: { r: sigRow0, c: 10 }, e: { r: sigRow0, c: 13 } });
+
+        ws['!merges'] = merges;
+        ws['!ref'] = `A1:N${sigRow0 + 1}`;
+        ws['!cols'] = [
+            { wch: 6 }, { wch: 26.82 }, { wch: 11.36 }, { wch: 11.91 }, { wch: 12.55 },
+            { wch: 9.91 }, { wch: 11.27 }, { wch: 21.67 }, { wch: 10 }, { wch: 9 },
+            { wch: 8.91 }, { wch: 12.02 }, { wch: 11.05 }, { wch: 13.28 },
+        ];
+        ws['!rows'] = [];
+        ws['!rows'][0] = { hpt: 20.5 }; ws['!rows'][1] = { hpt: 20.5 }; ws['!rows'][2] = { hpt: 20.5 }; ws['!rows'][3] = { hpt: 20.5 };
+        ws['!rows'][5] = { hpt: 20.5 }; ws['!rows'][6] = { hpt: 54 };
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+        return { wb, count: entries.length };
+    }
+    function buildRulesTemplate(client) {
+        const rows = [['Journal', 'Line', 'Description', 'Account']];
+        RULE_SLOTS.payments.forEach(([key, label]) => rows.push(['Payments', label, client.paymentsRule[key].desc, client.paymentsRule[key].acct]));
+        RULE_SLOTS.receipts.forEach(([key, label]) => rows.push(['Receipts', label, client.receiptsRule[key].desc, client.receiptsRule[key].acct]));
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        ws['!cols'] = [{ wch: 12 }, { wch: 28 }, { wch: 22 }, { wch: 12 }];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'GL Rules');
+        return wb;
+    }
+    // Returns an ARRAY of matches (not just one) because a real chart of
+    // accounts often uses ONE combined account for both "VAT recoverable"
+    // (payments side) and "VAT payable" (receipts side) — e.g. "Vat
+    // Payable/Rece". That single row needs to fill both rule slots, or one
+    // of them stays blank and Peachtree rejects the exported CSV.
+    function keywordMatches(label) {
+        const s = (label || '').toLowerCase();
+        const has = (...words) => words.every((w) => s.includes(w));
+        const out = [];
+        if (has('vat') && (has('rec') || has('recoverable'))) out.push(['payments', 'vatAmount']);
+        if (has('vat') && has('pay')) out.push(['receipts', 'vatPay']);
+        if (out.length) return out;
+        if (has('withhold')) return [['receipts', 'vatWithholding']];
+        if (has('non', 'vat') && has('sale')) return [['receipts', 'nonVatSales']];
+        if (has('non', 'vat')) return [['payments', 'nonVat']];
+        if (has('sale')) return [['receipts', 'sales']];
+        if (has('purchase')) return [['payments', 'vatBefore']];
+        return [];
+    }
+    function parseRulesFile(workbook) {
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        if (!rows.length) return { matched: [], unmatched: [] };
+        // Peachtree's own "Account List" export has a business name, report
+        // title, and date printed above the real header row — so find the
+        // row that actually says "Account ID" / "Description" rather than
+        // assuming it's the very first row.
+        let headerRowIdx = rows.findIndex((r) => (r || []).some((c) => /account/i.test(String(c || ''))) && (r || []).some((c) => /desc/i.test(String(c || ''))));
+        if (headerRowIdx < 0) headerRowIdx = 0;
+        const headerRow = (rows[headerRowIdx] || []).map((h) => String(h || '').toLowerCase());
+        const idx = (needle) => headerRow.findIndex((h) => h.includes(needle));
+        const descIdx = idx('desc') >= 0 ? idx('desc') : 2;
+        const lineIdx = idx('line') >= 0 ? idx('line') : idx('journal') >= 0 ? idx('journal') : descIdx;
+        const acctIdx = idx('account') >= 0 ? idx('account') : idx('code') >= 0 ? idx('code') : idx('id') >= 0 ? idx('id') : 3;
+        const matched = [];
+        const unmatched = [];
+        rows.slice(headerRowIdx + 1).forEach((row) => {
+            if (!row || !row.length) return;
+            const label = row[lineIdx];
+            const desc = row[descIdx];
+            const acct = row[acctIdx];
+            if (!desc && !acct) return;
+            const ms = keywordMatches(String(label || desc || ''));
+            if (ms.length) ms.forEach((m) => matched.push({ group: m[0], key: m[1], desc: String(desc ?? ''), acct: String(acct ?? '') }));
+            else unmatched.push({ label, desc, acct });
+        });
+        return { matched, unmatched };
+    }
+
+    // ------------------------------------------------------------------------
+    // DB <-> app-shape mapping
+    // ------------------------------------------------------------------------
+    function mapClientFromDb(row) {
+        return {
+            id: row.id, name: row.name, tin: row.tin || '', vatRegNo: row.vat_reg_no || '',
+            tradeType: row.trade_type || '', cashAccount: row.cash_account || '1101',
+            pvCounter: row.pv_counter, paymentsRule: row.payments_rule, receiptsRule: row.receipts_rule,
+            entryCount: row.entry_count, entries: [], linkedBusinessId: row.linked_business_id || null,
+        };
+    }
+    function clientPatchToDb(patch) {
+        const map = { name: 'name', tin: 'tin', vatRegNo: 'vat_reg_no', tradeType: 'trade_type', cashAccount: 'cash_account', pvCounter: 'pv_counter', paymentsRule: 'payments_rule', receiptsRule: 'receipts_rule', linkedBusinessId: 'linked_business_id' };
+        const out = {};
+        Object.keys(patch).forEach((k) => { if (map[k]) out[map[k]] = patch[k]; });
+        return out;
+    }
+    function mapEntryFromDb(row) {
+        return {
+            id: row.id, type: row.type, date: row.date, sellerName: row.seller_name || '', sellerTin: row.seller_tin || '',
+            vatRegNo: row.vat_reg_no || '', mrc: row.mrc || '', receiptNo: row.receipt_no || '', isVat: row.is_vat,
+            beforeVat: row.before_vat, vat: row.vat, total: row.total, description: row.description || '',
+            measurement: row.measurement || '', quantity: row.quantity, unitPrice: row.unit_price, missing: row.missing || [],
+        };
+    }
+    function entryToDb(entry, clientId) {
+        return {
+            client_id: clientId, type: entry.type, date: entry.date,
+            seller_name: entry.sellerName || null, seller_tin: entry.sellerTin || null, vat_reg_no: entry.vatRegNo || null,
+            mrc: entry.mrc || null, receipt_no: entry.receiptNo || null, is_vat: !!entry.isVat,
+            before_vat: Number(entry.beforeVat) || 0, vat: Number(entry.vat) || 0, total: Number(entry.total) || 0,
+            description: entry.description || null, measurement: entry.measurement || null,
+            quantity: entry.quantity === '' || entry.quantity == null ? null : Number(entry.quantity),
+            unit_price: entry.unitPrice === '' || entry.unitPrice == null ? null : Number(entry.unitPrice),
+            missing: entry.missing || [],
+        };
+    }
+
+    // ------------------------------------------------------------------------
+    // Auth
+    // ------------------------------------------------------------------------
+    function showAuthError(msg) {
+        const el = document.getElementById('auth-error');
+        el.innerText = msg; el.style.display = 'block';
+    }
+    function clearAuthError() { document.getElementById('auth-error').style.display = 'none'; }
+    function setAuthLoading(on) { document.getElementById('auth-loading').style.display = on ? 'block' : 'none'; }
+    function showAuthView(view) {
+        clearAuthError();
+        document.getElementById('auth-signin-view').style.display = view === 'signin' ? 'block' : 'none';
+        document.getElementById('auth-signup-view').style.display = view === 'signup' ? 'block' : 'none';
+    }
+    const EYE_OPEN_SVG = '<svg viewBox="0 0 576 512" width="17" height="17"><path fill="#6B6B5F" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#6B6B5F"/></svg>';
+    const EYE_CLOSED_SVG = '<svg viewBox="0 0 576 512" width="17" height="17"><path fill="#6B6B5F" d="M572.5 238.1a274.5 274.5 0 0 0-58.5-76.4L488 188.6a208.3 208.3 0 0 1 45.7 63.6c-1.8 3.9-4.4 8.9-7.9 14.6C481.7 344.9 391.5 400 288 400a222.1 222.1 0 0 1-45.6-4.7l-32 32A277.7 277.7 0 0 0 288 448c123.2 0 230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM99.5 273.9a231.3 231.3 0 0 1-8-14.9 208 208 0 0 1 46.4-64.4C170.6 165.6 226.5 144 288 144a222 222 0 0 1 45.9 4.8l35-35A276.9 276.9 0 0 0 288 96C164.8 96 57.7 172.8 3.5 302.1a48.2 48.2 0 0 0 0 35.8 274.6 274.6 0 0 0 58.9 76.9l35-35a231.1 231.1 0 0 1-30.9-30.9c-3.5-5.7-6.1-10.7-7.9-14.6z"/><path fill="#6B6B5F" d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l528 416c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L38.8 5.1z"/></svg>';
+    function togglePasswordVisibility(inputId, btn) {
+        const input = document.getElementById(inputId);
+        const showing = input.type === 'text';
+        input.type = showing ? 'password' : 'text';
+        btn.innerHTML = showing ? EYE_OPEN_SVG : EYE_CLOSED_SVG;
+    }
+    async function handleSignIn() {
+        clearAuthError();
+        const email = document.getElementById('signin-email').value.trim();
+        const password = document.getElementById('signin-password').value;
+        if (!email || !password) return showAuthError('Please enter your email and password.');
+        setAuthLoading(true);
+        const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+        setAuthLoading(false);
+        if (error) return showAuthError(error.message);
+        await afterSignIn();
+    }
+    async function handleSignUp() {
+        clearAuthError();
+        const email = document.getElementById('auth-email').value.trim();
+        const password = document.getElementById('auth-password').value;
+        const passwordConfirm = document.getElementById('auth-password-confirm').value;
+        if (!email || !password) return showAuthError('Please enter an email and password.');
+        if (password.length < 6) return showAuthError('Password must be at least 6 characters.');
+        if (password !== passwordConfirm) return showAuthError('Passwords do not match. Please re-type them.');
+        setAuthLoading(true);
+        const { data, error } = await supabaseClient.auth.signUp({ email, password });
+        setAuthLoading(false);
+        if (error) return showAuthError(error.message);
+        if (!data.session) return showAuthError('Account created! Check your email to confirm your address, then sign in below.');
+        await afterSignIn();
+    }
+    async function handleForgotPassword() {
+        let email = document.getElementById('signin-email').value.trim();
+        if (!email) {
+            email = prompt('Enter the email address for your account:');
+            if (!email) return;
+            email = email.trim();
+        }
+        const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + window.location.pathname });
+        if (error) return showAuthError(error.message);
+        showAuthError('Password reset email sent — check your inbox.');
+    }
+    async function handleSignOut() {
+        await supabaseClient.auth.signOut();
+        document.getElementById('app').style.display = 'none';
+        document.getElementById('auth-overlay').style.display = 'flex';
+    }
+    async function afterSignIn() {
+        document.getElementById('auth-overlay').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        currentUserId = user ? user.id : null;
+        await loadAccountantProfile();
+        await loadClients();
+        await refreshMyLinks();
+        subscribeToAccountantLinks();
+        render();
+    }
+    // Live-updates the requests inbox and any link status the instant it
+    // changes on either side (client approves/declines/revokes, etc.) —
+    // no refresh needed.
+    let accountantLinksChannel = null;
+    function subscribeToAccountantLinks() {
+        if (!currentUserId) return;
+        if (accountantLinksChannel) supabaseClient.removeChannel(accountantLinksChannel);
+        accountantLinksChannel = supabaseClient
+            .channel(`accountant_links_acct_${currentUserId}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'accountant_links', filter: `accountant_user_id=eq.${currentUserId}` }, async () => {
+                await refreshMyLinks();
+                render();
+            })
+            .subscribe();
+    }
+    (async () => {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session) await afterSignIn();
+    })();
+
+    // ------------------------------------------------------------------------
+    // MELEYA linking: accountant profile, business search, link requests,
+    // and the read-only inventory view once a link is approved.
+    // ------------------------------------------------------------------------
+    let currentUserId = null;
+    let accountantProfile = null;
+    let profileModalOpen = false;
+    let profileDraft = null;
+    let myLinks = []; // every accountant_links row involving this accountant, with business_name attached
+
+    async function loadAccountantProfile() {
+        if (!currentUserId) return;
+        const { data } = await supabaseClient.from('accountant_profiles').select('*').eq('user_id', currentUserId).maybeSingle();
+        accountantProfile = data || null;
+    }
+    function openProfileModal() {
+        profileDraft = { full_name: accountantProfile ? accountantProfile.full_name : '', phone: accountantProfile ? accountantProfile.phone : '' };
+        profileModalOpen = true;
+        render();
+    }
+    function closeProfileModal() { profileModalOpen = false; profileDraft = null; render(); }
+    async function saveProfile() {
+        const p = profileDraft;
+        if (!p.full_name.trim() || !p.phone.trim()) { alert('Please enter your name and phone number.'); return; }
+        const { error } = await supabaseClient.from('accountant_profiles').upsert({ user_id: currentUserId, full_name: p.full_name.trim(), phone: p.phone.trim() });
+        if (error) { alert(error.message); return; }
+        accountantProfile = { user_id: currentUserId, full_name: p.full_name.trim(), phone: p.phone.trim() };
+        closeProfileModal();
+    }
+    function renderProfileModal() {
+        const p = profileDraft;
+        return `
+            <div style="position:fixed; inset:0; z-index:400; background:rgba(27,58,47,0.45); display:flex; align-items:center; justify-content:center; padding:20px;" onclick="if(event.target===this && accountantProfile) closeProfileModal();">
+                <div class="card" style="max-width:400px; width:100%; margin:0;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+                        <div class="section-title" style="margin:0;">Your accountant profile</div>
+                        ${accountantProfile ? `<button class="btn-icon" onclick="closeProfileModal()">${icon('x', 18)}</button>` : ''}
+                    </div>
+                    <div style="font-size:12.5px; color:var(--text-soft); margin-bottom:14px;">Clients search for you by name or phone in MELEYA to request a link. This is what they'll see.</div>
+                    <div style="display:flex; flex-direction:column; gap:12px;">
+                        <div><label>Your full name</label><input value="${esc(p.full_name)}" oninput="profileDraft.full_name=this.value"></div>
+                        <div><label>Phone number</label><input class="mono" value="${esc(p.phone)}" oninput="profileDraft.phone=this.value"></div>
+                    </div>
+                    <div style="display:flex; gap:10px; margin-top:18px;">
+                        <button class="btn btn-primary" onclick="saveProfile()">${icon('check', 15)} Save</button>
+                        ${accountantProfile ? `<button class="btn btn-ghost" onclick="closeProfileModal()">Cancel</button>` : ''}
+                    </div>
+                </div>
+            </div>`;
+    }
+
+    async function refreshMyLinks() {
+        const { data, error } = await supabaseClient.rpc('my_accountant_links');
+        if (!error) myLinks = data || [];
+    }
+    function linkForBusiness(businessId) { return myLinks.find((l) => l.business_id === businessId) || null; }
+
+    let linksInboxOpen = false;
+    function openLinksInbox() { linksInboxOpen = true; render(); }
+    function closeLinksInbox() { linksInboxOpen = false; render(); }
+    const pendingIncomingCount = () => myLinks.filter((l) => l.status === 'pending' && l.requested_by === 'client').length;
+
+    async function respondToLink(id, newStatus) {
+        const { error } = await supabaseClient.from('accountant_links').update({ status: newStatus, responded_at: new Date().toISOString() }).eq('id', id);
+        if (error) { alert(error.message); return; }
+        await refreshMyLinks();
+        render();
+    }
+    async function reRequestLink(businessId) {
+        const { error } = await upsertLinkRequest(businessId);
+        if (error) { alert(error.message); return; }
+        await refreshMyLinks();
+        render();
+    }
+    function renderLinksInbox() {
+        const rows = myLinks.map((l) => {
+            const badge = l.status === 'approved' ? 'notice-ok' : l.status === 'pending' ? 'notice-warn' : 'notice-muted';
+            const direction = l.requested_by === 'accountant' ? 'You requested' : 'They requested';
+            let actions = '';
+            if (l.status === 'pending' && l.requested_by === 'client') {
+                actions = `<button class="btn btn-primary" style="padding:5px 10px; font-size:12px;" onclick="respondToLink('${l.id}','approved')">${icon('check', 13)} Approve</button>
+                           <button class="btn btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="respondToLink('${l.id}','declined')">Decline</button>`;
+            } else if (l.status === 'pending' && l.requested_by === 'accountant') {
+                actions = `<button class="btn btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="respondToLink('${l.id}','declined')">Cancel request</button>`;
+            } else if (l.status === 'approved') {
+                actions = `<button class="btn btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="respondToLink('${l.id}','revoked')">Revoke access</button>`;
+            } else if (l.status === 'declined' || l.status === 'revoked') {
+                actions = `<button class="btn btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="reRequestLink('${l.business_id}')">${icon('rotate-cw', 13)} Send again</button>`;
+            }
+            return `
+                <div class="list-row" style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+                    <div>
+                        <div style="font-weight:600;">${esc(l.business_name)}</div>
+                        <div class="meta">${esc(l.phone) || ''} · ${direction} · <span class="notice ${badge}" style="display:inline; padding:1px 8px; border-radius:10px; font-size:11px;">${l.status}</span></div>
+                    </div>
+                    <div style="display:flex; gap:8px;">${actions}</div>
+                </div>`;
+        }).join('');
+        return `
+            <div class="header"><div class="wrap">
+                <button class="back-link" onclick="closeLinksInbox()">${icon('arrow-left', 14)} All clients</button>
+                <h1>MELEYA link requests</h1>
+                <div class="sub">Approve, decline, or manage access between you and businesses using MELEYA</div>
+            </div></div>
+            <div class="wrap">
+                ${myLinks.length === 0 ? `<div class="empty">${icon('link-2', 28)}<div>No link requests yet.</div></div>` : `<div class="list">${rows}</div>`}
+            </div>`;
+    }
+
+    // ---- Searching & linking a specific client's MELEYA business ----
+    let linkSearchOpen = false;
+    let linkSearchClientId = null;
+    let linkSearchQuery = '';
+    let linkSearchResults = [];
+    let linkSearchBusy = false;
+    function openLinkSearch(clientId) {
+        linkSearchOpen = true; linkSearchClientId = clientId; linkSearchQuery = ''; linkSearchResults = [];
+        render();
+    }
+    function closeLinkSearch() { linkSearchOpen = false; linkSearchClientId = null; linkSearchQuery = ''; linkSearchResults = []; render(); }
+    async function runLinkSearch(q) {
+        linkSearchQuery = q;
+        if (q.trim().length < 2) { linkSearchResults = []; render(); return; }
+        linkSearchBusy = true; render();
+        const { data, error } = await supabaseClient.rpc('search_businesses', { query: q.trim() });
+        linkSearchBusy = false;
+        linkSearchResults = error ? [] : (data || []);
+        render();
+    }
+    async function sendLinkRequest(businessId) {
+        const client = clients.find((c) => c.id === linkSearchClientId);
+        if (!client) return;
+        const { error } = await upsertLinkRequest(businessId);
+        if (error) { alert(error.message); return; }
+        await patchClient(client.id, { linkedBusinessId: businessId });
+        await refreshMyLinks();
+        closeLinkSearch();
+    }
+    function renderLinkSearchModal() {
+        const results = linkSearchResults.map((r) => `
+            <div class="list-row" style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                <div><div style="font-weight:600;">${esc(r.business_name)}</div><div class="meta">${esc(r.phone) || ''}</div></div>
+                <button class="btn btn-primary" style="padding:5px 10px; font-size:12px;" onclick="sendLinkRequest('${r.business_id}')">Send request</button>
+            </div>`).join('');
+        return `
+            <div style="position:fixed; inset:0; z-index:400; background:rgba(27,58,47,0.45); display:flex; align-items:center; justify-content:center; padding:20px;" onclick="if(event.target===this) closeLinkSearch();">
+                <div class="card" style="max-width:440px; width:100%; margin:0; max-height:85vh; overflow-y:auto;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+                        <div class="section-title" style="margin:0;">Find client on MELEYA</div>
+                        <button class="btn-icon" onclick="closeLinkSearch()">${icon('x', 18)}</button>
+                    </div>
+                    <input placeholder="Search by business name, phone, or owner's name…" id="link-search-input" value="${esc(linkSearchQuery)}" oninput="runLinkSearch(this.value)" style="margin-bottom:12px;">
+                    ${linkSearchBusy ? `<div style="color:var(--text-soft); font-size:13px;">Searching…</div>` : ''}
+                    ${!linkSearchBusy && linkSearchQuery.trim().length >= 2 && linkSearchResults.length === 0 ? `<div style="color:var(--text-soft); font-size:13px;">No matching business found.</div>` : ''}
+                    <div class="list">${results}</div>
+                </div>
+            </div>`;
+    }
+
+    // ---- Read-only inventory synced from an approved MELEYA link ----
+    async function loadClientInventory(client) {
+        if (!client.linkedBusinessId) return;
+        const { data, error } = await supabaseClient.rpc('linked_accountant_inventory', { p_business_id: client.linkedBusinessId });
+        client.inventory = error ? [] : (data || []);
+        client.inventoryError = error ? error.message : null;
+    }
+    function refreshClientInventory(id) {
+        const c = clients.find((x) => x.id === id);
+        if (c) c.inventory = undefined;
+        render();
+    }
+    function renderInventoryTab(client) {
+        const link = linkForBusiness(client.linkedBusinessId);
+        const status = link ? link.status : null;
+        if (!client.linkedBusinessId) {
+            return `<div class="empty">${icon('link-2', 28)}<div>This client isn't linked to a MELEYA business yet.</div>
+                <button class="btn btn-primary" style="margin-top:12px;" onclick="openLinkSearch('${client.id}')">${icon('search', 15)} Find them on MELEYA</button></div>`;
+        }
+        if (status !== 'approved') {
+            return `<div class="empty">${icon('clock', 28)}<div>Waiting on ${status === 'pending' ? 'their' : 'a'} approval to view this client's inventory (status: ${esc(status || 'unknown')}).</div></div>`;
+        }
+        if (client.inventory === undefined) {
+            if (!client.inventoryLoading) {
+                client.inventoryLoading = true;
+                loadClientInventory(client).then(() => { client.inventoryLoading = false; render(); });
+            }
+            return `<div style="color:var(--text-soft); font-size:13px;">Loading inventory…</div>`;
+        }
+        if (client.inventoryError) return `<div class="notice notice-warn">${icon('alert-triangle', 14)} Couldn't load inventory: ${esc(client.inventoryError)}</div>`;
+        if (!client.inventory.length) return `<div class="empty">${icon('package', 28)}<div>No inventory items found for this business yet.</div></div>`;
+        const rows = client.inventory.map((i) => {
+            const qty = Number(i.qty_on_hand) || 0;
+            const avgCost = qty > 0 ? (Number(i.total_cost) || 0) / qty : 0;
+            return `<tr><td>${esc(i.item_desc || '—')}</td><td class="mono">${esc(i.category || '—')}</td><td class="mono num">${qty}</td><td class="mono num">${money(avgCost)}</td><td class="mono num">${money(i.selling_price)}</td></tr>`;
+        }).join('');
+        return `
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+                <div class="notice notice-ok" style="margin-bottom:0;">${icon('check', 14)} Read-only, synced from this client's MELEYA account.</div>
+                <button class="btn btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="refreshClientInventory('${client.id}')">${icon('refresh-cw', 13)} Refresh</button>
+            </div>
+            <div class="list" style="overflow-x:auto;"><table class="entries">
+                <thead><tr><th>Item</th><th>Category</th><th class="num">Qty</th><th class="num">Avg cost</th><th class="num">Selling price</th></tr></thead>
+                <tbody>${rows}</tbody></table></div>`;
+    }
+
+    // ------------------------------------------------------------------------
+    // Receipt reading: Google's Gemini API (free tier via Google AI Studio —
+    // no billing account, ~1,000 requests/day free on Flash-Lite). Unlike
+    // plain OCR, this is a real model that understands the receipt's layout
+    // (ignores the buyer's TIN, knows "TAX1" means VAT, etc.) instead of
+    // pattern-matching blindly. Anything it can't confidently find is left
+    // blank and flagged for the accountant to fill in on the review screen.
+    // ------------------------------------------------------------------------
+    function loadImage(file) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error('Could not read image'));
+            img.src = URL.createObjectURL(file);
+        });
+    }
+    function canvasToJpegBlob(canvas, quality) {
+        return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+    }
+    // Shrink large phone photos before upload — faster, and keeps well within
+    // Gemini's inline-image size limits.
+    async function compressImageForAi(file) {
+        const img = await loadImage(file);
+        let maxDim = 2000, quality = 0.82;
+        let blob = null;
+        for (let attempt = 0; attempt < 5; attempt++) {
+            const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            blob = await canvasToJpegBlob(canvas, quality);
+            if (blob.size <= 1500 * 1024) break;
+            maxDim = Math.round(maxDim * 0.8);
+            quality = Math.max(0.5, quality - 0.1);
+        }
+        URL.revokeObjectURL(img.src);
+        return blob;
+    }
+    function blobToBase64(blob) {
+        return new Promise((resolve, reject) => {
+            const r = new FileReader();
+            r.onload = () => resolve(r.result.split(',')[1]);
+            r.onerror = () => reject(new Error('Could not read image'));
+            r.readAsDataURL(blob);
+        });
+    }
+    const RECEIPT_PROMPT = `You are reading a photo of an Ethiopian cash sales receipt printed by a fiscal cash register (ERCA-compliant). These receipts follow a consistent layout:
+- The SELLER'S TIN is printed near the very top as "TIN: XXXXXXXXXX", immediately followed by the seller's business/owner name, then address/phone lines.
+- A separate "Buyer's TIN" (sometimes "Buyer's T I N") line appears further down — that is the BUYER'S own TIN, not the seller's. Ignore it entirely; never use it for seller_tin.
+- The receipt number is printed as "FS No. XXXXXXXX".
+- The date is printed as DD/MM/YYYY, always in the GREGORIAN calendar, day first — this receipt format never uses the Ethiopian calendar.
+- Line items appear either as one line per item ("DESCRIPTION   QTY   PRICE   AMOUNT") or as two lines per item ("QTY x PRICE =" then "DESCRIPTION   *AMOUNT" on the next line).
+- The taxable subtotal is labeled "TXBL1". The VAT amount is labeled "TAX1" or "TAX 1" (usually shown with "15.00%" or "15%") — this receipt format never prints the word "VAT" for this line. The grand total is labeled "TOTAL".
+- A machine registration code is printed near the bottom as "ET" followed by a code like "FGB0005691" or "BEB0004862" — this is the MRC (machine registration certificate number). It is never labeled "MRC" directly.
+- A separate VAT registration number is usually NOT printed on these receipts — only fill vat_reg_no if you actually see a distinct label like "VAT REG NO"; do not reuse the TIN for it.
+
+Extract exactly these fields and return ONLY raw JSON, no markdown fences, no commentary:
+{
+  "seller_name": string or null,
+  "seller_tin": string or null,
+  "vat_reg_no": string or null,
+  "mrc": string or null,
+  "date_year": number or null,
+  "date_month": number or null,
+  "date_day": number or null,
+  "receipt_no": string or null,
+  "is_vat": boolean,
+  "before_vat": number or null,
+  "vat": number or null,
+  "total": number or null,
+  "description": string or null,
+  "measurement": string or null,
+  "quantity": number or null,
+  "unit_price": number or null,
+  "missing_fields": string[]
+}
+
+If there are multiple line items, pick only the SINGLE item with the largest amount and use its description, quantity, and unit_price — do not combine or list multiple items together in "description". Set "measurement" to "Lot", "quantity" to 1, and "unit_price" equal to "before_vat" ONLY if you cannot identify a clear largest item; otherwise use that one item's own measurement/quantity/unit_price as printed (measurement only if a unit like PCS/KG/M is actually printed next to it — this receipt format usually does not print one, so leave it null rather than guess). If there is exactly ONE line item, fill "description", "quantity", "unit_price", and "measurement" from that single item the same way. "before_vat", "vat", and "total" should always be the receipt-wide totals from the TXBL1/TAX1/TOTAL lines, never a per-item figure. A separate VAT registration number is normal to be absent on this receipt format — never include "VAT reg no" in "missing_fields". In "missing_fields", only list fields from this set that you could not confidently read: "Seller name", "Seller TIN", "MRC".`;
+
+    async function runGeminiExtraction(file, onStatus) {
+        if (!GEMINI_API_KEY || GEMINI_API_KEY.startsWith('REPLACE_WITH')) {
+            throw new Error('No Gemini API key set yet — add a free key from aistudio.google.com/apikey near the top of this file.');
+        }
+        onStatus && onStatus('Preparing photo…');
+        const blob = await compressImageForAi(file);
+        const base64 = await blobToBase64(blob);
+        onStatus && onStatus('Reading the receipt…');
+        const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
+            body: JSON.stringify({
+                contents: [{ parts: [
+                    { inline_data: { mime_type: 'image/jpeg', data: base64 } },
+                    { text: RECEIPT_PROMPT },
+                ] }],
+                generationConfig: { responseMimeType: 'application/json' },
+            }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) throw new Error((data && data.error && data.error.message) || `Gemini request failed (${res.status})`);
+        const text = ((data.candidates || [])[0]?.content?.parts || []).map((p) => p.text || '').join('');
+        if (!text.trim()) throw new Error('No result returned from Gemini');
+        const parsed = JSON.parse(text);
+        parsed.date_calendar = 'GC';
+        return parsed;
+    }
+
+
+    // ------------------------------------------------------------------------
+    // App state
+    // ------------------------------------------------------------------------
+    let clients = [];
+    let activeClientId = null;
+    let activeTab = 'receipts';
+    let receiptsFilter = { mode: 'all', month: null, year: currentEcYear() };
+    let exportFilter = { mode: null, month: null, year: null };
+    let addFlow = null; // { step, preview, error, form }
+
+    function activeClient() { return clients.find((c) => c.id === activeClientId) || null; }
+
+    async function loadClients() {
+        const { data, error } = await supabaseClient.from('accountant_clients').select('*').order('created_at');
+        if (error) { console.error(error); clients = []; return; }
+        clients = (data || []).map(mapClientFromDb);
+    }
+    async function loadEntriesForActiveClient() {
+        const client = activeClient();
+        if (!client) return;
+        const { data, error } = await supabaseClient.from('accountant_entries').select('*').eq('client_id', client.id).order('date', { ascending: false });
+        if (error) { console.error(error); client.entries = []; return; }
+        client.entries = (data || []).map(mapEntryFromDb);
+    }
+
+    // ---- Add-client flow: search MELEYA first, fall back to manual add ----
+    let addClientSearchOpen = false;
+    let addClientQuery = '';
+    let addClientResults = [];
+    let addClientBusy = false;
+    function openAddClientSearch() { addClientSearchOpen = true; addClientQuery = ''; addClientResults = []; render(); }
+    function closeAddClientSearch() { addClientSearchOpen = false; render(); }
+    async function addClientManually() {
+        const { data, error } = await supabaseClient.from('accountant_clients').insert({ name: 'New client' }).select().single();
+        if (error) { alert(error.message); return; }
+        clients.push(mapClientFromDb(data));
+        addClientSearchOpen = false;
+        openClient(data.id);
+    }
+    async function runAddClientSearch(q) {
+        addClientQuery = q;
+        if (q.trim().length < 2) { addClientResults = []; render(); return; }
+        addClientBusy = true; render();
+        const { data, error } = await supabaseClient.rpc('search_businesses', { query: q.trim() });
+        addClientBusy = false;
+        addClientResults = error ? [] : (data || []);
+        render();
+    }
+    // Sends a fresh link request for this accountant+business pair. If one
+    // already exists: a declined/revoked link is revived back to pending
+    // (so re-requesting after a decline actually works), while a pending or
+    // approved link is left untouched (nothing to do).
+    async function upsertLinkRequest(businessId) {
+        const { data: existing, error: selErr } = await supabaseClient
+            .from('accountant_links').select('id, status')
+            .eq('accountant_user_id', currentUserId).eq('business_id', businessId).maybeSingle();
+        if (selErr) return { error: selErr };
+        if (!existing) {
+            return await supabaseClient.from('accountant_links').insert({ accountant_user_id: currentUserId, business_id: businessId, requested_by: 'accountant' });
+        }
+        if (existing.status === 'declined' || existing.status === 'revoked') {
+            return await supabaseClient.from('accountant_links').update({ status: 'pending', requested_by: 'accountant', responded_at: null }).eq('id', existing.id);
+        }
+        return { error: null }; // already pending or approved -- nothing to change
+    }
+    async function addClientFromSearch(businessId) {
+        const r = addClientResults.find((x) => x.business_id === businessId);
+        if (!r) return;
+        const existing = clients.find((c) => c.linkedBusinessId === businessId);
+        if (existing) {
+            addClientSearchOpen = false;
+            openClient(existing.id);
+            return;
+        }
+        const { data, error } = await supabaseClient.from('accountant_clients').insert({
+            name: r.business_name, linked_business_id: businessId,
+            tin: r.vat_tin || '', vat_reg_no: r.vat_reg_no || '', trade_type: r.business_type || '',
+        }).select().single();
+        if (error) { alert(error.message); return; }
+        clients.push(mapClientFromDb(data));
+        const { error: linkError } = await upsertLinkRequest(businessId);
+        if (linkError) alert(`Client added, but the link request failed: ${linkError.message}`);
+        await refreshMyLinks();
+        addClientSearchOpen = false;
+        openClient(data.id);
+    }
+    function renderAddClientSearch() {
+        const results = addClientResults.map((r) => `
+            <div class="list-row" style="cursor:default;">
+                <div><div class="name">${esc(r.business_name)}</div><div class="meta">${esc(r.phone) || ''}${r.business_type ? ` · ${esc(r.business_type)}` : ''}${r.owner_full_name ? ` · ${esc(r.owner_full_name)}` : ''}</div></div>
+                <button class="btn btn-primary" style="padding:6px 12px; font-size:12.5px;" onclick="addClientFromSearch('${r.business_id}')">${icon('plus', 14)} Add this client</button>
+            </div>`).join('');
+        return `
+            <div class="header"><div class="wrap">
+                <button class="back-link" onclick="closeAddClientSearch()">${icon('arrow-left', 14)} All clients</button>
+                <h1>Add a client</h1>
+                <div class="sub">Search for them on MELEYA first — this links their inventory automatically once they approve</div>
+            </div></div>
+            <div class="wrap">
+                <input id="add-client-search-input" placeholder="Search by business name, phone, or owner's name…" value="${esc(addClientQuery)}" oninput="runAddClientSearch(this.value)" style="margin-bottom:14px;" autofocus>
+                ${addClientBusy ? `<div style="color:var(--text-soft); font-size:13px; margin-bottom:10px;">Searching…</div>` : ''}
+                ${!addClientBusy && addClientQuery.trim().length >= 2 && addClientResults.length === 0 ? `<div style="color:var(--text-soft); font-size:13px; margin-bottom:10px;">No matching business found on MELEYA.</div>` : ''}
+                ${addClientResults.length ? `<div class="list" style="margin-bottom:20px;">${results}</div>` : ''}
+                <div style="border-top:1px solid var(--paper-line); padding-top:16px;">
+                    <div style="font-size:12.5px; color:var(--text-soft); margin-bottom:10px;">Not on MELEYA? You can still add them and log their receipts by hand.</div>
+                    <button class="btn btn-ghost" onclick="addClientManually()">${icon('user-plus', 15)} Add manually instead</button>
+                </div>
+            </div>`;
+    }
+    async function deleteClient(id) {
+        const client = clients.find((c) => c.id === id);
+        if (!client) return;
+        if (!confirm(`Remove ${client.name}? This deletes all their logged receipts.`)) return;
+        const { error } = await supabaseClient.from('accountant_clients').delete().eq('id', id);
+        if (error) { alert(error.message); return; }
+        clients = clients.filter((c) => c.id !== id);
+        render();
+    }
+    async function patchClient(id, patch) {
+        const client = clients.find((c) => c.id === id);
+        if (!client) return;
+        Object.assign(client, patch);
+        const { error } = await supabaseClient.from('accountant_clients').update(clientPatchToDb(patch)).eq('id', id);
+        if (error) alert(error.message);
+    }
+
+    async function openClient(id) {
+        activeClientId = id;
+        activeTab = 'receipts';
+        receiptsFilter = { mode: 'all', month: null, year: currentEcYear() };
+        addFlow = null;
+        render();
+        await loadEntriesForActiveClient();
+        render();
+    }
+    function backToDashboard() { activeClientId = null; render(); }
+    function setTab(key) { activeTab = key; addFlow = null; render(); }
+
+    async function addEntry(entry) {
+        const client = activeClient();
+        const { data, error } = await supabaseClient.from('accountant_entries').insert(entryToDb(entry, client.id)).select().single();
+        if (error) { alert(error.message); return; }
+        client.entries.unshift(mapEntryFromDb(data));
+        client.entryCount = (client.entryCount || 0) + 1;
+        processNextQueuedFile(); // moves to the next photo in the batch, or closes the flow if none left
+    }
+    async function removeEntry(id) {
+        const client = activeClient();
+        const { error } = await supabaseClient.from('accountant_entries').delete().eq('id', id);
+        if (error) { alert(error.message); return; }
+        client.entries = client.entries.filter((e) => e.id !== id);
+        client.entryCount = Math.max(0, (client.entryCount || 1) - 1);
+        render();
+    }
+
+    // ------------------------------------------------------------------------
+    // Render dispatch
+    // ------------------------------------------------------------------------
+    function render() {
+        // Re-rendering rebuilds the whole page's HTML, which would normally
+        // steal focus out of whatever input the person is typing in (e.g. a
+        // search box that re-renders on every keystroke). Remember which
+        // field was focused, and where the cursor was, then restore both
+        // afterward.
+        const active = document.activeElement;
+        const activeId = active && active.id ? active.id : null;
+        const selStart = active && typeof active.selectionStart === 'number' ? active.selectionStart : null;
+        const selEnd = active && typeof active.selectionEnd === 'number' ? active.selectionEnd : null;
+
+        const root = document.getElementById('view-root');
+        let html = addClientSearchOpen ? renderAddClientSearch() : (linksInboxOpen ? renderLinksInbox() : (activeClientId ? renderClientDetail() : renderDashboard()));
+        if (profileModalOpen) html += renderProfileModal();
+        if (linkSearchOpen) html += renderLinkSearchModal();
+        root.innerHTML = html;
+        refreshIcons();
+
+        if (activeId) {
+            const el = document.getElementById(activeId);
+            if (el) {
+                el.focus();
+                if (selStart !== null && el.setSelectionRange) {
+                    try { el.setSelectionRange(selStart, selEnd); } catch (e) { /* not a text-selectable input, ignore */ }
+                }
+            }
+        }
+    }
+
+    function renderDashboard() {
+        const rows = clients.map((c) => `
+            <div class="list-row" onclick="openClient('${c.id}')">
+                <div>
+                    <div class="name">${esc(c.name)}</div>
+                    <div class="meta">${esc(c.tradeType) || 'No trade type set'} · ${c.entryCount || 0} receipt${c.entryCount === 1 ? '' : 's'} logged</div>
+                </div>
+                <div style="display:flex; align-items:center; gap:14px;">
+                    <button class="btn-icon" title="Remove client" onclick="event.stopPropagation(); deleteClient('${c.id}')">${icon('trash-2', 15)}</button>
+                    ${icon('chevron-right', 18)}
+                </div>
+            </div>`).join('');
+        const pending = pendingIncomingCount();
+        return `
+            <div class="header"><div class="wrap">
+                <div class="brand">MELEYA</div>
+                <h1>Accountant workspace</h1>
+                <div style="display:flex; gap:16px; align-items:center; justify-content:flex-end; margin-top:-30px;">
+                    <button class="signout-link" onclick="openProfileModal()">${icon('user', 13)} My profile</button>
+                    <button class="signout-link" style="position:relative;" onclick="openLinksInbox()">${icon('link-2', 13)} Requests${pending ? ` <span style="background:var(--amber); color:#fff; border-radius:10px; padding:0 6px; font-size:10px; margin-left:2px;">${pending}</span>` : ''}</button>
+                    <button class="signout-link" onclick="handleSignOut()">Sign out</button>
+                </div>
+            </div></div>
+            <div class="wrap">
+                ${!accountantProfile ? `<div class="notice notice-warn">${icon('alert-triangle', 14)} Set up your accountant profile so clients can find you on MELEYA. <a href="#" onclick="event.preventDefault(); openProfileModal();" style="color:inherit; text-decoration:underline; margin-left:4px;">Set it up</a></div>` : ''}
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:18px;">
+                    <div style="font-size:15px; color:var(--text-soft);">${clients.length} client${clients.length === 1 ? '' : 's'}</div>
+                    <button class="btn btn-primary" onclick="openAddClientSearch()">${icon('plus', 16)} Add client</button>
+                </div>
+                ${clients.length === 0
+                    ? `<div class="empty">${icon('users', 28)}<div>No clients yet. Add your first client to start logging receipts.</div></div>`
+                    : `<div class="list">${rows}</div>`}
+            </div>`;
+    }
+
+    function renderClientDetail() {
+        const client = activeClient();
+        if (!client) return renderDashboard();
+        const tabs = [['receipts', 'Receipts', 'receipt'], ['rules', 'GL rules', 'settings'], ['export', 'Export', 'download'], ['inventory', 'Inventory', 'package']];
+        return `
+            <div class="header"><div class="wrap">
+                <button class="back-link" onclick="backToDashboard()">${icon('arrow-left', 14)} All clients</button>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <h1 style="margin:0;">${esc(client.name)}</h1>
+                    <button class="btn-icon" style="color:var(--paper); opacity:0.85;" title="Edit client details" onclick="openClientEdit()">${icon('pencil', 16)}</button>
+                </div>
+                <div class="sub">${esc(client.tradeType) || 'Trade type not set'} · TIN ${esc(client.tin) || '—'}</div>
+            </div></div>
+            <div class="tabs"><div class="wrap">
+                ${tabs.map(([key, label, ic]) => `<button class="tab-btn ${activeTab === key ? 'active' : ''}" onclick="setTab('${key}')">${icon(ic, 15)} ${label}</button>`).join('')}
+            </div></div>
+            <div class="wrap">
+                ${activeTab === 'receipts' ? renderReceiptsTab(client) : ''}
+                ${activeTab === 'rules' ? renderRulesTab(client) : ''}
+                ${activeTab === 'export' ? renderExportTab(client) : ''}
+                ${activeTab === 'inventory' ? renderInventoryTab(client) : ''}
+            </div>
+            ${clientEditOpen ? renderClientEditModal() : ''}`;
+    }
+
+    // ------------------------------------------------------------------------
+    // Client details edit modal (name / TIN / VAT reg / trade type / cash acct)
+    // ------------------------------------------------------------------------
+    let clientEditOpen = false;
+    let clientEditDraft = null;
+    function openClientEdit() {
+        const client = activeClient();
+        if (!client) return;
+        clientEditDraft = { id: client.id, name: client.name, tin: client.tin, vatRegNo: client.vatRegNo, tradeType: client.tradeType, cashAccount: client.cashAccount };
+        clientEditOpen = true;
+        render();
+    }
+    function closeClientEdit() { clientEditOpen = false; clientEditDraft = null; render(); }
+    async function saveClientEdit() {
+        const d = clientEditDraft;
+        await patchClient(d.id, { name: d.name, tin: d.tin, vatRegNo: d.vatRegNo, tradeType: d.tradeType, cashAccount: d.cashAccount });
+        clientEditOpen = false;
+        clientEditDraft = null;
+        render();
+    }
+    function renderClientEditModal() {
+        const d = clientEditDraft;
+        return `
+            <div style="position:fixed; inset:0; z-index:400; background:rgba(27,58,47,0.45); display:flex; align-items:center; justify-content:center; padding:20px;" onclick="if(event.target===this) closeClientEdit();">
+                <div class="card" style="max-width:480px; width:100%; margin:0; max-height:90vh; overflow-y:auto;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+                        <div class="section-title" style="margin:0;">Client details</div>
+                        <button class="btn-icon" onclick="closeClientEdit()">${icon('x', 18)}</button>
+                    </div>
+                    <div class="grid-2">
+                        <div><label>Client / business name</label><input value="${esc(d.name)}" oninput="clientEditDraft.name=this.value"></div>
+                        <div><label>TIN</label><input class="mono" value="${esc(d.tin)}" oninput="clientEditDraft.tin=this.value"></div>
+                        <div><label>VAT registration no</label><input class="mono" value="${esc(d.vatRegNo)}" oninput="clientEditDraft.vatRegNo=this.value"></div>
+                        <div><label>Trade type</label><input value="${esc(d.tradeType)}" oninput="clientEditDraft.tradeType=this.value"></div>
+                        <div><label>Cash account (G/L)</label><input class="mono" value="${esc(d.cashAccount)}" oninput="clientEditDraft.cashAccount=this.value"></div>
+                    </div>
+                    <div style="display:flex; gap:10px; margin-top:18px;">
+                        <button class="btn btn-primary" onclick="saveClientEdit()">${icon('check', 15)} Save</button>
+                        <button class="btn btn-ghost" onclick="closeClientEdit()">Cancel</button>
+                    </div>
+                </div>
+            </div>`;
+    }
+
+    // ------------------------------------------------------------------------
+    // EC period filter (shared by Receipts + Export tabs): All / By Month / By Year
+    // ------------------------------------------------------------------------
+    function filterRange(state, entries) {
+        if (state.mode === 'all') {
+            const periods = ecPeriodsFor(entries);
+            if (!periods.length) { const y = currentEcYear(); return [`${y}-01`, `${y}-13`]; }
+            return [periods[0], periods[periods.length - 1]];
+        }
+        // Ethiopian fiscal year is named after its END year: fiscal year 2018
+        // runs Hamle 2017 (month 11) through Sene 2018 (month 10).
+        if (state.mode === 'year') return [`${state.year - 1}-11`, `${state.year}-10`];
+        return [`${state.year}-${String(state.month).padStart(2, '0')}`, `${state.year}-${String(state.month).padStart(2, '0')}`];
+    }
+    function renderEcFilter(prefix, entries, state) {
+        const years = ecYearsFor(entries || []);
+        // Only 12 selectable months — Pagume is merged into Nehase, so it's
+        // never its own filter option.
+        const monthOptions = Array.from({ length: 12 }, (_, i) => i + 1)
+            .map((m) => `<option value="${m}" ${state.month === m ? 'selected' : ''}>${periodMonthLabel(m)}</option>`).join('');
+        const yearOptions = years.map((y) => `<option value="${y}" ${state.year === y ? 'selected' : ''}>${y}</option>`).join('');
+        return `
+            <div class="filter-bar">
+                <select onchange="${prefix}SetMode(this.value)">
+                    <option value="all" ${state.mode === 'all' ? 'selected' : ''}>All periods</option>
+                    <option value="month" ${state.mode === 'month' ? 'selected' : ''}>By Month</option>
+                    <option value="year" ${state.mode === 'year' ? 'selected' : ''}>By Year</option>
+                </select>
+                ${state.mode === 'month' ? `<select onchange="${prefix}SetMonth(this.value)"><option value="" disabled ${!state.month ? 'selected' : ''}>Month</option>${monthOptions}</select>` : ''}
+                ${state.mode !== 'all' ? `<select onchange="${prefix}SetYear(this.value)">${yearOptions}</select>` : ''}
+            </div>`;
+    }
+    function rfSetMode(v) { receiptsFilter.mode = v; if (v === 'month' && !receiptsFilter.month) receiptsFilter.month = 1; render(); }
+    function rfSetMonth(v) { receiptsFilter.month = Number(v); receiptsFilter.mode = 'month'; render(); }
+    function rfSetYear(v) { receiptsFilter.year = Number(v); render(); }
+    function efSetMode(v) { exportFilter.mode = v; if (v === 'month' && !exportFilter.month) exportFilter.month = 1; render(); }
+    function efSetMonth(v) { exportFilter.month = Number(v); exportFilter.mode = 'month'; render(); }
+    function efSetYear(v) { exportFilter.year = Number(v); render(); }
+
+    // ------------------------------------------------------------------------
+    // Receipts tab
+    // ------------------------------------------------------------------------
+    function renderReceiptsTab(client) {
+        const [fromKey, toKey] = filterRange(receiptsFilter, client.entries);
+        const filtered = receiptsFilter.mode === 'all' ? client.entries : client.entries.filter((e) => { const k = entryEcKey(e); return k >= fromKey && k <= toKey; });
+        const sorted = [...filtered].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+        const rows = sorted.map((e) => `
+            <tr class="entry-row" onclick="openEntryDetail('${e.id}')" style="cursor:pointer;">
+                <td class="mono" style="font-size:12px;">${esc(e.date) || '—'}</td>
+                <td>${esc(e.sellerName) || 'Unknown seller'}${e.missing && e.missing.length ? ` <span title="Needs review: ${esc(e.missing.join(', '))}" style="color:var(--amber);">${icon('alert-triangle', 12)}</span>` : ''}</td>
+                <td style="font-size:12px; color:var(--text-soft);">${e.type === 'payment' ? 'Purchase' : 'Sale'}</td>
+                <td class="mono num">${money(e.beforeVat)}</td>
+                <td class="mono num">${money(e.vat)}</td>
+                <td class="mono num" style="font-weight:600;">${money(e.total)}</td>
+                <td style="text-align:right;"><button class="btn-icon" onclick="event.stopPropagation(); removeEntry('${e.id}')">${icon('trash-2', 14)}</button></td>
+            </tr>`).join('');
+
+        return `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; gap:12px; flex-wrap:wrap;">
+                <div style="font-size:14px; color:var(--text-soft);">${client.entries.length} receipt${client.entries.length === 1 ? '' : 's'} logged</div>
+                ${addFlow ? '' : `<button class="btn btn-primary" onclick="startAddReceipt()">${icon('plus', 16)} Add receipt</button>`}
+            </div>
+            <div style="margin-bottom:16px;">${renderEcFilter('rf', client.entries, receiptsFilter)}</div>
+            ${addFlow ? renderAddReceiptFlow() : ''}
+            ${sorted.length === 0
+                ? `<div class="empty">${icon('receipt', 28)}<div>No receipts in this view yet.</div></div>`
+                : `<div class="list" style="overflow-x:auto;"><table class="entries">
+                    <thead><tr><th>Date</th><th>Seller</th><th>Type</th><th class="num">Before VAT</th><th class="num">VAT</th><th class="num">Total</th><th></th></tr></thead>
+                    <tbody>${rows}</tbody></table></div>`}
+            ${entryModalId ? renderEntryDetailModal() : ''}`;
+    }
+
+    // ------------------------------------------------------------------------
+    // Receipt detail / edit modal
+    // ------------------------------------------------------------------------
+    let entryModalId = null;
+    let entryModalDraft = null;
+    function openEntryDetail(id) {
+        const client = activeClient();
+        const e = client && client.entries.find((x) => x.id === id);
+        if (!e) return;
+        entryModalId = id;
+        entryModalDraft = JSON.parse(JSON.stringify(e));
+        render();
+    }
+    function closeEntryDetail() { entryModalId = null; entryModalDraft = null; render(); }
+    function onEntryDateInput(v) {
+        entryModalDraft.date = v;
+        const ec = gcToEc(v);
+        const el = document.getElementById('edit-ec-label');
+        if (el) el.textContent = ec ? `${EC_MONTHS[ec.month - 1]} ${ec.day}, ${ec.year} (EC)` : '';
+    }
+    async function saveEntryEdit() {
+        const client = activeClient();
+        const d = entryModalDraft;
+        const patch = {
+            type: d.type, date: d.date, sellerName: d.sellerName, sellerTin: d.sellerTin, vatRegNo: d.vatRegNo,
+            mrc: d.mrc, receiptNo: d.receiptNo, isVat: !!d.isVat,
+            beforeVat: Number(d.beforeVat) || 0, vat: Number(d.vat) || 0, total: Number(d.total) || 0,
+            description: d.description, measurement: d.measurement,
+            quantity: d.quantity === '' ? null : Number(d.quantity), unitPrice: d.unitPrice === '' ? null : Number(d.unitPrice),
+        };
+        const { error } = await supabaseClient.from('accountant_entries').update(entryToDb(patch, client.id)).eq('id', entryModalId);
+        if (error) { alert(error.message); return; }
+        const idx = client.entries.findIndex((x) => x.id === entryModalId);
+        if (idx >= 0) client.entries[idx] = { ...client.entries[idx], ...patch };
+        closeEntryDetail();
+    }
+    async function deleteEntryFromModal() {
+        const id = entryModalId;
+        closeEntryDetail();
+        await removeEntry(id);
+    }
+    function renderEntryDetailModal() {
+        const d = entryModalDraft;
+        const ec = gcToEc(d.date);
+        const ecLabel = ec ? `${EC_MONTHS[ec.month - 1]} ${ec.day}, ${ec.year} (EC)` : '';
+        const field = (key, label, mono) => `
+            <div><label>${label}</label>
+            <input value="${esc(d[key])}" style="${mono ? "font-family:'IBM Plex Mono',monospace;" : ''}" oninput="entryModalDraft.${key}=this.value"></div>`;
+        return `
+            <div style="position:fixed; inset:0; z-index:400; background:rgba(27,58,47,0.45); display:flex; align-items:center; justify-content:center; padding:20px;" onclick="if(event.target===this) closeEntryDetail();">
+                <div class="card" style="max-width:600px; width:100%; margin:0; max-height:90vh; overflow-y:auto;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+                        <div class="section-title" style="margin:0;">Receipt details</div>
+                        <button class="btn-icon" onclick="closeEntryDetail()">${icon('x', 18)}</button>
+                    </div>
+                    <div style="display:flex; gap:16px; margin-bottom:14px; flex-wrap:wrap;">
+                        <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="edit-entry-type" style="width:auto;" ${d.type === 'payment' ? 'checked' : ''} onchange="entryModalDraft.type='payment'"> Purchase (payment out)</label>
+                        <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="edit-entry-type" style="width:auto;" ${d.type === 'receipt' ? 'checked' : ''} onchange="entryModalDraft.type='receipt'"> Sale (receipt in)</label>
+                        <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; margin-left:auto;"><input type="checkbox" style="width:auto;" ${d.isVat ? 'checked' : ''} onchange="entryModalDraft.isVat=this.checked"> VAT receipt</label>
+                    </div>
+                    <div class="grid-2" style="margin-bottom:12px;">
+                        <div><label>Date (GC)</label><input type="date" value="${esc(d.date)}" oninput="onEntryDateInput(this.value)"></div>
+                        <div><label>&nbsp;</label><div id="edit-ec-label" class="mono" style="font-size:12px; color:var(--text-soft); padding-top:8px;">${esc(ecLabel)}</div></div>
+                    </div>
+                    <div class="grid-3" style="margin-bottom:12px;">
+                        ${field('sellerName', 'Seller name')}
+                        ${field('sellerTin', 'Seller TIN', true)}
+                        ${field('vatRegNo', 'VAT reg no', true)}
+                        ${field('mrc', 'MRC code', true)}
+                        ${field('receiptNo', 'Receipt / FS number')}
+                        <div></div>
+                    </div>
+                    <div class="grid-3" style="margin-bottom:12px;">
+                        ${field('beforeVat', 'Before VAT', true)}
+                        ${field('vat', 'VAT', true)}
+                        ${field('total', 'Total', true)}
+                    </div>
+                    <div class="grid-4" style="margin-bottom:16px;">
+                        ${field('description', 'Description')}
+                        ${field('measurement', 'Measurement')}
+                        ${field('quantity', 'Quantity', true)}
+                        ${field('unitPrice', 'Unit price', true)}
+                    </div>
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn btn-primary" onclick="saveEntryEdit()">${icon('check', 15)} Save changes</button>
+                        <button class="btn btn-ghost" onclick="deleteEntryFromModal()">${icon('trash-2', 15)} Delete receipt</button>
+                        <button class="btn btn-ghost" onclick="closeEntryDetail()">Cancel</button>
+                    </div>
+                </div>
+            </div>`;
+    }
+
+    // ------------------------------------------------------------------------
+    // Add receipt flow (upload -> extracting -> review/save)
+    // ------------------------------------------------------------------------
+    function startAddReceipt() {
+        addFlow = { step: 'upload', preview: null, error: null, form: null, statusText: '', queue: [], queueTotal: 0, queueIndex: 0 };
+        render();
+    }
+    function cancelAddReceipt() { addFlow = null; render(); }
+
+    // Accepts one or many files (multi-select, or repeated camera captures).
+    // The first is processed immediately; the rest wait in addFlow.queue and
+    // are reviewed one at a time after each save/skip.
+    async function handleReceiptFile(input) {
+        const files = Array.from(input.files || []);
+        input.value = ''; // lets the same file(s) be picked again later
+        if (!files.length) return;
+        addFlow.queue = files.slice(1);
+        addFlow.queueTotal = files.length;
+        addFlow.queueIndex = 1;
+        await processReceiptFile(files[0]);
+    }
+    function processNextQueuedFile() {
+        if (addFlow && addFlow.queue && addFlow.queue.length) {
+            addFlow.queueIndex += 1;
+            const next = addFlow.queue.shift();
+            processReceiptFile(next);
+        } else {
+            addFlow = null;
+            render();
+        }
+    }
+    function skipQueuedFile() { processNextQueuedFile(); }
+
+    async function processReceiptFile(file) {
+        addFlow.error = null;
+        addFlow.preview = URL.createObjectURL(file);
+        addFlow.step = 'extracting';
+        addFlow.statusText = 'Preparing photo…';
+        render();
+        try {
+            const ex = await runGeminiExtraction(file, (status) => {
+                addFlow.statusText = status;
+                const el = document.getElementById('ocr-progress-text');
+                if (el) el.textContent = status;
+            });
+            const calendar = ex.date_calendar === 'EC' ? 'EC' : 'GC';
+            let gcDate = '';
+            if (ex.date_year && ex.date_month && ex.date_day) {
+                gcDate = calendar === 'EC' ? ecToGc(ex.date_year, ex.date_month, ex.date_day) : `${ex.date_year}-${String(ex.date_month).padStart(2, '0')}-${String(ex.date_day).padStart(2, '0')}`;
+            }
+            addFlow.form = {
+                type: 'payment', calendar, ecYear: ex.date_year || '', ecMonth: ex.date_month || '', ecDay: ex.date_day || '', date: gcDate,
+                sellerName: ex.seller_name || '', sellerTin: ex.seller_tin || '', vatRegNo: ex.vat_reg_no || '', mrc: ex.mrc || '',
+                receiptNo: ex.receipt_no || '', isVat: !!ex.is_vat, beforeVat: ex.before_vat ?? '', vat: ex.vat ?? '', total: ex.total ?? '',
+                description: ex.description || '', measurement: ex.measurement || '', quantity: ex.quantity ?? '', unitPrice: ex.unit_price ?? '',
+                missing: ex.missing_fields || [],
+            };
+            addFlow.step = 'review';
+        } catch (e) {
+            console.error(e);
+            addFlow.error = 'Could not read this receipt automatically. Fill the fields in by hand below.';
+            addFlow.form = { type: 'payment', calendar: 'GC', ecYear: '', ecMonth: '', ecDay: '', date: '', sellerName: '', sellerTin: '', vatRegNo: '', mrc: '', receiptNo: '', isVat: true, beforeVat: '', vat: '', total: '', description: '', measurement: '', quantity: '', unitPrice: '', missing: [] };
+            addFlow.step = 'review';
+        }
+        render();
+    }
+
+    function renderAddReceiptFlow() {
+        if (addFlow.step === 'upload') {
+            return `
+                <div class="card" style="text-align:center;">
+                    ${icon('upload', 26)}
+                    <div style="margin:10px 0 14px; color:var(--text-soft); font-size:13.5px;">Upload photos of the receipt or invoice, or take one with your camera</div>
+                    <input type="file" accept="image/*" multiple style="display:none;" id="receipt-file-input" onchange="handleReceiptFile(this)">
+                    <input type="file" accept="image/*" capture="environment" style="display:none;" id="receipt-camera-input" onchange="handleReceiptFile(this)">
+                    <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+                        <button class="btn btn-primary" onclick="document.getElementById('receipt-file-input').click()">${icon('upload', 15)} Choose photos</button>
+                        <button class="btn btn-ghost" onclick="document.getElementById('receipt-camera-input').click()">${icon('camera', 15)} Take photo</button>
+                        <button class="btn btn-ghost" onclick="cancelAddReceipt()">Cancel</button>
+                    </div>
+                    <div style="margin-top:10px; font-size:11.5px; color:var(--text-soft);">You can select several receipt photos at once — they're reviewed and saved one at a time.</div>
+                </div>`;
+        }
+        const progress = addFlow.queueTotal > 1 ? `<div style="font-size:11.5px; color:var(--text-soft); margin-bottom:8px;">Photo ${addFlow.queueIndex} of ${addFlow.queueTotal}</div>` : '';
+        if (addFlow.step === 'extracting') {
+            return `
+                <div class="card">
+                    ${progress}
+                    <div style="display:flex; gap:16px; align-items:center;">
+                        ${addFlow.preview ? `<img src="${addFlow.preview}" style="width:90px; height:90px; object-fit:cover; border-radius:4px; border:1px solid var(--paper-line);">` : ''}
+                        <div style="display:flex; align-items:center; gap:8px; color:var(--text-soft); font-size:13.5px;"><span class="spin" style="display:inline-flex;">${icon('loader-2', 16)}</span> <span id="ocr-progress-text">${esc(addFlow.statusText || 'Reading the receipt…')}</span></div>
+                    </div>
+                </div>`;
+        }
+        const f = addFlow.form;
+        const missingSet = new Set(f.missing || []);
+        const field = (key, label, flagName, mono) => `
+            <div><label>${label}</label>
+            <input type="text" id="f-${key}" value="${esc(f[key])}" class="${missingSet.has(flagName || label) ? 'flagged' : ''}" style="${mono ? "font-family:'IBM Plex Mono',monospace;" : ''}" oninput="addFlow.form.${key}=this.value"></div>`;
+        const dateStatus = f.date ? `→ ${f.date} (GC)` : 'date incomplete';
+        return `
+            <div class="card">
+                ${progress}
+                <div style="display:flex; gap:18px;">
+                    ${addFlow.preview ? `<img src="${addFlow.preview}" style="width:130px; border-radius:4px; border:1px solid var(--paper-line); align-self:flex-start;">` : ''}
+                    <div style="flex:1;">
+                        ${addFlow.error ? `<div class="notice notice-warn">${icon('alert-triangle', 14)} ${esc(addFlow.error)}</div>` : ''}
+                        <div style="display:flex; gap:16px; margin-bottom:14px; flex-wrap:wrap;">
+                            <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="entry-type" style="width:auto;" ${f.type === 'payment' ? 'checked' : ''} onchange="addFlow.form.type='payment'"> Purchase (payment out)</label>
+                            <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="entry-type" style="width:auto;" ${f.type === 'receipt' ? 'checked' : ''} onchange="addFlow.form.type='receipt'"> Sale (receipt in)</label>
+                            <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; margin-left:auto;"><input type="checkbox" style="width:auto;" ${f.isVat ? 'checked' : ''} onchange="addFlow.form.isVat=this.checked"> VAT receipt</label>
+                        </div>
+                        <div class="grid-3" style="margin-bottom:12px;">
+                            ${field('sellerName', 'Seller name')}
+                            ${field('sellerTin', 'Seller TIN', 'Seller TIN')}
+                            ${field('vatRegNo', 'VAT reg no', 'VAT reg no')}
+                            ${field('mrc', 'MRC code', 'MRC')}
+                            ${field('receiptNo', 'Receipt / FS number')}
+                            <div></div>
+                        </div>
+                        <div style="border:1px solid var(--paper-line); border-radius:5px; padding:12px; margin-bottom:12px; background:var(--paper);">
+                            <div style="display:flex; gap:16px; margin-bottom:10px;">
+                                <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; cursor:pointer;"><input type="radio" name="cal" style="width:auto;" ${f.calendar === 'EC' ? 'checked' : ''} onchange="setDateCalendar('EC')"> Ethiopian calendar date</label>
+                                <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; cursor:pointer;"><input type="radio" name="cal" style="width:auto;" ${f.calendar === 'GC' ? 'checked' : ''} onchange="setDateCalendar('GC')"> Gregorian calendar date</label>
+                            </div>
+                            <div style="display:grid; grid-template-columns:repeat(3,90px) 1fr; gap:10px; align-items:end;">
+                                <div><label>Year</label><input id="f-ecYear" class="mono" value="${esc(f.ecYear)}" oninput="setDatePart('ecYear',this.value)"></div>
+                                <div><label>Month</label><input id="f-ecMonth" class="mono" value="${esc(f.ecMonth)}" oninput="setDatePart('ecMonth',this.value)"></div>
+                                <div><label>Day</label><input id="f-ecDay" class="mono" value="${esc(f.ecDay)}" oninput="setDatePart('ecDay',this.value)"></div>
+                                <div style="font-size:12px; color:var(--text-soft);">
+                                    ${f.calendar === 'EC' && f.ecMonth ? `${EC_MONTHS[Number(f.ecMonth) - 1] || '?'} ${f.ecYear}` : ''}
+                                    <div id="date-preview" class="mono" style="font-weight:600; color:${f.date ? 'var(--text)' : 'var(--amber)'};">${dateStatus}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="grid-3" style="margin-bottom:12px;">
+                            ${field('beforeVat', 'Before VAT', null, true)}
+                            ${field('vat', 'VAT', null, true)}
+                            ${field('total', 'Total', null, true)}
+                        </div>
+                        <div class="grid-4" style="margin-bottom:16px;">
+                            ${field('description', 'Description')}
+                            ${field('measurement', 'Measurement', 'Measurement')}
+                            ${field('quantity', 'Quantity', 'Quantity', true)}
+                            ${field('unitPrice', 'Unit price', 'Unit price', true)}
+                        </div>
+                        <div style="display:flex; gap:10px;">
+                            <button class="btn btn-primary" id="save-receipt-btn" ${f.date ? '' : 'disabled'} onclick="saveReceiptForm()">${icon('check', 15)} Save receipt</button>
+                            ${addFlow.queue.length ? `<button class="btn btn-ghost" onclick="skipQueuedFile()">${icon('skip-forward', 15)} Skip this one</button>` : ''}
+                            <button class="btn btn-ghost" onclick="cancelAddReceipt()">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+    }
+    function setDateCalendar(cal) { addFlow.form.calendar = cal; recomputeDatePreview(); }
+    function setDatePart(part, v) { addFlow.form[part] = v; recomputeDatePreview(); }
+    function recomputeDatePreview() {
+        const f = addFlow.form;
+        const y = Number(f.ecYear), m = Number(f.ecMonth), d = Number(f.ecDay);
+        f.date = (!y || !m || !d) ? '' : (f.calendar === 'EC' ? ecToGc(y, m, d) : `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
+        const preview = document.getElementById('date-preview');
+        const btn = document.getElementById('save-receipt-btn');
+        if (preview) { preview.textContent = f.date ? `→ ${f.date} (GC)` : 'date incomplete'; preview.style.color = f.date ? 'var(--text)' : 'var(--amber)'; }
+        if (btn) btn.disabled = !f.date;
+    }
+    function saveReceiptForm() {
+        const f = addFlow.form;
+        addEntry({
+            ...f,
+            beforeVat: Number(f.beforeVat) || 0, vat: Number(f.vat) || 0, total: Number(f.total) || 0,
+            quantity: f.quantity === '' ? null : Number(f.quantity), unitPrice: f.unitPrice === '' ? null : Number(f.unitPrice),
+        });
+    }
+
+    // ------------------------------------------------------------------------
+    // GL rules tab
+    // ------------------------------------------------------------------------
+    let rulesDraft = null;
+    function renderRulesTab(client) {
+        if (!rulesDraft || rulesDraft.id !== client.id) {
+            rulesDraft = JSON.parse(JSON.stringify({ id: client.id, paymentsRule: client.paymentsRule, receiptsRule: client.receiptsRule }));
+        }
+        const d = rulesDraft;
+        const ruleRow = (group, key, label) => `
+            <div class="rule-row">
+                <div class="label">${label} →</div>
+                <input value="${esc(d[group][key].desc)}" oninput="rulesDraft.${group}.${key}.desc=this.value" placeholder="Description">
+                <input class="mono" value="${esc(d[group][key].acct)}" oninput="rulesDraft.${group}.${key}.acct=this.value" placeholder="G/L account">
+            </div>`;
+        return `
+            <div class="wrap-narrow" style="margin:0;">
+                <div class="section">
+                    <div class="section-title">Set the account split</div>
+                    <div style="display:flex; gap:10px; margin-bottom:16px;">
+                        <input type="file" accept=".xlsx,.xls,.csv" style="display:none;" id="rules-file-input" onchange="handleRulesUpload(this)">
+                        <button class="btn btn-ghost" onclick="document.getElementById('rules-file-input').click()">${icon('file-up', 14)} Upload rules file / chart of accounts</button>
+                        <button class="btn btn-ghost" onclick="downloadRulesTemplate()">${icon('download', 14)} Download template</button>
+                    </div>
+                    <div style="font-size:11.5px; color:var(--text-soft); margin:-6px 0 10px;">You can upload the client's own GL rules template, or export Peachtree's Account List and upload that directly — the app will match accounts by name.</div>
+                    <div id="rules-upload-msg"></div>
+                </div>
+                <div class="section">
+                    <div class="section-title">Payments split (purchases)</div>
+                    ${RULE_SLOTS.payments.map(([key, label]) => ruleRow('paymentsRule', key, label)).join('')}
+                </div>
+                <div class="section">
+                    <div class="section-title">Receipts split (sales)</div>
+                    ${RULE_SLOTS.receipts.map(([key, label]) => ruleRow('receiptsRule', key, label)).join('')}
+                </div>
+                <button class="btn btn-primary" onclick="saveRules()">${icon('check', 15)} Save rules</button>
+            </div>`;
+    }
+    async function saveRules() {
+        await patchClient(rulesDraft.id, { paymentsRule: rulesDraft.paymentsRule, receiptsRule: rulesDraft.receiptsRule });
+        render();
+    }
+    function downloadRulesTemplate() {
+        const wb = buildRulesTemplate(rulesDraft);
+        const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const client = activeClient();
+        downloadBlob(new Blob([out], { type: 'application/octet-stream' }), `${(client ? client.name : 'client').replace(/\s+/g, '_')}_gl_rules_template.xlsx`, 'application/octet-stream');
+    }
+    async function handleRulesUpload(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const msgBox = document.getElementById('rules-upload-msg');
+        msgBox.innerHTML = '';
+        try {
+            const buf = await file.arrayBuffer();
+            const wb = XLSX.read(buf, { type: 'array' });
+            const { matched, unmatched } = parseRulesFile(wb);
+            if (!matched.length) {
+                msgBox.innerHTML = `<div class="notice notice-warn">${icon('alert-triangle', 14)} Couldn't match any rows to a known line (Non-VAT purchases, VAT purchases, VAT recoverable, Sales, etc). Try the template instead.</div>`;
+                refreshIcons();
+                return;
+            }
+            matched.forEach((m) => { rulesDraft[`${m.group}Rule`][m.key] = { desc: m.desc, acct: m.acct }; });
+            msgBox.innerHTML = `<div class="notice notice-ok">${icon('check', 14)} Filled ${matched.length} GL rule line${matched.length === 1 ? '' : 's'} from that file${unmatched.length ? ` (${unmatched.length} other account${unmatched.length === 1 ? '' : 's'} in the file weren't relevant, so they were skipped — that's normal for a full chart of accounts).` : '.'} Review below, then Save.</div>`;
+            render();
+        } catch (e) {
+            console.error(e);
+            msgBox.innerHTML = `<div class="notice notice-warn">${icon('alert-triangle', 14)} Could not read that file. Make sure it's the .xlsx/.csv template format.</div>`;
+            refreshIcons();
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // Export tab
+    // ------------------------------------------------------------------------
+    function renderExportTab(client) {
+        if (exportFilter.mode == null) {
+            const periods = ecPeriodsFor(client.entries);
+            const def = periods.length ? periods[periods.length - 1].split('-') : [String(currentEcYear()), '01'];
+            exportFilter = { mode: 'month', year: Number(def[0]), month: Number(def[1]) };
+        }
+        const [fromKey, toKey] = filterRange(exportFilter, client.entries);
+        const periodLabel = fromKey === toKey ? ecPeriodLabel(fromKey) : `${ecPeriodLabel(fromKey)} – ${ecPeriodLabel(toKey)}`;
+        const rangeEntries = client.entries.filter((e) => { const k = entryEcKey(e); return k >= fromKey && k <= toKey; });
+        const flaggedCount = rangeEntries.filter((e) => e.missing && e.missing.length > 0).length;
+        return `
+            <div class="wrap-narrow" style="margin:0;">
+                <div style="font-size:12.5px; color:var(--text-soft); margin-bottom:14px;">
+                    Master log: ${client.entries.length} receipt${client.entries.length === 1 ? '' : 's'} total. Exports below pull from this whole log, filtered to the period you pick.
+                </div>
+                <div style="margin-bottom:16px;">${renderEcFilter('ef', client.entries, exportFilter)}</div>
+                <div style="font-size:12.5px; color:var(--text-soft); margin-bottom:14px;">
+                    ${rangeEntries.length} receipt${rangeEntries.length === 1 ? '' : 's'} in ${periodLabel}
+                    ${flaggedCount > 0 ? `<span style="color:var(--amber); margin-left:8px;">· ${flaggedCount} need${flaggedCount === 1 ? 's' : ''} review before filing</span>` : ''}
+                </div>
+                <div class="export-row">
+                    <div class="icon-box">${icon('wallet', 16)}</div>
+                    <div class="info"><div class="title">Payments Journal CSV</div><div class="desc">Purchase totals for this period, split by your GL rule.</div></div>
+                    <button class="btn btn-ghost" onclick="downloadPayments()">${icon('download', 14)} Download</button>
+                </div>
+                <div class="export-row">
+                    <div class="icon-box">${icon('receipt', 16)}</div>
+                    <div class="info"><div class="title">Cash Receipts Journal CSV</div><div class="desc">Sale totals for this period, same import flow, Accounts Receivable side.</div></div>
+                    <button class="btn btn-ghost" onclick="downloadReceipts()">${icon('download', 14)} Download</button>
+                </div>
+                <div class="export-row">
+                    <div class="icon-box">${icon('file-text', 16)}</div>
+                    <div class="info"><div class="title">VAT Purchase Detail (.xlsx)</div><div class="desc">Filled tax-authority form, one row per purchase receipt in this period.</div></div>
+                    <button class="btn btn-ghost" onclick="downloadVat()">${icon('download', 14)} Download</button>
+                </div>
+            </div>`;
+    }
+    function exportRangeAndLabel(client) {
+        const [fromKey, toKey] = filterRange(exportFilter, client.entries);
+        const label = fromKey === toKey ? fromKey : `${fromKey}_to_${toKey}`;
+        return { fromKey, toKey, label };
+    }
+    async function downloadPayments() {
+        const client = activeClient();
+        if (client.pvCounter == null) {
+            const input = prompt('First Payments Journal export for this client — what Check Number should numbering start from? (e.g. 1)');
+            if (input === null) return; // user cancelled
+            const start = parseInt(input, 10);
+            if (!Number.isFinite(start) || start < 0) { alert('Please enter a whole number, e.g. 1.'); return; }
+            client.pvCounter = start;
+        }
+        const { fromKey, toKey, label } = exportRangeAndLabel(client);
+        const result = buildPaymentsCsv(client, fromKey, toKey);
+        if (!result) { alert('No purchase receipts logged for this period.'); return; }
+        downloadBlob(result.csv, `${client.name.replace(/\s+/g, '_')}_payments_${label}.csv`, 'text/csv');
+        await patchClient(client.id, { pvCounter: result.nextCounter });
+    }
+    function downloadReceipts() {
+        const client = activeClient();
+        const { fromKey, toKey, label } = exportRangeAndLabel(client);
+        const result = buildReceiptsCsv(client, fromKey, toKey);
+        if (!result) { alert('No sale receipts logged for this period.'); return; }
+        downloadBlob(result.csv, `${client.name.replace(/\s+/g, '_')}_receipts_${label}.csv`, 'text/csv');
+    }
+    function downloadVat() {
+        const client = activeClient();
+        const { fromKey, toKey, label } = exportRangeAndLabel(client);
+        const { wb, count } = buildVatWorkbook(client, fromKey, toKey);
+        if (!count) { alert('No purchase receipts logged for this period.'); return; }
+        const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        downloadBlob(new Blob([out], { type: 'application/octet-stream' }), `${client.name.replace(/\s+/g, '_')}_vat_purchase_detail_${label}.xlsx`, 'application/octet-stream');
+    }
+</script>
+</body>
+</html>
