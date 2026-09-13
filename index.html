@@ -50,6 +50,12 @@
         nav { padding: 16px 0; }
         nav button { width: 100%; border: none; background: none; color: #9498ac; padding: 12px 24px; text-align: left; font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 12px; border-left: 3px solid transparent; transition: all 0.2s; }
         nav button:hover, nav button.active { background: var(--secondary); color: white; border-left: 3px solid var(--accent); }
+        .nav-group-toggle { justify-content: space-between; }
+        .nav-group-toggle .chevron { transition: transform 0.2s; flex-shrink: 0; }
+        .nav-group-toggle.collapsed .chevron { transform: rotate(-90deg); }
+        .nav-group { overflow: hidden; max-height: 240px; transition: max-height 0.25s ease; }
+        .nav-group.collapsed { max-height: 0; }
+        .nav-group button { padding-left: 44px; }
         .aside-footer { padding: 12px 12px 22px 12px; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.18); justify-content: space-between; }
         .footer-buttons { display: flex; gap: 6px; }
 
@@ -322,6 +328,7 @@
                     <p style="font-size:12px; color:var(--text-light); margin:-6px 0 10px;" data-i18n="auth.vat_details_hint">Needed for VAT invoices — this goes on every receipt and invoice you print.</p>
                     <div style="display:flex; gap:10px 14px; flex-wrap:wrap;">
                         <div class="form-group" style="margin-bottom:14px; flex:1 1 160px;"><label data-i18n="auth.vat_tin">TIN Number</label><input type="text" id="auth-vat-tin" style="width:100%;"></div>
+                        <div class="form-group" style="margin-bottom:14px; flex:1 1 160px;"><label data-i18n="auth.vat_reg_no">VAT Registration No.</label><input type="text" id="auth-vat-reg-no" style="width:100%;"></div>
                         <div class="form-group" style="margin-bottom:14px; flex:1 1 220px;"><label data-i18n="auth.owner_full_name">Owner's Full Name (with grandfather's name)</label><input type="text" id="auth-owner-full-name" style="width:100%;" placeholder="e.g. Dereje Eyasu Gebresilassie"></div>
                         <div class="form-group" style="margin-bottom:14px; flex:1 1 140px;"><label data-i18n="auth.vat_city">City</label><input type="text" id="auth-vat-city" style="width:100%;"></div>
                         <div class="form-group" style="margin-bottom:14px; flex:1 1 140px;"><label data-i18n="auth.vat_sub_city">Sub City</label><input type="text" id="auth-vat-sub-city" style="width:100%;"></div>
@@ -486,11 +493,15 @@
                 <button onclick="switchView('sales')" id="nav-sales"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg> <span data-i18n="nav.sales">Sales</span></button>
                 <button onclick="switchView('purchase')" id="nav-purchase"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg> <span data-i18n="nav.purchase">Purchase</span></button>
                 <button onclick="switchView('expenses')" id="nav-expenses"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline><polyline points="17 18 23 18 23 12"></polyline></svg> <span data-i18n="nav.expense">Expense</span></button>
-                <button onclick="switchView('coa')" id="nav-coa"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Chart of Accounts</button>
-                <button onclick="switchView('journal')" id="nav-journal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg> Journal Entries</button>
-                <button onclick="switchView('ledger')" id="nav-ledger"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg> General Ledger</button>
-                <button onclick="switchView('statements')" id="nav-statements"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><line x1="3" y1="22" x2="21" y2="22"></line><line x1="6" y1="18" x2="6" y2="11"></line><line x1="10" y1="18" x2="10" y2="11"></line><line x1="14" y1="18" x2="14" y2="11"></line><line x1="18" y1="18" x2="18" y2="11"></line><polygon points="12 2 20 7 4 7"></polygon></svg> Financial Statements</button>
+                <button class="nav-group-toggle" onclick="toggleNavGroup('accounting')" id="nav-group-accounting-toggle"><span style="display:flex; align-items:center; gap:12px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Accounting</span><svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+                <div class="nav-group" id="nav-group-accounting">
+                    <button onclick="switchView('coa')" id="nav-coa"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Chart of Accounts</button>
+                    <button onclick="switchView('journal')" id="nav-journal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg> Journal Entries</button>
+                    <button onclick="switchView('ledger')" id="nav-ledger"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg> General Ledger</button>
+                    <button onclick="switchView('statements')" id="nav-statements"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><line x1="3" y1="22" x2="21" y2="22"></line><line x1="6" y1="18" x2="6" y2="11"></line><line x1="10" y1="18" x2="10" y2="11"></line><line x1="14" y1="18" x2="14" y2="11"></line><line x1="18" y1="18" x2="18" y2="11"></line><polygon points="12 2 20 7 4 7"></polygon></svg> Financial Statements</button>
+                </div>
                 <button onclick="switchView('team')" id="nav-team" style="display:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg> <span data-i18n="nav.team">Team &amp; Branches</span></button>
+                <button onclick="switchView('settings')" id="nav-settings" style="display:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg> <span data-i18n="nav.settings">Settings</span></button>
             </nav>
         </div>
         <div class="aside-footer">
@@ -1117,7 +1128,7 @@
                 <div class="card" id="statement-output-panel"></div>
             </div>
 
-            <div id="view-team" class="view-panel">
+            <div id="view-settings" class="view-panel">
                 <div class="card" id="vat-settings-card" style="display:none;">
                     <h2 style="border:none; margin-bottom:10px;" data-i18n="team.vat_registration">VAT Registration</h2>
                     <p style="font-size:13px; color:var(--text-light); margin-bottom:12px;" data-i18n="team.vat_registration_hint">Turning this on adds an "Include VAT (15%)" checkbox to the Sales page and shows an Estimated VAT box on the Dashboard. This is only an estimate for your own planning — it does not affect your journal entries or accounts.</p>
@@ -1126,6 +1137,7 @@
                         <p style="font-size:12px; color:var(--text-light); margin:0 0 10px;" data-i18n="auth.vat_details_hint">Needed for VAT invoices — this goes on every receipt and invoice you print.</p>
                         <div style="display:flex; gap:10px 14px; flex-wrap:wrap;">
                             <div class="form-group" style="margin-bottom:14px; flex:1 1 160px;"><label data-i18n="auth.vat_tin">TIN Number</label><input type="text" id="settings-vat-tin" style="width:100%;"></div>
+                            <div class="form-group" style="margin-bottom:14px; flex:1 1 160px;"><label data-i18n="auth.vat_reg_no">VAT Registration No.</label><input type="text" id="settings-vat-reg-no" style="width:100%;"></div>
                             <div class="form-group" style="margin-bottom:14px; flex:1 1 220px;"><label data-i18n="auth.owner_full_name">Owner's Full Name (with grandfather's name)</label><input type="text" id="settings-owner-full-name" style="width:100%;"></div>
                             <div class="form-group" style="margin-bottom:14px; flex:1 1 140px;"><label data-i18n="auth.vat_city">City</label><input type="text" id="settings-vat-city" style="width:100%;"></div>
                             <div class="form-group" style="margin-bottom:14px; flex:1 1 140px;"><label data-i18n="auth.vat_sub_city">Sub City</label><input type="text" id="settings-vat-sub-city" style="width:100%;"></div>
@@ -1137,6 +1149,16 @@
                         <span id="settings-vat-details-saved" style="display:none; color:var(--success); font-size:13px; margin-left:10px;">Saved ✓</span>
                     </div>
                 </div>
+                <div class="card" id="accountant-access-card" style="display:none;">
+                    <h2 style="border:none; margin-bottom:10px;">Accountant Access</h2>
+                    <p style="font-size:13px; color:var(--text-light); margin-bottom:12px;">Give your accountant read-only access to your inventory list. Search for them below, or approve a request they've already sent you.</p>
+                    <input type="text" id="accountant-search-input" placeholder="Search accountant by name or phone…" style="width:100%; margin-bottom:6px;" oninput="runAccountantSearch(this.value)">
+                    <div id="accountant-search-results" style="margin-bottom:6px;"></div>
+                    <div id="accountant-links-list" style="margin-top:14px;"></div>
+                </div>
+            </div>
+
+            <div id="view-team" class="view-panel">
                 <div class="card">
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                         <h2 style="border:none; margin-bottom:0;" data-i18n="team.branches">Branches</h2>
@@ -1491,7 +1513,7 @@
             en: {
                 'nav.dashboard': 'Dashboard', 'nav.inventory': 'Inventory/Stock', 'nav.transfer': 'Transfer',
                 'nav.cash_handover': 'Cash Handover', 'nav.sales': 'Sales', 'nav.purchase': 'Purchase',
-                'nav.expense': 'Expense', 'nav.team': 'Team & Branches', 'nav.rentals': 'Rentals',
+                'nav.expense': 'Expense', 'nav.team': 'Team & Branches', 'nav.rentals': 'Rentals', 'nav.settings': 'Settings',
 
                 'dash.all_time': 'All-Time', 'dash.today': 'Today', 'dash.this_week': 'This Week',
                 'dash.this_month': 'This Month', 'dash.this_year': 'This Year', 'dash.custom_range': 'Custom Range',
@@ -1585,7 +1607,7 @@
                 'pagetitle.cash_handover': 'Cash Handover', 'pagetitle.sales': 'Sales', 'pagetitle.purchase': 'Purchase',
                 'pagetitle.expenses': 'Expense', 'pagetitle.coa': 'Chart of Accounts', 'pagetitle.journal': 'Journal Entries',
                 'pagetitle.ledger': 'General Ledger', 'pagetitle.statements': 'Financial Statements', 'pagetitle.trash': 'Trash',
-                'pagetitle.team': 'Team & Branches',
+                'pagetitle.team': 'Team & Branches', 'pagetitle.settings': 'Settings',
 
                 'auth.tagline': "Let's make informed decisions for your business.", 'auth.signin_desc': 'Sign in to your shop.',
                 'auth.email_or_username': 'Email or Username', 'auth.password': 'Password', 'auth.sign_in': 'Sign In',
@@ -1602,7 +1624,7 @@
                 'auth.business_type': 'Business Type',
                 'auth.business_type_hint': "This can't be changed later, so pick the one that matches what you sell.",
                 'auth.vat_details_hint': 'Needed for VAT invoices — this goes on every receipt and invoice you print.',
-                'auth.vat_tin': 'TIN Number', 'auth.owner_full_name': "Owner's Full Name (with grandfather's name)",
+                'auth.vat_tin': 'TIN Number', 'auth.vat_reg_no': 'VAT Registration No.', 'auth.owner_full_name': "Owner's Full Name (with grandfather's name)",
                 'auth.vat_city': 'City', 'auth.vat_sub_city': 'Sub City', 'auth.vat_kebele': 'Kebele', 'auth.vat_tel': 'Tel', 'auth.vat_address': 'Address',
 
                 'misc.restore_data': 'Restore Data', 'misc.delete_role': 'Delete Role', 'misc.clear_all': 'Clear All',
@@ -1673,7 +1695,7 @@
             am: {
                 'nav.dashboard': 'ዳሽቦርድ', 'nav.inventory': 'የዕቃ ክምችት', 'nav.transfer': 'ዝውውር',
                 'nav.cash_handover': 'ካሽ ርክክብ', 'nav.sales': 'ሽያጭ', 'nav.purchase': 'ግዢ',
-                'nav.expense': 'ወጪ', 'nav.team': 'ቡድን እና ቅርንጫፎች', 'nav.rentals': 'ኪራዮች',
+                'nav.expense': 'ወጪ', 'nav.team': 'ቡድን እና ቅርንጫፎች', 'nav.rentals': 'ኪራዮች', 'nav.settings': 'ቅንብሮች',
 
                 'dash.all_time': 'ሁሉም ጊዜ', 'dash.today': 'ዛሬ', 'dash.this_week': 'ይህ ሳምንት',
                 'dash.this_month': 'ይህ ወር', 'dash.this_year': 'ይህ ዓመት', 'dash.custom_range': 'በፍላጎት ጊዜ ክልል',
@@ -1767,7 +1789,7 @@
                 'pagetitle.cash_handover': 'ካሽ ርክክብ', 'pagetitle.sales': 'ሽያጭ', 'pagetitle.purchase': 'ግዢ',
                 'pagetitle.expenses': 'ወጪ', 'pagetitle.coa': 'Chart of Accounts', 'pagetitle.journal': 'Journal Entries',
                 'pagetitle.ledger': 'General Ledger', 'pagetitle.statements': 'Financial Statements', 'pagetitle.trash': 'የተሰረዙ',
-                'pagetitle.team': 'ቡድን እና ቅርንጫፎች',
+                'pagetitle.team': 'ቡድን እና ቅርንጫፎች', 'pagetitle.settings': 'ቅንብሮች',
 
                 'auth.tagline': 'ለንግድዎ የተሻለ ውሳኔ እንድናደርግ እንርዳዎት።', 'auth.signin_desc': 'ወደ ሱቅዎ ይግቡ።',
                 'auth.email_or_username': 'ኢሜይል ወይም የተጠቃሚ ስም', 'auth.password': 'የይለፍ ቃል', 'auth.sign_in': 'ግባ',
@@ -1784,7 +1806,7 @@
                 'auth.business_type': 'የንግድ አይነት',
                 'auth.business_type_hint': 'ይህ በኋላ ሊቀየር ስለማይችል፣ ከሚሸጡት ጋር የሚስማማውን ይምረጡ።',
                 'auth.vat_details_hint': 'ለቫት ደረሰኞች ያስፈልጋል — በሚያትሙት እያንዳንዱ ደረሰኝ እና ኢንቮይስ ላይ ይወጣል።',
-                'auth.vat_tin': 'የቲን ቁጥር', 'auth.owner_full_name': 'የባለቤት ሙሉ ስም (የአያት ስም ጨምሮ)',
+                'auth.vat_tin': 'የቲን ቁጥር', 'auth.vat_reg_no': 'የቫት ምዝገባ ቁጥር', 'auth.owner_full_name': 'የባለቤት ሙሉ ስም (የአያት ስም ጨምሮ)',
                 'auth.vat_city': 'ከተማ', 'auth.vat_sub_city': 'ክፍለ ከተማ', 'auth.vat_kebele': 'ቀበሌ', 'auth.vat_tel': 'ስልክ', 'auth.vat_address': 'አድራሻ',
 
                 'misc.restore_data': 'ውሂብ መልስ', 'misc.delete_role': 'ሚና አጥፋ', 'misc.clear_all': 'ሁሉንም አጽዳ',
@@ -1867,6 +1889,7 @@
             if (authBtn) authBtn.innerText = label;
             applyStaticTranslations();
             populateBusinessTypeSignupOptions();
+            restoreNavGroupState('accounting');
         });
 
         // Fills the signup "Business Type" select straight from
@@ -2111,7 +2134,7 @@
                 detailsGroup.style.display = isVat ? 'block' : 'none';
                 if (isVat) {
                     const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
-                    setVal('settings-vat-tin', state.vatTin); setVal('settings-owner-full-name', state.ownerFullName);
+                    setVal('settings-vat-tin', state.vatTin); setVal('settings-vat-reg-no', state.vatRegNo); setVal('settings-owner-full-name', state.ownerFullName);
                     setVal('settings-vat-city', state.vatCity); setVal('settings-vat-sub-city', state.vatSubCity);
                     setVal('settings-vat-kebele', state.vatKebele); setVal('settings-vat-tel', state.vatTel);
                     setVal('settings-vat-address', state.vatAddress);
@@ -2160,13 +2183,14 @@
             const tinVal = getVal('settings-vat-tin');
             if (tinVal && !isValidTin(tinVal)) return alert('TIN Number must be 10 to 12 digits.');
             state.vatTin = tinVal;
+            state.vatRegNo = getVal('settings-vat-reg-no');
             state.ownerFullName = getVal('settings-owner-full-name');
             state.vatCity = getVal('settings-vat-city');
             state.vatSubCity = getVal('settings-vat-sub-city');
             state.vatKebele = getVal('settings-vat-kebele');
             state.vatTel = getVal('settings-vat-tel');
             state.vatAddress = getVal('settings-vat-address');
-            queueWrite({ kind: 'tenant_update', patch: { vat_tin: state.vatTin, owner_full_name: state.ownerFullName, vat_city: state.vatCity, vat_sub_city: state.vatSubCity, vat_kebele: state.vatKebele, vat_tel: state.vatTel, vat_address: state.vatAddress } });
+            queueWrite({ kind: 'tenant_update', patch: { vat_tin: state.vatTin, vat_reg_no: state.vatRegNo, owner_full_name: state.ownerFullName, vat_city: state.vatCity, vat_sub_city: state.vatSubCity, vat_kebele: state.vatKebele, vat_tel: state.vatTel, vat_address: state.vatAddress } });
             const saved = document.getElementById('settings-vat-details-saved');
             if (saved) { saved.style.display = 'inline'; setTimeout(() => saved.style.display = 'none', 2000); }
         }
@@ -2194,6 +2218,10 @@
                 const el = document.getElementById(id);
                 if (el) el.style.display = visible ? 'flex' : 'none';
             });
+
+            const accountingGroupVisible = navRules['nav-coa'] || navRules['nav-journal'] || navRules['nav-ledger'] || navRules['nav-statements'];
+            const accountingToggle = document.getElementById('nav-group-accounting-toggle');
+            if (accountingToggle) accountingToggle.style.display = accountingGroupVisible ? 'flex' : 'none';
 
             const cardRules = {
                 'inventory-def-card': hasPerm('inventory.edit_products'),
@@ -2333,7 +2361,7 @@
         let state = {
             currentFilter: 'all', customStart: '', customEnd: '', categories: [],
             ethiopianFilter: 'all', customAccounts: [], saleTypes: [], vatRegistered: false, hasEmployees: false,
-            vatTin: '', ownerFullName: '', vatCity: '', vatSubCity: '', vatKebele: '', vatTel: '', vatAddress: '',
+            vatTin: '', vatRegNo: '', ownerFullName: '', vatCity: '', vatSubCity: '', vatKebele: '', vatTel: '', vatAddress: '',
             inventory: [], journal: [], salesLog: [], purchaseLog: [], expenseLog: [],
             trash: [], notifications: []
         };
@@ -2412,6 +2440,7 @@
             const businessType = document.getElementById('auth-business-type').value || 'retail';
             const vatDetails = {
                 tin: document.getElementById('auth-vat-tin').value.trim(),
+                regNo: document.getElementById('auth-vat-reg-no').value.trim(),
                 ownerFullName: document.getElementById('auth-owner-full-name').value.trim(),
                 city: document.getElementById('auth-vat-city').value.trim(),
                 subCity: document.getElementById('auth-vat-sub-city').value.trim(),
@@ -2565,6 +2594,11 @@
             }
             const teamNav = document.getElementById('nav-team');
             if (teamNav) teamNav.style.display = (hasPerm('team.view') || hasPerm('team.manage_members') || hasPerm('team.manage_roles')) ? 'flex' : 'none';
+            // VAT Registration and Accountant Access were already owner-only
+            // (see applyVatUIVisibility / loadAccountantLinksSection) -- the
+            // Settings nav item follows the same rule.
+            const settingsNav = document.getElementById('nav-settings');
+            if (settingsNav) settingsNav.style.display = currentIsOwner ? 'flex' : 'none';
 
             const { data: biz, error: bizErr } = await supabaseClient.from('businesses').select('*').eq('id', currentTenantId).single();
             if (bizErr || !biz) {
@@ -2611,6 +2645,7 @@
             state.saleTypes = biz.sale_types || [];
             state.vatRegistered = !!biz.vat_registered;
             state.vatTin = biz.vat_tin || '';
+            state.vatRegNo = biz.vat_reg_no || '';
             state.ownerFullName = biz.owner_full_name || '';
             state.vatCity = biz.vat_city || '';
             state.vatSubCity = biz.vat_sub_city || '';
@@ -2643,8 +2678,8 @@
                 if (pendingVatDetailsRaw !== null) {
                     sessionStorage.removeItem('neba_pending_vat_details');
                     const d = JSON.parse(pendingVatDetailsRaw);
-                    Object.assign(state, { vatTin: d.tin || '', ownerFullName: d.ownerFullName || '', vatCity: d.city || '', vatSubCity: d.subCity || '', vatKebele: d.kebele || '', vatTel: d.tel || '', vatAddress: d.address || '' });
-                    queueWrite({ kind: 'tenant_update', patch: { vat_tin: state.vatTin, owner_full_name: state.ownerFullName, vat_city: state.vatCity, vat_sub_city: state.vatSubCity, vat_kebele: state.vatKebele, vat_tel: state.vatTel, vat_address: state.vatAddress } });
+                    Object.assign(state, { vatTin: d.tin || '', vatRegNo: d.regNo || '', ownerFullName: d.ownerFullName || '', vatCity: d.city || '', vatSubCity: d.subCity || '', vatKebele: d.kebele || '', vatTel: d.tel || '', vatAddress: d.address || '' });
+                    queueWrite({ kind: 'tenant_update', patch: { vat_tin: state.vatTin, vat_reg_no: state.vatRegNo, owner_full_name: state.ownerFullName, vat_city: state.vatCity, vat_sub_city: state.vatSubCity, vat_kebele: state.vatKebele, vat_tel: state.vatTel, vat_address: state.vatAddress } });
                 }
             } catch (e) {}
             rebuildChartOfAccounts();
@@ -3140,6 +3175,23 @@
             applyEmployeeGatedUI();
             populateBranchSwitcher();
             updateBranchColumnVisibility();
+            subscribeToAccountantLinks();
+        }
+
+        // Live-updates the Accountant Access card the instant a request is
+        // sent/approved/declined/revoked, from either side — no refresh
+        // needed. One channel per login; harmless to re-subscribe on
+        // re-login since Supabase replaces the channel by name.
+        let accountantLinksChannel = null;
+        function subscribeToAccountantLinks() {
+            if (!currentTenantId) return;
+            if (accountantLinksChannel) supabaseClient.removeChannel(accountantLinksChannel);
+            accountantLinksChannel = supabaseClient
+                .channel(`accountant_links_biz_${currentTenantId}`)
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'accountant_links', filter: `business_id=eq.${currentTenantId}` }, () => {
+                    if (currentIsOwner) loadAccountantLinksSection();
+                })
+                .subscribe();
         }
 
         // ---------------------------------------------------------------
@@ -3590,6 +3642,27 @@
         // --- UI ROUTING ---
         function toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed'); }
 
+        // Collapsible sidebar nav groups (currently just "Accounting": Chart
+        // of Accounts / Journal Entries / General Ledger / Financial
+        // Statements). State is per-device via localStorage, same as the
+        // language/calendar prefs above -- purely a display convenience.
+        function toggleNavGroup(name) {
+            const group = document.getElementById(`nav-group-${name}`);
+            const toggle = document.getElementById(`nav-group-${name}-toggle`);
+            if (!group || !toggle) return;
+            const collapsed = group.classList.toggle('collapsed');
+            toggle.classList.toggle('collapsed', collapsed);
+            try { localStorage.setItem(`neba_nav_group_${name}_collapsed`, collapsed ? '1' : '0'); } catch (e) {}
+        }
+        function restoreNavGroupState(name) {
+            try {
+                if (localStorage.getItem(`neba_nav_group_${name}_collapsed`) === '1') {
+                    document.getElementById(`nav-group-${name}`)?.classList.add('collapsed');
+                    document.getElementById(`nav-group-${name}-toggle`)?.classList.add('collapsed');
+                }
+            } catch (e) {}
+        }
+
         function switchView(viewId) {
             document.querySelectorAll('.view-panel').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
@@ -3622,6 +3695,7 @@
             if (viewId === 'journal') { prepVoucherInputTargetDropdowns(); renderHistoricalJournalsTable(); }
             if (viewId === 'ledger') { prepLedgerDropdownFilterOptions(); renderGeneralLedgerCards(); }
             if (viewId === 'team') loadTeamView();
+            if (viewId === 'settings') loadSettingsView();
             if (viewId === 'statements') buildReports('trial');
             if (viewId === 'trash') renderTrashTable();
         }
@@ -6842,6 +6916,7 @@
             // registration isn't offered for that business type at all.
             if (state.vatRegistered) {
                 if (state.vatTin) lines.push(`TIN: ${state.vatTin}`);
+                if (state.vatRegNo) lines.push(`VAT Reg No: ${state.vatRegNo}`);
                 if (state.ownerFullName) lines.push(state.ownerFullName);
                 const cityLine = [state.vatCity ? `City: ${state.vatCity}` : '', state.vatSubCity ? `S/C: ${state.vatSubCity}` : ''].filter(Boolean).join(', ');
                 if (cityLine) lines.push(cityLine);
@@ -6873,6 +6948,7 @@
         function fiscalHeaderLines() {
             const lines = [];
             if (state.vatTin) lines.push(`TIN: ${state.vatTin}`.toUpperCase());
+            if (state.vatRegNo) lines.push(`VAT REG NO: ${state.vatRegNo}`.toUpperCase());
             if (state.ownerFullName) lines.push(state.ownerFullName.toUpperCase());
             const cityBits = [];
             if (state.vatCity) cityBits.push(`CITY:-${state.vatCity}`.toUpperCase());
@@ -7983,6 +8059,109 @@
             const addBranchBtn = document.getElementById('btn-add-branch');
             if (addBranchBtn) addBranchBtn.style.display = hasPerm('branches.manage') ? '' : 'none';
         }
+
+        // Settings page: VAT Registration + Accountant Access, both owner-only
+        // (split out of Team & Branches so that page stays focused on people/
+        // roles/branches, and this one covers shop-level configuration).
+        function loadSettingsView() {
+            applyVatUIVisibility();
+            loadAccountantLinksSection();
+        }
+
+        // --------------------------------------------------------------------
+        // Accountant Access (Team & Branches, owner-only): search for an
+        // accountant on accountant.html by name/phone, send them a read-only
+        // inventory link request, and approve/decline/revoke existing ones.
+        // --------------------------------------------------------------------
+        function escapeAccHtml(s) {
+            return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+        let businessAccountantLinks = [];
+        async function loadAccountantLinksSection() {
+            const card = document.getElementById('accountant-access-card');
+            if (card) card.style.display = currentIsOwner ? 'block' : 'none';
+            if (!currentIsOwner) return;
+            const { data, error } = await supabaseClient.rpc('my_business_links', { p_business_id: currentTenantId });
+            businessAccountantLinks = error ? [] : (data || []);
+            renderAccountantLinksList();
+        }
+        function renderAccountantLinksList() {
+            const el = document.getElementById('accountant-links-list');
+            if (!el) return;
+            if (!businessAccountantLinks.length) { el.innerHTML = `<p style="font-size:13px; color:var(--text-light);">No accountant requests yet.</p>`; return; }
+            el.innerHTML = businessAccountantLinks.map(l => {
+                const badgeColor = l.status === 'approved' ? 'var(--success)' : l.status === 'pending' ? 'var(--warning)' : 'var(--text-light)';
+                const direction = l.requested_by === 'client' ? 'You requested' : 'They requested';
+                let actions = '';
+                if (l.status === 'pending' && l.requested_by === 'accountant') {
+                    actions = `<button class="btn btn-success" style="padding:6px 12px; font-size:12px;" onclick="respondToBusinessLink('${l.id}','approved')">Approve</button>
+                               <button class="btn btn-warning" style="padding:6px 12px; font-size:12px;" onclick="respondToBusinessLink('${l.id}','declined')">Decline</button>`;
+                } else if (l.status === 'pending' && l.requested_by === 'client') {
+                    actions = `<button class="btn btn-warning" style="padding:6px 12px; font-size:12px;" onclick="respondToBusinessLink('${l.id}','declined')">Cancel request</button>`;
+                } else if (l.status === 'approved') {
+                    actions = `<button class="btn btn-danger" style="padding:6px 12px; font-size:12px;" onclick="respondToBusinessLink('${l.id}','revoked')">Revoke access</button>`;
+                } else if (l.status === 'declined' || l.status === 'revoked') {
+                    actions = `<button class="btn" style="padding:6px 12px; font-size:12px;" onclick="reRequestBusinessLink('${l.accountant_user_id}')">Send again</button>`;
+                }
+                return `<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-top:1px solid var(--border);">
+                    <div>
+                        <strong>${escapeAccHtml(l.full_name)}</strong>
+                        <div style="font-size:12px; color:var(--text-light);">${escapeAccHtml(l.phone || '')} · ${direction} · <span style="color:${badgeColor};">${l.status}</span></div>
+                    </div>
+                    <div style="display:flex; gap:6px;">${actions}</div>
+                </div>`;
+            }).join('');
+        }
+        async function respondToBusinessLink(id, newStatus) {
+            const { error } = await supabaseClient.from('accountant_links').update({ status: newStatus, responded_at: new Date().toISOString() }).eq('id', id);
+            if (error) { alert(error.message); return; }
+            await loadAccountantLinksSection();
+        }
+        async function reRequestBusinessLink(accountantUserId) {
+            const { error } = await upsertAccountantLinkRequest(accountantUserId);
+            if (error) { alert(error.message); return; }
+            await loadAccountantLinksSection();
+        }
+        let accountantSearchTimer = null;
+        function runAccountantSearch(q) {
+            clearTimeout(accountantSearchTimer);
+            const resultsEl = document.getElementById('accountant-search-results');
+            if (!resultsEl) return;
+            if (q.trim().length < 2) { resultsEl.innerHTML = ''; return; }
+            accountantSearchTimer = setTimeout(async () => {
+                const { data, error } = await supabaseClient.rpc('search_accountants', { query: q.trim() });
+                const results = error ? [] : (data || []);
+                if (!results.length) { resultsEl.innerHTML = `<p style="font-size:13px; color:var(--text-light);">No matching accountant found.</p>`; return; }
+                resultsEl.innerHTML = results.map(r => `
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; border-top:1px solid var(--border);">
+                        <div><strong>${escapeAccHtml(r.full_name)}</strong><div style="font-size:12px; color:var(--text-light);">${escapeAccHtml(r.phone || '')}</div></div>
+                        <button class="btn btn-success" style="padding:6px 12px; font-size:12px;" onclick="sendAccountantLinkRequest('${r.user_id}')">Send request</button>
+                    </div>`).join('');
+            }, 300);
+        }
+        async function upsertAccountantLinkRequest(accountantUserId) {
+            const { data: existing, error: selErr } = await supabaseClient
+                .from('accountant_links').select('id, status')
+                .eq('accountant_user_id', accountantUserId).eq('business_id', currentTenantId).maybeSingle();
+            if (selErr) return { error: selErr };
+            if (!existing) {
+                return await supabaseClient.from('accountant_links').insert({ accountant_user_id: accountantUserId, business_id: currentTenantId, requested_by: 'client' });
+            }
+            if (existing.status === 'declined' || existing.status === 'revoked') {
+                return await supabaseClient.from('accountant_links').update({ status: 'pending', requested_by: 'client', responded_at: null }).eq('id', existing.id);
+            }
+            return { error: null }; // already pending or approved -- nothing to change
+        }
+        async function sendAccountantLinkRequest(accountantUserId) {
+            const { error } = await upsertAccountantLinkRequest(accountantUserId);
+            if (error) { alert(error.message); return; }
+            const input = document.getElementById('accountant-search-input');
+            if (input) input.value = '';
+            const resultsEl = document.getElementById('accountant-search-results');
+            if (resultsEl) resultsEl.innerHTML = '';
+            await loadAccountantLinksSection();
+        }
+
 
         // Reflects the plan limits fetched at boot (currentPlanMaxBranches /
         // currentPlanMaxEmployees). Purely a UX convenience — the actual
