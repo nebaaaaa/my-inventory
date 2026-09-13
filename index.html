@@ -480,6 +480,8 @@
         </div>
     </div>
 
+    <div id="accountant-link-toast" style="display:none; position:fixed; z-index:500; bottom:20px; right:20px; max-width:360px; align-items:center; gap:12px; background:rgba(30,30,34,0.92); color:#fff; padding:12px 14px; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,0.25); font-size:13px;"></div>
+
     <div id="app-shell" style="display:none; flex:1; min-width:0;">
     <aside id="sidebar">
         <div class="sidebar-scroll-inner">
@@ -1152,7 +1154,11 @@
                 <div class="card" id="accountant-access-card" style="display:none;">
                     <h2 style="border:none; margin-bottom:10px;">Accountant Access</h2>
                     <p style="font-size:13px; color:var(--text-light); margin-bottom:12px;">Give your accountant read-only access to your inventory list. Search for them below, or approve a request they've already sent you.</p>
-                    <input type="text" id="accountant-search-input" placeholder="Search accountant by name or phone…" style="width:100%; margin-bottom:6px;" oninput="runAccountantSearch(this.value)">
+                    <div style="display:flex; gap:8px; margin-bottom:6px;">
+                        <input type="text" id="accountant-search-input" placeholder="Search accountant by name or phone…" style="flex:1;" oninput="runAccountantSearch(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault(); submitAccountantSearch();}" onfocus="renderAccountantSearchHistory()">
+                        <button class="btn" style="padding:0 14px;" onclick="submitAccountantSearch()">Search</button>
+                    </div>
+                    <div id="accountant-search-history"></div>
                     <div id="accountant-search-results" style="margin-bottom:6px;"></div>
                     <div id="accountant-links-list" style="margin-top:14px;"></div>
                 </div>
@@ -3188,10 +3194,96 @@
             if (accountantLinksChannel) supabaseClient.removeChannel(accountantLinksChannel);
             accountantLinksChannel = supabaseClient
                 .channel(`accountant_links_biz_${currentTenantId}`)
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'accountant_links', filter: `business_id=eq.${currentTenantId}` }, () => {
-                    if (currentIsOwner) loadAccountantLinksSection();
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'accountant_links', filter: `business_id=eq.${currentTenantId}` }, async (payload) => {
+                    if (!currentIsOwner) return;
+                    await loadAccountantLinksSection();
+                    notifyAccountantLinkChange(payload);
                 })
                 .subscribe();
+        }
+        // Fires on every insert/update to this business's accountant_links
+        // rows -- including ones this same browser tab just made (Supabase
+        // realtime echoes your own writes back to you), which is exactly
+        // what "every action shows up in notifications" needs: sending a
+        // request logs it for the sender, same event logs it for the other
+        // side too, all from this one handler. requested_by tells us which
+        // role sent the original request, and by the RLS rules only the
+        // *other* role can approve/decline it, so direction is reliable for
+        // insert/approve/decline. Revoke can be triggered by either side
+        // once approved, so that message stays neutral rather than guessing.
+        function notifyAccountantLinkChange(payload) {
+            const row = payload.new || payload.old;
+            if (!row) return;
+            const link = businessAccountantLinks.find(l => l.id === row.id);
+            const name = escapeAccHtml(link ? link.full_name : 'An accountant');
+            if (payload.eventType === 'INSERT') {
+                if (row.requested_by === 'accountant') {
+                    addNotification('Accountant request received', `${name} requested read-only access to your inventory.`);
+                    showIncomingLinkToast(row.id, name);
+                } else {
+                    addNotification('Accountant request sent', `You sent a link request to ${name}.`);
+                }
+            } else if (payload.eventType === 'UPDATE') {
+                if (row.status === 'approved') {
+                    addNotification('Accountant link approved', row.requested_by === 'accountant' ? `You approved ${name}'s request.` : `${name} approved your request.`);
+                } else if (row.status === 'declined') {
+                    addNotification('Accountant link declined', row.requested_by === 'accountant' ? `You declined ${name}'s request.` : `${name} declined your request.`);
+                } else if (row.status === 'revoked') {
+                    addNotification('Accountant access revoked', `Access for ${name} was revoked.`);
+                    showInfoLinkToast(`Access for <strong>${name}</strong> was revoked.`);
+                } else if (row.status === 'cancelled') {
+                    addNotification('Accountant request cancelled', row.requested_by === 'accountant' ? `${name} cancelled their request to you.` : `You cancelled your request to ${name}.`);
+                }
+            }
+        }
+        // Temporary, semi-transparent alert for link activity, with
+        // accept/decline/dismiss for incoming requests (kind: 'incoming')
+        // or just a dismiss for informational ones like a revoke (kind:
+        // 'info') -- separate from the persistent notification log above,
+        // and from the full Accountant Access list in Settings. Auto-
+        // dismisses itself; doesn't block anything.
+        let incomingLinkToast = null;
+        let incomingLinkToastTimer = null;
+        // name is expected pre-escaped (both call sites in
+        // notifyAccountantLinkChange already run it through escapeAccHtml).
+        function showIncomingLinkToast(linkId, name) {
+            showLinkToast({ kind: 'incoming', linkId, message: `<strong>${name}</strong> wants read-only access to your inventory.` });
+        }
+        function showInfoLinkToast(message) {
+            showLinkToast({ kind: 'info', message });
+        }
+        function showLinkToast(toast) {
+            incomingLinkToast = toast;
+            renderIncomingLinkToast();
+            clearTimeout(incomingLinkToastTimer);
+            incomingLinkToastTimer = setTimeout(dismissIncomingLinkToast, 15000);
+        }
+        function dismissIncomingLinkToast() {
+            clearTimeout(incomingLinkToastTimer);
+            incomingLinkToast = null;
+            renderIncomingLinkToast();
+        }
+        async function respondToIncomingLinkToast(newStatus) {
+            if (!incomingLinkToast || incomingLinkToast.kind !== 'incoming') return;
+            const { linkId } = incomingLinkToast;
+            dismissIncomingLinkToast();
+            await respondToBusinessLink(linkId, newStatus);
+        }
+        function renderIncomingLinkToast() {
+            const el = document.getElementById('accountant-link-toast');
+            if (!el) return;
+            if (!incomingLinkToast) { el.style.display = 'none'; el.innerHTML = ''; return; }
+            el.style.display = 'flex';
+            const actions = incomingLinkToast.kind === 'incoming'
+                ? `<button class="btn btn-success" style="padding:5px 10px; font-size:12px;" onclick="respondToIncomingLinkToast('approved')">Accept</button>
+                   <button class="btn btn-warning" style="padding:5px 10px; font-size:12px;" onclick="respondToIncomingLinkToast('declined')">Decline</button>`
+                : '';
+            el.innerHTML = `
+                <div style="flex:1; min-width:0;">${incomingLinkToast.message}</div>
+                <div style="display:flex; gap:6px; flex-shrink:0;">
+                    ${actions}
+                    <button onclick="dismissIncomingLinkToast()" title="Dismiss" style="background:none; border:none; color:#fff; font-size:16px; line-height:1; cursor:pointer; padding:2px 6px;">&times;</button>
+                </div>`;
         }
 
         // ---------------------------------------------------------------
@@ -8088,20 +8180,23 @@
         function renderAccountantLinksList() {
             const el = document.getElementById('accountant-links-list');
             if (!el) return;
-            if (!businessAccountantLinks.length) { el.innerHTML = `<p style="font-size:13px; color:var(--text-light);">No accountant requests yet.</p>`; return; }
-            el.innerHTML = businessAccountantLinks.map(l => {
-                const badgeColor = l.status === 'approved' ? 'var(--success)' : l.status === 'pending' ? 'var(--warning)' : 'var(--text-light)';
+            // Declined/revoked links are dropped from view entirely rather than
+            // lingering with a "reconnect" button -- to link up again, either
+            // side just searches for the other and sends a fresh request, same
+            // as the very first time.
+            const activeLinks = businessAccountantLinks.filter(l => l.status === 'pending' || l.status === 'approved');
+            if (!activeLinks.length) { el.innerHTML = `<p style="font-size:13px; color:var(--text-light);">No accountant requests yet.</p>`; return; }
+            el.innerHTML = activeLinks.map(l => {
+                const badgeColor = l.status === 'approved' ? 'var(--success)' : 'var(--warning)';
                 const direction = l.requested_by === 'client' ? 'You requested' : 'They requested';
                 let actions = '';
                 if (l.status === 'pending' && l.requested_by === 'accountant') {
                     actions = `<button class="btn btn-success" style="padding:6px 12px; font-size:12px;" onclick="respondToBusinessLink('${l.id}','approved')">Approve</button>
                                <button class="btn btn-warning" style="padding:6px 12px; font-size:12px;" onclick="respondToBusinessLink('${l.id}','declined')">Decline</button>`;
                 } else if (l.status === 'pending' && l.requested_by === 'client') {
-                    actions = `<button class="btn btn-warning" style="padding:6px 12px; font-size:12px;" onclick="respondToBusinessLink('${l.id}','declined')">Cancel request</button>`;
+                    actions = `<button class="btn btn-warning" style="padding:6px 12px; font-size:12px;" onclick="respondToBusinessLink('${l.id}','cancelled')">Cancel request</button>`;
                 } else if (l.status === 'approved') {
                     actions = `<button class="btn btn-danger" style="padding:6px 12px; font-size:12px;" onclick="respondToBusinessLink('${l.id}','revoked')">Revoke access</button>`;
-                } else if (l.status === 'declined' || l.status === 'revoked') {
-                    actions = `<button class="btn" style="padding:6px 12px; font-size:12px;" onclick="reRequestBusinessLink('${l.accountant_user_id}')">Send again</button>`;
                 }
                 return `<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-top:1px solid var(--border);">
                     <div>
@@ -8117,27 +8212,102 @@
             if (error) { alert(error.message); return; }
             await loadAccountantLinksSection();
         }
-        async function reRequestBusinessLink(accountantUserId) {
-            const { error } = await upsertAccountantLinkRequest(accountantUserId);
-            if (error) { alert(error.message); return; }
-            await loadAccountantLinksSection();
+        // ---- Recent-search history (per device, via localStorage) --------
+        // Generic so the same helpers cover every search box in the app —
+        // scope is just a short string that keys the localStorage entry.
+        function searchHistKey(scope) { return `neba_search_history_${scope}`; }
+        function getSearchHistory(scope) {
+            try { return JSON.parse(localStorage.getItem(searchHistKey(scope)) || '[]'); } catch (e) { return []; }
         }
+        function addSearchHistoryTerm(scope, term) {
+            term = (term || '').trim();
+            if (!term) return;
+            let hist = getSearchHistory(scope).filter(t => t.toLowerCase() !== term.toLowerCase());
+            hist.unshift(term);
+            hist = hist.slice(0, 8);
+            try { localStorage.setItem(searchHistKey(scope), JSON.stringify(hist)); } catch (e) {}
+        }
+        function removeSearchHistoryTerm(scope, term) {
+            const hist = getSearchHistory(scope).filter(t => t !== term);
+            try { localStorage.setItem(searchHistKey(scope), JSON.stringify(hist)); } catch (e) {}
+        }
+        function clearSearchHistoryScope(scope) {
+            try { localStorage.removeItem(searchHistKey(scope)); } catch (e) {}
+        }
+        function escForJsString(s) { return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+        function renderSearchHistoryBlock(scope, containerId, submitFnName) {
+            const el = document.getElementById(containerId);
+            if (!el) return;
+            const hist = getSearchHistory(scope);
+            if (!hist.length) { el.innerHTML = ''; return; }
+            el.innerHTML = `
+                <div style="display:flex; align-items:center; justify-content:space-between; margin:2px 0 6px;">
+                    <span style="font-size:11px; color:var(--text-light); text-transform:uppercase; letter-spacing:.03em;">Recent searches</span>
+                    <a href="#" style="font-size:11px;" onclick="event.preventDefault(); clearSearchHistoryScope('${scope}'); renderSearchHistoryBlock('${scope}','${containerId}','${submitFnName}');">Clear all</a>
+                </div>
+                <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+                    ${hist.map(term => `
+                        <span style="display:inline-flex; align-items:center; gap:5px; background:var(--bg-soft,#f1f1f1); border:1px solid var(--border); border-radius:14px; padding:3px 6px 3px 10px; font-size:12px; cursor:pointer;" onclick="${submitFnName}('${escForJsString(term)}');">
+                            ${escapeAccHtml(term)}
+                            <span onclick="event.stopPropagation(); removeSearchHistoryTerm('${scope}','${escForJsString(term)}'); renderSearchHistoryBlock('${scope}','${containerId}','${submitFnName}');" style="opacity:.6; padding:0 2px;">×</span>
+                        </span>`).join('')}
+                </div>`;
+        }
+        function renderAccountantSearchHistory() { renderSearchHistoryBlock('accountant', 'accountant-search-history', 'submitAccountantSearch'); }
+
+        // Live preview as the person types (debounced, doesn't touch
+        // history) -- separate from submitAccountantSearch() below, which is
+        // the only thing that records a search term: pressing Enter,
+        // clicking Search, or clicking a result. This way partial, still-
+        // being-typed text never pollutes the recent-searches list.
         let accountantSearchTimer = null;
         function runAccountantSearch(q) {
             clearTimeout(accountantSearchTimer);
             const resultsEl = document.getElementById('accountant-search-results');
             if (!resultsEl) return;
-            if (q.trim().length < 2) { resultsEl.innerHTML = ''; return; }
-            accountantSearchTimer = setTimeout(async () => {
-                const { data, error } = await supabaseClient.rpc('search_accountants', { query: q.trim() });
-                const results = error ? [] : (data || []);
-                if (!results.length) { resultsEl.innerHTML = `<p style="font-size:13px; color:var(--text-light);">No matching accountant found.</p>`; return; }
-                resultsEl.innerHTML = results.map(r => `
-                    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; border-top:1px solid var(--border);">
-                        <div><strong>${escapeAccHtml(r.full_name)}</strong><div style="font-size:12px; color:var(--text-light);">${escapeAccHtml(r.phone || '')}</div></div>
-                        <button class="btn btn-success" style="padding:6px 12px; font-size:12px;" onclick="sendAccountantLinkRequest('${r.user_id}')">Send request</button>
-                    </div>`).join('');
-            }, 300);
+            if (q.trim().length < 2) { resultsEl.innerHTML = ''; renderAccountantSearchHistory(); return; }
+            document.getElementById('accountant-search-history').innerHTML = '';
+            accountantSearchTimer = setTimeout(() => executeAccountantSearch(q.trim()), 300);
+        }
+        // The explicit "entered" path: Enter key, the Search button, or
+        // clicking a recent-search pill. Records the term, then searches
+        // immediately (no debounce delay).
+        function submitAccountantSearch(term) {
+            const input = document.getElementById('accountant-search-input');
+            const q = (term !== undefined ? term : (input ? input.value : '')).trim();
+            if (q.length < 2) return;
+            if (input) input.value = q;
+            clearTimeout(accountantSearchTimer);
+            const histEl = document.getElementById('accountant-search-history');
+            if (histEl) histEl.innerHTML = '';
+            addSearchHistoryTerm('accountant', q);
+            executeAccountantSearch(q);
+        }
+        async function executeAccountantSearch(q) {
+            const resultsEl = document.getElementById('accountant-search-results');
+            if (!resultsEl) return;
+            const { data, error } = await supabaseClient.rpc('search_accountants', { query: q });
+            const results = error ? [] : (data || []);
+            if (!results.length) { resultsEl.innerHTML = `<p style="font-size:13px; color:var(--text-light);">No matching accountant found.</p>`; return; }
+            resultsEl.innerHTML = results.map(r => {
+                // businessAccountantLinks is already loaded for this page --
+                // reuse it rather than re-querying, so a pending/approved
+                // match shows its real status instead of a "Send request"
+                // button that would just silently no-op if clicked.
+                const existing = businessAccountantLinks.find(l => l.accountant_user_id === r.user_id);
+                const active = existing && (existing.status === 'pending' || existing.status === 'approved');
+                const action = active
+                    ? `<span style="font-size:12px; color:${existing.status === 'approved' ? 'var(--success)' : 'var(--warning)'};">${existing.status === 'approved' ? 'Already connected' : 'Request pending'}</span>`
+                    : `<button class="btn btn-success" style="padding:6px 12px; font-size:12px;" onclick="sendAccountantLinkRequest('${r.user_id}')">Send request</button>`;
+                // Clicking anywhere on a matched result -- the name or the
+                // action button -- records that person's actual name to
+                // search history (the button click bubbles up to this too).
+                return `
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; border-top:1px solid var(--border); cursor:pointer;" onclick="addSearchHistoryTerm('accountant','${escForJsString(r.full_name)}')">
+                    <div><strong>${escapeAccHtml(r.full_name)}</strong><div style="font-size:12px; color:var(--text-light);">${escapeAccHtml(r.phone || '')}</div></div>
+                    ${action}
+                </div>`;
+            }).join('');
         }
         async function upsertAccountantLinkRequest(accountantUserId) {
             const { data: existing, error: selErr } = await supabaseClient
@@ -8147,7 +8317,7 @@
             if (!existing) {
                 return await supabaseClient.from('accountant_links').insert({ accountant_user_id: accountantUserId, business_id: currentTenantId, requested_by: 'client' });
             }
-            if (existing.status === 'declined' || existing.status === 'revoked') {
+            if (existing.status === 'declined' || existing.status === 'revoked' || existing.status === 'cancelled') {
                 return await supabaseClient.from('accountant_links').update({ status: 'pending', requested_by: 'client', responded_at: null }).eq('id', existing.id);
             }
             return { error: null }; // already pending or approved -- nothing to change

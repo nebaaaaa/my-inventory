@@ -89,7 +89,7 @@
     .pw-toggle { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 4px; display: flex; }
 </style>
 </head>
-<body>
+<body onclick="closeNotifPanelOutside()">
 
 <div id="auth-overlay">
     <div class="auth-brand-mark-fixed"><span class="accent">M</span><span class="dark">ELEYA</span></div>
@@ -645,6 +645,7 @@
         await loadAccountantProfile();
         await loadClients();
         await refreshMyLinks();
+        await loadNotifications();
         subscribeToAccountantLinks();
         render();
     }
@@ -670,11 +671,141 @@
         if (accountantLinksChannel) supabaseClient.removeChannel(accountantLinksChannel);
         accountantLinksChannel = supabaseClient
             .channel(`accountant_links_acct_${currentUserId}`)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'accountant_links', filter: `accountant_user_id=eq.${currentUserId}` }, async () => {
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'accountant_links', filter: `accountant_user_id=eq.${currentUserId}` }, async (payload) => {
                 await refreshMyLinks();
+                notifyMyLinkChange(payload);
                 render();
             })
             .subscribe();
+    }
+    // Mirrors notifyAccountantLinkChange() in index.html -- fires for every
+    // insert/update on this accountant's links, including ones this same
+    // tab just made (realtime echoes your own writes back), so "every
+    // action shows up in notifications" is one handler instead of a call at
+    // every button. requested_by reliably tells us who sent the original
+    // request (and by the RLS rules only the other side can approve/
+    // decline it), so direction is accurate for insert/approve/decline;
+    // revoke can come from either side once approved, so that one stays
+    // neutral rather than guessing who did it.
+    function notifyMyLinkChange(payload) {
+        const row = payload.new || payload.old;
+        if (!row) return;
+        const link = myLinks.find((l) => l.id === row.id);
+        const name = link ? link.business_name : 'A business';
+        if (payload.eventType === 'INSERT') {
+            if (row.requested_by === 'client') {
+                addNotif('Link request received', `${name} requested to link their inventory to you.`);
+                showIncomingLinkToast(row.id, name);
+            } else {
+                addNotif('Link request sent', `You sent a link request to ${name}.`);
+            }
+        } else if (payload.eventType === 'UPDATE') {
+            if (row.status === 'approved') {
+                addNotif('Link approved', row.requested_by === 'client' ? `You approved ${name}'s request.` : `${name} approved your request.`);
+            } else if (row.status === 'declined') {
+                addNotif('Link declined', row.requested_by === 'client' ? `You declined ${name}'s request.` : `${name} declined your request.`);
+            } else if (row.status === 'revoked') {
+                addNotif('Access revoked', `Access with ${name} was revoked.`);
+                showInfoLinkToast(`Access with <strong>${esc(name)}</strong> was revoked.`);
+            } else if (row.status === 'cancelled') {
+                addNotif('Link request cancelled', row.requested_by === 'client' ? `${name} cancelled their request to you.` : `You cancelled your request to ${name}.`);
+            }
+        }
+    }
+
+    // ---- Notifications (persistent log, separate from the toast below) --
+    let myNotifications = [];
+    let notifPanelOpen = false;
+    async function loadNotifications() {
+        if (!currentUserId) return;
+        const { data } = await supabaseClient.from('accountant_notifications').select('*').eq('accountant_user_id', currentUserId).order('created_at', { ascending: false }).limit(50);
+        myNotifications = data || [];
+    }
+    async function addNotif(title, msg) {
+        const { data } = await supabaseClient.from('accountant_notifications').insert({ accountant_user_id: currentUserId, title, msg }).select().single();
+        if (data) myNotifications.unshift(data);
+        render();
+    }
+    async function toggleNotifPanel(e) {
+        if (e) e.stopPropagation();
+        notifPanelOpen = !notifPanelOpen;
+        if (notifPanelOpen && myNotifications.some((n) => !n.read)) {
+            await supabaseClient.from('accountant_notifications').update({ read: true }).eq('accountant_user_id', currentUserId).eq('read', false);
+            myNotifications.forEach((n) => { n.read = true; });
+        }
+        render();
+    }
+    async function clearAllNotifications() {
+        await supabaseClient.from('accountant_notifications').delete().eq('accountant_user_id', currentUserId);
+        myNotifications = [];
+        render();
+    }
+    function unreadNotifCount() { return myNotifications.filter((n) => !n.read).length; }
+    function closeNotifPanelOutside() {
+        if (!notifPanelOpen) return;
+        notifPanelOpen = false;
+        render();
+    }
+    function renderNotifPanel() {
+        if (!notifPanelOpen) return '';
+        const rows = myNotifications.length
+            ? myNotifications.map((n) => `
+                <div style="padding:9px 0; border-top:1px solid var(--paper-line);">
+                    <div style="font-weight:600; font-size:12.5px;">${esc(n.title)}</div>
+                    <div style="font-size:12px; color:var(--text-soft);">${esc(n.msg)}</div>
+                    <div style="font-size:10.5px; color:var(--text-soft); margin-top:2px;">${esc(new Date(n.created_at).toLocaleString())}</div>
+                </div>`).join('')
+            : `<div style="font-size:12.5px; color:var(--text-soft); padding:10px 0;">No notifications yet.</div>`;
+        return `
+            <div style="position:absolute; top:100%; right:0; margin-top:8px; width:320px; max-height:400px; overflow-y:auto; background:var(--paper); border:1px solid var(--paper-line); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,0.15); padding:12px 14px; z-index:410;" onclick="event.stopPropagation();">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                    <div style="font-weight:600; font-size:13px;">Notifications</div>
+                    ${myNotifications.length ? `<a href="#" style="font-size:11.5px;" onclick="event.preventDefault(); clearAllNotifications();">Clear all</a>` : ''}
+                </div>
+                ${rows}
+            </div>`;
+    }
+
+    // ---- Temporary incoming-request toast (semi-transparent, quick actions) --
+    let incomingLinkToast = null;
+    let incomingLinkToastTimer = null;
+    function showIncomingLinkToast(linkId, name) {
+        showLinkToast({ kind: 'incoming', linkId, message: `<strong>${esc(name)}</strong> wants to link their inventory to you.` });
+    }
+    function showInfoLinkToast(message) {
+        showLinkToast({ kind: 'info', message });
+    }
+    function showLinkToast(toast) {
+        incomingLinkToast = toast;
+        render();
+        clearTimeout(incomingLinkToastTimer);
+        incomingLinkToastTimer = setTimeout(dismissIncomingLinkToast, 15000);
+    }
+    function dismissIncomingLinkToast() {
+        clearTimeout(incomingLinkToastTimer);
+        incomingLinkToast = null;
+        render();
+    }
+    async function respondToIncomingLinkToast(newStatus) {
+        if (!incomingLinkToast || incomingLinkToast.kind !== 'incoming') return;
+        const { linkId } = incomingLinkToast;
+        dismissIncomingLinkToast();
+        await respondToLink(linkId, newStatus);
+    }
+    function renderIncomingLinkToast() {
+        if (!incomingLinkToast) return '';
+        const actions = incomingLinkToast.kind === 'incoming'
+            ? `<button class="btn btn-primary" style="padding:5px 10px; font-size:12px;" onclick="respondToIncomingLinkToast('approved')">Accept</button>
+               <button class="btn btn-ghost" style="padding:5px 10px; font-size:12px; color:#fff; border-color:rgba(255,255,255,0.4);" onclick="respondToIncomingLinkToast('declined')">Decline</button>`
+            : '';
+        return `
+            <div style="position:fixed; z-index:500; bottom:20px; right:20px; max-width:360px; display:flex; align-items:center; gap:12px; background:rgba(30,30,34,0.92); color:#fff; padding:12px 14px; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,0.25); font-size:13px;">
+                <div style="flex:1; min-width:0;">${incomingLinkToast.message}</div>
+                <div style="display:flex; gap:6px; flex-shrink:0;">
+                    ${actions}
+                    <button class="btn-icon" style="color:#fff;" onclick="dismissIncomingLinkToast()" title="Dismiss">${icon('x', 15)}</button>
+                </div>
+            </div>`;
     }
     (async () => {
         const { data: { session } } = await supabaseClient.auth.getSession();
@@ -738,37 +869,89 @@
     }
     function linkForBusiness(businessId) { return myLinks.find((l) => l.business_id === businessId) || null; }
 
+    // ---- Recent-search history (per device, via localStorage) ------------
+    // Generic so the same helpers cover both business-search boxes here.
+    function searchHistKey(scope) { return `meleya_acct_search_history_${scope}`; }
+    function getSearchHistory(scope) {
+        try { return JSON.parse(localStorage.getItem(searchHistKey(scope)) || '[]'); } catch (e) { return []; }
+    }
+    function addSearchHistoryTerm(scope, term) {
+        term = (term || '').trim();
+        if (!term) return;
+        let hist = getSearchHistory(scope).filter((t) => t.toLowerCase() !== term.toLowerCase());
+        hist.unshift(term);
+        hist = hist.slice(0, 8);
+        try { localStorage.setItem(searchHistKey(scope), JSON.stringify(hist)); } catch (e) {}
+    }
+    function removeSearchHistoryTerm(scope, term) {
+        const hist = getSearchHistory(scope).filter((t) => t !== term);
+        try { localStorage.setItem(searchHistKey(scope), JSON.stringify(hist)); } catch (e) {}
+    }
+    function clearSearchHistoryScope(scope) {
+        try { localStorage.removeItem(searchHistKey(scope)); } catch (e) {}
+    }
+    function escForJsString(s) { return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+    function renderSearchHistoryInline(scope, runFnName) {
+        const hist = getSearchHistory(scope);
+        if (!hist.length) return '';
+        return `
+            <div style="display:flex; align-items:center; justify-content:space-between; margin:2px 0 8px;">
+                <span style="font-size:11px; color:var(--text-soft); text-transform:uppercase; letter-spacing:.03em;">Recent searches</span>
+                <a href="#" style="font-size:11px;" onclick="event.preventDefault(); clearSearchHistoryScope('${scope}'); render();">Clear all</a>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px;">
+                ${hist.map((term) => `
+                    <span style="display:inline-flex; align-items:center; gap:5px; background:var(--paper-line,#f1f1f1); border-radius:14px; padding:3px 6px 3px 10px; font-size:12px; cursor:pointer;" onclick="${runFnName}('${escForJsString(term)}');">
+                        ${esc(term)}
+                        <span onclick="event.stopPropagation(); removeSearchHistoryTerm('${scope}','${escForJsString(term)}'); render();" style="opacity:.6; padding:0 2px;">×</span>
+                    </span>`).join('')}
+            </div>`;
+    }
+
     let linksInboxOpen = false;
     function openLinksInbox() { linksInboxOpen = true; render(); }
     function closeLinksInbox() { linksInboxOpen = false; render(); }
     const pendingIncomingCount = () => myLinks.filter((l) => l.status === 'pending' && l.requested_by === 'client').length;
 
     async function respondToLink(id, newStatus) {
+        const link = myLinks.find((l) => l.id === id);
         const { error } = await supabaseClient.from('accountant_links').update({ status: newStatus, responded_at: new Date().toISOString() }).eq('id', id);
         if (error) { alert(error.message); return; }
+        // A business-initiated request, once approved, should show up as a
+        // client right away -- otherwise it only exists in the Requests
+        // inbox, with no way to actually log receipts for them.
+        if (newStatus === 'approved' && link && link.requested_by === 'client') {
+            await ensureClientForBusiness(link);
+        }
         await refreshMyLinks();
         render();
     }
-    async function reRequestLink(businessId) {
-        const { error } = await upsertLinkRequest(businessId);
-        if (error) { alert(error.message); return; }
-        await refreshMyLinks();
-        render();
+    async function ensureClientForBusiness(link) {
+        if (clients.some((c) => c.linkedBusinessId === link.business_id)) return; // already a client
+        const { data, error } = await supabaseClient.from('accountant_clients').insert({
+            name: link.business_name, linked_business_id: link.business_id,
+            tin: link.vat_tin || '', vat_reg_no: link.vat_reg_no || '', trade_type: link.business_type || '',
+        }).select().single();
+        if (error) { alert(`Approved, but couldn't add them to your client list automatically: ${error.message}`); return; }
+        clients.push(mapClientFromDb(data));
     }
     function renderLinksInbox() {
-        const rows = myLinks.map((l) => {
-            const badge = l.status === 'approved' ? 'notice-ok' : l.status === 'pending' ? 'notice-warn' : 'notice-muted';
+        // Declined/revoked links are dropped from view entirely rather than
+        // lingering with a "reconnect" button -- to link up again, either
+        // side just searches for the other and sends a fresh request, same
+        // as the very first time.
+        const activeLinks = myLinks.filter((l) => l.status === 'pending' || l.status === 'approved');
+        const rows = activeLinks.map((l) => {
+            const badge = l.status === 'approved' ? 'notice-ok' : 'notice-warn';
             const direction = l.requested_by === 'accountant' ? 'You requested' : 'They requested';
             let actions = '';
             if (l.status === 'pending' && l.requested_by === 'client') {
                 actions = `<button class="btn btn-primary" style="padding:5px 10px; font-size:12px;" onclick="respondToLink('${l.id}','approved')">${icon('check', 13)} Approve</button>
                            <button class="btn btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="respondToLink('${l.id}','declined')">Decline</button>`;
             } else if (l.status === 'pending' && l.requested_by === 'accountant') {
-                actions = `<button class="btn btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="respondToLink('${l.id}','declined')">Cancel request</button>`;
+                actions = `<button class="btn btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="respondToLink('${l.id}','cancelled')">Cancel request</button>`;
             } else if (l.status === 'approved') {
                 actions = `<button class="btn btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="respondToLink('${l.id}','revoked')">Revoke access</button>`;
-            } else if (l.status === 'declined' || l.status === 'revoked') {
-                actions = `<button class="btn btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="reRequestLink('${l.business_id}')">${icon('rotate-cw', 13)} Send again</button>`;
             }
             return `
                 <div class="list-row" style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
@@ -786,7 +969,7 @@
                 <div class="sub">Approve, decline, or manage access between you and businesses using MELEYA</div>
             </div></div>
             <div class="wrap">
-                ${myLinks.length === 0 ? `<div class="empty">${icon('link-2', 28)}<div>No link requests yet.</div></div>` : `<div class="list">${rows}</div>`}
+                ${activeLinks.length === 0 ? `<div class="empty">${icon('link-2', 28)}<div>No link requests yet.</div></div>` : `<div class="list">${rows}</div>`}
             </div>`;
     }
 
@@ -801,6 +984,8 @@
         render();
     }
     function closeLinkSearch() { linkSearchOpen = false; linkSearchClientId = null; linkSearchQuery = ''; linkSearchResults = []; render(); }
+    // Live preview as the person types (doesn't touch history) -- see
+    // submitLinkSearch() below for the explicit "entered" path.
     async function runLinkSearch(q) {
         linkSearchQuery = q;
         if (q.trim().length < 2) { linkSearchResults = []; render(); return; }
@@ -809,6 +994,12 @@
         linkSearchBusy = false;
         linkSearchResults = error ? [] : (data || []);
         render();
+    }
+    function submitLinkSearch(term) {
+        const q = (term !== undefined ? term : linkSearchQuery).trim();
+        if (q.length < 2) return;
+        addSearchHistoryTerm('link_search', q);
+        runLinkSearch(q);
     }
     async function sendLinkRequest(businessId) {
         const client = clients.find((c) => c.id === linkSearchClientId);
@@ -820,11 +1011,21 @@
         closeLinkSearch();
     }
     function renderLinkSearchModal() {
-        const results = linkSearchResults.map((r) => `
-            <div class="list-row" style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+        const results = linkSearchResults.map((r) => {
+            // myLinks is already loaded -- reuse it rather than re-querying,
+            // so a pending/approved match shows its real status instead of a
+            // "Send request" button that would just silently no-op.
+            const existing = myLinks.find((l) => l.business_id === r.business_id);
+            const active = existing && (existing.status === 'pending' || existing.status === 'approved');
+            const action = active
+                ? `<span style="font-size:12px; color:var(--text-soft);">${existing.status === 'approved' ? 'Already connected' : 'Request pending'}</span>`
+                : `<button class="btn btn-primary" style="padding:5px 10px; font-size:12px;" onclick="sendLinkRequest('${r.business_id}')">Send request</button>`;
+            return `
+            <div class="list-row" style="display:flex; align-items:center; justify-content:space-between; gap:12px; cursor:pointer;" onclick="addSearchHistoryTerm('link_search','${escForJsString(r.business_name)}')">
                 <div><div style="font-weight:600;">${esc(r.business_name)}</div><div class="meta">${esc(r.phone) || ''}</div></div>
-                <button class="btn btn-primary" style="padding:5px 10px; font-size:12px;" onclick="sendLinkRequest('${r.business_id}')">Send request</button>
-            </div>`).join('');
+                ${action}
+            </div>`;
+        }).join('');
         return `
             <div style="position:fixed; inset:0; z-index:400; background:rgba(27,58,47,0.45); display:flex; align-items:center; justify-content:center; padding:20px;" onclick="if(event.target===this) closeLinkSearch();">
                 <div class="card" style="max-width:440px; width:100%; margin:0; max-height:85vh; overflow-y:auto;">
@@ -832,7 +1033,11 @@
                         <div class="section-title" style="margin:0;">Find client on MELEYA</div>
                         <button class="btn-icon" onclick="closeLinkSearch()">${icon('x', 18)}</button>
                     </div>
-                    <input placeholder="Search by business name, phone, or owner's name…" id="link-search-input" value="${esc(linkSearchQuery)}" oninput="runLinkSearch(this.value)" style="margin-bottom:12px;">
+                    <div style="display:flex; gap:8px; margin-bottom:12px;">
+                        <input placeholder="Search by business name, phone, or owner's name…" id="link-search-input" value="${esc(linkSearchQuery)}" oninput="runLinkSearch(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault(); submitLinkSearch();}" style="flex:1;">
+                        <button class="btn btn-primary" style="padding:0 14px;" onclick="submitLinkSearch()">${icon('search', 14)}</button>
+                    </div>
+                    ${!linkSearchQuery.trim() ? renderSearchHistoryInline('link_search', 'submitLinkSearch') : ''}
                     ${linkSearchBusy ? `<div style="color:var(--text-soft); font-size:13px;">Searching…</div>` : ''}
                     ${!linkSearchBusy && linkSearchQuery.trim().length >= 2 && linkSearchResults.length === 0 ? `<div style="color:var(--text-soft); font-size:13px;">No matching business found.</div>` : ''}
                     <div class="list">${results}</div>
@@ -859,8 +1064,19 @@
             return `<div class="empty">${icon('link-2', 28)}<div>This client isn't linked to a MELEYA business yet.</div>
                 <button class="btn btn-primary" style="margin-top:12px;" onclick="openLinkSearch('${client.id}')">${icon('search', 15)} Find them on MELEYA</button></div>`;
         }
+        if (status === 'pending') {
+            return link.requested_by === 'accountant'
+                ? `<div class="empty">${icon('clock', 28)}<div>Waiting on their approval to view this client's inventory.</div></div>`
+                : `<div class="empty">${icon('clock', 28)}<div>This business sent you a link request — approve it to view their inventory.</div>
+                    <button class="btn btn-primary" style="margin-top:12px;" onclick="openLinksInbox()">${icon('link-2', 15)} Go to Requests</button></div>`;
+        }
         if (status !== 'approved') {
-            return `<div class="empty">${icon('clock', 28)}<div>Waiting on ${status === 'pending' ? 'their' : 'a'} approval to view this client's inventory (status: ${esc(status || 'unknown')}).</div></div>`;
+            // declined / revoked / cancelled (or no link row at all, e.g. it
+            // was never actually sent) -- not an active connection, and not
+            // something to just wait on, so point back to search instead.
+            const label = status === 'declined' ? 'declined' : status === 'revoked' ? 'revoked' : status === 'cancelled' ? 'cancelled' : 'not active';
+            return `<div class="empty">${icon('link-2', 28)}<div>The MELEYA link for this client was ${esc(label)}. Search again to reconnect.</div>
+                <button class="btn btn-primary" style="margin-top:12px;" onclick="openLinkSearch('${client.id}')">${icon('search', 15)} Find them on MELEYA</button></div>`;
         }
         if (client.inventory === undefined) {
             if (!client.inventoryLoading) {
@@ -1034,6 +1250,11 @@ If there are multiple line items, pick only the SINGLE item with the largest amo
         addClientSearchOpen = false;
         openClient(data.id);
     }
+    // Live preview as the person types (doesn't touch history) -- separate
+    // from submitAddClientSearch() below, which is the only thing that
+    // records a search term: pressing Enter, clicking Search, or clicking a
+    // result. This way partial, still-being-typed text never pollutes the
+    // recent-searches list.
     async function runAddClientSearch(q) {
         addClientQuery = q;
         if (q.trim().length < 2) { addClientResults = []; render(); return; }
@@ -1043,10 +1264,18 @@ If there are multiple line items, pick only the SINGLE item with the largest amo
         addClientResults = error ? [] : (data || []);
         render();
     }
+    // The explicit "entered" path: Enter key, the Search button, or clicking
+    // a recent-search pill.
+    function submitAddClientSearch(term) {
+        const q = (term !== undefined ? term : addClientQuery).trim();
+        if (q.length < 2) return;
+        addSearchHistoryTerm('add_client', q);
+        runAddClientSearch(q);
+    }
     // Sends a fresh link request for this accountant+business pair. If one
-    // already exists: a declined/revoked link is revived back to pending
-    // (so re-requesting after a decline actually works), while a pending or
-    // approved link is left untouched (nothing to do).
+    // already exists: a declined/revoked/cancelled link is revived back to
+    // pending (so re-requesting after any of those actually works), while a
+    // pending or approved link is left untouched (nothing to do).
     async function upsertLinkRequest(businessId) {
         const { data: existing, error: selErr } = await supabaseClient
             .from('accountant_links').select('id, status')
@@ -1055,7 +1284,7 @@ If there are multiple line items, pick only the SINGLE item with the largest amo
         if (!existing) {
             return await supabaseClient.from('accountant_links').insert({ accountant_user_id: currentUserId, business_id: businessId, requested_by: 'accountant' });
         }
-        if (existing.status === 'declined' || existing.status === 'revoked') {
+        if (existing.status === 'declined' || existing.status === 'revoked' || existing.status === 'cancelled') {
             return await supabaseClient.from('accountant_links').update({ status: 'pending', requested_by: 'accountant', responded_at: null }).eq('id', existing.id);
         }
         return { error: null }; // already pending or approved -- nothing to change
@@ -1070,23 +1299,38 @@ If there are multiple line items, pick only the SINGLE item with the largest amo
             return;
         }
         const { data, error } = await supabaseClient.from('accountant_clients').insert({
-            name: r.business_name, linked_business_id: businessId,
+            name: r.business_name,
             tin: r.vat_tin || '', vat_reg_no: r.vat_reg_no || '', trade_type: r.business_type || '',
         }).select().single();
         if (error) { alert(error.message); return; }
-        clients.push(mapClientFromDb(data));
+        const client = mapClientFromDb(data);
+        clients.push(client);
+        // linked_business_id is only set once the link request itself
+        // succeeds -- otherwise the client would show as "linked" with no
+        // accountant_links row behind it, and the Inventory tab would have
+        // nothing to look up.
         const { error: linkError } = await upsertLinkRequest(businessId);
-        if (linkError) alert(`Client added, but the link request failed: ${linkError.message}`);
+        if (linkError) {
+            alert(`Client added, but the link request failed: ${linkError.message}. You can retry from their Inventory tab.`);
+        } else {
+            await patchClient(client.id, { linkedBusinessId: businessId });
+        }
         await refreshMyLinks();
         addClientSearchOpen = false;
-        openClient(data.id);
+        openClient(client.id);
     }
     function renderAddClientSearch() {
-        const results = addClientResults.map((r) => `
-            <div class="list-row" style="cursor:default;">
+        const results = addClientResults.map((r) => {
+            const existing = clients.find((c) => c.linkedBusinessId === r.business_id);
+            const action = existing
+                ? `<button class="btn btn-ghost" style="padding:6px 12px; font-size:12.5px;" onclick="addClientFromSearch('${r.business_id}')">${icon('arrow-right', 14)} Open existing client</button>`
+                : `<button class="btn btn-primary" style="padding:6px 12px; font-size:12.5px;" onclick="addClientFromSearch('${r.business_id}')">${icon('plus', 14)} Add this client</button>`;
+            return `
+            <div class="list-row" style="cursor:pointer;" onclick="addSearchHistoryTerm('add_client','${escForJsString(r.business_name)}')">
                 <div><div class="name">${esc(r.business_name)}</div><div class="meta">${esc(r.phone) || ''}${r.business_type ? ` · ${esc(r.business_type)}` : ''}${r.owner_full_name ? ` · ${esc(r.owner_full_name)}` : ''}</div></div>
-                <button class="btn btn-primary" style="padding:6px 12px; font-size:12.5px;" onclick="addClientFromSearch('${r.business_id}')">${icon('plus', 14)} Add this client</button>
-            </div>`).join('');
+                ${action}
+            </div>`;
+        }).join('');
         return `
             <div class="header"><div class="wrap">
                 <button class="back-link" onclick="closeAddClientSearch()">${icon('arrow-left', 14)} All clients</button>
@@ -1094,7 +1338,11 @@ If there are multiple line items, pick only the SINGLE item with the largest amo
                 <div class="sub">Search for them on MELEYA first — this links their inventory automatically once they approve</div>
             </div></div>
             <div class="wrap">
-                <input id="add-client-search-input" placeholder="Search by business name, phone, or owner's name…" value="${esc(addClientQuery)}" oninput="runAddClientSearch(this.value)" style="margin-bottom:14px;" autofocus>
+                <div style="display:flex; gap:8px; margin-bottom:14px;">
+                    <input id="add-client-search-input" placeholder="Search by business name, phone, or owner's name…" value="${esc(addClientQuery)}" oninput="runAddClientSearch(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault(); submitAddClientSearch();}" style="flex:1;" autofocus>
+                    <button class="btn btn-primary" style="padding:0 16px;" onclick="submitAddClientSearch()">${icon('search', 15)} Search</button>
+                </div>
+                ${!addClientQuery.trim() ? renderSearchHistoryInline('add_client', 'submitAddClientSearch') : ''}
                 ${addClientBusy ? `<div style="color:var(--text-soft); font-size:13px; margin-bottom:10px;">Searching…</div>` : ''}
                 ${!addClientBusy && addClientQuery.trim().length >= 2 && addClientResults.length === 0 ? `<div style="color:var(--text-soft); font-size:13px; margin-bottom:10px;">No matching business found on MELEYA.</div>` : ''}
                 ${addClientResults.length ? `<div class="list" style="margin-bottom:20px;">${results}</div>` : ''}
@@ -1111,6 +1359,19 @@ If there are multiple line items, pick only the SINGLE item with the largest amo
         const { error } = await supabaseClient.from('accountant_clients').delete().eq('id', id);
         if (error) { alert(error.message); return; }
         clients = clients.filter((c) => c.id !== id);
+        // Deleting a client linked to a MELEYA business also revokes that
+        // link -- otherwise the business would still show as "approved"
+        // with an accountant who, on this side, no longer has any record
+        // of them. The business picks this up the normal way: their
+        // realtime subscription logs it to their notifications and shows
+        // the same toast used for incoming requests.
+        if (client.linkedBusinessId) {
+            const link = myLinks.find((l) => l.business_id === client.linkedBusinessId && (l.status === 'approved' || l.status === 'pending'));
+            if (link) {
+                await supabaseClient.from('accountant_links').update({ status: 'revoked', responded_at: new Date().toISOString() }).eq('id', link.id);
+                await refreshMyLinks();
+            }
+        }
         render();
     }
     async function patchClient(id, patch) {
@@ -1168,6 +1429,7 @@ If there are multiple line items, pick only the SINGLE item with the largest amo
         let html = addClientSearchOpen ? renderAddClientSearch() : (linksInboxOpen ? renderLinksInbox() : (activeClientId ? renderClientDetail() : renderDashboard()));
         if (profileModalOpen) html += renderProfileModal();
         if (linkSearchOpen) html += renderLinkSearchModal();
+        html += renderIncomingLinkToast();
         root.innerHTML = html;
         refreshIcons();
 
@@ -1200,6 +1462,10 @@ If there are multiple line items, pick only the SINGLE item with the largest amo
                 <div class="brand">MELEYA</div>
                 <h1>Accountant workspace</h1>
                 <div style="display:flex; gap:16px; align-items:center; justify-content:flex-end; margin-top:-30px;">
+                    <div style="position:relative;">
+                        <button class="signout-link" style="position:relative;" onclick="toggleNotifPanel(event)">${icon('bell', 13)} ${unreadNotifCount() ? `<span style="background:var(--amber); color:#fff; border-radius:10px; padding:0 6px; font-size:10px; margin-left:2px;">${unreadNotifCount()}</span>` : ''}</button>
+                        ${renderNotifPanel()}
+                    </div>
                     <button class="signout-link" onclick="openProfileModal()">${icon('user', 13)} My profile</button>
                     <button class="signout-link" style="position:relative;" onclick="openLinksInbox()">${icon('link-2', 13)} Requests${pending ? ` <span style="background:var(--amber); color:#fff; border-radius:10px; padding:0 6px; font-size:10px; margin-left:2px;">${pending}</span>` : ''}</button>
                     <button class="signout-link" onclick="handleSignOut()">Sign out</button>
