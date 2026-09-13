@@ -181,10 +181,12 @@
     // ------------------------------------------------------------------------
     const SUPABASE_URL = "https://nwkrrcatdhppvlceuzwg.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im53a3JyY2F0ZGhwcHZsY2V1endnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzMjEzNjUsImV4cCI6MjA5OTg5NzM2NX0.kELqbONKGQIs2Z99Zx8rEcwuYekTCugLYtbsYW3_0h8";
-    // Free Gemini API key — get one at https://aistudio.google.com/apikey
-    // (Google account, no card). Replace this placeholder before using the
-    // receipt-scan feature. Free tier (Flash-Lite): ~1,000 requests/day.
-    const GEMINI_API_KEY = "AQ.Ab8RN6K7CUSm66jK-GpLCKYQSdMY62P5uFRw0MVjlkUzQoiJEw";
+    // Free OpenRouter API key — get one at https://openrouter.ai/keys
+    // (email/Google sign-in, no card needed). Replace this placeholder before
+    // using the receipt-scan feature. Free tier: 50 requests/day (1,000/day
+    // if you've ever added $10 credit). Uses the "openrouter/free" auto-router
+    // so it keeps working even as individual free models come and go.
+    const OPENROUTER_API_KEY = "REMOVED_LEAKED_KEY";
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     function esc(s) {
@@ -1210,29 +1212,37 @@ Extract exactly these fields and return ONLY raw JSON, no markdown fences, no co
 If there are multiple line items, pick only the SINGLE item with the largest amount and use its description, quantity, and unit_price — do not combine or list multiple items together in "description". Set "measurement" to "Lot", "quantity" to 1, and "unit_price" equal to "before_vat" ONLY if you cannot identify a clear largest item; otherwise use that one item's own measurement/quantity/unit_price as printed (measurement only if a unit like PCS/KG/M is actually printed next to it — this receipt format usually does not print one, so leave it null rather than guess). If there is exactly ONE line item, fill "description", "quantity", "unit_price", and "measurement" from that single item the same way. "before_vat", "vat", and "total" should always be the receipt-wide totals from the TXBL1/TAX1/TOTAL lines, never a per-item figure. A separate VAT registration number is normal to be absent on this receipt format — never include "VAT reg no" in "missing_fields". In "missing_fields", only list fields from this set that you could not confidently read: "Seller name", "Seller TIN", "MRC".`;
 
     async function runGeminiExtraction(file, onStatus) {
-        if (!GEMINI_API_KEY || GEMINI_API_KEY.startsWith('REPLACE_WITH')) {
-            throw new Error('No Gemini API key set yet — add a free key from aistudio.google.com/apikey near the top of this file.');
+        if (!OPENROUTER_API_KEY || OPENROUTER_API_KEY.startsWith('REPLACE_WITH')) {
+            throw new Error('No OpenRouter API key set yet — add a free key from openrouter.ai/keys near the top of this file.');
         }
         onStatus && onStatus('Preparing photo…');
         const blob = await compressImageForAi(file);
         const base64 = await blobToBase64(blob);
         onStatus && onStatus('Reading the receipt…');
-        const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent', {
+        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+            },
             body: JSON.stringify({
-                contents: [{ parts: [
-                    { inline_data: { mime_type: 'image/jpeg', data: base64 } },
-                    { text: RECEIPT_PROMPT },
-                ] }],
-                generationConfig: { responseMimeType: 'application/json' },
+                model: 'openrouter/free', // auto-picks a working free vision model
+                response_format: { type: 'json_object' },
+                messages: [{
+                    role: 'user',
+                    content: [
+                        { type: 'text', text: RECEIPT_PROMPT },
+                        { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64}` } },
+                    ],
+                }],
             }),
         });
         const data = await res.json().catch(() => null);
-        if (!res.ok) throw new Error((data && data.error && data.error.message) || `Gemini request failed (${res.status})`);
-        const text = ((data.candidates || [])[0]?.content?.parts || []).map((p) => p.text || '').join('');
-        if (!text.trim()) throw new Error('No result returned from Gemini');
-        const parsed = JSON.parse(text);
+        if (!res.ok) throw new Error((data && data.error && data.error.message) || `OpenRouter request failed (${res.status})`);
+        const text = (((data.choices || [])[0] || {}).message || {}).content || '';
+        if (!text.trim()) throw new Error('No result returned from the AI model');
+        const cleaned = text.trim().replace(/^```json\s*|```$/g, '');
+        const parsed = JSON.parse(cleaned);
         parsed.date_calendar = 'GC';
         return parsed;
     }
