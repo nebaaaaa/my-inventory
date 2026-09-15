@@ -55,6 +55,12 @@ self.addEventListener('fetch', (event) => {
   // fetched fresh, never served from a stale local cache.
   if (event.request.url.includes('supabase.co')) return;
 
+  // Never cache calls to our own serverless functions (e.g. /api/extract-receipt)
+  // either — these must always hit the network fresh, and most of them are
+  // POST requests anyway, which the Cache API can't store (cache.put() throws
+  // on anything but GET).
+  if (event.request.url.includes('/api/')) return;
+
   event.respondWith(
     caches.match(event.request).then((cached) => {
       const networkFetch = fetch(event.request)
