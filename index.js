@@ -1,5 +1,5 @@
 // =====================================================================
-// MELEYA — Service Worker
+// MELEYA / Service Worker
 // Caches the app shell (this HTML file + its library files) so the app
 // can still OPEN with no internet connection. This does NOT cache your
 // actual shop data — every request to Supabase always goes straight to
