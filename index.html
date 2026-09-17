@@ -583,8 +583,8 @@
                 <div class="card">
                     <h3 data-i18n="dash.liquid_positions">Liquid Capital Asset Positions</h3>
                     <p style="margin-top: 10px; font-size: 14px; color: var(--text-light);">
-                        <span onclick="launchLiquidVaultDrillDown()" style="cursor:pointer; text-decoration:underline dotted;" title="Click for a breakdown by channel" data-i18n="dash.liquid_vault">Liquid Vault Balance (Cash &amp; Banks)</span>: <strong id="dash-cash-sum" style="color: var(--primary);">ETB 0.00</strong> | 
-                        <span data-i18n="dash.inventory_assets">Inventory Assets (FIFO cost basis)</span>: <strong id="dash-stock-sum" style="color: var(--primary);">ETB 0.00</strong>
+                        <span onclick="launchLiquidVaultDrillDown()" style="cursor:pointer; text-decoration:underline dotted;" title="Click for a breakdown by channel" data-i18n="dash.liquid_vault">Money In (Cash and Banks)</span>: <strong id="dash-cash-sum" style="color: var(--primary);">ETB 0.00</strong> | 
+                        <span data-i18n="dash.inventory_assets">Inventory/Stock Value</span>: <strong id="dash-stock-sum" style="color: var(--primary);">ETB 0.00</strong>
                     </p>
                 </div>
                 
@@ -600,14 +600,6 @@
                                 <label style="margin:0; color: #9195a8;" data-i18n="dash.end_date">End Date:</label>
                                 <input type="date" id="analytics-end" onchange="renderDeepAnalytics()" style="min-width: 130px; padding: 8px 12px; border-radius: 6px; border: 1px solid #4a4e63; background: #23263A; color: white;">
                             </div>
-                            <div class="form-group" style="margin: 0; display:flex; gap:8px; align-items:center; border-left: 2px solid #4a4e63; padding-left: 16px;">
-                                <label style="margin:0; color: #9195a8;" data-i18n="dash.grouping">Grouping:</label>
-                                <select id="history-group-by" onchange="renderDeepAnalytics()" style="min-width: 110px; padding: 8px 12px; border-radius: 6px; border: 1px solid #4a4e63; background: #23263A; color: white;">
-                                    <option value="week" data-i18n="dash.by_week">By Week</option>
-                                    <option value="month" data-i18n="dash.by_month">By Month</option>
-                                    <option value="year" data-i18n="dash.by_year">By Year</option>
-                                </select>
-                            </div>
                         </div>
                     </div>
                     
@@ -622,7 +614,17 @@
                             </div>
                             
                             <div class="chart-scroll-wrap" style="grid-column: 1 / -1; background: #ffffff; padding: 20px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.06);">
-                                <h3 style="margin:0 0 14px 0; font-size:16px; font-weight:600; color:#171B34;"><span data-i18n="chart.revprof_title">Revenue &amp; Profit History</span> <span style="font-size:12px; font-weight:normal; color:var(--text-light);" data-i18n="chart.revprof_hint">— click a point for that period's details</span></h3>
+                                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:14px;">
+                                    <h3 style="margin:0; font-size:16px; font-weight:600; color:#171B34;"><span data-i18n="chart.revprof_title">Revenue &amp; Profit History</span> <span style="font-size:12px; font-weight:normal; color:var(--text-light);" data-i18n="chart.revprof_hint">— click a point for that period's details</span></h3>
+                                    <div class="form-group" style="margin: 0; display:flex; gap:8px; align-items:center;">
+                                        <select id="history-group-by" onchange="renderDeepAnalytics()" style="min-width: 110px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); background: #fff; color: #171B34; font-size:13px;">
+                                            <option value="day" data-i18n="dash.by_day">By Day</option>
+                                            <option value="week" data-i18n="dash.by_week">By Week</option>
+                                            <option value="month" data-i18n="dash.by_month">By Month</option>
+                                            <option value="year" data-i18n="dash.by_year">By Year</option>
+                                        </select>
+                                    </div>
+                                </div>
                                 <button class="graph-btn left-btn" onclick="document.getElementById('scroll-revprof').scrollBy({left: -400, behavior: 'smooth'})">◀</button>
                                 <button class="graph-btn right-btn" onclick="document.getElementById('scroll-revprof').scrollBy({left: 400, behavior: 'smooth'})">▶</button>
                                 <div id="scroll-revprof" style="overflow-x: auto; overflow-y: hidden; scroll-behavior: smooth; width: 100%; white-space: nowrap; padding-bottom: 8px;">
@@ -636,7 +638,7 @@
                             </div>
                         </div>
 
-                        <h3 style="color: var(--primary); margin-bottom: 12px; font-size: 18px;" data-i18n="dash.item_matrix">Item Performance Matrix (Velocity &amp; Margins)</h3>
+                        <h3 style="color: var(--primary); margin-bottom: 12px; font-size: 18px;" data-i18n="dash.item_matrix">Item Performance</h3>
                         <div class="table-scroll" style="margin-top: 8px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid var(--border);">
                             <table style="margin-top: 0; width: 100%; border-collapse: separate; border-spacing: 0;">
                                 <thead style="background: linear-gradient(to right, #F4F5F8, #ECEDF2);">
@@ -681,7 +683,7 @@
                     <div class="table-scroll">
                     <table>
                         <thead>
-                            <tr><th data-i18n="inv.category">Category</th><th data-i18n="inv.item_spec">Item Specification / Name</th><th class="num" data-i18n="inv.qty_on_hand">Qty On Hand</th><th class="num" data-i18n="inv.cost_layers">Cost Layers FIFO (ETB)</th><th class="num" data-i18n="inv.selling_price">Selling Price (ETB)</th><th class="num" data-i18n="inv.total_asset">Total Asset (ETB)</th><th class="num pharm-col" id="inv-expiry-col-header" style="display:none;">Exp Date</th><th style="text-align: center;" data-i18n="inv.actions">Actions</th></tr>
+                            <tr><th data-i18n="inv.category">Category</th><th data-i18n="inv.item_spec">Item Specification / Name</th><th class="num" data-i18n="inv.qty_on_hand">Qty On Hand</th><th class="num" data-i18n="inv.cost_layers">Cost Price (ETB)</th><th class="num" data-i18n="inv.selling_price">Selling Price (ETB)</th><th class="num" data-i18n="inv.total_asset">Total Asset (ETB)</th><th class="num pharm-col" id="inv-expiry-col-header" style="display:none;">Exp Date</th><th style="text-align: center;" data-i18n="inv.actions">Actions</th></tr>
                         </thead>
                         <tbody id="inventory-table-body"></tbody>
                     </table>
@@ -1524,15 +1526,15 @@
                 'dash.all_time': 'All-Time', 'dash.today': 'Today', 'dash.this_week': 'This Week',
                 'dash.this_month': 'This Month', 'dash.this_year': 'This Year', 'dash.custom_range': 'Custom Range',
                 'dash.from': 'From:', 'dash.to': 'To:', 'dash.deep_analytics': 'Deep Sales Analytics',
-                'dash.start_date': 'Start Date:', 'dash.end_date': 'End Date:', 'dash.grouping': 'Grouping:',
-                'dash.by_week': 'By Week', 'dash.by_month': 'By Month', 'dash.by_year': 'By Year',
+                'dash.start_date': 'Start Date:', 'dash.end_date': 'End Date:', 'dash.grouping': '',
+                'dash.by_day': 'By Day', 'dash.by_week': 'By Week', 'dash.by_month': 'By Month', 'dash.by_year': 'By Year',
                 'dash.estimated_vat': 'Estimated VAT',
 
 
                 'inv.add_product': 'Add Product', 'inv.category': 'Category', 'inv.product_name': 'Product Name',
                 'inv.stock_list': 'Stock List', 'inv.search_category': 'Search Category', 'inv.search_name': 'Search Name',
                 'inv.item_spec': 'Item Specification / Name', 'inv.qty_on_hand': 'Qty On Hand',
-                'inv.cost_layers': 'Cost Layers FIFO (ETB)', 'inv.selling_price': 'Selling Price (ETB)',
+                'inv.cost_layers': 'Cost Price (ETB)', 'inv.selling_price': 'Selling Price (ETB)',
                 'inv.total_asset': 'Total Asset (ETB)', 'inv.actions': 'Actions',
 
                 'tr.title': 'Transfer Stock Between Branches', 'tr.from_branch': 'From Branch', 'tr.to_branch': 'To Branch',
@@ -1648,7 +1650,7 @@
                 'ft.recent': 'Recent Fund Transfers', 'ft.movement': 'Movement',
                 'ft.insufficient': 'Not enough balance in that channel. Available:', 'ft.available': 'Available',
 
-                'chart.top10_proportion': 'Top 10 Items Proportion', 'chart.bottom10_proportion': 'Top 10 Non-Performing Items',
+                'chart.top10_proportion': 'Top 10 Selling Items', 'chart.bottom10_proportion': 'Top 10 Non-Selling Items',
                 'chart.revenue_by_type': 'Revenue Proportion by Sales Type', 'chart.revenue': 'Revenue', 'chart.profit': 'Profit',
                 'chart.revprof_title': 'Revenue & Profit History', 'chart.revprof_hint': "— click a point for that period's details",
 
@@ -1695,8 +1697,86 @@
                 'acct.total_liabilities_equity': 'TOTAL LIABILITIES & EQUITY', 'acct.retained_earnings': 'Retained Earnings',
                 'acct.net_income': 'NET INCOME',
 
-                'dash.liquid_positions': 'Liquid Capital Asset Positions', 'dash.liquid_vault': 'Liquid Vault Balance (Cash & Banks)',
-                'dash.inventory_assets': 'Inventory Assets (FIFO cost basis)', 'dash.item_matrix': 'Item Performance Matrix (Velocity & Margins)'
+                'dash.liquid_positions': 'Liquid Capital Asset Positions', 'dash.liquid_vault': 'Money In (Cash and Banks)',
+                'dash.inventory_assets': 'Inventory/Stock Value', 'dash.item_matrix': 'Item Performance',
+
+                // Pharmacy vertical (verticals/pharmacy.js) — read via the
+                // global t() function, since that module is a plain ES
+                // module loaded at runtime, not part of this inline script.
+                'pharm.expiring_soon': 'Expiring soon', 'pharm.expired': 'Expired',
+                'pharm.write_off': 'Write Off', 'pharm.qty': 'Qty {n}',
+                'pharm.days_left': '{n} days', 'pharm.expired_ago': 'Expired {n}d ago',
+                'pharm.nothing_expiring': 'Nothing expiring in the next {n} days.',
+                'pharm.no_expired_stock': 'No expired stock.',
+
+                // Appliance rental vertical (verticals/appliance_rental.js)
+                'common.loading': 'Loading…',
+                'rental.out': 'Out', 'rental.overdue': 'Overdue', 'rental.due_in_days': 'Due in {a} days',
+                'rental.view_bookings': 'View these bookings', 'rental.no_bookings_category': 'No bookings in this category right now.',
+                'rental.customer': 'Customer', 'rental.asset': 'Asset', 'rental.start': 'Start', 'rental.expected_return': 'Expected Return',
+                'rental.availability': 'Availability', 'rental.assets': 'Assets',
+                'rental.search_category': 'Search Category', 'rental.filter_category_ph': 'Filter category...',
+                'rental.search_name': 'Search Name', 'rental.filter_name_ph': 'Filter name...',
+                'rental.earlier': '← Earlier', 'rental.later': 'Later →',
+                'rental.add_product_hint': 'Add a product above to get started.', 'rental.no_assets_match_filter': 'No assets match this filter.',
+                'rental.avail_of_total': '{a} of {b} available {c}', 'rental.no_assets_yet': 'No assets yet — use Add Product above.',
+                'rental.rate.daily': 'Daily', 'rental.rate.weekly': 'Weekly', 'rental.rate.monthly': 'Monthly',
+                'rental.write_off_title': 'Write Off — {a}', 'rental.writeoff_modal_hint': "Pick a batch and how many units to remove. This can't be undone.",
+                'rental.no_stock_writeoff': 'No stock to write off.', 'rental.unit_cost': 'Unit Cost', 'rental.write_off': 'Write Off',
+                'rental.filter_active': 'Active', 'rental.filter_all': 'All', 'rental.bookings_title': 'Bookings',
+                'rental.customer_name_phone': 'Customer Name / Phone', 'rental.product_item': 'Product Item',
+                'rental.cash': 'Cash', 'rental.mobile_banking': 'Mobile banking', 'rental.accounts_receivable': 'Accounts receivable',
+                'rental.total_shown': 'Total shown: ETB {a} ({b})', 'rental.no_bookings_filter': 'No bookings match this filter.',
+                'rental.quantity': 'Quantity', 'rental.channel_status_type': 'Channel / Status / Type',
+                'rental.check_out': 'Check Out', 'rental.check_in': 'Check In', 'rental.void': 'Void',
+                'rental.alert_branch_closed_void': 'This booking belongs to "{a}", which is closed. Reopen the branch first to void it.',
+                'rental.confirm_void_booking': 'Void this booking? This permanently reverses {a}x "{b}" for {c} -- its revenue, deposit, and any payments will be removed from the books. This can\'t be undone.',
+                'rental.alert_branch_closed_void_group': 'This booking belongs to a closed branch. Reopen the branch first to void it.',
+                'rental.confirm_void_group': 'Void this whole booking? This permanently reverses all {a} item(s) for {b} -- their revenue, deposits, and any payments will be removed from the books. This can\'t be undone.',
+                'rental.notif_booking_voided_title': 'Booking Voided', 'rental.notif_booking_voided_body': '{a} booking for {b} reversed and removed.',
+                'rental.notif_booking_voided_sub': 'Was {a}, ETB {b}', 'rental.notif_group_voided_body': '{a} item(s) for {b} reversed and removed.',
+                'rental.notif_group_voided_sub': 'Whole multi-item booking',
+                'rental.paid_in_full_tag': '[Paid in full]', 'rental.owes_tag': '[Owes ETB {a}]', 'rental.pending_tag': '[Pending]',
+                'rental.print_receipt_btn': '🧾 Receipt', 'rental.print_invoice_btn': '📄 Invoice',
+                'rental.print_receipt_title': 'Print thermal receipt', 'rental.print_invoice_title': 'Print full-page invoice',
+                'rental.doc_label': 'Rental Booking Receipt', 'rental.items_count': '{a} items',
+                'rental.new_booking': 'New Booking', 'rental.create_booking': 'Create Booking', 'rental.start_date': 'Start Date',
+                'rental.customer_phone': 'Customer Phone', 'rental.customer_address': 'Customer Address',
+                'rental.add_asset': 'Add Asset', 'rental.type_to_filter_ph': 'Type to filter...', 'rental.add_plus': '+ Add',
+                'rental.rate_type': 'Rate Type', 'rental.amount_etb': 'Amount (ETB)', 'rental.deposit_optional': 'Deposit (ETB, optional)',
+                'rental.deposit_tooltip': "A refundable security amount held from the customer, separate from the rental price. Given back when the item returns undamaged; kept in part or full if it doesn't. Leave at 0 if you don't take deposits.",
+                'rental.paid_now': 'Paid Now (ETB)', 'rental.payment_channel': 'Payment Channel',
+                'rental.n_available': '{a} available', 'rental.alert_pick_asset': 'Type or pick an asset from the list first.',
+                'rental.alert_no_more_available': 'No more of "{a}" available for those dates.',
+                'rental.err_add_asset': 'Add at least one asset.', 'rental.err_enter_customer_name': "Enter the customer's name.",
+                'rental.err_return_after_start': 'Expected return must be after the start date.',
+                'rental.err_asset_missing': 'One of the added assets no longer exists.',
+                'rental.err_only_n_available': 'Only {a} of "{b}" available for {c} – {d}.',
+                'rental.err_paid_now_exceeds': "Paid Now can't be more than the total (ETB {a}).",
+                'rental.notif_rental_booked_title': 'Rental Booked', 'rental.notif_rental_booked_body': '{a} item(s) booked for {b}',
+                'rental.notif_rental_booked_sub': '{a} – {b}, ETB {c}', 'rental.confirm_checkout': 'Confirm {a}x "{b}" is leaving with {c}?',
+                'rental.confirm_cancel_reservation': 'Cancel this reservation? This does not reverse any payment already recorded.',
+                'rental.note_cancelled_before_checkout': 'Cancelled before check-out.',
+                'rental.confirm_checkout_group': 'Confirm all {a} reserved item(s) in this booking are leaving with {b}?',
+                'rental.confirm_cancel_reservation_group': 'Cancel this whole reservation? This does not reverse any payment already recorded.',
+                'rental.checkin_title': 'Check In — {a}', 'rental.qty_returned_of': 'Qty Returned (of {a})',
+                'rental.condition_notes': 'Condition Notes (optional)', 'rental.condition_notes_ph': 'e.g. minor scratch on casing',
+                'rental.deposit_held': 'Deposit Held (ETB {a})', 'rental.refund_full': 'Refund in full',
+                'rental.forfeit_part': 'Forfeit part (damage)', 'rental.forfeit_full': 'Forfeit in full (damage)',
+                'rental.forfeit_amount': 'Amount to Forfeit (ETB)', 'rental.refund_channel': 'Refund Channel',
+                'rental.confirm_return': 'Confirm Return',
+                'rental.missing_units_hint': "{a} unit(s) won't be returned. They'll be written off",
+                'rental.missing_units_overdue_note': ' — will also be billed extra for the overdue days.',
+                'rental.err_forfeit_exceeds': "Can't forfeit more than the ETB {a} held.",
+                'rental.note_units_not_returned': '{a} unit(s) not returned — written off',
+                'rental.note_overdue_charge_added': ', ETB {a} overdue charge added',
+                'rental.notif_rental_returned_title': 'Rental Returned', 'rental.notif_rental_returned_body': '{a} checked in from {b}',
+                'rental.notif_units_not_returned_written_off': '{a} unit(s) not returned — written off.',
+                'rental.alert_branch_closed_payment': 'This booking belongs to "{a}", which is closed. Reopen the branch first to record a payment against it.',
+                'rental.owed_of_total': 'Owed: ETB {a} of ETB {b} total', 'rental.save_payment': 'Save Payment',
+                'rental.err_enter_valid_amount': 'Enter a valid amount.', 'rental.err_amount_exceeds_owed': "Can't be more than the ETB {a} owed.",
+                'rental.status.reserved': 'Reserved', 'rental.status.out': 'Out', 'rental.status.overdue': 'Overdue', 'rental.status.returned': 'Returned',
+                'rental.remove': 'Remove'
             },
             am: {
                 'nav.dashboard': 'ዳሽቦርድ', 'nav.inventory': 'የዕቃ ክምችት', 'nav.transfer': 'ዝውውር',
@@ -1706,8 +1786,8 @@
                 'dash.all_time': 'ሁሉም ጊዜ', 'dash.today': 'ዛሬ', 'dash.this_week': 'ይህ ሳምንት',
                 'dash.this_month': 'ይህ ወር', 'dash.this_year': 'ይህ ዓመት', 'dash.custom_range': 'በፍላጎት ጊዜ ክልል',
                 'dash.from': 'ከ:', 'dash.to': 'እስከ:', 'dash.deep_analytics': 'ጥልቅ የሽያጭ ትንተና',
-                'dash.start_date': 'መጀመሪያ ቀን:', 'dash.end_date': 'መጨረሻ ቀን:', 'dash.grouping': 'በምድብ:',
-                'dash.by_week': 'በሳምንት', 'dash.by_month': 'በወር', 'dash.by_year': 'በዓመት',
+                'dash.start_date': 'መጀመሪያ ቀን:', 'dash.end_date': 'መጨረሻ ቀን:', 'dash.grouping': '',
+                'dash.by_day': 'በቀን', 'dash.by_week': 'በሳምንት', 'dash.by_month': 'በወር', 'dash.by_year': 'በዓመት',
                 'dash.estimated_vat': 'የተገመተ ቫት',
 
 
@@ -1830,7 +1910,7 @@
                 'ft.recent': 'የቅርብ ጊዜ ገንዘብ ዝውውሮች', 'ft.movement': 'እንቅስቃሴ',
                 'ft.insufficient': 'በዚያ መንገድ በቂ ቀሪ ሂሳብ የለም። ያለው:', 'ft.available': 'ያለው',
 
-                'chart.top10_proportion': 'ከፍተኛ 10 ምርቶች ድርሻ', 'chart.bottom10_proportion': 'ዝቅተኛ አፈጻጸም ያላቸው 10 ምርቶች',
+                'chart.top10_proportion': 'በብዛት የሚሸጡ 10 ምርቶች', 'chart.bottom10_proportion': 'ያልተሸጡ 10 ምርቶች',
                 'chart.revenue_by_type': 'በሽያጭ ዓይነት የገቢ ድርሻ', 'chart.revenue': 'ገቢ', 'chart.profit': 'ትርፍ',
                 'chart.revprof_title': 'የገቢ እና ትርፍ ታሪክ', 'chart.revprof_hint': '— ለዚያ ወቅት ዝርዝር ነጥብ ላይ ይጫኑ',
 
@@ -1877,8 +1957,83 @@
                 'acct.total_liabilities_equity': 'ጠቅላላ ዕዳዎች እና ካፒታል', 'acct.retained_earnings': 'የተያዘ/የተሸጋገረ ገቢ',
                 'acct.net_income': 'የተጣራ ትርፍ',
 
-                'dash.liquid_positions': 'የፈሳሽ ንብረት ሁኔታ', 'dash.liquid_vault': 'የካሽ ቀሪ ሂሳብ (ካሽ እና ባንክ)',
-                'dash.inventory_assets': 'የክምችት ንብረት', 'dash.item_matrix': 'የምርት አፈጻጸም ትንተና'
+                'dash.liquid_positions': 'የፈሳሽ ንብረት ሁኔታ', 'dash.liquid_vault': 'ያለው ገንዘብ (ካሽ እና ባንክ)',
+                'dash.inventory_assets': 'የክምችት ዋጋ', 'dash.item_matrix': 'የምርት አፈጻጸም',
+
+                'pharm.expiring_soon': 'በቅርቡ የሚያልቅ', 'pharm.expired': 'ጊዜው ያለፈ',
+                'pharm.write_off': 'ስረዝ', 'pharm.qty': 'ብዛት {n}',
+                'pharm.days_left': '{n} ቀናት', 'pharm.expired_ago': 'ከ{n} ቀናት በፊት አልቋል',
+                'pharm.nothing_expiring': 'በሚቀጥሉት {n} ቀናት የሚያልቅ ምንም የለም።',
+                'pharm.no_expired_stock': 'ምንም ጊዜው ያለፈበት ዕቃ የለም።',
+
+                // Appliance rental vertical (verticals/appliance_rental.js)
+                'common.loading': 'በመጫን ላይ…',
+                'rental.out': 'የወጣ', 'rental.overdue': 'ጊዜው ያለፈ', 'rental.due_in_days': 'በ{a} ቀናት ውስጥ የሚደርስ',
+                'rental.view_bookings': 'እነዚህን ማስያዣዎች ይመልከቱ', 'rental.no_bookings_category': 'በዚህ ምድብ ውስጥ አሁን ምንም ማስያዣ የለም።',
+                'rental.customer': 'ደንበኛ', 'rental.asset': 'ንብረት', 'rental.start': 'መጀመሪያ', 'rental.expected_return': 'የሚጠበቅ መመለሻ',
+                'rental.availability': 'ዝግጁነት', 'rental.assets': 'ንብረቶች',
+                'rental.search_category': 'ምድብ ይፈልጉ', 'rental.filter_category_ph': 'ምድብ ማጣሪያ...',
+                'rental.search_name': 'ስም ይፈልጉ', 'rental.filter_name_ph': 'ስም ማጣሪያ...',
+                'rental.earlier': '← ቀደም ያለ', 'rental.later': 'ቀጣይ →',
+                'rental.add_product_hint': 'ለመጀመር ከላይ ምርት ይጨምሩ።', 'rental.no_assets_match_filter': 'ይህን ማጣሪያ የሚያሟላ ንብረት የለም።',
+                'rental.avail_of_total': 'ከ{b} ውስጥ {a} ዝግጁ {c}', 'rental.no_assets_yet': 'እስካሁን ንብረት የለም — ከላይ ምርት ይጨምሩ።',
+                'rental.rate.daily': 'ቀናዊ', 'rental.rate.weekly': 'ሳምንታዊ', 'rental.rate.monthly': 'ወርሃዊ',
+                'rental.write_off_title': 'ስረዝ — {a}', 'rental.writeoff_modal_hint': 'የትኛውን ስብስብ እና ስንት ክፍል መውጣት እንዳለበት ይምረጡ። ይህ ሊቀለበስ አይችልም።',
+                'rental.no_stock_writeoff': 'የሚሰረዝ ዕቃ የለም።', 'rental.unit_cost': 'የክፍል ዋጋ', 'rental.write_off': 'ስረዝ',
+                'rental.filter_active': 'ንቁ', 'rental.filter_all': 'ሁሉም', 'rental.bookings_title': 'ማስያዣዎች',
+                'rental.customer_name_phone': 'የደንበኛ ስም / ስልክ', 'rental.product_item': 'የምርት ዕቃ',
+                'rental.cash': 'ካሽ', 'rental.mobile_banking': 'ሞባይል ባንኪንግ', 'rental.accounts_receivable': 'የሚሰበሰብ ሂሳብ',
+                'rental.total_shown': 'የታየው ድምር፦ ETB {a} ({b})', 'rental.no_bookings_filter': 'ይህን ማጣሪያ የሚያሟላ ማስያዣ የለም።',
+                'rental.quantity': 'ብዛት', 'rental.channel_status_type': 'መንገድ / ሁኔታ / አይነት',
+                'rental.check_out': 'አስረክብ', 'rental.check_in': 'ተመላሽ ተቀበል', 'rental.void': 'ሰርዝ',
+                'rental.alert_branch_closed_void': 'ይህ ማስያዣ የ"{a}" ንብረት ነው፣ እሱም ዝግ ነው። መጀመሪያ ቅርንጫፉን ይክፈቱ።',
+                'rental.confirm_void_booking': 'ይህን ማስያዣ ይሰርዙ? ይህ {a}x "{b}" ለ{c} ሙሉ በሙሉ ይቀለብሳል -- ገቢው፣ መያዣ ገንዘቡ እና ማንኛውም ክፍያ ከመዝገቡ ይወገዳል። ይህ ሊቀለበስ አይችልም።',
+                'rental.alert_branch_closed_void_group': 'ይህ ማስያዣ የዝግ ቅርንጫፍ ነው። መጀመሪያ ቅርንጫፉን ይክፈቱ።',
+                'rental.confirm_void_group': 'ይህን ሙሉ ማስያዣ ይሰርዙ? ይህ ሁሉንም {a} ዕቃ(ዎች) ለ{b} ሙሉ በሙሉ ይቀለብሳል -- ገቢያቸው፣ መያዣ ገንዘባቸው እና ማንኛውም ክፍያ ከመዝገቡ ይወገዳል። ይህ ሊቀለበስ አይችልም።',
+                'rental.notif_booking_voided_title': 'ማስያዣ ተሰርዟል', 'rental.notif_booking_voided_body': '{a} ማስያዣ ለ{b} ተቀልብሶ ተወግዷል።',
+                'rental.notif_booking_voided_sub': '{a} ነበር፣ ETB {b}', 'rental.notif_group_voided_body': '{a} ዕቃ(ዎች) ለ{b} ተቀልብሶ ተወግዷል።',
+                'rental.notif_group_voided_sub': 'ሙሉ ባለብዙ-ዕቃ ማስያዣ',
+                'rental.paid_in_full_tag': '[ሙሉ ተከፍሏል]', 'rental.owes_tag': '[{a} ETB ይቀራል]', 'rental.pending_tag': '[በመጠባበቅ ላይ]',
+                'rental.print_receipt_btn': '🧾 ደረሰኝ', 'rental.print_invoice_btn': '📄 ኢንቮይስ',
+                'rental.print_receipt_title': 'የሙቀት ደረሰኝ አትም', 'rental.print_invoice_title': 'ሙሉ ገጽ ኢንቮይስ አትም',
+                'rental.doc_label': 'የኪራይ ማስያዣ ደረሰኝ', 'rental.items_count': '{a} ዕቃዎች',
+                'rental.new_booking': 'አዲስ ማስያዣ', 'rental.create_booking': 'ማስያዣ ፍጠር', 'rental.start_date': 'መጀመሪያ ቀን',
+                'rental.customer_phone': 'የደንበኛ ስልክ', 'rental.customer_address': 'የደንበኛ አድራሻ',
+                'rental.add_asset': 'ንብረት ጨምር', 'rental.type_to_filter_ph': 'ለማጣራት ይተይቡ...', 'rental.add_plus': '+ ጨምር',
+                'rental.rate_type': 'የዋጋ አይነት', 'rental.amount_etb': 'መጠን (ETB)', 'rental.deposit_optional': 'መያዣ ገንዘብ (ETB፣ አማራጭ)',
+                'rental.deposit_tooltip': 'ከደንበኛው የሚያዝ ተመላሽ የሚደረግ የዋስትና መጠን ነው፣ ከኪራይ ዋጋው ተለይቶ። ዕቃው ሳይበላሽ ሲመለስ ይመለሳል፤ ከተበላሸ በከፊል ወይም ሙሉ በሙሉ ይያዛል። መያዣ የማይወስዱ ከሆነ 0 ይተውት።',
+                'rental.paid_now': 'አሁን የተከፈለ (ETB)', 'rental.payment_channel': 'የክፍያ መንገድ',
+                'rental.n_available': '{a} ዝግጁ', 'rental.alert_pick_asset': 'መጀመሪያ ከዝርዝሩ ንብረት ይተይቡ ወይም ይምረጡ።',
+                'rental.alert_no_more_available': 'ለእነዚያ ቀናት ከ"{a}" ተጨማሪ ዝግጁ የለም።',
+                'rental.err_add_asset': 'ቢያንስ አንድ ንብረት ይጨምሩ።', 'rental.err_enter_customer_name': 'የደንበኛውን ስም ያስገቡ።',
+                'rental.err_return_after_start': 'የሚጠበቅ መመለሻ ከመጀመሪያ ቀን በኋላ መሆን አለበት።',
+                'rental.err_asset_missing': 'ከተጨመሩት ንብረቶች አንዱ ከአሁን በኋላ የለም።',
+                'rental.err_only_n_available': 'ለ{c} – {d} ከ"{b}" {a} ብቻ ዝግጁ ነው።',
+                'rental.err_paid_now_exceeds': 'አሁን የተከፈለው ከጠቅላላው (ETB {a}) መብለጥ አይችልም።',
+                'rental.notif_rental_booked_title': 'ኪራይ ተመዝግቧል', 'rental.notif_rental_booked_body': '{a} ዕቃ(ዎች) ለ{b} ተይዟል',
+                'rental.notif_rental_booked_sub': '{a} – {b}፣ ETB {c}', 'rental.confirm_checkout': '{a}x "{b}" ከ{c} ጋር እየወጣ መሆኑን ያረጋግጡ?',
+                'rental.confirm_cancel_reservation': 'ይህን ማስያዣ ይሰርዙ? ይህ ቀድሞ የተመዘገበውን ማንኛውንም ክፍያ አይቀለብስም።',
+                'rental.note_cancelled_before_checkout': 'ከመውጣቱ በፊት ተሰርዟል።',
+                'rental.confirm_checkout_group': 'በዚህ ማስያዣ ውስጥ ያሉት ሁሉም {a} የተያዙ ዕቃ(ዎች) ከ{b} ጋር እየወጡ መሆኑን ያረጋግጡ?',
+                'rental.confirm_cancel_reservation_group': 'ይህን ሙሉ ማስያዣ ይሰርዙ? ይህ ቀድሞ የተመዘገበውን ማንኛውንም ክፍያ አይቀለብስም።',
+                'rental.checkin_title': 'ተመላሽ — {a}', 'rental.qty_returned_of': 'የተመለሰ ብዛት (ከ{a})',
+                'rental.condition_notes': 'የሁኔታ ማስታወሻ (አማራጭ)', 'rental.condition_notes_ph': 'ለምሳሌ በኬዝ ላይ ትንሽ ጭረት',
+                'rental.deposit_held': 'የተያዘ መያዣ (ETB {a})', 'rental.refund_full': 'ሙሉ በሙሉ ይመለስ',
+                'rental.forfeit_part': 'በከፊል ይያዝ (ጉዳት)', 'rental.forfeit_full': 'ሙሉ በሙሉ ይያዝ (ጉዳት)',
+                'rental.forfeit_amount': 'የሚያዝ መጠን (ETB)', 'rental.refund_channel': 'የመመለሻ መንገድ',
+                'rental.confirm_return': 'መመለሻ አረጋግጥ',
+                'rental.missing_units_hint': '{a} ክፍል(ሎች) አይመለሱም። ይሰረዛሉ',
+                'rental.missing_units_overdue_note': ' — ለዘገዩት ቀናትም ተጨማሪ ክፍያ ይታሰባል።',
+                'rental.err_forfeit_exceeds': 'ከተያዘው ETB {a} በላይ መያዝ አይቻልም።',
+                'rental.note_units_not_returned': '{a} ክፍል(ሎች) አልተመለሱም — ተሰርዘዋል',
+                'rental.note_overdue_charge_added': '፣ ETB {a} የዘገየ ክፍያ ተጨምሯል',
+                'rental.notif_rental_returned_title': 'ኪራይ ተመልሷል', 'rental.notif_rental_returned_body': '{a} ከ{b} ተመላሽ ሆኗል',
+                'rental.notif_units_not_returned_written_off': '{a} ክፍል(ሎች) አልተመለሱም — ተሰርዘዋል።',
+                'rental.alert_branch_closed_payment': 'ይህ ማስያዣ የ"{a}" ንብረት ነው፣ እሱም ዝግ ነው። ክፍያ ለመመዝገብ መጀመሪያ ቅርንጫፉን ይክፈቱ።',
+                'rental.owed_of_total': 'የሚቀር፦ ETB {a} ከጠቅላላ ETB {b}', 'rental.save_payment': 'ክፍያ አስቀምጥ',
+                'rental.err_enter_valid_amount': 'ትክክለኛ መጠን ያስገቡ።', 'rental.err_amount_exceeds_owed': 'ከሚቀረው ETB {a} መብለጥ አይችልም።',
+                'rental.status.reserved': 'ተይዟል', 'rental.status.out': 'የወጣ', 'rental.status.overdue': 'ጊዜው ያለፈ', 'rental.status.returned': 'ተመልሷል',
+                'rental.remove': 'አስወግድ'
             }
         };
 
@@ -4121,6 +4276,24 @@
             return `${eth.d} ${ethMonthName(eth.m)} ${eth.y}`;
         }
 
+        // Short "Month Day" style formatter (no year) for a JS Date object,
+        // used by the Revenue & Profit chart's week-range labels. Respects
+        // the calendar toggle — Gregorian "Jan 6" vs Ethiopian "Meskerem 6".
+        function fmtShortCal(dateObj) {
+            if (currentCalendarPref === 'ethiopian') {
+                const eth = gregorianToEthiopian(getLocalYMD(dateObj));
+                return `${ethMonthName(eth.m)} ${eth.d}`;
+            }
+            return dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+        // Same as fmtShortCal but also returns the year, calendar-aware.
+        function fmtYearForCal(dateObj) {
+            if (currentCalendarPref === 'ethiopian') {
+                return gregorianToEthiopian(getLocalYMD(dateObj)).y;
+            }
+            return dateObj.getFullYear();
+        }
+
         // For full timestamps (e.g. trash.deletedAt, cash handover
         // submitted_at) rather than plain YYYY-MM-DD dates — keeps the
         // clock time as the browser's local format, only swaps the date part.
@@ -4566,11 +4739,14 @@
             }
 
             // Timeline Aggregation
-            let timeAgg = document.getElementById('history-group-by') ? document.getElementById('history-group-by').value : 'week';
+            // timeAgg buckets: 'day' = one point per day, 'week' = one point
+            // per calendar week, 'month' = one point per month, 'year' = one
+            // point per year. "Day" and "Week" don't need calendar-aware
+            // handling — the 7-day week is shared by both calendars. "Month"
+            // and "Year" do, since Ethiopian months/years don't line up with
+            // Gregorian ones.
+            let timeAgg = document.getElementById('history-group-by') ? document.getElementById('history-group-by').value : 'day';
             let timelineData = {};
-            // "Week" (per-day, weekday labels) doesn't need to change — the
-            // 7-day week is shared by both calendars. "Month" and "Year" do,
-            // since Ethiopian months don't line up with Gregorian ones.
             const isEthChart = currentCalendarPref === 'ethiopian';
             
             let minDate = new Date(), maxDate = new Date();
@@ -4585,23 +4761,45 @@
             minDate.setHours(0,0,0,0); 
             maxDate.setHours(23,59,59,999);
 
-            // Timeline Contextual Constraints
-            if (timeAgg === 'week') {
-                let day = minDate.getDay() || 7; 
-                minDate.setDate(minDate.getDate() - day + 1); 
+            // Timeline Contextual Constraints — each grouping snaps out to
+            // show a full frame of the next-larger natural period, so the
+            // chart never shows just a lone point or a sliver of context:
+            //   day   -> full Mon–Sun week
+            //   week  -> every week touching the whole month(s) in range
+            //   month -> every month of the whole year(s) in range
+            //   year  -> unchanged (only fills gap years within the range)
+            if (timeAgg === 'day') {
+                let day = minDate.getDay() || 7;
+                minDate.setDate(minDate.getDate() - day + 1);
                 day = maxDate.getDay() || 7;
-                maxDate.setDate(maxDate.getDate() + (7 - day)); 
-            } else if (timeAgg === 'month') {
+                maxDate.setDate(maxDate.getDate() + (7 - day));
+            } else if (timeAgg === 'week') {
+                // First widen out to whole month(s)...
                 if (isEthChart) {
-                    // Snap to the start/end of whichever Ethiopian month each
-                    // boundary date falls in.
                     const startEth = gregorianToEthiopian(getLocalYMD(minDate));
                     minDate = new Date(ethiopianToGregorianISO(startEth.y, startEth.m, 1) + 'T00:00:00');
                     const endEth = gregorianToEthiopian(getLocalYMD(maxDate));
                     maxDate = new Date(ethiopianToGregorianISO(endEth.y, endEth.m, daysInEthMonth(endEth.y, endEth.m)) + 'T23:59:59');
                 } else {
-                    minDate.setDate(1); 
-                    maxDate.setMonth(maxDate.getMonth() + 1, 0); 
+                    minDate.setDate(1);
+                    maxDate.setMonth(maxDate.getMonth() + 1, 0);
+                }
+                // ...then widen further so every week touching those months
+                // is shown as a complete Mon–Sun week.
+                let day = minDate.getDay() || 7;
+                minDate.setDate(minDate.getDate() - day + 1);
+                day = maxDate.getDay() || 7;
+                maxDate.setDate(maxDate.getDate() + (7 - day));
+            } else if (timeAgg === 'month') {
+                // Widen out to whole year(s) so every month of the year(s) shows.
+                if (isEthChart) {
+                    const startEth = gregorianToEthiopian(getLocalYMD(minDate));
+                    minDate = new Date(ethiopianToGregorianISO(startEth.y, 1, 1) + 'T00:00:00');
+                    const endEth = gregorianToEthiopian(getLocalYMD(maxDate));
+                    maxDate = new Date(ethiopianToGregorianISO(endEth.y, 13, daysInEthMonth(endEth.y, 13)) + 'T23:59:59');
+                } else {
+                    minDate.setMonth(0, 1);
+                    maxDate.setMonth(11, 31);
                 }
             } else if (timeAgg === 'year') {
                 if (isEthChart) {
@@ -4615,7 +4813,8 @@
                 }
             }
 
-            if (timeAgg === 'year' && isEthChart) {
+            // Build one empty bucket per point on the timeline
+            if (timeAgg === 'month' && isEthChart) {
                 // Ethiopian months don't align with Gregorian month
                 // boundaries, so this walks Ethiopian year+month increments
                 // directly instead of stepping through Gregorian months.
@@ -4627,28 +4826,47 @@
                     timelineData[key] = { rev: 0, profit: 0, rawDate: new Date(ethiopianToGregorianISO(ey, em, 1) + 'T00:00:00') };
                     em++; if (em > 13) { em = 1; ey++; }
                 }
+            } else if (timeAgg === 'year' && isEthChart) {
+                // Walk whole Ethiopian years directly, since they don't line
+                // up with Gregorian year boundaries.
+                const startEth = gregorianToEthiopian(getLocalYMD(minDate));
+                const endEth = gregorianToEthiopian(getLocalYMD(maxDate));
+                for (let ey = startEth.y; ey <= endEth.y; ey++) {
+                    timelineData[`${ey}`] = { rev: 0, profit: 0, rawDate: new Date(ethiopianToGregorianISO(ey, 1, 1) + 'T00:00:00') };
+                }
             } else {
                 let cD = new Date(minDate);
                 while(cD <= maxDate) {
                     let key;
-                    if (timeAgg === 'year') { key = `${cD.getFullYear()}-${String(cD.getMonth()+1).padStart(2,'0')}`; } 
-                    else { key = getLocalYMD(cD); }
-                    
+                    if (timeAgg === 'year') { key = `${cD.getFullYear()}`; }
+                    else if (timeAgg === 'month') { key = `${cD.getFullYear()}-${String(cD.getMonth()+1).padStart(2,'0')}`; }
+                    else { key = getLocalYMD(cD); } // 'day' and 'week' bucket off a specific calendar date
+
                     if(!timelineData[key]) timelineData[key] = { rev: 0, profit: 0, rawDate: new Date(cD) };
-                    
-                    if(timeAgg === 'year') { cD.setMonth(cD.getMonth() + 1); } 
+
+                    if (timeAgg === 'year') { cD.setFullYear(cD.getFullYear() + 1); }
+                    else if (timeAgg === 'month') { cD.setMonth(cD.getMonth() + 1); }
+                    else if (timeAgg === 'week') { cD.setDate(cD.getDate() + 7); }
                     else { cD.setDate(cD.getDate() + 1); }
                 }
             }
 
             filteredSales.forEach(s => {
                 let key;
+                let p = s.date.split('-');
+                let d = new Date(p[0], p[1]-1, p[2]);
                 if (timeAgg === 'year') {
+                    key = isEthChart ? `${gregorianToEthiopian(s.date).y}` : `${p[0]}`;
+                } else if (timeAgg === 'month') {
                     if (isEthChart) { const e = gregorianToEthiopian(s.date); key = `${e.y}-${String(e.m).padStart(2,'0')}`; }
-                    else { let p = s.date.split('-'); key = `${p[0]}-${p[1]}`; }
+                    else { key = `${p[0]}-${p[1]}`; }
+                } else if (timeAgg === 'week') {
+                    // Find the Monday that starts this sale's week — matches
+                    // the bucket snapping above, regardless of calendar toggle.
+                    let day = d.getDay() || 7;
+                    let monday = new Date(d); monday.setDate(monday.getDate() - day + 1);
+                    key = getLocalYMD(monday);
                 } else {
-                    let p = s.date.split('-');
-                    let d = new Date(p[0], p[1]-1, p[2]);
                     key = getLocalYMD(d);
                 }
                 
@@ -4663,21 +4881,24 @@
             // Generate Accurate X Labels
             let displayLabels = tKeys.map(k => {
                 let dateObj = timelineData[k].rawDate;
-                if(timeAgg === 'week') return dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-                if(timeAgg === 'month') {
-                    if (isEthChart) return gregorianToEthiopian(getLocalYMD(dateObj)).d.toString();
-                    return dateObj.getDate().toString();
+                if(timeAgg === 'day') return dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+                if(timeAgg === 'week') {
+                    let weekEnd = new Date(dateObj); weekEnd.setDate(weekEnd.getDate() + 6);
+                    return `${fmtShortCal(dateObj)} – ${fmtShortCal(weekEnd)}`;
                 }
-                if(timeAgg === 'year') {
+                if(timeAgg === 'month') {
                     if (isEthChart) return ethMonthName(parseInt(k.split('-')[1]));
                     return dateObj.toLocaleDateString('en-US', { month: 'short' });
                 }
+                if(timeAgg === 'year') return k;
                 return k;
             });
 
             // Adjust Canvas Width
             let pointsCount = tKeys.length;
-            let dynamicWidth = Math.max(800, pointsCount * (timeAgg==='month'?35:50)); 
+            // Same per-point spacing for every grouping, so the gap between
+            // points never shifts just because the grouping changed.
+            let dynamicWidth = Math.max(800, pointsCount * 50); 
             document.getElementById('container-revprof').style.width = dynamicWidth + 'px';
 
             // Custom 10-Step Y Axis calculations
@@ -4709,40 +4930,69 @@
             // 3. Revenue & Profit — combined, scrollable, color-separated
             let ctxRevProf = document.getElementById('chart-revprof-main');
             if(ctxRevProf) {
+                // Coalesces the hover redraws below so a fast mouse sweep
+                // triggers at most one redraw per animation frame, and skips
+                // entirely when the highlighted point hasn't actually changed.
+                let hoverPending = false;
+                let lastHoverKey = null;
                 window.dashCharts.revprofMain = new Chart(ctxRevProf, {
                     type: 'line',
                     data: {
                         labels: displayLabels,
                         datasets: [
-                            { label: t('acct.total_revenue') + ' (ETB)', data: revArr, borderColor: '#1B6FA8', fill: 1, backgroundColor: 'rgba(27, 111, 168, 0.16)', tension:0.3, pointRadius: 0, pointHoverRadius: 0 },
-                            { label: t('acct.gross_profit') + ' (ETB)', data: profArr, borderColor: '#1F7A54', fill: 'origin', backgroundColor: 'rgba(31, 122, 84, 0.20)', tension:0.3, pointRadius: 0, pointHoverRadius: 0 }
+                            { label: t('acct.total_revenue') + ' (ETB)', data: revArr, borderColor: '#1B6FA8', fill: 1, backgroundColor: 'rgba(27, 111, 168, 0.16)', tension:0.3, cubicInterpolationMode: 'monotone', pointRadius: 0, pointHoverRadius: 0 },
+                            { label: t('acct.gross_profit') + ' (ETB)', data: profArr, borderColor: '#1F7A54', fill: 'origin', backgroundColor: 'rgba(31, 122, 84, 0.20)', tension:0.3, cubicInterpolationMode: 'monotone', pointRadius: 0, pointHoverRadius: 0 }
                         ]
                     },
                     options: { 
                         maintainAspectRatio: false, 
+                        // A crisper canvas avoids blocky/staircase edges,
+                        // but pushing this too high makes every redraw (e.g.
+                        // on hover) noticeably slower with lots of points —
+                        // 2x is the sharp-but-still-responsive sweet spot.
+                        devicePixelRatio: Math.min(Math.max(window.devicePixelRatio || 1, 2), 2),
+                        elements: {
+                            line: {
+                                // Round joins/caps soften the visible corner
+                                // at every direction change, which is what
+                                // reads as "jagged" once there are many
+                                // closely-packed points with sharp ups/downs.
+                                borderJoinStyle: 'round',
+                                borderCapStyle: 'round',
+                                borderWidth: 2
+                            }
+                        },
                         interaction: { mode: 'index', intersect: false },
                         // This uses the exact same cross-device event pipeline Chart.js
                         // already uses for the pie chart's color-zone touch/hover, so it
                         // works identically with mouse AND touch.
                         onHover: (event, elements, chart) => {
-                            if (!elements || elements.length === 0) {
-                                chart.tooltip.setActiveElements([], { x: 0, y: 0 });
-                                chart.update();
-                                return;
-                            }
-                            const revItem = elements.find(e => e.datasetIndex === 0);
-                            const profItem = elements.find(e => e.datasetIndex === 1);
-                            const revVal = revItem ? chart.data.datasets[0].data[revItem.index] : null;
-                            const profVal = profItem ? chart.data.datasets[1].data[profItem.index] : null;
-                            const cursorVal = chart.scales.y.getValueForPixel(event.y);
-
                             let activeEls = [];
-                            if (revVal !== null && profVal !== null) {
-                                if (cursorVal < profVal) activeEls = [profItem];
-                                else if (cursorVal < revVal) activeEls = [revItem];
+                            let key = 'none';
+                            if (elements && elements.length) {
+                                const revItem = elements.find(e => e.datasetIndex === 0);
+                                const profItem = elements.find(e => e.datasetIndex === 1);
+                                const revVal = revItem ? chart.data.datasets[0].data[revItem.index] : null;
+                                const profVal = profItem ? chart.data.datasets[1].data[profItem.index] : null;
+                                const cursorVal = chart.scales.y.getValueForPixel(event.y);
+                                if (revVal !== null && profVal !== null) {
+                                    if (cursorVal < profVal) { activeEls = [profItem]; key = 'p' + profItem.index; }
+                                    else if (cursorVal < revVal) { activeEls = [revItem]; key = 'r' + revItem.index; }
+                                }
                             }
-                            chart.tooltip.setActiveElements(activeEls, { x: event.x, y: event.y });
-                            chart.update();
+                            // Same point as last event (very common — the
+                            // mouse jitters within the same bucket) — nothing
+                            // to redraw.
+                            if (key === lastHoverKey) return;
+                            lastHoverKey = key;
+
+                            if (hoverPending) return;
+                            hoverPending = true;
+                            requestAnimationFrame(() => {
+                                hoverPending = false;
+                                chart.tooltip.setActiveElements(activeEls, { x: event.x, y: event.y });
+                                chart.update();
+                            });
                         },
                         onClick: (event, elements, chart) => {
                             const hits = chart.getElementsAtEventForMode(event.native || event, 'index', { intersect: false }, true);
@@ -4924,6 +5174,18 @@
             const isEthChart = currentCalendarPref === 'ethiopian';
             let start, end, periodLabel;
             if (timeAgg === 'year') {
+                // key is a plain year number — Ethiopian ("2018") or
+                // Gregorian ("2026") — the whole year is the bucket
+                const y = parseInt(key, 10);
+                if (isEthChart) {
+                    start = new Date(ethiopianToGregorianISO(y, 1, 1) + 'T00:00:00');
+                    end = new Date(ethiopianToGregorianISO(y, 13, daysInEthMonth(y, 13)) + 'T23:59:59');
+                } else {
+                    start = new Date(y, 0, 1, 0, 0, 0, 0);
+                    end = new Date(y, 11, 31, 23, 59, 59, 999);
+                }
+                periodLabel = `${y}`;
+            } else if (timeAgg === 'month') {
                 const [y, m] = key.split('-').map(Number);
                 if (isEthChart) {
                     // key is Ethiopian "YYYY-MM" — the whole Ethiopian month is the bucket
@@ -4936,9 +5198,19 @@
                     end = new Date(y, m, 0, 23, 59, 59, 999);
                     periodLabel = start.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
                 }
+            } else if (timeAgg === 'week') {
+                // key is Gregorian "YYYY-MM-DD" — the Monday that starts the
+                // week; the whole Mon–Sun week is the bucket, regardless of
+                // calendar toggle (weeks don't move between calendars).
+                const [y, m, d] = key.split('-').map(Number);
+                start = new Date(y, m - 1, d, 0, 0, 0, 0);
+                end = new Date(y, m - 1, d, 23, 59, 59, 999);
+                end.setDate(end.getDate() + 6);
+                const fmt = dd => fmtShortCal(dd);
+                periodLabel = `${fmt(start)} – ${fmt(end)}, ${fmtYearForCal(end)}`;
             } else {
-                // key is Gregorian "YYYY-MM-DD" — a single day is the bucket,
-                // regardless of calendar toggle (day buckets don't move).
+                // 'day' — key is Gregorian "YYYY-MM-DD" — a single day is the
+                // bucket, regardless of calendar toggle (day buckets don't move).
                 const [y, m, d] = key.split('-').map(Number);
                 start = new Date(y, m - 1, d, 0, 0, 0, 0);
                 end = new Date(y, m - 1, d, 23, 59, 59, 999);
