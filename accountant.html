@@ -842,6 +842,17 @@
         if (session) await afterSignIn();
     })();
 
+    // Left/right arrow keys step through receipts while the detail popup is
+    // open — but only when focus isn't in a text field, so editing a field's
+    // text (which also uses left/right to move the cursor) still works normally.
+    document.addEventListener('keydown', (evt) => {
+        if (!entryModalId) return;
+        const tag = (document.activeElement && document.activeElement.tagName) || '';
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        if (evt.key === 'ArrowLeft') { evt.preventDefault(); prevEntry(); }
+        else if (evt.key === 'ArrowRight') { evt.preventDefault(); nextEntry(); }
+    });
+
     // ------------------------------------------------------------------------
     // MELEYA linking: accountant profile, business search, link requests,
     // and the read-only inventory view once a link is approved.
@@ -919,6 +930,43 @@
     }
     function clearSearchHistoryScope(scope) {
         try { localStorage.removeItem(searchHistKey(scope)); } catch (e) {}
+    }
+
+    // ---- Seller memory (per device, via localStorage) ---------------------
+    // Remembers seller name <-> TIN pairs from every receipt ever saved, so
+    // that if a future receipt photo only shows one of the two (e.g. the
+    // name is faded but the TIN line is clear, or vice versa), we can fill
+    // in the missing one automatically instead of leaving it blank.
+    const SELLER_MEMORY_KEY = 'meleya_acct_seller_memory_v1';
+    function normalizeSellerName(name) {
+        return (name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    }
+    function loadSellerMemory() {
+        try {
+            const mem = JSON.parse(localStorage.getItem(SELLER_MEMORY_KEY) || '{}');
+            mem.byTin = mem.byTin || {};
+            mem.byName = mem.byName || {};
+            return mem;
+        } catch (e) { return { byTin: {}, byName: {} }; }
+    }
+    function rememberSeller(name, tin) {
+        name = (name || '').trim();
+        tin = (tin || '').trim();
+        if (!name || !tin) return; // need both to learn a pairing
+        const mem = loadSellerMemory();
+        mem.byTin[tin] = name;
+        mem.byName[normalizeSellerName(name)] = tin;
+        try { localStorage.setItem(SELLER_MEMORY_KEY, JSON.stringify(mem)); } catch (e) {}
+    }
+    function recallSellerNameByTin(tin) {
+        tin = (tin || '').trim();
+        if (!tin) return null;
+        return loadSellerMemory().byTin[tin] || null;
+    }
+    function recallSellerTinByName(name) {
+        name = normalizeSellerName(name);
+        if (!name) return null;
+        return loadSellerMemory().byName[name] || null;
     }
     function escForJsString(s) { return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
     function renderSearchHistoryInline(scope, runFnName) {
@@ -1393,6 +1441,7 @@
         if (error) { alert(error.message); return; }
         client.entries.unshift(mapEntryFromDb(data));
         client.entryCount = (client.entryCount || 0) + 1;
+        rememberSeller(entry.sellerName, entry.sellerTin);
         processNextQueuedFile(); // moves to the next photo in the batch, or closes the flow if none left
     }
     async function removeEntry(id) {
@@ -1591,6 +1640,7 @@
         const [fromKey, toKey] = filterRange(receiptsFilter, client.entries);
         const filtered = receiptsFilter.mode === 'all' ? client.entries : client.entries.filter((e) => { const k = entryEcKey(e); return k >= fromKey && k <= toKey; });
         const sorted = [...filtered].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        receiptsListOrder = sorted.map((e) => e.id);
 
         const rows = sorted.map((e) => `
             <tr class="entry-row" onclick="openEntryDetail('${e.id}')" style="cursor:pointer;">
@@ -1623,6 +1673,10 @@
     // ------------------------------------------------------------------------
     let entryModalId = null;
     let entryModalDraft = null;
+    // The order of receipt ids currently shown in the list, kept up to date
+    // by renderReceiptsTab. Lets the popup step to the next/previous receipt
+    // in the same order the person sees on screen (respecting filters).
+    let receiptsListOrder = [];
     function openEntryDetail(id) {
         const client = activeClient();
         const e = client && client.entries.find((x) => x.id === id);
@@ -1632,6 +1686,16 @@
         render();
     }
     function closeEntryDetail() { entryModalId = null; entryModalDraft = null; render(); }
+    function goToAdjacentEntry(delta) {
+        if (!entryModalId) return;
+        const idx = receiptsListOrder.indexOf(entryModalId);
+        if (idx === -1) return;
+        const newIdx = idx + delta;
+        if (newIdx < 0 || newIdx >= receiptsListOrder.length) return; // already at the first/last receipt
+        openEntryDetail(receiptsListOrder[newIdx]);
+    }
+    function prevEntry() { goToAdjacentEntry(-1); }
+    function nextEntry() { goToAdjacentEntry(1); }
     function onEntryDateInput(v) {
         entryModalDraft.date = v;
         const ec = gcToEc(v);
@@ -1652,6 +1716,7 @@
         if (error) { alert(error.message); return; }
         const idx = client.entries.findIndex((x) => x.id === entryModalId);
         if (idx >= 0) client.entries[idx] = { ...client.entries[idx], ...patch };
+        rememberSeller(patch.sellerName, patch.sellerTin);
         closeEntryDetail();
     }
     async function deleteEntryFromModal() {
@@ -1666,12 +1731,19 @@
         const field = (key, label, mono) => `
             <div><label>${label}</label>
             <input value="${esc(d[key])}" style="${mono ? "font-family:'IBM Plex Mono',monospace;" : ''}" oninput="entryModalDraft.${key}=this.value"></div>`;
+        const navIdx = receiptsListOrder.indexOf(entryModalId);
+        const hasPrev = navIdx > 0;
+        const hasNext = navIdx !== -1 && navIdx < receiptsListOrder.length - 1;
         return `
             <div style="position:fixed; inset:0; z-index:400; background:rgba(27,58,47,0.45); display:flex; align-items:center; justify-content:center; padding:20px;" onclick="if(event.target===this) closeEntryDetail();">
                 <div class="card" style="max-width:600px; width:100%; margin:0; max-height:90vh; overflow-y:auto;">
-                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
-                        <div class="section-title" style="margin:0;">Receipt details</div>
-                        <button class="btn-icon" onclick="closeEntryDetail()">${icon('x', 18)}</button>
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; gap:8px;">
+                        <div class="section-title" style="margin:0;">Receipt details${navIdx !== -1 ? ` <span style="font-weight:400; color:var(--text-soft); font-size:12px;">(${navIdx + 1} of ${receiptsListOrder.length})</span>` : ''}</div>
+                        <div style="display:flex; align-items:center; gap:4px;">
+                            <button class="btn-icon" onclick="prevEntry()" ${hasPrev ? '' : 'disabled'} title="Previous receipt (←)">${icon('chevron-left', 18)}</button>
+                            <button class="btn-icon" onclick="nextEntry()" ${hasNext ? '' : 'disabled'} title="Next receipt (→)">${icon('chevron-right', 18)}</button>
+                            <button class="btn-icon" onclick="closeEntryDetail()">${icon('x', 18)}</button>
+                        </div>
                     </div>
                     <div style="display:flex; gap:16px; margin-bottom:14px; flex-wrap:wrap;">
                         <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="edit-entry-type" style="width:auto;" ${d.type === 'payment' ? 'checked' : ''} onchange="entryModalDraft.type='payment'"> Purchase (payment out)</label>
@@ -1755,6 +1827,22 @@
                 const el = document.getElementById('ocr-progress-text');
                 if (el) el.textContent = status;
             });
+            // If the photo only shows one of seller name / seller TIN clearly,
+            // check past receipts for that same seller and fill in the other.
+            ex.missing_fields = ex.missing_fields || [];
+            if (ex.seller_tin && !ex.seller_name) {
+                const remembered = recallSellerNameByTin(ex.seller_tin);
+                if (remembered) {
+                    ex.seller_name = remembered;
+                    ex.missing_fields = ex.missing_fields.filter((f) => f !== 'Seller name');
+                }
+            } else if (ex.seller_name && !ex.seller_tin) {
+                const remembered = recallSellerTinByName(ex.seller_name);
+                if (remembered) {
+                    ex.seller_tin = remembered;
+                    ex.missing_fields = ex.missing_fields.filter((f) => f !== 'Seller TIN');
+                }
+            }
             const calendar = ex.date_calendar === 'EC' ? 'EC' : 'GC';
             let gcDate = '';
             if (ex.date_year && ex.date_month && ex.date_day) {

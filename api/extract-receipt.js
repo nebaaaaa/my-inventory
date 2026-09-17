@@ -38,7 +38,49 @@ Extract exactly these fields and return ONLY raw JSON, no markdown fences, no co
   "missing_fields": string[]
 }
 
-If there are multiple line items, pick only the SINGLE item with the largest amount and use its description, quantity, and unit_price — do not combine or list multiple items together in "description". Set "measurement" to "Lot", "quantity" to 1, and "unit_price" equal to "before_vat" ONLY if you cannot identify a clear largest item; otherwise use that one item's own measurement/quantity/unit_price as printed (measurement only if a unit like PCS/KG/M is actually printed next to it — this receipt format usually does not print one, so leave it null rather than guess). If there is exactly ONE line item, fill "description", "quantity", "unit_price", and "measurement" from that single item the same way. "before_vat", "vat", and "total" should always be the receipt-wide totals from the TXBL1/TAX1/TOTAL lines, never a per-item figure. A separate VAT registration number is normal to be absent on this receipt format — never include "VAT reg no" in "missing_fields". In "missing_fields", only list fields from this set that you could not confidently read: "Seller name", "Seller TIN", "MRC".`;
+If there are multiple line items, pick only the SINGLE item with the largest amount and use its description, quantity, and unit_price — do not combine or list multiple items together in "description". Set "measurement" to "Lot", "quantity" to 1, and "unit_price" equal to "before_vat" ONLY if you cannot identify a clear largest item; otherwise use that one item's own measurement/quantity/unit_price as printed (measurement only if a unit like PCS/KG/M is actually printed next to it — this receipt format usually does not print one, so leave it null rather than guess). If there is exactly ONE line item, fill "description", "quantity", and "measurement" from that single item, but set "unit_price" equal to "before_vat" (the receipt's taxable subtotal) regardless of what is printed next to that item — with only one item, its line amount and the subtotal are the same thing. "before_vat", "vat", and "total" should always be the receipt-wide totals from the TXBL1/TAX1/TOTAL lines, never a per-item figure. A separate VAT registration number is normal to be absent on this receipt format — never include "VAT reg no" in "missing_fields". In "missing_fields", only list fields from this set that you could not confidently read: "Seller name", "Seller TIN", "MRC".`;
+
+// Ethiopian VAT-registered receipts charge a flat 15% VAT rate. Photos
+// sometimes cut off or blur one of the three money fields (before-VAT
+// subtotal, VAT amount, total) — if we have any two of them, or even just
+// one, we can work out the rest instead of leaving the field blank.
+const VAT_RATE = 0.15;
+function toNumOrNull(v) {
+    if (v === null || v === undefined || v === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+}
+function round2(n) { return Math.round(n * 100) / 100; }
+function fillMissingVatFields(parsed) {
+    if (!parsed.is_vat) return parsed; // non-VAT receipts don't get a computed VAT amount
+    let beforeVat = toNumOrNull(parsed.before_vat);
+    let vat = toNumOrNull(parsed.vat);
+    let total = toNumOrNull(parsed.total);
+
+    if (beforeVat !== null && vat === null && total === null) {
+        vat = round2(beforeVat * VAT_RATE);
+        total = round2(beforeVat + vat);
+    } else if (beforeVat !== null && vat !== null && total === null) {
+        total = round2(beforeVat + vat);
+    } else if (beforeVat !== null && vat === null && total !== null) {
+        vat = round2(total - beforeVat);
+    } else if (beforeVat === null && vat !== null && total !== null) {
+        beforeVat = round2(total - vat);
+    } else if (beforeVat === null && vat !== null && total === null) {
+        beforeVat = round2(vat / VAT_RATE);
+        total = round2(beforeVat + vat);
+    } else if (beforeVat === null && vat === null && total !== null) {
+        beforeVat = round2(total / (1 + VAT_RATE));
+        vat = round2(total - beforeVat);
+    }
+    // If none of the three were readable, or all three already were, this
+    // leaves them as-is (all null, or all already filled in).
+
+    parsed.before_vat = beforeVat;
+    parsed.vat = vat;
+    parsed.total = total;
+    return parsed;
+}
 
 // Tried in order. First one that succeeds wins. If a model is overloaded
 // (429/503) we move to the next one. A 400/401/403 means the API key or
@@ -126,7 +168,8 @@ export default async function handler(req, res) {
 
     try {
         const cleaned = text.trim().replace(/^```json\s*|```$/g, '');
-        const parsed = JSON.parse(cleaned);
+        let parsed = JSON.parse(cleaned);
+        parsed = fillMissingVatFields(parsed);
         parsed.date_calendar = 'GC';
         res.status(200).json(parsed);
     } catch (e) {
