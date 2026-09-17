@@ -45,8 +45,8 @@ If there are multiple line items, pick only the SINGLE item with the largest amo
 // request itself is bad — that fails every model identically, so we stop
 // immediately instead of burning the rest of the list.
 const OCR_MODEL_FALLBACKS = [
-    'gemini-2.5-flash',      // strong accuracy, still fast and cheap
-    'gemini-2.0-flash',      // backup if 2.5-flash is overloaded
+    'gemini-3.6-flash',      // current stable flagship flash model
+    'gemini-3.5-flash-lite', // cheaper/faster backup if 3.6-flash is overloaded
 ];
 
 async function callGeminiOnce(model, base64, apiKey) {
