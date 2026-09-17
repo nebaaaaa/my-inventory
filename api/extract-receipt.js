@@ -1,7 +1,7 @@
 // /api/extract-receipt.js
 //
 // Vercel serverless function. Runs on Vercel's servers, never in the browser.
-// The OpenRouter API key lives ONLY in an environment variable here — it is
+// The Gemini API key lives ONLY in an environment variable here — it is
 // never sent to, or visible from, the client.
 //
 // Frontend calls this as: POST /api/extract-receipt  with JSON body { image: "<base64 jpeg, no data: prefix>" }
@@ -40,42 +40,43 @@ Extract exactly these fields and return ONLY raw JSON, no markdown fences, no co
 
 If there are multiple line items, pick only the SINGLE item with the largest amount and use its description, quantity, and unit_price — do not combine or list multiple items together in "description". Set "measurement" to "Lot", "quantity" to 1, and "unit_price" equal to "before_vat" ONLY if you cannot identify a clear largest item; otherwise use that one item's own measurement/quantity/unit_price as printed (measurement only if a unit like PCS/KG/M is actually printed next to it — this receipt format usually does not print one, so leave it null rather than guess). If there is exactly ONE line item, fill "description", "quantity", "unit_price", and "measurement" from that single item the same way. "before_vat", "vat", and "total" should always be the receipt-wide totals from the TXBL1/TAX1/TOTAL lines, never a per-item figure. A separate VAT registration number is normal to be absent on this receipt format — never include "VAT reg no" in "missing_fields". In "missing_fields", only list fields from this set that you could not confidently read: "Seller name", "Seller TIN", "MRC".`;
 
-// Tried in order. First one that succeeds wins. If a model has no available
-// provider right now (404) or is rate-limited (429), we move to the next one.
-// A 401 means the API key itself is bad — that fails every model identically,
-// so we stop immediately instead of burning the rest of the list.
+// Tried in order. First one that succeeds wins. If a model is overloaded
+// (429/503) we move to the next one. A 400/401/403 means the API key or
+// request itself is bad — that fails every model identically, so we stop
+// immediately instead of burning the rest of the list.
 const OCR_MODEL_FALLBACKS = [
-    'google/gemma-4-26b-a4b-it:free', // pinned, fast when its provider is up
-    'openrouter/free',                // router — slower, but picks any live free vision model
+    'gemini-2.5-flash',      // strong accuracy, still fast and cheap
+    'gemini-2.0-flash',      // backup if 2.5-flash is overloaded
 ];
 
-async function callOpenRouterOnce(model, base64, apiKey) {
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+async function callGeminiOnce(model, base64, apiKey) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const res = await fetch(url, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            model,
-            response_format: { type: 'json_object' },
-            messages: [{
+            contents: [{
                 role: 'user',
-                content: [
-                    { type: 'text', text: RECEIPT_PROMPT },
-                    { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64}` } },
+                parts: [
+                    { text: RECEIPT_PROMPT },
+                    { inline_data: { mime_type: 'image/jpeg', data: base64 } },
                 ],
             }],
+            generationConfig: {
+                response_mime_type: 'application/json',
+            },
         }),
     });
     const data = await res.json().catch(() => null);
     if (!res.ok) {
-        const msg = (data && data.error && data.error.message) || `OpenRouter request failed (${res.status})`;
+        const msg = (data && data.error && data.error.message) || `Gemini request failed (${res.status})`;
         const err = new Error(msg);
         err.status = res.status;
         throw err;
     }
-    const text = (((data.choices || [])[0] || {}).message || {}).content || '';
+    const text = ((((data.candidates || [])[0] || {}).content || {}).parts || [])
+        .map((p) => p.text || '')
+        .join('');
     if (!text.trim()) throw new Error('No result returned from the AI model');
     return text;
 }
@@ -86,10 +87,10 @@ export default async function handler(req, res) {
         return;
     }
 
-    const apiKey = process.env.OPENROUTER_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
         // This means the Vercel env var isn't set — a deploy/config problem, not a client problem.
-        res.status(500).json({ error: 'Server is not configured with an OpenRouter API key.' });
+        res.status(500).json({ error: 'Server is not configured with a Gemini API key.' });
         return;
     }
 
@@ -104,17 +105,17 @@ export default async function handler(req, res) {
     for (let i = 0; i < OCR_MODEL_FALLBACKS.length; i++) {
         const model = OCR_MODEL_FALLBACKS[i];
         try {
-            text = await callOpenRouterOnce(model, image, apiKey);
+            text = await callGeminiOnce(model, image, apiKey);
             lastErr = null;
             break;
         } catch (err) {
             lastErr = err;
-            if (err.status === 401) {
-                // Bad/revoked key on OpenRouter's side — every model fails the same way.
-                res.status(502).json({ error: 'OpenRouter rejected the API key (401). The server-side OPENROUTER_API_KEY env var needs to be refreshed in Vercel — this is not a client/model problem.' });
+            if (err.status === 400 || err.status === 401 || err.status === 403) {
+                // Bad/revoked key or malformed request — every model fails the same way.
+                res.status(502).json({ error: 'Gemini rejected the request (' + err.status + '). Check that the server-side GEMINI_API_KEY env var in Vercel is correct — this is not a client/model problem.' });
                 return;
             }
-            // Otherwise (404 no endpoints, 429 rate limited, 5xx, etc.) try the next model.
+            // Otherwise (429 rate limited, 503 overloaded, etc.) try the next model.
         }
     }
 
