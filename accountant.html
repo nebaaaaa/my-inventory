@@ -58,6 +58,11 @@
     .notice-ok { background: #EAF3EC; color: var(--ink); }
     .notice-warn { background: var(--amber-bg); color: var(--amber); }
     .notice-muted { background: var(--paper-line); color: var(--text-soft); }
+    .entry-row.unreviewed { background: var(--amber-bg); border-left: 3px solid var(--amber); }
+    .entry-row.unreviewed td:first-child { position: relative; }
+    .badge-new { display: inline-block; font-size: 10px; font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase; color: var(--amber); background: #fff; border: 1px solid var(--amber); border-radius: 3px; padding: 1px 5px; margin-left: 6px; vertical-align: middle; }
+    .undo-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .undo-bar .btn { white-space: nowrap; }
     .rule-row { display: grid; grid-template-columns: 220px 1fr 100px; gap: 10px; align-items: center; margin-bottom: 8px; }
     .rule-row .label { font-size: 13px; color: var(--text-soft); }
     .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -576,6 +581,7 @@
             vatRegNo: row.vat_reg_no || '', mrc: row.mrc || '', receiptNo: row.receipt_no || '', isVat: row.is_vat,
             beforeVat: row.before_vat, vat: row.vat, total: row.total, description: row.description || '',
             measurement: row.measurement || '', quantity: row.quantity, unitPrice: row.unit_price, missing: row.missing || [],
+            reviewed: row.reviewed !== false,
         };
     }
     function entryToDb(entry, clientId) {
@@ -588,6 +594,7 @@
             quantity: entry.quantity === '' || entry.quantity == null ? null : Number(entry.quantity),
             unit_price: entry.unitPrice === '' || entry.unitPrice == null ? null : Number(entry.unitPrice),
             missing: entry.missing || [],
+            reviewed: entry.reviewed !== false,
         };
     }
 
@@ -845,10 +852,17 @@
     // Left/right arrow keys step through receipts while the detail popup is
     // open — but only when focus isn't in a text field, so editing a field's
     // text (which also uses left/right to move the cursor) still works normally.
+    // Ctrl+Z / Cmd+Z undoes the most recent action anywhere in the app, same
+    // caveat about not hijacking a text field's own native undo.
     document.addEventListener('keydown', (evt) => {
-        if (!entryModalId) return;
         const tag = (document.activeElement && document.activeElement.tagName) || '';
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        const inTextField = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+        if ((evt.ctrlKey || evt.metaKey) && !evt.shiftKey && evt.key.toLowerCase() === 'z' && !inTextField) {
+            evt.preventDefault();
+            performUndo();
+            return;
+        }
+        if (!entryModalId || inTextField) return;
         if (evt.key === 'ArrowLeft') { evt.preventDefault(); prevEntry(); }
         else if (evt.key === 'ArrowRight') { evt.preventDefault(); nextEntry(); }
     });
@@ -1264,6 +1278,50 @@
 
     function activeClient() { return clients.find((c) => c.id === activeClientId) || null; }
 
+    // ------------------------------------------------------------------------
+    // Undo — a short-lived stack of recent destructive/overwriting actions
+    // (deleting a receipt, editing a receipt, saving GL rules). Each entry
+    // knows how to reverse itself. Ctrl+Z / Cmd+Z undoes the most recent
+    // action anywhere in the app; the Undo buttons on specific pages undo
+    // the most recent action of that page's kind.
+    // ------------------------------------------------------------------------
+    let undoStack = [];
+    let undoIdSeq = 0;
+    function pushUndo(scope, label, run) {
+        undoStack.push({ id: ++undoIdSeq, scope, label, run });
+        if (undoStack.length > 15) undoStack.shift(); // don't grow forever
+    }
+    function lastUndoFor(scope) {
+        for (let i = undoStack.length - 1; i >= 0; i--) {
+            if (undoStack[i].scope === scope) return undoStack[i];
+        }
+        return null;
+    }
+    async function performUndo(scope) {
+        // With no scope, undo whichever action happened most recently overall
+        // (this is what the Ctrl+Z shortcut uses). With a scope, undo the
+        // most recent action of that kind (this is what page Undo buttons use).
+        const action = scope ? lastUndoFor(scope) : undoStack[undoStack.length - 1];
+        if (!action) return;
+        undoStack = undoStack.filter((a) => a.id !== action.id);
+        try {
+            await action.run();
+        } catch (e) {
+            alert('Could not undo that: ' + (e.message || e));
+        }
+        render();
+    }
+    function renderUndoBar(scope) {
+        const action = lastUndoFor(scope);
+        if (!action) return '';
+        return `
+            <div class="notice notice-muted undo-bar">
+                <span>${icon('undo-2', 14)} ${esc(action.label)}</span>
+                <button class="btn btn-ghost" style="padding:4px 10px; font-size:12px;" onclick="performUndo('${scope}')">Undo <span class="mono" style="opacity:.6;">(Ctrl+Z)</span></button>
+            </div>`;
+    }
+
+
     async function loadClients() {
         const { data, error } = await supabaseClient.from('accountant_clients').select('*').order('created_at');
         if (error) { console.error(error); clients = []; return; }
@@ -1446,10 +1504,24 @@
     }
     async function removeEntry(id) {
         const client = activeClient();
+        if (!client) return;
+        const idx = client.entries.findIndex((e) => e.id === id);
+        const snapshot = idx !== -1 ? { ...client.entries[idx] } : null;
         const { error } = await supabaseClient.from('accountant_entries').delete().eq('id', id);
         if (error) { alert(error.message); return; }
         client.entries = client.entries.filter((e) => e.id !== id);
         client.entryCount = Math.max(0, (client.entryCount || 1) - 1);
+        if (snapshot) {
+            const clientId = client.id;
+            pushUndo('receipt', `Deleted receipt${snapshot.sellerName ? ' — ' + snapshot.sellerName : ''}`, async () => {
+                const c = clients.find((cl) => cl.id === clientId);
+                if (!c) return;
+                const { data, error: insErr } = await supabaseClient.from('accountant_entries').insert(entryToDb(snapshot, clientId)).select().single();
+                if (insErr) { alert(insErr.message); return; }
+                c.entries.unshift(mapEntryFromDb(data));
+                c.entryCount = (c.entryCount || 0) + 1;
+            });
+        }
         render();
     }
 
@@ -1643,9 +1715,9 @@
         receiptsListOrder = sorted.map((e) => e.id);
 
         const rows = sorted.map((e) => `
-            <tr class="entry-row" onclick="openEntryDetail('${e.id}')" style="cursor:pointer;">
+            <tr class="entry-row${e.reviewed === false ? ' unreviewed' : ''}" onclick="openEntryDetail('${e.id}')" style="cursor:pointer;">
                 <td class="mono" style="font-size:12px;">${esc(e.date) || '—'}</td>
-                <td>${esc(e.sellerName) || 'Unknown seller'}${e.missing && e.missing.length ? ` <span title="Needs review: ${esc(e.missing.join(', '))}" style="color:var(--amber);">${icon('alert-triangle', 12)}</span>` : ''}</td>
+                <td>${esc(e.sellerName) || 'Unknown seller'}${e.missing && e.missing.length ? ` <span title="Needs review: ${esc(e.missing.join(', '))}" style="color:var(--amber);">${icon('alert-triangle', 12)}</span>` : ''}${e.reviewed === false ? `<span class="badge-new" title="Auto-saved from a batch upload — not reviewed yet">New</span>` : ''}</td>
                 <td style="font-size:12px; color:var(--text-soft);">${e.type === 'payment' ? 'Purchase' : 'Sale'}</td>
                 <td class="mono num">${money(e.beforeVat)}</td>
                 <td class="mono num">${money(e.vat)}</td>
@@ -1658,6 +1730,7 @@
                 <div style="font-size:14px; color:var(--text-soft);">${client.entries.length} receipt${client.entries.length === 1 ? '' : 's'} logged</div>
                 ${addFlow ? '' : `<button class="btn btn-primary" onclick="startAddReceipt()">${icon('plus', 16)} Add receipt</button>`}
             </div>
+            ${renderUndoBar('receipt')}
             <div style="margin-bottom:16px;">${renderEcFilter('rf', client.entries, receiptsFilter)}</div>
             ${addFlow ? renderAddReceiptFlow() : ''}
             ${sorted.length === 0
@@ -1686,12 +1759,26 @@
         render();
     }
     function closeEntryDetail() { entryModalId = null; entryModalDraft = null; render(); }
-    function goToAdjacentEntry(delta) {
+    // Moving away from an unreviewed (auto-saved) receipt — either by saving
+    // it or by stepping to the next/previous one — counts as having looked
+    // at it, so its "New" highlighting goes away from here on.
+    async function markEntryReviewed(id) {
+        const client = activeClient();
+        if (!client) return;
+        const idx = client.entries.findIndex((x) => x.id === id);
+        if (idx === -1) return;
+        if (client.entries[idx].reviewed !== false) return; // already reviewed, nothing to do
+        const { error } = await supabaseClient.from('accountant_entries').update({ reviewed: true }).eq('id', id);
+        if (error) { console.error(error); return; }
+        client.entries[idx] = { ...client.entries[idx], reviewed: true };
+    }
+    async function goToAdjacentEntry(delta) {
         if (!entryModalId) return;
         const idx = receiptsListOrder.indexOf(entryModalId);
         if (idx === -1) return;
         const newIdx = idx + delta;
         if (newIdx < 0 || newIdx >= receiptsListOrder.length) return; // already at the first/last receipt
+        await markEntryReviewed(entryModalId);
         openEntryDetail(receiptsListOrder[newIdx]);
     }
     function prevEntry() { goToAdjacentEntry(-1); }
@@ -1705,18 +1792,32 @@
     async function saveEntryEdit() {
         const client = activeClient();
         const d = entryModalDraft;
+        const idx = client.entries.findIndex((x) => x.id === entryModalId);
+        const previous = idx >= 0 ? { ...client.entries[idx] } : null;
         const patch = {
             type: d.type, date: d.date, sellerName: d.sellerName, sellerTin: d.sellerTin, vatRegNo: d.vatRegNo,
             mrc: d.mrc, receiptNo: d.receiptNo, isVat: !!d.isVat,
             beforeVat: Number(d.beforeVat) || 0, vat: Number(d.vat) || 0, total: Number(d.total) || 0,
             description: d.description, measurement: d.measurement,
             quantity: d.quantity === '' ? null : Number(d.quantity), unitPrice: d.unitPrice === '' ? null : Number(d.unitPrice),
+            reviewed: true,
         };
         const { error } = await supabaseClient.from('accountant_entries').update(entryToDb(patch, client.id)).eq('id', entryModalId);
         if (error) { alert(error.message); return; }
-        const idx = client.entries.findIndex((x) => x.id === entryModalId);
         if (idx >= 0) client.entries[idx] = { ...client.entries[idx], ...patch };
         rememberSeller(patch.sellerName, patch.sellerTin);
+        if (previous) {
+            const clientId = client.id;
+            const entryId = entryModalId;
+            pushUndo('receipt', `Edited receipt${previous.sellerName ? ' — ' + previous.sellerName : ''}`, async () => {
+                const c = clients.find((cl) => cl.id === clientId);
+                if (!c) return;
+                const { error: revErr } = await supabaseClient.from('accountant_entries').update(entryToDb(previous, clientId)).eq('id', entryId);
+                if (revErr) { alert(revErr.message); return; }
+                const i = c.entries.findIndex((x) => x.id === entryId);
+                if (i >= 0) c.entries[i] = { ...c.entries[i], ...previous };
+            });
+        }
         closeEntryDetail();
     }
     async function deleteEntryFromModal() {
@@ -1745,6 +1846,8 @@
                             <button class="btn-icon" onclick="closeEntryDetail()">${icon('x', 18)}</button>
                         </div>
                     </div>
+                    ${d.reviewed === false ? `<div class="notice notice-warn">${icon('alert-triangle', 14)} Auto-saved from a batch upload, not reviewed yet. Check the fields below, then Save (or just move to the next one — that marks it reviewed too).</div>` : ''}
+                    ${renderUndoBar('receipt')}
                     <div style="display:flex; gap:16px; margin-bottom:14px; flex-wrap:wrap;">
                         <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="edit-entry-type" style="width:auto;" ${d.type === 'payment' ? 'checked' : ''} onchange="entryModalDraft.type='payment'"> Purchase (payment out)</label>
                         <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="edit-entry-type" style="width:auto;" ${d.type === 'receipt' ? 'checked' : ''} onchange="entryModalDraft.type='receipt'"> Sale (receipt in)</label>
@@ -1863,6 +1966,16 @@
             addFlow.step = 'review';
         }
         render();
+
+        // Multiple photos uploaded at once: don't make the person click "Save"
+        // for every single one. Auto-save it as soon as we have a usable date,
+        // flagged "unreviewed" so it's easy to find and double check later.
+        // If extraction failed or there's no date to save with, pause here and
+        // let the person fix this one by hand before the batch continues.
+        const isBatch = addFlow.queueTotal > 1;
+        if (isBatch && !addFlow.error && addFlow.form.date) {
+            await saveReceiptForm(false);
+        }
     }
 
     function renderAddReceiptFlow() {
@@ -1878,7 +1991,7 @@
                         <button class="btn btn-ghost" onclick="document.getElementById('receipt-camera-input').click()">${icon('camera', 15)} Take photo</button>
                         <button class="btn btn-ghost" onclick="cancelAddReceipt()">Cancel</button>
                     </div>
-                    <div style="margin-top:10px; font-size:11.5px; color:var(--text-soft);">You can select several receipt photos at once — they're reviewed and saved one at a time.</div>
+                    <div style="margin-top:10px; font-size:11.5px; color:var(--text-soft);">Select several photos at once and they'll scan and save automatically, flagged for a quick review afterward on the Receipts page.</div>
                 </div>`;
         }
         const progress = addFlow.queueTotal > 1 ? `<div style="font-size:11.5px; color:var(--text-soft); margin-bottom:8px;">Photo ${addFlow.queueIndex} of ${addFlow.queueTotal}</div>` : '';
@@ -1964,10 +2077,11 @@
         if (preview) { preview.textContent = f.date ? `→ ${f.date} (GC)` : 'date incomplete'; preview.style.color = f.date ? 'var(--text)' : 'var(--amber)'; }
         if (btn) btn.disabled = !f.date;
     }
-    function saveReceiptForm() {
+    function saveReceiptForm(reviewed) {
         const f = addFlow.form;
-        addEntry({
+        return addEntry({
             ...f,
+            reviewed: reviewed !== false,
             beforeVat: Number(f.beforeVat) || 0, vat: Number(f.vat) || 0, total: Number(f.total) || 0,
             quantity: f.quantity === '' ? null : Number(f.quantity), unitPrice: f.unitPrice === '' ? null : Number(f.unitPrice),
         });
@@ -2008,11 +2122,27 @@
                     <div class="section-title">Receipts split (sales)</div>
                     ${RULE_SLOTS.receipts.map(([key, label]) => ruleRow('receiptsRule', key, label)).join('')}
                 </div>
+                ${renderUndoBar('rules')}
                 <button class="btn btn-primary" onclick="saveRules()">${icon('check', 15)} Save rules</button>
             </div>`;
     }
     async function saveRules() {
-        await patchClient(rulesDraft.id, { paymentsRule: rulesDraft.paymentsRule, receiptsRule: rulesDraft.receiptsRule });
+        const client = activeClient();
+        const previous = client ? {
+            paymentsRule: JSON.parse(JSON.stringify(client.paymentsRule)),
+            receiptsRule: JSON.parse(JSON.stringify(client.receiptsRule)),
+        } : null;
+        const clientId = rulesDraft.id;
+        await patchClient(clientId, { paymentsRule: rulesDraft.paymentsRule, receiptsRule: rulesDraft.receiptsRule });
+        if (previous) {
+            pushUndo('rules', 'Saved GL rules', async () => {
+                await patchClient(clientId, previous);
+                if (rulesDraft && rulesDraft.id === clientId) {
+                    rulesDraft.paymentsRule = JSON.parse(JSON.stringify(previous.paymentsRule));
+                    rulesDraft.receiptsRule = JSON.parse(JSON.stringify(previous.receiptsRule));
+                }
+            });
+        }
         render();
     }
     function downloadRulesTemplate() {
