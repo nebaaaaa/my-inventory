@@ -9934,7 +9934,21 @@
                 handler = () => setTimeout(advance, 0);
             }
             el.addEventListener(type, handler);
-            return () => el.removeEventListener(type, handler);
+
+            // Safety net: whatever the tooltip is pointed at must always stay
+            // tappable, even if a layout edge case (e.g. the keyboard closing
+            // right as a form is submitted) ever left the guide's own bubble
+            // overlapping it. Lifting the real element above the bubble in
+            // stacking order means a tap in the overlap always reaches it.
+            const prevPosition = el.style.position, prevZ = el.style.zIndex;
+            if (!prevPosition || getComputedStyle(el).position === 'static') el.style.position = 'relative';
+            el.style.zIndex = '100000';
+
+            return () => {
+                el.removeEventListener(type, handler);
+                el.style.position = prevPosition;
+                el.style.zIndex = prevZ;
+            };
         }
 
         // ---- tooltip rendering ---------------------------------------
@@ -9978,8 +9992,14 @@
 
             const tipRect = tip.getBoundingClientRect();
             const vw = window.innerWidth, vh = window.innerHeight;
-            let top = r.bottom + 14;
-            if (top + tipRect.height > vh - 10) top = Math.max(10, r.top - tipRect.height - 14);
+            const spaceBelow = vh - r.bottom, spaceAbove = r.top;
+            // Anchor strictly adjacent to the target on whichever side has more
+            // room -- never clamp into a fixed viewport offset, since that can
+            // pull the bubble back onto the very element it's pointing at on a
+            // short screen (e.g. a submit button near the bottom of a tall form).
+            let top = (spaceBelow >= tipRect.height || spaceBelow >= spaceAbove)
+                ? r.bottom + 14
+                : r.top - tipRect.height - 14;
             let left = r.left;
             if (left + tipRect.width > vw - 10) left = vw - tipRect.width - 10;
             if (left < 10) left = 10;
