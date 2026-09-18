@@ -242,6 +242,18 @@
             .header-right { gap: 4px; }
             #lang-toggle-btn, #calendar-toggle-btn { min-width: 28px !important; padding: 5px 4px; font-size: 10px !important; }
         }
+
+        /* ===================== FIRST-TIME GUIDE (onboarding tour) ===================== */
+        #neba-tour-spotlight { position:fixed; pointer-events:none; z-index:99998; border-radius:8px; box-shadow:0 0 0 9999px rgba(15,17,32,0.55), 0 0 0 3px var(--accent); transition:top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease; }
+        #neba-tour-tip { position:fixed; z-index:99999; max-width:300px; background:var(--surface); color:var(--text); border-radius:10px; box-shadow:var(--shadow-lg); padding:14px 16px; font-size:13px; line-height:1.5; transition:top 0.25s ease, left 0.25s ease; }
+        #neba-tour-tip .nt-step { font-size:11px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+        #neba-tour-tip .nt-text { color:var(--text); margin-bottom:12px; }
+        #neba-tour-tip .nt-row { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+        #neba-tour-tip button.nt-gotit { background:var(--accent); color:#fff; border:none; border-radius:6px; padding:7px 14px; font-size:12px; font-weight:700; cursor:pointer; }
+        #neba-tour-tip button.nt-gotit:hover { opacity:0.9; }
+        #neba-tour-tip a.nt-skip { font-size:11px; color:var(--text-light); text-decoration:underline; cursor:pointer; white-space:nowrap; }
+        #neba-tour-tip .nt-arrow { position:absolute; width:12px; height:12px; background:var(--surface); transform:rotate(45deg); }
+        #neba-tour-help-btn { font-size:12px; font-weight:700; min-width:32px; }
     </style>
 </head>
 <body onclick="closeNotifPanelOutside(event)">
@@ -264,7 +276,8 @@
 
     <!-- ===================== SIGN IN / SIGN UP SCREEN ===================== -->
     <div id="auth-overlay" style="position:fixed; inset:0; z-index:5000; display:flex; align-items:center; justify-content:center; padding:40px 16px; overflow-y:auto;">
-        <button id="lang-toggle-btn-auth" onclick="toggleLanguage()" title="Switch language" style="position:fixed; top:16px; right:16px; z-index:5001; font-size:12px; font-weight:700; min-width:44px; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:white; cursor:pointer;">አማ</button>
+        <button id="lang-toggle-btn-auth" onclick="toggleLanguage()" title="Switch language" style="position:fixed; top:16px; right:64px; z-index:5001; font-size:12px; font-weight:700; min-width:44px; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:white; cursor:pointer;">አማ</button>
+        <button id="tour-help-btn-auth" onclick="restartNebaTour()" title="Show guide" style="position:fixed; top:16px; right:16px; z-index:5001; font-size:14px; font-weight:700; min-width:44px; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:white; cursor:pointer;">?</button>
         <div class="auth-brand-mark-fixed"><span class="accent">M</span><span class="dark">ELEYA</span></div>
 
         <svg class="auth-bg-chart" viewBox="0 0 1200 400" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
@@ -530,6 +543,7 @@
             </div>
             <div class="header-right">
                 <button class="menu-toggle-btn" id="lang-toggle-btn" onclick="toggleLanguage()" title="Switch language" style="font-size:12px; font-weight:700; min-width:44px;">አማ</button>
+                <button class="menu-toggle-btn" id="neba-tour-help-btn" onclick="restartNebaTour()" title="Show guide">?</button>
                 <button class="menu-toggle-btn" id="calendar-toggle-btn" onclick="toggleCalendarPref()" title="Switch calendar" style="font-size:12px; font-weight:700; min-width:44px;">GC</button>
                 <select id="branch-switcher" onchange="switchActiveBranch(this.value)" style="display:none; min-width:auto; font-size:12px; padding:6px 10px; font-weight:600; color:var(--primary); border-color:var(--accent);" title="Which branch you're working in"></select>
                 <span id="offline-dot" title="You're offline — changes are saved on this device and will sync once reconnected" style="display:none; width:8px; height:8px; border-radius:50%; background:#C97A22; margin-right:4px;"></span>
@@ -9507,5 +9521,537 @@
             });
         }
     </script>
+
+    <script>
+    /* =====================================================================
+       FIRST-TIME GUIDE (onboarding tour)
+       -----------------------------------------------------------------
+       A floating tooltip that points at one field/button at a time and
+       walks a brand-new user from "create account" all the way through
+       every main page. It never needs to know exactly when the app
+       moves between screens (sign in -> sign up -> business setup ->
+       start fresh -> opening inventory -> the app itself) -- instead it
+       just checks, several times a second, which full-screen overlay is
+       currently showing (or none, meaning the main app is showing) and
+       walks that screen's own list of steps.
+
+       Each step just names an element id (or a few, comma separated --
+       the first one found on screen is used) and a bit of text. A step
+       is skipped automatically if its element isn't on screen right now
+       (e.g. the VAT detail fields when "VAT registered" is "No", or the
+       Expiry Date field for a shop that isn't a pharmacy) -- nothing
+       extra has to be written per field for that.
+
+       How a step finishes and the guide moves on:
+         - tapping "Got it" always moves on, on any step.
+         - for a text/number/date field: moving on happens automatically
+           once the user types something and taps/clicks away from it
+           (blur), as long as they left something in it.
+         - for a dropdown, checkbox or file picker: moving on happens
+           automatically as soon as they pick something (change event).
+         - for anything else (a button, a link, a nav item): moving on
+           happens automatically as soon as it's tapped -- the guide
+           doesn't get in the way of the tap, it just also notices it.
+       ===================================================================== */
+    (function () {
+
+        // ---- tiny bilingual text table just for the guide itself -------
+        // (kept separate from the app's big I18N object on purpose --
+        // this way the guide's own text can't accidentally break, or be
+        // broken by, translations used elsewhere in the app.)
+        const TOUR_I18N = {
+            en: {
+                gotit: 'Got it', skip: 'Skip guide',
+                lang: "First, look here. Tap this button any time to switch the app between English and Amharic. The rest of this guide will switch too.",
+
+                signup_link: "New shop? Tap \"Create one\" to make your account.",
+                biz_name: "Type the name of your shop here.",
+                phone: "Type a phone number for your shop.",
+                biz_type: "Choose what kind of shop this is. Pick carefully -- this cannot be changed later.",
+                username: "Choose a username. You will use it to sign in from now on.",
+                vat_registered: "Is your shop registered for VAT? Choose Yes or No.",
+                vat_tin: "Type your TIN number.",
+                vat_reg_no: "Type your VAT registration number.",
+                owner_name: "Type the owner's full name.",
+                vat_city: "Type the city.",
+                vat_subcity: "Type the sub city.",
+                vat_kebele: "Type the kebele.",
+                vat_tel: "Type a telephone number for the VAT details.",
+                vat_address: "Type the address.",
+                email: "Type an email address.",
+                password: "Choose a password. Use at least 6 letters or numbers.",
+                confirm_password: "Type the same password again.",
+                create_account: "Everything filled in? Tap \"Create Account\" to continue.",
+
+                bizsetup_name: "Type the name of your shop.",
+                bizsetup_phone: "Type a phone number for your shop.",
+                bizsetup_username: "Choose a username.",
+                bizsetup_finish: "Tap \"Finish Setup\" to continue.",
+
+                onboarding_file: "If you already have a MELEYA backup file, choose it here.",
+                onboarding_start_fresh: "Starting a brand new shop with no backup? Tap \"Start Fresh\" here.",
+
+                invsetup_category: "Type a category for this item, like \"Cables\".",
+                invsetup_name: "Type the name of this item.",
+                invsetup_qty: "Type how many of this item you have right now.",
+                invsetup_cost: "Type what this item cost you.",
+                invsetup_expiry: "Type the expiry date for this item.",
+                invsetup_selling_price: "Type the price you will sell this item for.",
+                invsetup_daily_rate: "Type the price to rent this item out for one day.",
+                invsetup_weekly_rate: "Optional: type a price for one week.",
+                invsetup_monthly_rate: "Optional: type a price for one month.",
+                invsetup_add: "Tap \"+ Add\" to put this item in your list. Do this for every item you have, then come back here.",
+                invsetup_complete: "Once your list looks right, tap \"Complete Setup\" to save it all.",
+
+                app_dashboard: "This is your Dashboard. It shows how your shop is doing -- sales, stock and money, all in one place.",
+                app_nav_inventory: "Tap \"Inventory/Stock\" to add and manage your products.",
+                app_p_category: "Type a category for the new product.",
+                app_p_desc: "Type the product's name.",
+                app_p_daily_rate: "Type the price to rent this out for one day.",
+                app_p_weekly_rate: "Optional: type a price for one week.",
+                app_p_monthly_rate: "Optional: type a price for one month.",
+                app_add_product_btn: "Tap here to save this product.",
+                app_filter_category: "You can search your stock by category here.",
+                app_filter_name: "You can search your stock by name here.",
+
+                app_nav_sales: "Tap \"Sales\" any time you sell something.",
+                app_sale_date: "Check or change the date of this sale.",
+                app_sale_customer: "Type the customer's name. Leave it blank for a walk-in customer.",
+                app_sale_item: "Type or pick the item being sold.",
+                app_sale_qty: "Type how many are being sold.",
+                app_sale_price: "Check or change the price.",
+                app_sale_amount_paid: "Type how much the customer is paying right now. Leave less than the total if they still owe you some.",
+                app_sale_channel: "Choose how they paid -- Cash or Mobile banking.",
+                app_sale_type: "Choose the type of sale.",
+                app_sale_vat: "Tick this box if VAT (15%) should be added.",
+                app_post_sale: "Tap \"Post Sale\" to save this sale.",
+
+                app_nav_purchase: "Tap \"Purchase\" any time you buy new stock.",
+                app_pur_date: "Check or change the date of this purchase.",
+                app_pur_supplier: "Type who you bought this from.",
+                app_pur_item: "Type or pick the item you bought.",
+                app_pur_qty: "Type how many you bought.",
+                app_pur_price: "Type what you paid for each one.",
+                app_pur_selling_price: "Optional: set the price you will sell this at.",
+                app_pur_expiry: "Type the expiry date for this batch.",
+                app_pur_amount_paid: "Type how much you paid right now. Leave less than the total if you still owe the supplier.",
+                app_pur_channel: "Choose how you paid -- Cash or Mobile banking.",
+                app_commit_purchase: "Tap here to save this purchase.",
+
+                app_nav_expenses: "Tap \"Expense\" to record money your shop spent, like rent or bills.",
+                app_exp_date: "Check or change the date.",
+                app_exp_account: "Choose what this expense is for.",
+                app_exp_amount: "Type how much was spent.",
+                app_exp_channel: "Choose how it was paid.",
+                app_exp_memo: "Type a short note, like \"May rent\".",
+                app_book_expense: "Tap here to save this expense.",
+
+                app_accounting_toggle: "Tap \"Accounting\" to open your financial reports.",
+                app_coa: "This is your Chart of Accounts -- the full list of accounts your shop uses.",
+                app_journal: "This is Journal Entries -- every single entry ever recorded, in order.",
+                app_ledger: "This is the General Ledger -- the running balance of each account.",
+                app_statements: "This is Financial Statements -- your Profit & Loss and Balance Sheet.",
+                app_team: "This is Team & Branches -- add staff and branches here.",
+                app_settings: "This is Settings for your shop.",
+                app_wrapup: "One last thing: use \"Backup\" now and then to save a copy of your data, and \"Sign Out\" when you're done. That's the whole app -- tap \"Got it\" to finish this guide. Tap the ? button any time to see it again."
+            },
+            am: {
+                gotit: 'ገባኝ', skip: 'መመሪያውን ዝጋ',
+                lang: "መጀመሪያ እዚህ ይመልከቱ። መተግበሪያውን በእንግሊዝኛና በአማርኛ መካከል ለመቀየር ይህን ቁልፍ በማንኛውም ጊዜ ይጫኑ። የቀረው መመሪያም አብሮ ይቀየራል።",
+
+                signup_link: "አዲስ ሱቅ ነው? አካውንት ለመክፈት \"Create one\" የሚለውን ይንኩ።",
+                biz_name: "የሱቅዎን ስም እዚህ ይጻፉ።",
+                phone: "የሱቅዎን ስልክ ቁጥር ይጻፉ።",
+                biz_type: "ሱቅዎ ምን አይነት እንደሆነ ይምረጡ። ይህ በኋላ ሊቀየር ስለማይችል በጥንቃቄ ይምረጡ።",
+                username: "የተጠቃሚ ስም ይምረጡ። ከዚህ በኋላ ለመግባት ይህንን ይጠቀማሉ።",
+                vat_registered: "ሱቅዎ ለቫት የተመዘገበ ነው? አዎ ወይም አይደለም ይምረጡ።",
+                vat_tin: "የቲን ቁጥርዎን ይጻፉ።",
+                vat_reg_no: "የቫት ምዝገባ ቁጥርዎን ይጻፉ።",
+                owner_name: "የባለቤቱን ሙሉ ስም ይጻፉ።",
+                vat_city: "ከተማውን ይጻፉ።",
+                vat_subcity: "ክፍለ ከተማውን ይጻፉ።",
+                vat_kebele: "ቀበሌውን ይጻፉ።",
+                vat_tel: "ለቫት ዝርዝሩ ስልክ ቁጥር ይጻፉ።",
+                vat_address: "አድራሻውን ይጻፉ።",
+                email: "ኢሜይል አድራሻ ይጻፉ።",
+                password: "የይለፍ ቃል ይምረጡ። ቢያንስ 6 ፊደላት ወይም ቁጥሮች ይኑረው።",
+                confirm_password: "ተመሳሳዩን የይለፍ ቃል እንደገና ይጻፉ።",
+                create_account: "ሁሉንም ሞልተዋል? ለመቀጠል \"Create Account\" ይንኩ።",
+
+                bizsetup_name: "የሱቅዎን ስም ይጻፉ።",
+                bizsetup_phone: "የሱቅዎን ስልክ ቁጥር ይጻፉ።",
+                bizsetup_username: "የተጠቃሚ ስም ይምረጡ።",
+                bizsetup_finish: "ለመቀጠል \"Finish Setup\" ይንኩ።",
+
+                onboarding_file: "የMELEYA ባክአፕ ፋይል ካለዎት እዚህ ይምረጡት።",
+                onboarding_start_fresh: "ያለ ባክአፕ አዲስ ሱቅ እየጀመሩ ነው? እዚህ \"Start Fresh\" ይንኩ።",
+
+                invsetup_category: "ለዚህ እቃ ምድብ ይጻፉ፣ ለምሳሌ \"ኬብሎች\"።",
+                invsetup_name: "የዚህን እቃ ስም ይጻፉ።",
+                invsetup_qty: "ከዚህ እቃ ስንት እንዳለዎት ይጻፉ።",
+                invsetup_cost: "ይህ እቃ ስንት እንዳስከፈለዎት ይጻፉ።",
+                invsetup_expiry: "የዚህን እቃ የማብቂያ ቀን ይጻፉ።",
+                invsetup_selling_price: "ይህን እቃ በምን ዋጋ እንደሚሸጡ ይጻፉ።",
+                invsetup_daily_rate: "ይህን እቃ ለአንድ ቀን በምን ዋጋ እንደሚያከራዩ ይጻፉ።",
+                invsetup_weekly_rate: "አማራጭ፦ ለአንድ ሳምንት ዋጋ ይጻፉ።",
+                invsetup_monthly_rate: "አማራጭ፦ ለአንድ ወር ዋጋ ይጻፉ።",
+                invsetup_add: "ይህን እቃ ወደ ዝርዝርዎ ለማስገባት \"+ Add\" ይንኩ። ላሉት እቃዎች ሁሉ ይህንን ይድገሙት፣ ከዚያ ወደዚህ ይመለሱ።",
+                invsetup_complete: "ዝርዝርዎ ትክክል ሲሆን ሁሉንም ለማስቀመጥ \"Complete Setup\" ይንኩ።",
+
+                app_dashboard: "ይህ ዳሽቦርድዎ ነው። ሱቅዎ እንዴት እየሄደ እንዳለ ያሳያል -- ሽያጭ፣ ዕቃ እና ገንዘብ በአንድ ቦታ።",
+                app_nav_inventory: "አዳዲስ ምርቶችን ለመጨመርና ለማስተዳደር \"Inventory/Stock\" ይንኩ።",
+                app_p_category: "ለአዲሱ ምርት ምድብ ይጻፉ።",
+                app_p_desc: "የምርቱን ስም ይጻፉ።",
+                app_p_daily_rate: "ይህን ለአንድ ቀን በምን ዋጋ እንደሚያከራዩ ይጻፉ።",
+                app_p_weekly_rate: "አማራጭ፦ ለአንድ ሳምንት ዋጋ ይጻፉ።",
+                app_p_monthly_rate: "አማራጭ፦ ለአንድ ወር ዋጋ ይጻፉ።",
+                app_add_product_btn: "ይህን ምርት ለማስቀመጥ እዚህ ይንኩ።",
+                app_filter_category: "እዚህ በምድብ ዕቃዎን መፈለግ ይችላሉ።",
+                app_filter_name: "እዚህ በስም ዕቃዎን መፈለግ ይችላሉ።",
+
+                app_nav_sales: "ማንኛውንም ነገር ሲሸጡ \"Sales\" ይንኩ።",
+                app_sale_date: "የሽያጩን ቀን ይመልከቱ ወይም ይቀይሩ።",
+                app_sale_customer: "የደንበኛውን ስም ይጻፉ። ለእግር ደንበኛ ባዶ ይተውት።",
+                app_sale_item: "የሚሸጠውን እቃ ይጻፉ ወይም ይምረጡ።",
+                app_sale_qty: "ስንት እንደሚሸጥ ይጻፉ።",
+                app_sale_price: "ዋጋውን ይመልከቱ ወይም ይቀይሩ።",
+                app_sale_amount_paid: "ደንበኛው አሁን ምን ያህል እየከፈለ እንዳለ ይጻፉ። ገና የሚቀረው ካለ ከጠቅላላው ያነሰ ይተውት።",
+                app_sale_channel: "እንዴት እንደተከፈለ ይምረጡ -- ጥሬ ገንዘብ ወይም ሞባይል ባንኪንግ።",
+                app_sale_type: "የሽያጩን አይነት ይምረጡ።",
+                app_sale_vat: "ቫት (15%) መጨመር ካለበት ይህን ሳጥን ይምረጡ።",
+                app_post_sale: "ይህን ሽያጭ ለማስቀመጥ \"Post Sale\" ይንኩ።",
+
+                app_nav_purchase: "አዲስ ዕቃ ሲገዙ \"Purchase\" ይንኩ።",
+                app_pur_date: "የግዢውን ቀን ይመልከቱ ወይም ይቀይሩ።",
+                app_pur_supplier: "ከማን እንደገዙ ይጻፉ።",
+                app_pur_item: "የገዙትን እቃ ይጻፉ ወይም ይምረጡ።",
+                app_pur_qty: "ስንት እንደገዙ ይጻፉ።",
+                app_pur_price: "ለእያንዳንዱ ምን ያህል እንደከፈሉ ይጻፉ።",
+                app_pur_selling_price: "አማራጭ፦ ይህን በምን ዋጋ እንደሚሸጡ ያዘጋጁ።",
+                app_pur_expiry: "ለዚህ ጭነት የማብቂያ ቀን ይጻፉ።",
+                app_pur_amount_paid: "አሁን ምን ያህል እንደከፈሉ ይጻፉ። ለአቅራቢው ገና የሚቀር ካለ ከጠቅላላው ያነሰ ይተውት።",
+                app_pur_channel: "እንዴት እንደከፈሉ ይምረጡ -- ጥሬ ገንዘብ ወይም ሞባይል ባንኪንግ።",
+                app_commit_purchase: "ይህን ግዢ ለማስቀመጥ እዚህ ይንኩ።",
+
+                app_nav_expenses: "እንደ ኪራይ ወይም ቢል ያለ ወጪ ለመመዝገብ \"Expense\" ይንኩ።",
+                app_exp_date: "ቀኑን ይመልከቱ ወይም ይቀይሩ።",
+                app_exp_account: "ይህ ወጪ ለምን እንደሆነ ይምረጡ።",
+                app_exp_amount: "ምን ያህል እንደወጣ ይጻፉ።",
+                app_exp_channel: "እንዴት እንደተከፈለ ይምረጡ።",
+                app_exp_memo: "አጭር ማስታወሻ ይጻፉ፣ ለምሳሌ \"የግንቦት ኪራይ\"።",
+                app_book_expense: "ይህን ወጪ ለማስቀመጥ እዚህ ይንኩ።",
+
+                app_accounting_toggle: "የገንዘብ ሪፖርቶችዎን ለመክፈት \"Accounting\" ይንኩ።",
+                app_coa: "ይህ የሂሳብ ዝርዝርዎ (Chart of Accounts) ነው -- ሱቅዎ የሚጠቀምባቸው ሁሉም ሂሳቦች ሙሉ ዝርዝር።",
+                app_journal: "ይህ Journal Entries ነው -- እስከ አሁን የተመዘገቡ ሁሉም ግቤቶች በቅደም ተከተል።",
+                app_ledger: "ይህ General Ledger ነው -- የእያንዳንዱ ሂሳብ ወቅታዊ ቀሪ ሂሳብ።",
+                app_statements: "ይህ Financial Statements ነው -- ትርፍና ኪሳራ እና የሂሳብ ሚዛን።",
+                app_team: "ይህ Team & Branches ነው -- ሰራተኞችንና ቅርንጫፎችን እዚህ ይጨምሩ።",
+                app_settings: "ይህ ለሱቅዎ Settings ነው።",
+                app_wrapup: "አንድ የመጨረሻ ነገር፦ ውሂብዎን ቅጂ ለማስቀመጥ አልፎ አልፎ \"Backup\" ይጠቀሙ፣ ስራ ሲጨርሱም \"Sign Out\" ያድርጉ። ይህ ነው መተግበሪያው በሙሉ -- ይህን መመሪያ ለመጨረስ \"ገባኝ\" ይንኩ። እንደገና ለማየት በማንኛውም ጊዜ የ? ቁልፍን ይጫኑ።"
+            }
+        };
+        function tt(key) { return (TOUR_I18N[currentLang] && TOUR_I18N[currentLang][key]) || TOUR_I18N.en[key] || key; }
+
+        // ---- step lists, one per full-screen phase of the app ----------
+        const LANG_STEP = { id: 'lang', sel: '#lang-toggle-btn-auth, #lang-toggle-btn', key: 'lang' };
+
+        const PHASES = {
+            auth: [
+                LANG_STEP,
+                { id: 'signup-link', sel: '#auth-signin-view a[onclick*="signup"]', key: 'signup_link' },
+                { id: 'biz-name', sel: '#auth-business-name', key: 'biz_name' },
+                { id: 'phone', sel: '#auth-phone', key: 'phone' },
+                { id: 'biz-type', sel: '#auth-business-type', key: 'biz_type' },
+                { id: 'username', sel: '#auth-username', key: 'username' },
+                { id: 'vat-registered', sel: '#auth-vat-registered', key: 'vat_registered' },
+                { id: 'vat-tin', sel: '#auth-vat-tin', key: 'vat_tin' },
+                { id: 'vat-reg-no', sel: '#auth-vat-reg-no', key: 'vat_reg_no' },
+                { id: 'owner-name', sel: '#auth-owner-full-name', key: 'owner_name' },
+                { id: 'vat-city', sel: '#auth-vat-city', key: 'vat_city' },
+                { id: 'vat-subcity', sel: '#auth-vat-sub-city', key: 'vat_subcity' },
+                { id: 'vat-kebele', sel: '#auth-vat-kebele', key: 'vat_kebele' },
+                { id: 'vat-tel', sel: '#auth-vat-tel', key: 'vat_tel' },
+                { id: 'vat-address', sel: '#auth-vat-address', key: 'vat_address' },
+                { id: 'email', sel: '#auth-email', key: 'email' },
+                { id: 'password', sel: '#auth-password', key: 'password' },
+                { id: 'confirm-password', sel: '#auth-password-confirm', key: 'confirm_password' },
+                { id: 'create-account', sel: '#auth-signup-view button[onclick*="handleSignUp"]', key: 'create_account' }
+            ],
+            bizsetup: [
+                { id: 'bizsetup-name', sel: '#biz-setup-name', key: 'bizsetup_name' },
+                { id: 'bizsetup-phone', sel: '#biz-setup-phone', key: 'bizsetup_phone' },
+                { id: 'bizsetup-username', sel: '#biz-setup-username', key: 'bizsetup_username' },
+                { id: 'bizsetup-finish', sel: '#business-setup-overlay button[onclick*="completeBusinessSetup"]', key: 'bizsetup_finish' }
+            ],
+            onboarding: [
+                { id: 'onboarding-file', sel: '#onboarding-file', key: 'onboarding_file' },
+                { id: 'onboarding-start-fresh', sel: '#onboarding-overlay button[onclick*="showInitialInventorySetup"]', key: 'onboarding_start_fresh' }
+            ],
+            invsetup: [
+                { id: 'init-category', sel: '#init-inv-category', key: 'invsetup_category' },
+                { id: 'init-name', sel: '#init-inv-name', key: 'invsetup_name' },
+                { id: 'init-qty', sel: '#init-inv-qty', key: 'invsetup_qty' },
+                { id: 'init-cost', sel: '#init-inv-cost', key: 'invsetup_cost' },
+                { id: 'init-expiry', sel: '#init-inv-expiry', key: 'invsetup_expiry' },
+                { id: 'init-selling-price', sel: '#init-inv-selling-price', key: 'invsetup_selling_price' },
+                { id: 'init-daily-rate', sel: '#init-inv-daily-rate', key: 'invsetup_daily_rate' },
+                { id: 'init-weekly-rate', sel: '#init-inv-weekly-rate', key: 'invsetup_weekly_rate' },
+                { id: 'init-monthly-rate', sel: '#init-inv-monthly-rate', key: 'invsetup_monthly_rate' },
+                { id: 'init-add', sel: '#initial-inventory-overlay button[onclick*="addToInitialInventoryCart"]', key: 'invsetup_add' },
+                { id: 'init-complete', sel: '#initial-inventory-overlay button[onclick*="completeInitialInventorySetup"]', key: 'invsetup_complete' }
+            ],
+            app: [
+                LANG_STEP,
+                { id: 'dashboard', sel: '.dashboard-filter-bar', key: 'app_dashboard' },
+                { id: 'nav-inventory', sel: '#nav-inventory', key: 'app_nav_inventory' },
+                { id: 'p-category', sel: '#p-category', key: 'app_p_category' },
+                { id: 'p-desc', sel: '#p-desc', key: 'app_p_desc' },
+                { id: 'p-daily-rate', sel: '#p-daily-rate', key: 'app_p_daily_rate' },
+                { id: 'p-weekly-rate', sel: '#p-weekly-rate', key: 'app_p_weekly_rate' },
+                { id: 'p-monthly-rate', sel: '#p-monthly-rate', key: 'app_p_monthly_rate' },
+                { id: 'inv-btn', sel: '#inv-btn', key: 'app_add_product_btn' },
+                { id: 'inv-filter-category', sel: '#inv-filter-category', key: 'app_filter_category' },
+                { id: 'inv-filter-name', sel: '#inv-filter-name', key: 'app_filter_name' },
+
+                { id: 'nav-sales', sel: '#nav-sales', key: 'app_nav_sales' },
+                { id: 'sale-date', sel: '#sale-date', key: 'app_sale_date' },
+                { id: 'sale-customer', sel: '#sale-customer', key: 'app_sale_customer' },
+                { id: 'sale-item', sel: '#sale-item', key: 'app_sale_item' },
+                { id: 'sale-qty', sel: '#sale-qty', key: 'app_sale_qty' },
+                { id: 'sale-price', sel: '#sale-price', key: 'app_sale_price' },
+                { id: 'sale-amount-paid', sel: '#sale-amount-paid', key: 'app_sale_amount_paid' },
+                { id: 'sale-channel', sel: '#sale-channel', key: 'app_sale_channel' },
+                { id: 'sale-type', sel: '#sale-type', key: 'app_sale_type' },
+                { id: 'sale-include-vat', sel: '#sale-include-vat', key: 'app_sale_vat' },
+                { id: 'post-sale', sel: '#sales-form button[type="submit"]', key: 'app_post_sale' },
+
+                { id: 'nav-purchase', sel: '#nav-purchase', key: 'app_nav_purchase' },
+                { id: 'pur-date', sel: '#pur-date', key: 'app_pur_date' },
+                { id: 'pur-supplier', sel: '#pur-supplier', key: 'app_pur_supplier' },
+                { id: 'pur-item', sel: '#pur-item', key: 'app_pur_item' },
+                { id: 'pur-qty', sel: '#pur-qty', key: 'app_pur_qty' },
+                { id: 'pur-price', sel: '#pur-price', key: 'app_pur_price' },
+                { id: 'pur-selling-price', sel: '#pur-selling-price', key: 'app_pur_selling_price' },
+                { id: 'pur-expiry', sel: '#pur-expiry', key: 'app_pur_expiry' },
+                { id: 'pur-amount-paid', sel: '#pur-amount-paid', key: 'app_pur_amount_paid' },
+                { id: 'pur-channel', sel: '#pur-channel', key: 'app_pur_channel' },
+                { id: 'commit-purchase', sel: '#purchase-form button[type="submit"]', key: 'app_commit_purchase' },
+
+                { id: 'nav-expenses', sel: '#nav-expenses', key: 'app_nav_expenses' },
+                { id: 'exp-date', sel: '#exp-date', key: 'app_exp_date' },
+                { id: 'exp-target', sel: '#exp-target', key: 'app_exp_account' },
+                { id: 'exp-amount', sel: '#exp-amount', key: 'app_exp_amount' },
+                { id: 'exp-source', sel: '#exp-source', key: 'app_exp_channel' },
+                { id: 'exp-memo', sel: '#exp-memo', key: 'app_exp_memo' },
+                { id: 'book-expense', sel: '#expense-form button[type="submit"]', key: 'app_book_expense' },
+
+                { id: 'nav-accounting', sel: '#nav-group-accounting-toggle', key: 'app_accounting_toggle' },
+                { id: 'nav-coa', sel: '#nav-coa', key: 'app_coa' },
+                { id: 'nav-journal', sel: '#nav-journal', key: 'app_journal' },
+                { id: 'nav-ledger', sel: '#nav-ledger', key: 'app_ledger' },
+                { id: 'nav-statements', sel: '#nav-statements', key: 'app_statements' },
+                { id: 'nav-team', sel: '#nav-team', key: 'app_team' },
+                { id: 'nav-settings', sel: '#nav-settings', key: 'app_settings' },
+                { id: 'wrapup', sel: '#btn-backup', key: 'app_wrapup' }
+            ]
+        };
+
+        // ---- engine state -------------------------------------------------
+        const LS_DONE = 'neba_tour_done_v1';
+        const LS_LANG_DONE = 'neba_tour_lang_done_v1';
+        let tourActive = !localStorage.getItem(LS_DONE);
+        let curPhase = null, curIndex = 0, curEl = null, curStep = null, curCleanup = null, tickTimer = null;
+
+        function isVisible(el) {
+            if (!el) return false;
+            if (el.offsetParent === null && el !== document.body) {
+                // fixed-position elements can have a null offsetParent even
+                // while genuinely visible -- fall back to a real geometry
+                // check for those instead of treating them as hidden.
+                const r = el.getBoundingClientRect();
+                if (getComputedStyle(el).position !== 'fixed' || (r.width === 0 && r.height === 0)) return false;
+            }
+            const style = getComputedStyle(el);
+            if (style.visibility === 'hidden' || style.display === 'none') return false;
+            const rect = el.getBoundingClientRect();
+            return rect.width > 0 && rect.height > 0;
+        }
+
+        function overlayShown(id) {
+            const el = document.getElementById(id);
+            if (!el) return false;
+            return getComputedStyle(el).display !== 'none';
+        }
+
+        function computePhase() {
+            if (overlayShown('auth-overlay')) return 'auth';
+            if (overlayShown('business-setup-overlay')) return 'bizsetup';
+            if (overlayShown('onboarding-overlay')) return 'onboarding';
+            if (overlayShown('initial-inventory-overlay')) return 'invsetup';
+            if (overlayShown('reset-password-overlay')) return null; // nothing to teach on this screen
+            return 'app';
+        }
+
+        function resolveStepEl(step) {
+            const candidates = step.sel.split(',').map(s => s.trim());
+            for (const sel of candidates) {
+                let el;
+                try { el = document.querySelector(sel); } catch (e) { el = null; }
+                if (el && isVisible(el)) return el;
+            }
+            return null;
+        }
+
+        function markLangDone() { localStorage.setItem(LS_LANG_DONE, '1'); }
+        function langIsDone() { return !!localStorage.getItem(LS_LANG_DONE); }
+        function markTourDone() {
+            localStorage.setItem(LS_DONE, '1');
+            tourActive = false;
+            teardownTooltip();
+            if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+        }
+
+        function advance() {
+            markLangDone.__used = true; // no-op, keeps linters quiet
+            if (curStep && curStep.id === 'lang') markLangDone();
+            curIndex++;
+            renderTick();
+        }
+
+        function bindAdvanceListener(el, step) {
+            let type, handler;
+            const tag = el.tagName;
+            const inputType = (el.getAttribute('type') || '').toLowerCase();
+            if (tag === 'SELECT' || inputType === 'checkbox' || inputType === 'radio' || inputType === 'file' || inputType === 'date') {
+                type = 'change';
+                handler = () => advance();
+            } else if (tag === 'INPUT' || tag === 'TEXTAREA') {
+                type = 'blur';
+                handler = () => { if (el.value && String(el.value).trim() !== '') advance(); };
+            } else {
+                type = 'click';
+                handler = () => setTimeout(advance, 0);
+            }
+            el.addEventListener(type, handler);
+            return () => el.removeEventListener(type, handler);
+        }
+
+        // ---- tooltip rendering ---------------------------------------
+        function ensureTooltipDom() {
+            let spot = document.getElementById('neba-tour-spotlight');
+            let tip = document.getElementById('neba-tour-tip');
+            if (!spot) {
+                spot = document.createElement('div');
+                spot.id = 'neba-tour-spotlight';
+                document.body.appendChild(spot);
+            }
+            if (!tip) {
+                tip = document.createElement('div');
+                tip.id = 'neba-tour-tip';
+                tip.innerHTML = '<div class="nt-step" id="neba-tour-step-label"></div>' +
+                    '<div class="nt-text" id="neba-tour-text"></div>' +
+                    '<div class="nt-row"><a class="nt-skip" id="neba-tour-skip"></a><button class="nt-gotit" id="neba-tour-gotit"></button></div>';
+                document.body.appendChild(tip);
+                document.getElementById('neba-tour-gotit').addEventListener('click', advance);
+                document.getElementById('neba-tour-skip').addEventListener('click', markTourDone);
+            }
+            return { spot, tip };
+        }
+
+        function teardownTooltip() {
+            const spot = document.getElementById('neba-tour-spotlight');
+            const tip = document.getElementById('neba-tour-tip');
+            if (spot) spot.remove();
+            if (tip) tip.remove();
+            if (curCleanup) { curCleanup(); curCleanup = null; }
+            curEl = null; curStep = null;
+        }
+
+        function positionTooltip(el, tip, spot) {
+            const r = el.getBoundingClientRect();
+            const pad = 6;
+            spot.style.top = (r.top - pad) + 'px';
+            spot.style.left = (r.left - pad) + 'px';
+            spot.style.width = (r.width + pad * 2) + 'px';
+            spot.style.height = (r.height + pad * 2) + 'px';
+
+            const tipRect = tip.getBoundingClientRect();
+            const vw = window.innerWidth, vh = window.innerHeight;
+            let top = r.bottom + 14;
+            if (top + tipRect.height > vh - 10) top = Math.max(10, r.top - tipRect.height - 14);
+            let left = r.left;
+            if (left + tipRect.width > vw - 10) left = vw - tipRect.width - 10;
+            if (left < 10) left = 10;
+            tip.style.top = top + 'px';
+            tip.style.left = left + 'px';
+        }
+
+        function showStep(step, el) {
+            const changed = (curStep !== step) || (curEl !== el);
+            const { spot, tip } = ensureTooltipDom();
+            if (changed) {
+                if (curCleanup) { curCleanup(); curCleanup = null; }
+                curStep = step; curEl = el;
+                document.getElementById('neba-tour-text').textContent = tt(step.key);
+                document.getElementById('neba-tour-gotit').textContent = tt('gotit');
+                document.getElementById('neba-tour-skip').textContent = tt('skip');
+                curCleanup = bindAdvanceListener(el, step);
+                try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+            } else {
+                // language may have changed since last render -- keep text fresh
+                document.getElementById('neba-tour-text').textContent = tt(step.key);
+                document.getElementById('neba-tour-gotit').textContent = tt('gotit');
+                document.getElementById('neba-tour-skip').textContent = tt('skip');
+            }
+            positionTooltip(el, tip, spot);
+        }
+
+        // ---- main loop --------------------------------------------------
+        function renderTick() {
+            if (!tourActive) return;
+            const phase = computePhase();
+            if (phase !== curPhase) { curPhase = phase; curIndex = 0; }
+            if (!phase) { teardownTooltip(); return; }
+            const steps = PHASES[phase] || [];
+            while (curIndex < steps.length) {
+                const step = steps[curIndex];
+                if (step.id === 'lang' && langIsDone()) { curIndex++; continue; }
+                const el = resolveStepEl(step);
+                if (el) { showStep(step, el); return; }
+                curIndex++;
+            }
+            // ran out of steps for this phase
+            teardownTooltip();
+            if (phase === 'app') markTourDone();
+        }
+
+        function startTourLoop() {
+            if (tickTimer) clearInterval(tickTimer);
+            tickTimer = setInterval(renderTick, 400);
+            renderTick();
+        }
+
+        window.restartNebaTour = function () {
+            localStorage.removeItem(LS_DONE);
+            localStorage.removeItem(LS_LANG_DONE);
+            tourActive = true;
+            curPhase = null; curIndex = 0;
+            startTourLoop();
+        };
+
+        window.addEventListener('resize', () => { if (curEl) { const t = document.getElementById('neba-tour-tip'), s = document.getElementById('neba-tour-spotlight'); if (t && s) positionTooltip(curEl, t, s); } });
+        window.addEventListener('scroll', () => { if (curEl) { const t = document.getElementById('neba-tour-tip'), s = document.getElementById('neba-tour-spotlight'); if (t && s) positionTooltip(curEl, t, s); } }, true);
+
+        if (tourActive) {
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', startTourLoop);
+            } else {
+                startTourLoop();
+            }
+        }
+    })();
+    </script>
+
 </body>
 </html>
