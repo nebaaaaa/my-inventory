@@ -7,9 +7,11 @@
 // Frontend calls this as: POST /api/extract-receipt  with JSON body { image: "<base64 jpeg, no data: prefix>" }
 // Returns: the parsed receipt JSON (same shape the old client-side code produced).
 
-const RECEIPT_PROMPT = `You are reading a photo of an Ethiopian cash sales receipt printed by a fiscal cash register (ERCA-compliant). These receipts follow a consistent layout:
+const RECEIPT_PROMPT = `You are reading a photo of an Ethiopian purchase document. It will be ONE of two layouts — figure out which one you're looking at first:
+
+LAYOUT A — fiscal cash register receipt (ERCA-compliant, usually thin white/thermal paper):
 - The SELLER'S TIN is printed near the very top as "TIN: XXXXXXXXXX", immediately followed by the seller's business/owner name, then address/phone lines.
-- A separate "Buyer's TIN" (sometimes "Buyer's T I N") line appears further down — that is the BUYER'S own TIN, not the seller's. Ignore it entirely; never use it for seller_tin.
+- A separate "Buyer's TIN" (sometimes "Buyer's T I N") line appears further down — that is the BUYER'S own TIN, not the seller's. Never use it for seller_tin (see buyer_tin below for what to do with it).
 - The receipt number is printed as "FS No. XXXXXXXX".
 - The date is printed as DD/MM/YYYY, always in the GREGORIAN calendar, day first — this receipt format never uses the Ethiopian calendar.
 - Line items appear either as one line per item ("DESCRIPTION   QTY   PRICE   AMOUNT") or as two lines per item ("QTY x PRICE =" then "DESCRIPTION   *AMOUNT" on the next line).
@@ -17,12 +19,25 @@ const RECEIPT_PROMPT = `You are reading a photo of an Ethiopian cash sales recei
 - A machine registration code is printed near the bottom as "ET" followed by a code like "FGB0005691" or "BEB0004862" — this is the MRC (machine registration certificate number). It is never labeled "MRC" directly.
 - A separate VAT registration number is usually NOT printed on these receipts — only fill vat_reg_no if you actually see a distinct label like "VAT REG NO"; do not reuse the TIN for it.
 
+LAYOUT B — manual "Sales Invoice" (a hand-filled carbon-copy form, easy to recognize because the paper itself is YELLOW). This form has two separate identity blocks and it is critical not to mix them up:
+- A "Supplier" block (sometimes headed "Name of Supplier"/"From", "Supplier's TIN", "Supplier's VAT Reg. No.") is usually PRE-PRINTED/fixed at the top-left — this is whoever's invoice pad it is, i.e. the SELLER. Read seller_name, seller_tin, and vat_reg_no from THIS block.
+- A "Customer"/"Buyer" block ("To", "Customer's TIN No.", "Customer's VAT Reg. No.") is hand-filled — this is the party who bought the goods. Read buyer_tin from THIS block (handwritten digits — read carefully, they can be cramped). Never swap the two blocks.
+- Important: depending on whose invoice pad was photographed, either party could be "our" client — sometimes the pad belongs to the client's own business (client is the Supplier, this was a sale they made), sometimes it's a supplier's pad handed to the client as proof of a purchase (client is the Customer). Extract both seller_tin and buyer_tin faithfully exactly as printed/written; do not guess which one is "the client" — that comparison happens outside this extraction step.
+- There is usually no separate MRC/machine code on this layout since it's hand-filled, not machine-printed — leave mrc null unless one is actually printed/stamped.
+- The invoice number is a pre-printed serial (often in red ink) near "No." at the top — use it for receipt_no.
+- The date field on this layout ("ቀን"/"Date") is filled in BY HAND and is almost always the ETHIOPIAN CALENDAR, written day/month/year with a 2-digit year, e.g. "28/10/17" means day 28, month 10, Ethiopian year 2017 (a 2-digit year here always means 20XX in the Ethiopian calendar — so "17" is 2017, "16" is 2016, etc.). Set date_calendar to "EC" and date_year to the full 4-digit Ethiopian year (2017, not 17) whenever you see this handwritten day/month/2-digit-year style. Only use "GC" for this layout if a clearly 4-digit Gregorian year is written instead.
+- Line items, VAT (15%) and totals follow the same general idea as layout A: read whatever subtotal, VAT, and total figures are filled in by hand, and the single largest line item for description/quantity/unit price, exactly as described below.
+
+Whichever layout it is, always try to extract BOTH seller_tin (from the Supplier block) and buyer_tin (from the Customer/Buyer block) when either is printed or written, even if one looks unused — both are needed to work out which side of the transaction belongs to our client, which is decided outside this extraction step, never by you.
+
 Extract exactly these fields and return ONLY raw JSON, no markdown fences, no commentary:
 {
   "seller_name": string or null,
   "seller_tin": string or null,
   "vat_reg_no": string or null,
+  "buyer_tin": string or null,
   "mrc": string or null,
+  "date_calendar": "GC" or "EC",
   "date_year": number or null,
   "date_month": number or null,
   "date_day": number or null,
@@ -170,7 +185,11 @@ export default async function handler(req, res) {
         const cleaned = text.trim().replace(/^```json\s*|```$/g, '');
         let parsed = JSON.parse(cleaned);
         parsed = fillMissingVatFields(parsed);
-        parsed.date_calendar = 'GC';
+        // Trust the model's own read of which calendar the date was written
+        // in (layout A is always Gregorian; the manual yellow layout is
+        // usually Ethiopian) — only fall back to Gregorian if it left this
+        // blank or returned something unrecognized.
+        parsed.date_calendar = parsed.date_calendar === 'EC' ? 'EC' : 'GC';
         res.status(200).json(parsed);
     } catch (e) {
         res.status(502).json({ error: 'Model returned non-JSON output that could not be parsed.' });
