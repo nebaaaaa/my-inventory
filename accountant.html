@@ -49,6 +49,10 @@
     label { font-size: 11px; color: var(--text-soft); display: block; margin-bottom: 3px; }
     input, select { width: 100%; padding: 7px 9px; font-size: 13px; border-radius: 4px; border: 1px solid var(--paper-line); font-family: inherit; box-sizing: border-box; background: #fff; }
     input.flagged { border-color: var(--amber); background: var(--amber-bg); }
+    tr.entry-row.tin-mismatch { background: #fdeaea; }
+    tr.entry-row.tin-mismatch:hover { background: #fbdcdc; }
+    .tin-mismatch-badge { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; color:#b42318; background:#fdeaea; border:1px solid #f3c2c2; border-radius:4px; padding:2px 6px; margin-left:6px; }
+    .notice-danger { background:#fdeaea; border:1px solid #f3c2c2; color:#b42318; }
     .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
     .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -328,7 +332,9 @@
     // separately, instead of adding every receipt in the range into one
     // combined total. Each month gets its own set of G/L lines.
     function buildPaymentsCsv(client, fromKey, toKey) {
-        const entries = client.entries.filter((e) => e.type === 'payment' && entryEcKey(e) >= fromKey && entryEcKey(e) <= toKey);
+        // Purchases flagged as a TIN mismatch are held back from filing
+        // exports until the accountant unflags them (see toggleTinMismatch).
+        const entries = client.entries.filter((e) => e.type === 'payment' && !e.tinMismatch && entryEcKey(e) >= fromKey && entryEcKey(e) <= toKey);
         if (!entries.length) return null;
         const periods = Array.from(new Set(entries.map(entryEcKey))).sort();
         const rule = client.paymentsRule;
@@ -409,9 +415,137 @@
         const [y, m, d] = iso.split('-');
         return `${d}/${m}/${y}`;
     }
+
+    // ------------------------------------------------------------------------
+    // eTax (etax.mor.gov.et) VAT Purchase/Sale upload CSVs — headers copied
+    // byte-for-byte from the site's own "Download latest CSV template" files
+    // (VATPURCHASEUPLOADTEMPLATEV3.csv / VATSALEUPLOADTEMPLATEV1.csv) so the
+    // portal's own importer recognizes the file. We only ever fill in rows;
+    // uploading and clicking Submit on the site is left to the accountant.
+    // ------------------------------------------------------------------------
+    const ETAX_PURCHASE_CSV_HEADER = `"VAT CATEGORY
+ (G=GOODS;S=SERVICES)","CALENDAR TYPE
+(E=ETHIOPIAN;G=GREGORIAN)","Types of purchase.
+1 = Taxable-local Purchase of Capital Assets (Line No. 65)
+2 = Taxable-imported Purchase of Capital Assets (Line No. 75)
+3 = Taxable-local Purchase of Inputs (Line No. 100)
+4 = Taxable-imported Purchase of Inputs (Line No. 110)
+5 = Taxable-general Expense Inputs Purchase (Line No. 120)
+6= Tax Exempted-purchase with no vat or uncollectible inputs (Line no. 85 or Line no. 130) 
+
+ (Please type 1 or 2 or 3 or 4 or 5 or 6).This field is mandatory.","TIN..This field
+ is not mandatory.","Seller name (if Seller has no TIN or item is not locally purchased)
+This field is not mandatory.","Date of purchase/Customs Declaration No.
+ Dispatched Date (Please use  dd/mm/yyyy date format). 
+This field is mandatory.",MRC Number..This field is not mandatory.,Vat receipt number/ Customs Declaration Number.This field is mandatory.,Description.This field is mandatory.,"Unit of Measure (type ID 2-10).
+2 KG
+3 ML
+4 GM
+5 LIT
+6 MT
+7 PCS
+8 CT
+9 OTHER
+10 PC
+This field is mandatory.","Quantity.
+Enter number.Don't use comma (,) or Quatation ("""")
+This field is  mandatory.","Unit Price.
+Enter number only .Don't use comma (,) or Quatation ("""")
+This field is  mandatory.",Total value,vat,value after vat`;
+    const ETAX_SALE_CSV_HEADER = `"VAT CATEGORY
+ (G=GOODS;S=SERVICES)","CALENDAR TYPE
+(E=ETHIOPIAN;G=GREGORIAN)","Types of Sale
+1=Taxable Sale(Line no.5)
+2=Zero Rated Sale(Line no.15)
+3=Tax Exempted Sale(Line no.20)
+
+ (Please type 1 or 2 or 3 ).This field is mandatory.","Buyer TIN..This field
+ is not mandatory.","Buyer name (if buyer has no TIN or item is  sold out of Ethiopia)
+This field is not mandatory.",Date of Sale.(Please use  dd/mm/yyyy date format). This field is mandatory.,MRC Number.This field is not mandatory.,Vat receipt number.This field is mandatory.,Description.This field is mandatory.,"Unit of Measure (type ID 2-10).
+2 KG
+3 ML
+4 GM
+5 LIT
+6 MT
+7 PCS
+8 CT
+9 OTHER
+10 PC
+This field is mandatory.","Quantity.
+Enter number.Don't use comma (,) or Quatation ("""")
+This field is  mandatory.","Unit Price.
+Enter number only .Don't use comma (,) or Quatation ("""")
+This field is  mandatory.",Total value,vat,value after vat`;
+    const ETAX_PURCHASE_TYPE_OPTIONS = [
+        { code: '1', label: 'Local purchase of capital assets (Line 65)' },
+        { code: '2', label: 'Imported purchase of capital assets (Line 75)' },
+        { code: '3', label: 'Local purchase of inputs (Line 100)' },
+        { code: '4', label: 'Imported purchase of inputs (Line 110)' },
+        { code: '5', label: 'General expense inputs (Line 120)' },
+        { code: '6', label: 'Tax-exempt / no-VAT purchase (Line 85 or 130)' },
+    ];
+    const ETAX_SALE_TYPE_OPTIONS = [
+        { code: '1', label: 'Taxable sale (Line 5)' },
+        { code: '2', label: 'Zero-rated sale (Line 15)' },
+        { code: '3', label: 'Tax-exempt sale (Line 20)' },
+    ];
+    // eTax's own numeric unit codes (from the template's own legend).
+    const ETAX_UNIT_CODE = { KG: '2', ML: '3', GM: '4', LIT: '5', MT: '6', PCS: '7', PC: '10', PIECE: '7', PIECES: '7', CT: '8', CARTON: '8' };
+    function etaxUnitCode(measurement) {
+        const m = (measurement || '').trim().toUpperCase();
+        if (!m) return '7'; // blank -> PCS, matching the site's own default
+        return ETAX_UNIT_CODE[m] || '9'; // 9 = OTHER, for anything we don't recognize
+    }
+    function etaxDdMmYyyy(iso) {
+        if (!iso) return '';
+        const [y, m, d] = iso.split('-');
+        if (!y || !m || !d) return '';
+        return `${d}/${m}/${y}`;
+    }
+    function etaxMoney(n) { return (Number(n) || 0).toFixed(2); }
+    // Builds the data rows for one side (purchase or sale) of a period, plus
+    // a list of any receipts that were skipped because eTax requires a field
+    // we don't have (date, receipt number, description, quantity or price).
+    function buildEtaxRows(entries, side, typeCode, vatCategory) {
+        const rows = [];
+        const skipped = [];
+        entries.forEach((e) => {
+            const missingMandatory = [];
+            if (!e.date) missingMandatory.push('date');
+            if (!e.receiptNo) missingMandatory.push('VAT receipt number');
+            if (!e.description) missingMandatory.push('description');
+            if (e.quantity === '' || e.quantity == null || Number(e.quantity) <= 0) missingMandatory.push('quantity');
+            if (e.unitPrice === '' || e.unitPrice == null) missingMandatory.push('unit price');
+            if (missingMandatory.length) { skipped.push({ entry: e, reasons: missingMandatory }); return; }
+            const partyTin = side === 'purchase' ? (e.sellerTin || '') : '';
+            const partyName = side === 'purchase' ? (e.sellerName || '') : '';
+            rows.push([
+                vatCategory, 'G', typeCode, partyTin, partyName,
+                etaxDdMmYyyy(e.date), e.mrc || '', e.receiptNo, e.description,
+                etaxUnitCode(e.measurement), Number(e.quantity), etaxMoney(e.unitPrice),
+                etaxMoney(e.beforeVat), etaxMoney(e.vat), etaxMoney(e.total),
+            ]);
+        });
+        return { rows, skipped };
+    }
+    function buildEtaxPurchaseCsv(client, fromKey, toKey, typeCode, vatCategory) {
+        const entries = client.entries.filter((e) => e.type === 'payment' && e.isVat && !e.tinMismatch && entryEcKey(e) >= fromKey && entryEcKey(e) <= toKey);
+        const { rows, skipped } = buildEtaxRows(entries, 'purchase', typeCode, vatCategory);
+        if (!rows.length) return { csv: null, skipped };
+        const csv = ETAX_PURCHASE_CSV_HEADER + '\r\n' + rows.map((r) => r.map(csvEscape).join(',')).join('\r\n');
+        return { csv, skipped };
+    }
+    function buildEtaxSaleCsv(client, fromKey, toKey, typeCode, vatCategory) {
+        const entries = client.entries.filter((e) => e.type === 'receipt' && e.isVat && !e.tinMismatch && entryEcKey(e) >= fromKey && entryEcKey(e) <= toKey);
+        const { rows, skipped } = buildEtaxRows(entries, 'sale', typeCode, vatCategory);
+        if (!rows.length) return { csv: null, skipped };
+        const csv = ETAX_SALE_CSV_HEADER + '\r\n' + rows.map((r) => r.map(csvEscape).join(',')).join('\r\n');
+        return { csv, skipped };
+    }
+
     function buildVatWorkbook(client, fromKey, toKey) {
         const entries = client.entries
-            .filter((e) => e.type === 'payment')
+            .filter((e) => e.type === 'payment' && !e.tinMismatch) // hold back TIN mismatches until unflagged
             .filter((e) => { const k = entryEcKey(e); return k >= fromKey && k <= toKey; })
             .sort((a, b) => a.date.localeCompare(b.date));
 
@@ -581,7 +715,7 @@
             vatRegNo: row.vat_reg_no || '', mrc: row.mrc || '', receiptNo: row.receipt_no || '', isVat: row.is_vat,
             beforeVat: row.before_vat, vat: row.vat, total: row.total, description: row.description || '',
             measurement: row.measurement || '', quantity: row.quantity, unitPrice: row.unit_price, missing: row.missing || [],
-            reviewed: row.reviewed !== false,
+            reviewed: row.reviewed !== false, tinMismatch: !!row.tin_mismatch,
         };
     }
     function entryToDb(entry, clientId) {
@@ -595,7 +729,29 @@
             unit_price: entry.unitPrice === '' || entry.unitPrice == null ? null : Number(entry.unitPrice),
             missing: entry.missing || [],
             reviewed: entry.reviewed !== false,
+            tin_mismatch: !!entry.tinMismatch,
         };
+    }
+    // Loose TIN comparison: strips everything but digits so "0123456789",
+    // "012-345-6789" and "012 345 6789" are all treated as the same TIN.
+    function normalizeTin(t) { return (t || '').replace(/\D/g, ''); }
+    // A scanned document prints two TINs: whoever issued it (seller_tin) and
+    // whoever received it (buyer_tin). Our client is normally one of those
+    // two — if the printed Seller TIN is our client's own TIN, this was a
+    // sale the client made; if the Buyer TIN is our client's, this was a
+    // purchase the client made. If NEITHER matches, the document probably
+    // isn't this client's at all (grabbed by mistake), so it gets flagged.
+    function evaluateTinMatch(ex, client) {
+        const clientTin = normalizeTin(client && client.tin);
+        const sellerTin = normalizeTin(ex.seller_tin);
+        const buyerTin = normalizeTin(ex.buyer_tin);
+        if (!clientTin) return { type: null, mismatch: false }; // no TIN on file for this client to check against
+        const sellerIsClient = !!sellerTin && sellerTin === clientTin;
+        const buyerIsClient = !!buyerTin && buyerTin === clientTin;
+        if (sellerIsClient && !buyerIsClient) return { type: 'receipt', mismatch: false }; // client issued it -> a Sale
+        if (buyerIsClient && !sellerIsClient) return { type: 'payment', mismatch: false }; // client received it -> a Purchase
+        if (!sellerIsClient && !buyerIsClient && (sellerTin || buyerTin)) return { type: null, mismatch: true }; // neither side is the client
+        return { type: null, mismatch: false }; // not enough info printed to tell either way
     }
 
     // ------------------------------------------------------------------------
@@ -1274,6 +1430,11 @@
     let activeTab = 'receipts';
     let receiptsFilter = { mode: 'all', month: null, year: currentEcYear() };
     let exportFilter = { mode: null, month: null, year: null };
+    // Which VAT line each eTax CSV export should file under — applies to
+    // every row in that download. Change it here if a given month's batch
+    // is mostly a different category (e.g. capital assets instead of
+    // general expenses); mismatched rows can still be moved on the site.
+    let etaxOptions = { purchaseType: '5', purchaseCategory: 'G', saleType: '1', saleCategory: 'G' };
     let addFlow = null; // { step, preview, error, form }
 
     function activeClient() { return clients.find((c) => c.id === activeClientId) || null; }
@@ -1715,14 +1876,17 @@
         receiptsListOrder = sorted.map((e) => e.id);
 
         const rows = sorted.map((e) => `
-            <tr class="entry-row${e.reviewed === false ? ' unreviewed' : ''}" onclick="openEntryDetail('${e.id}')" style="cursor:pointer;">
+            <tr class="entry-row${e.reviewed === false ? ' unreviewed' : ''}${e.tinMismatch ? ' tin-mismatch' : ''}" onclick="openEntryDetail('${e.id}')" style="cursor:pointer;">
                 <td class="mono" style="font-size:12px;">${esc(e.date) || '—'}</td>
-                <td>${esc(e.sellerName) || 'Unknown seller'}${e.missing && e.missing.length ? ` <span title="Needs review: ${esc(e.missing.join(', '))}" style="color:var(--amber);">${icon('alert-triangle', 12)}</span>` : ''}${e.reviewed === false ? `<span class="badge-new" title="Auto-saved from a batch upload — not reviewed yet">New</span>` : ''}</td>
+                <td>${esc(e.sellerName) || 'Unknown seller'}${e.missing && e.missing.length ? ` <span title="Needs review: ${esc(e.missing.join(', '))}" style="color:var(--amber);">${icon('alert-triangle', 12)}</span>` : ''}${e.reviewed === false ? `<span class="badge-new" title="Auto-saved from a batch upload — not reviewed yet">New</span>` : ''}${e.tinMismatch ? `<span class="tin-mismatch-badge" title="Neither party's TIN on the document matches this client — excluded from exports">${icon('alert-triangle', 11)} TIN mismatch</span>` : ''}</td>
                 <td style="font-size:12px; color:var(--text-soft);">${e.type === 'payment' ? 'Purchase' : 'Sale'}</td>
                 <td class="mono num">${money(e.beforeVat)}</td>
                 <td class="mono num">${money(e.vat)}</td>
                 <td class="mono num" style="font-weight:600;">${money(e.total)}</td>
-                <td style="text-align:right;"><button class="btn-icon" onclick="event.stopPropagation(); removeEntry('${e.id}')">${icon('trash-2', 14)}</button></td>
+                <td style="text-align:right; white-space:nowrap;">
+                    ${e.tinMismatch ? `<button class="btn-icon" title="Unflag — include in exports" onclick="event.stopPropagation(); toggleTinMismatch('${e.id}')">${icon('flag', 14)}</button>` : ''}
+                    <button class="btn-icon" onclick="event.stopPropagation(); removeEntry('${e.id}')">${icon('trash-2', 14)}</button>
+                </td>
             </tr>`).join('');
 
         return `
@@ -1772,6 +1936,20 @@
         if (error) { console.error(error); return; }
         client.entries[idx] = { ...client.entries[idx], reviewed: true };
     }
+    // Lets the accountant flip a receipt's TIN-mismatch flag off (it was a
+    // false alarm — the receipt does belong to this client, so include it in
+    // exports again) or back on if they change their mind.
+    async function toggleTinMismatch(id) {
+        const client = activeClient();
+        if (!client) return;
+        const idx = client.entries.findIndex((x) => x.id === id);
+        if (idx === -1) return;
+        const next = !client.entries[idx].tinMismatch;
+        const { error } = await supabaseClient.from('accountant_entries').update({ tin_mismatch: next }).eq('id', id);
+        if (error) { alert(error.message); return; }
+        client.entries[idx] = { ...client.entries[idx], tinMismatch: next };
+        render();
+    }
     async function goToAdjacentEntry(delta) {
         if (!entryModalId) return;
         const idx = receiptsListOrder.indexOf(entryModalId);
@@ -1800,7 +1978,7 @@
             beforeVat: Number(d.beforeVat) || 0, vat: Number(d.vat) || 0, total: Number(d.total) || 0,
             description: d.description, measurement: d.measurement,
             quantity: d.quantity === '' ? null : Number(d.quantity), unitPrice: d.unitPrice === '' ? null : Number(d.unitPrice),
-            reviewed: true,
+            reviewed: true, tinMismatch: !!d.tinMismatch,
         };
         const { error } = await supabaseClient.from('accountant_entries').update(entryToDb(patch, client.id)).eq('id', entryModalId);
         if (error) { alert(error.message); return; }
@@ -1847,6 +2025,7 @@
                         </div>
                     </div>
                     ${d.reviewed === false ? `<div class="notice notice-warn">${icon('alert-triangle', 14)} Auto-saved from a batch upload, not reviewed yet. Check the fields below, then Save (or just move to the next one — that marks it reviewed too).</div>` : ''}
+                    ${d.tinMismatch ? `<div class="notice notice-danger">${icon('alert-triangle', 14)} <div>Neither party's TIN on this document matched this client's TIN, so it's excluded from filing exports. <button type="button" class="btn btn-ghost" style="margin-left:6px; padding:2px 8px; font-size:12px;" onclick="entryModalDraft.tinMismatch=false; render();">${icon('check', 12)} Confirm it's theirs — include it</button></div></div>` : ''}
                     ${renderUndoBar('receipt')}
                     <div style="display:flex; gap:16px; margin-bottom:14px; flex-wrap:wrap;">
                         <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="edit-entry-type" style="width:auto;" ${d.type === 'payment' ? 'checked' : ''} onchange="entryModalDraft.type='payment'"> Purchase (payment out)</label>
@@ -1951,18 +2130,30 @@
             if (ex.date_year && ex.date_month && ex.date_day) {
                 gcDate = calendar === 'EC' ? ecToGc(ex.date_year, ex.date_month, ex.date_day) : `${ex.date_year}-${String(ex.date_month).padStart(2, '0')}-${String(ex.date_day).padStart(2, '0')}`;
             }
+            // Sanity-check which side of the transaction this client is on
+            // (see evaluateTinMatch). A mismatch usually means the document
+            // was picked up by mistake (it's actually someone else's) — flag
+            // the whole row rather than a single field, and keep it out of
+            // filings until the accountant confirms it and unflags it. We
+            // don't keep the scanned TINs around afterward, just the flag
+            // and (when we could tell) the Purchase/Sale type.
+            const client = activeClient();
+            const match = evaluateTinMatch(ex, client);
+            const entryType = match.type || 'payment';
+            addFlow.tinMismatchInfo = match.mismatch ? { seller: ex.seller_tin, buyer: ex.buyer_tin, expected: client.tin } : null;
             addFlow.form = {
-                type: 'payment', calendar, ecYear: ex.date_year || '', ecMonth: ex.date_month || '', ecDay: ex.date_day || '', date: gcDate,
+                type: entryType, calendar, ecYear: ex.date_year || '', ecMonth: ex.date_month || '', ecDay: ex.date_day || '', date: gcDate,
                 sellerName: ex.seller_name || '', sellerTin: ex.seller_tin || '', vatRegNo: ex.vat_reg_no || '', mrc: ex.mrc || '',
                 receiptNo: ex.receipt_no || '', isVat: !!ex.is_vat, beforeVat: ex.before_vat ?? '', vat: ex.vat ?? '', total: ex.total ?? '',
                 description: ex.description || '', measurement: ex.measurement || '', quantity: ex.quantity ?? '', unitPrice: ex.unit_price ?? '',
-                missing: ex.missing_fields || [],
+                missing: ex.missing_fields || [], tinMismatch: match.mismatch,
             };
             addFlow.step = 'review';
         } catch (e) {
             console.error(e);
             addFlow.error = 'Could not read this receipt automatically. Fill the fields in by hand below.';
-            addFlow.form = { type: 'payment', calendar: 'GC', ecYear: '', ecMonth: '', ecDay: '', date: '', sellerName: '', sellerTin: '', vatRegNo: '', mrc: '', receiptNo: '', isVat: true, beforeVat: '', vat: '', total: '', description: '', measurement: '', quantity: '', unitPrice: '', missing: [] };
+            addFlow.tinMismatchInfo = null;
+            addFlow.form = { type: 'payment', calendar: 'GC', ecYear: '', ecMonth: '', ecDay: '', date: '', sellerName: '', sellerTin: '', vatRegNo: '', mrc: '', receiptNo: '', isVat: true, beforeVat: '', vat: '', total: '', description: '', measurement: '', quantity: '', unitPrice: '', missing: [], tinMismatch: false };
             addFlow.step = 'review';
         }
         render();
@@ -2023,6 +2214,15 @@
                             <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="entry-type" style="width:auto;" ${f.type === 'receipt' ? 'checked' : ''} onchange="addFlow.form.type='receipt'"> Sale (receipt in)</label>
                             <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; margin-left:auto;"><input type="checkbox" style="width:auto;" ${f.isVat ? 'checked' : ''} onchange="addFlow.form.isVat=this.checked"> VAT receipt</label>
                         </div>
+                        ${f.tinMismatch ? `
+                        <div class="notice notice-danger">
+                            ${icon('alert-triangle', 14)}
+                            <div>
+                                <div><strong>Neither party's TIN matches this client.</strong> Seller TIN ${esc(addFlow.tinMismatchInfo ? (addFlow.tinMismatchInfo.seller || '—') : '')}, Buyer TIN ${esc(addFlow.tinMismatchInfo ? (addFlow.tinMismatchInfo.buyer || '—') : '')} — this client's TIN is ${esc(addFlow.tinMismatchInfo ? addFlow.tinMismatchInfo.expected : '')}.</div>
+                                <div style="margin-top:4px; font-size:12px;">It will still be saved, but kept out of filing exports until you confirm it belongs to this client.</div>
+                                <button type="button" class="btn btn-ghost" style="margin-top:6px; padding:4px 10px; font-size:12px;" onclick="addFlow.form.tinMismatch=false; render();">${icon('check', 13)} This is correct — include it</button>
+                            </div>
+                        </div>` : ''}
                         <div class="grid-3" style="margin-bottom:12px;">
                             ${field('sellerName', 'Seller name')}
                             ${field('sellerTin', 'Seller TIN', 'Seller TIN')}
@@ -2188,6 +2388,7 @@
         const periodLabel = fromKey === toKey ? ecPeriodLabel(fromKey) : `${ecPeriodLabel(fromKey)} – ${ecPeriodLabel(toKey)}`;
         const rangeEntries = client.entries.filter((e) => { const k = entryEcKey(e); return k >= fromKey && k <= toKey; });
         const flaggedCount = rangeEntries.filter((e) => e.missing && e.missing.length > 0).length;
+        const mismatchCount = rangeEntries.filter((e) => e.tinMismatch).length;
         return `
             <div class="wrap-narrow" style="margin:0;">
                 <div style="font-size:12.5px; color:var(--text-soft); margin-bottom:14px;">
@@ -2197,6 +2398,7 @@
                 <div style="font-size:12.5px; color:var(--text-soft); margin-bottom:14px;">
                     ${rangeEntries.length} receipt${rangeEntries.length === 1 ? '' : 's'} in ${periodLabel}
                     ${flaggedCount > 0 ? `<span style="color:var(--amber); margin-left:8px;">· ${flaggedCount} need${flaggedCount === 1 ? 's' : ''} review before filing</span>` : ''}
+                    ${mismatchCount > 0 ? `<span style="color:#b42318; margin-left:8px;">· ${mismatchCount} with a buyer TIN mismatch, excluded from exports</span>` : ''}
                 </div>
                 <div class="export-row">
                     <div class="icon-box">${icon('wallet', 16)}</div>
@@ -2212,6 +2414,44 @@
                     <div class="icon-box">${icon('file-text', 16)}</div>
                     <div class="info"><div class="title">VAT Purchase Detail (.xlsx)</div><div class="desc">Filled tax-authority form, one row per purchase receipt in this period.</div></div>
                     <button class="btn btn-ghost" onclick="downloadVat()">${icon('download', 14)} Download</button>
+                </div>
+                <div style="margin-top:22px; padding-top:18px; border-top:1px solid var(--border);">
+                    <div style="font-size:13px; font-weight:600; margin-bottom:4px;">eTax (mor.gov.et) upload files</div>
+                    <div style="font-size:12px; color:var(--text-soft); margin-bottom:12px;">
+                        Ready-to-upload CSVs in the site's own template format — use their "Upload CSV" button on the VAT Purchase/Sales Details screen. Nothing is submitted automatically; you still review and click Save/Next on the site yourself.
+                    </div>
+                    <div class="export-row">
+                        <div class="icon-box">${icon('upload', 16)}</div>
+                        <div class="info">
+                            <div class="title">VAT Purchase upload CSV</div>
+                            <div style="display:flex; gap:8px; margin-top:6px; flex-wrap:wrap;">
+                                <select style="width:auto; font-size:12px;" onchange="etaxOptions.purchaseCategory=this.value">
+                                    <option value="G" ${etaxOptions.purchaseCategory === 'G' ? 'selected' : ''}>Goods</option>
+                                    <option value="S" ${etaxOptions.purchaseCategory === 'S' ? 'selected' : ''}>Services</option>
+                                </select>
+                                <select style="width:auto; font-size:12px;" onchange="etaxOptions.purchaseType=this.value">
+                                    ${ETAX_PURCHASE_TYPE_OPTIONS.map((o) => `<option value="${o.code}" ${etaxOptions.purchaseType === o.code ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        <button class="btn btn-ghost" onclick="downloadEtaxPurchase()">${icon('download', 14)} Download</button>
+                    </div>
+                    <div class="export-row">
+                        <div class="icon-box">${icon('upload', 16)}</div>
+                        <div class="info">
+                            <div class="title">VAT Sales upload CSV</div>
+                            <div style="display:flex; gap:8px; margin-top:6px; flex-wrap:wrap;">
+                                <select style="width:auto; font-size:12px;" onchange="etaxOptions.saleCategory=this.value">
+                                    <option value="G" ${etaxOptions.saleCategory === 'G' ? 'selected' : ''}>Goods</option>
+                                    <option value="S" ${etaxOptions.saleCategory === 'S' ? 'selected' : ''}>Services</option>
+                                </select>
+                                <select style="width:auto; font-size:12px;" onchange="etaxOptions.saleType=this.value">
+                                    ${ETAX_SALE_TYPE_OPTIONS.map((o) => `<option value="${o.code}" ${etaxOptions.saleType === o.code ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        <button class="btn btn-ghost" onclick="downloadEtaxSale()">${icon('download', 14)} Download</button>
+                    </div>
                 </div>
             </div>`;
     }
@@ -2249,6 +2489,39 @@
         if (!count) { alert('No purchase receipts logged for this period.'); return; }
         const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
         downloadBlob(new Blob([out], { type: 'application/octet-stream' }), `${client.name.replace(/\s+/g, '_')}_vat_purchase_detail_${label}.xlsx`, 'application/octet-stream');
+    }
+    // Shared by both eTax downloads: warns about receipts that couldn't go
+    // in the file because a field eTax requires is missing, so nothing gets
+    // silently left off a real tax filing.
+    function warnEtaxSkipped(skipped) {
+        if (!skipped.length) return;
+        const lines = skipped.slice(0, 8).map((s) => `• ${s.entry.sellerName || s.entry.description || 'Unnamed receipt'} (${s.entry.date || 'no date'}) — missing ${s.reasons.join(', ')}`);
+        const more = skipped.length > 8 ? `\n…and ${skipped.length - 8} more.` : '';
+        alert(`${skipped.length} receipt${skipped.length === 1 ? '' : 's'} left out of the file because eTax requires a field they're missing:\n\n${lines.join('\n')}${more}\n\nFill those fields in from the receipts list, then re-download.`);
+    }
+    function downloadEtaxPurchase() {
+        const client = activeClient();
+        const { fromKey, toKey, label } = exportRangeAndLabel(client);
+        const { csv, skipped } = buildEtaxPurchaseCsv(client, fromKey, toKey, etaxOptions.purchaseType, etaxOptions.purchaseCategory);
+        if (!csv) {
+            if (skipped.length) warnEtaxSkipped(skipped);
+            else alert('No VAT purchase receipts logged for this period.');
+            return;
+        }
+        downloadBlob(csv, `${client.name.replace(/\s+/g, '_')}_etax_purchase_${label}.csv`, 'text/csv');
+        warnEtaxSkipped(skipped);
+    }
+    function downloadEtaxSale() {
+        const client = activeClient();
+        const { fromKey, toKey, label } = exportRangeAndLabel(client);
+        const { csv, skipped } = buildEtaxSaleCsv(client, fromKey, toKey, etaxOptions.saleType, etaxOptions.saleCategory);
+        if (!csv) {
+            if (skipped.length) warnEtaxSkipped(skipped);
+            else alert('No VAT sale receipts logged for this period.');
+            return;
+        }
+        downloadBlob(csv, `${client.name.replace(/\s+/g, '_')}_etax_sale_${label}.csv`, 'text/csv');
+        warnEtaxSkipped(skipped);
     }
 </script>
 </body>
