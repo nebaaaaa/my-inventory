@@ -254,6 +254,31 @@
         #neba-tour-tip a.nt-skip { font-size:11px; color:var(--text-light); text-decoration:underline; cursor:pointer; white-space:nowrap; }
         #neba-tour-tip .nt-arrow { position:absolute; width:12px; height:12px; background:var(--surface); transform:rotate(45deg); }
         #neba-tour-help-btn { font-size:12px; font-weight:700; min-width:32px; }
+
+        /* ===== Friendly messages: toasts, dialogs, saving buttons ===== */
+        #mly-toasts { position: fixed; top: calc(14px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); z-index: 9800; display: flex; flex-direction: column; gap: 10px; width: min(440px, 92vw); pointer-events: none; }
+        .mly-toast { pointer-events: auto; display: flex; align-items: flex-start; gap: 12px; background: var(--surface, #fff); color: var(--text, #23263A); border: 1px solid var(--border, #e3e4ea); border-left: 5px solid var(--info, #1B6FA8); border-radius: 12px; padding: 13px 12px 13px 14px; box-shadow: var(--shadow-lg, 0 12px 32px rgba(23,27,52,0.14)); font-size: 14.5px; line-height: 1.45; animation: mlyIn .22s ease-out; }
+        .mly-toast.mly-success { border-left-color: var(--success, #1F7A54); }
+        .mly-toast.mly-error { border-left-color: var(--danger, #B23A2E); }
+        .mly-toast-icon { flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%; background: var(--info, #1B6FA8); color: #fff; font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+        .mly-success .mly-toast-icon { background: var(--success, #1F7A54); }
+        .mly-error .mly-toast-icon { background: var(--danger, #B23A2E); }
+        .mly-toast-text { flex: 1; white-space: pre-line; word-break: break-word; }
+        .mly-toast-x { flex: 0 0 auto; background: none; border: 0; color: var(--text-light, #6b6f81); font-size: 22px; line-height: 1; cursor: pointer; padding: 0 4px; min-width: 0; }
+        .mly-overlay { position: fixed; inset: 0; z-index: 9900; background: rgba(23,27,52,0.5); display: flex; align-items: center; justify-content: center; padding: 16px; animation: mlyFade .15s ease-out; }
+        .mly-dialog { background: var(--surface, #fff); color: var(--text, #23263A); width: 100%; max-width: 430px; border-radius: 16px; padding: 22px; box-shadow: var(--shadow-lg, 0 12px 32px rgba(23,27,52,0.14)); }
+        .mly-dialog h3 { font-size: 18px; margin: 0 0 8px; }
+        .mly-dialog p { font-size: 15px; line-height: 1.55; margin: 0 0 16px; white-space: pre-line; }
+        .mly-input { width: 100%; min-width: 0; padding: 11px 12px; font-size: 16px; border: 1px solid var(--border, #e3e4ea); border-radius: 10px; margin: 0 0 16px; box-sizing: border-box; }
+        .mly-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+        .mly-btn { min-height: 44px; padding: 10px 18px; border-radius: 10px; border: 1px solid transparent; background: var(--accent, #A9752F); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; }
+        .mly-btn-ghost { background: transparent; color: var(--text, #23263A); border-color: var(--border, #d3d5de); }
+        .mly-btn-danger { background: var(--danger, #B23A2E); }
+        .mly-spin { display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(255,255,255,0.45); border-top-color: #fff; border-radius: 50%; vertical-align: -2px; margin-right: 6px; animation: mlySpin .7s linear infinite; }
+        @keyframes mlySpin { to { transform: rotate(360deg); } }
+        @keyframes mlyIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+        @keyframes mlyFade { from { opacity: 0; } to { opacity: 1; } }
+        @media (prefers-reduced-motion: reduce) { .mly-toast, .mly-overlay, .mly-spin { animation: none; } }
     </style>
 </head>
 <body onclick="closeNotifPanelOutside(event)">
@@ -1460,6 +1485,401 @@
     </div>
 
     <script>
+        // =====================================================================
+        // FRIENDLY MESSAGES
+        // Small pop-up messages ("toasts"), simple Yes/No dialogs, and
+        // "Saving..." buttons. They replace the browser's alert(), confirm()
+        // and prompt() boxes. To change any wording, edit MSG_RULES below.
+        // =====================================================================
+        const mlyUI = (function () {
+            const ICONS = { success: '\u2713', error: '!', info: 'i' };
+
+            function tr(key, fallback) {
+                try { const v = t(key); return (v && v !== key) ? v : fallback; } catch (e) { return fallback; }
+            }
+
+            // ---- Explain technical errors in simple words ----
+            function reasonFor(raw, includeDuplicate) {
+                const s = String(raw || '');
+                if (/failed to fetch|networkerror|network request failed|load failed|timed? ?out|econn|offline/i.test(s)) return 'There is no internet connection. Please check it and try again.';
+                if (/row-level security|violates row|permission denied|not authorized|forbidden/i.test(s)) return "You don't have permission to do this.";
+                if (/invalid login|invalid credentials/i.test(s)) return 'Wrong email, username or password.';
+                if (/user already registered|already been registered/i.test(s)) return 'This email already has an account. Please sign in instead.';
+                if (/jwt|session (has )?expired|token.*expired|not authenticated/i.test(s)) return 'Your session ended. Please sign in again.';
+                if (includeDuplicate && /duplicate key|already exists|unique constraint/i.test(s)) return 'This already exists.';
+                return null;
+            }
+
+            // ---- Rewrite messages in simple words ----
+            // [pattern, new text, type]. "$1" = the first "quoted" part etc.
+            // The pattern only needs to match the START of the old message.
+            const MSG_RULES = [
+                // Sign in and account
+                [/^TIN Number must be 10 to 12 digits/i, 'TIN must have 10 to 12 numbers.'],
+                [/^Buyer's TIN must be 10 to 12 digits/i, "The buyer's TIN must have 10 to 12 numbers."],
+                [/^Could not reach your shop account/i, "We can't reach your shop. Please check your internet and try again."],
+                [/^Could not finish setting up your shop/i, "We couldn't finish setting up your shop. Please try again."],
+                [/^Could not load your shop account/i, "We couldn't open your shop. Please sign in again."],
+                [/^Could not send reset email/i, "We couldn't send the email. Please check the email address and your internet, then try again."],
+                [/^If an account exists for that email/i, 'If this email has an account, we sent you a link to reset your password. Please check your inbox and spam folder.', 'success'],
+                [/^Password updated successfully/i, 'Password changed \u2713 You are now signed in.', 'success'],
+                [/^Password updated\. Share the new password/i, 'Password changed \u2713 Please tell your team member the new password. You will not be able to see it again.', 'success'],
+                [/^Password must be at least 6 characters/i, 'The password must have at least 6 letters or numbers.'],
+                [/^Could not load your data/i, "We couldn't load your data. Please check your internet and refresh the page."],
+                [/^We could not save (your last change|this) to the cloud/i, "We couldn't save this online. Please check your internet and try again."],
+
+                // Products and setup
+                [/^Please choose a file first/i, 'Please choose a file first, or tap "Start Fresh".'],
+                [/^That file could not be read/i, "We can't read this file. Please choose a MELEYA backup file (.json)."],
+                [/^Invalid File/i, 'This is not a MELEYA backup file. Please choose a .json backup file.'],
+                [/^Enter a category/i, 'Please type a category.'],
+                [/^Enter a product name/i, 'Please type the product name.'],
+                [/^Enter a valid Qty On Hand/i, 'Please type how many you have (1 or more).'],
+                [/^Enter a valid Cost/i, 'Please type the cost (more than 0).'],
+                [/^Enter a valid Daily Rate/i, 'Please type the daily price (more than 0).'],
+                [/^Enter a daily rate/i, 'Please type the daily price for this item.'],
+                [/^Enter a valid Selling Price/i, 'Please type the selling price.'],
+                [/^"([^"]*)" is already in the basket under "([^"]*)"/, '"$1" is already in your list under "$2". Remove it first if you want to change it.'],
+                [/^Add at least one item first, or use/i, 'Please add at least one product, or tap "Skip / Add Products Later".'],
+                [/^Rejection: "([^"]*)" already exists inside "([^"]*)"/, '"$1" is already in "$2". Please use a different name.'],
+                [/^Rejection: Identical pairing/i, 'This product already exists.'],
+
+                // Sales, purchases, expenses
+                [/^Select a valid item/i, 'Please choose an item from the list.'],
+                [/^Enter a valid quantity/i, 'Please type a quantity (1 or more).'],
+                [/^Enter a valid price/i, 'Please type a price (more than 0).'],
+                [/^Enter a valid amount/i, 'Please type an amount (more than 0).'],
+                [/^Enter a valid cost/i, 'Please type the cost (more than 0).'],
+                [/^Enter a supplier name/i, 'Please type the supplier name.'],
+                [/^Add at least one item to the basket first/i, 'Please add at least one item first.'],
+                [/^Amount Paid Now can't be negative/i, "The amount paid can't be less than 0."],
+                [/^Amount Paid Now \(ETB ([\d.,]+)\) can't be more than the total \(ETB ([\d.,]+)\)/i, 'The amount paid (ETB $1) is more than the total (ETB $2). Please check it.'],
+                [/^Amount Paid Now can't be more than the basket total \(ETB ([\d.,]+)\)/i, 'The amount paid is more than the total (ETB $1). Please check it.'],
+                [/^Insufficient stock for "([^"]*)" at this branch\. Only (\d+) left/i, 'Not enough "$1" in stock. Only $2 left.'],
+                [/^Insufficient stock at this branch\. Only (\d+) left/i, 'Not enough in stock. Only $1 left.'],
+                [/^Insufficient stock available right now/i, 'There is not enough stock right now to bring this sale back.'],
+                [/^This sale is dated (\S+), but "([^"]*)" wasn't purchased into that branch's stock until (\S+?)\./i, 'The sale date ($1) is before "$2" was bought ($3). Please change the sale date.'],
+                [/^This item has never been purchased before/i, 'This item has no cost yet. Please ask someone who can see costs to record its first purchase.'],
+                [/^Unbalanced logic/i, 'Debit and Credit totals must be equal. Please check your numbers.'],
+                [/^This entry was generated automatically/i, 'This entry was made automatically. To remove it, cancel the original sale, purchase, expense or payment.'],
+
+                // Branches, transfers, permissions
+                [/^You don't have permission to ([^.]+)/i, 'You are not allowed to $1. Please ask the owner.'],
+                [/^Pick a specific branch from the branch switcher first/i, 'Please choose one branch at the top of the screen first.'],
+                [/^Source and destination branches must be different/i, 'Please choose two different branches.'],
+                [/^Transfer failed/i, 'The transfer did not work. Please check your internet and try again.'],
+                [/^Undo failed/i, 'Undo did not work. Please check your internet and try again.'],
+                [/^Could not find that transfer/i, "We can't find this transfer. Please refresh the page and try again."],
+                [/^This transfer involves "([^"]*)", which is closed/i, 'The branch "$1" is closed. Please open it again first, then undo this transfer.'],
+                [/^This record belongs to "([^"]*)", which is closed/i, 'The branch "$1" is closed. Please open it again first.'],
+                [/^Could not check inventory for "([^"]*)"/i, 'We couldn\'t check the stock of "$1". Please try again.'],
+                [/^"([^"]*)" still has inventory on hand/i, 'The branch "$1" still has stock. Please sell it or move it to another branch first, then close this branch.'],
+                [/^Could not close "([^"]*)"/i, 'We couldn\'t close "$1". Please try again.'],
+                [/^Could not reopen "([^"]*)"/i, 'We couldn\'t open "$1" again. Please try again.'],
+                [/^Your plan allows up to (\d+) ([a-z ]+)\./i, 'Your plan allows only $1 $2. Please ask your provider to upgrade your plan first.'],
+
+                // Cash handover
+                [/^You can only delete your own handover/i, 'You can only delete your own handover, and only while it is waiting for approval.'],
+                [/^Nothing was deleted/i, 'Nothing was deleted. Your account may not be allowed to delete this. Please contact support.'],
+                [/^Could not submit handover/i, "We couldn't send the handover. Please try again."],
+                [/^Could not update this handover/i, "We couldn't update the handover. Please try again."],
+                [/^Could not delete this record/i, "We couldn't delete this. Please try again."],
+
+                // Deleting and restoring
+                [/^"([^"]*)" cannot be deleted because it already has sales/i, 'You can\'t delete "$1" because it already has sales. Deleting it would make your reports wrong.'],
+                [/^This purchase batch cannot be deleted because stock from it has already been sold/i, "You can't delete this purchase because some of its stock was already sold."],
+                [/^Couldn't verify whether this stock/i, "We couldn't check this stock because of a connection problem. Please try again."],
+                [/^This purchase can't be deleted because some/i, "You can't delete this purchase because some of its stock was moved to another branch. Move it back first."],
+                [/^This purchase basket can't be deleted because stock from at least one item has already been sold/i, "You can't delete this purchase because some of its items were already sold."],
+                [/^This purchase basket can't be deleted because stock from at least one item has already been transferred/i, "You can't delete this purchase because some of its items were moved to another branch. Move them back first."],
+                [/^Original inventory profile deleted/i, "This product was deleted, so this can't be brought back."],
+                [/^"([^"]*)" no longer exists in the catalog/i, '"$1" was deleted, so this can\'t be brought back.'],
+                [/^Not enough stock of "([^"]*)" right now to restore/i, 'There is not enough "$1" in stock to bring this back.'],
+
+                // Backup and download
+                [/^Could not prepare the backup/i, "We couldn't make the backup. Please try again."],
+                [/^Restored Successfully/i, 'Your backup is restored \u2713', 'success'],
+                [/^Could not restore this backup/i, "We couldn't restore this backup. Please try again."],
+                [/^Please select at least one column/i, 'Please choose at least one column to download.'],
+                [/^No data available in this module/i, 'There is no data for these dates.', 'info'],
+                [/^Export Engine Failed/i, 'The download did not work. Please try again.'],
+
+                // Team
+                [/^Could not reset password/i, "We couldn't change the password. Please try again."],
+                [/^Could not remove team member/i, "We couldn't remove this person. Please try again."],
+                [/^Could not read your current session/i, 'Please refresh the page and try again.'],
+                [/^Could not switch accounts/i, "We couldn't switch accounts. Please try again."],
+                [/^Could not log in as that employee/i, "We couldn't sign in as this person. Please try again."],
+                [/^No saved owner session/i, 'Please sign out, then sign in again as usual.'],
+                [/^Your saved session had expired/i, 'Your session ended. Please sign in again.'],
+                [/^This admin-initiated session link/i, 'This link does not work anymore. Please ask for a new one.'],
+                [/^Could not save permissions/i, "We couldn't save the permissions. Please try again."],
+                [/^Permissions were cleared but/i, 'The permissions could not be saved, so this role has NO permissions right now. Please try again, or contact support.'],
+                [/^Permissions saved/i, 'Permissions saved \u2713 People with this role will see the change next time they open the app.', 'success'],
+                [/^"([^"]*)" can't be deleted because (\d+) team member/i, 'You can\'t delete the role "$1" because $2 team member(s) still use it. Please move them to another role first.'],
+                [/^Could not delete role/i, "We couldn't delete this role. Please try again."]
+            ];
+
+            function guessType(text) {
+                return /couldn'?t|can'?t|cannot|not enough|did not|failed|invalid|wrong|not allowed|is more than|is before|allows only|must (have|be)|no internet|please (type|choose|add|check|try|sign|refresh)/i.test(text) ? 'error' : 'info';
+            }
+
+            function friendly(rawInput) {
+                const raw = String(rawInput == null ? '' : rawInput).replace(/\s+/g, ' ').trim();
+                for (let i = 0; i < MSG_RULES.length; i++) {
+                    const rule = MSG_RULES[i];
+                    if (rule[0].test(raw)) {
+                        const full = new RegExp(rule[0].source + '[\\s\\S]*$', rule[0].flags.replace('g', ''));
+                        const text = raw.replace(full, rule[1]);
+                        return { text: text, type: rule[2] || guessType(text) };
+                    }
+                }
+                // "Could not do something: <technical detail>"  ->  simple sentence
+                const m = /^Could not ([^:]{3,70}):\s*([\s\S]*)$/i.exec(raw);
+                if (m) {
+                    return { text: "We couldn't " + m[1] + '. ' + (reasonFor(m[2], true) || 'Please try again.'), type: 'error' };
+                }
+                const why = reasonFor(raw, false);
+                if (why) return { text: why, type: 'error' };
+                return { text: raw, type: guessType(raw) };
+            }
+
+            // ---- Toast messages ----
+            function host() {
+                let h = document.getElementById('mly-toasts');
+                if (!h) {
+                    h = document.createElement('div');
+                    h.id = 'mly-toasts';
+                    h.setAttribute('aria-live', 'polite');
+                    document.body.appendChild(h);
+                }
+                return h;
+            }
+
+            function toast(text, type, ms) {
+                type = type || 'info';
+                text = String(text);
+                if (type === 'success') text = text.replace(/\s*\u2713\s*/g, '. ').replace(/\.\s*\.\s*$/, '.').trim();
+                const h = host();
+                while (h.children.length >= 3) h.removeChild(h.firstChild);
+                const el = document.createElement('div');
+                el.className = 'mly-toast mly-' + type;
+                el.setAttribute('role', type === 'error' ? 'alert' : 'status');
+                const ic = document.createElement('span'); ic.className = 'mly-toast-icon'; ic.textContent = ICONS[type] || 'i';
+                const tx = document.createElement('span'); tx.className = 'mly-toast-text'; tx.textContent = text;
+                const x = document.createElement('button'); x.type = 'button'; x.className = 'mly-toast-x';
+                x.setAttribute('aria-label', tr('ui.close', 'Close')); x.textContent = '\u00d7';
+                el.appendChild(ic); el.appendChild(tx); el.appendChild(x);
+                h.appendChild(el);
+
+                const life = ms || (type === 'success' ? 3500 : Math.min(12000, 5000 + text.length * 45));
+                let timer;
+                const remove = function () { clearTimeout(timer); if (el.parentNode) el.parentNode.removeChild(el); };
+                const start = function (d) { clearTimeout(timer); timer = setTimeout(remove, d); };
+                el.addEventListener('mouseenter', function () { clearTimeout(timer); });
+                el.addEventListener('mouseleave', function () { start(2000); });
+                x.addEventListener('click', remove);
+                start(life);
+
+                // If the page reloads right after (backup restored, sign-out), show it again after the reload.
+                try { sessionStorage.setItem('mly_last_toast', JSON.stringify({ text: text, type: type, ts: Date.now() })); } catch (e) { }
+            }
+
+            // Replaces the browser's alert()
+            function alertReplacement(msg) {
+                const f = friendly(msg);
+                if (f.text !== String(msg)) { try { console.info('[MELEYA] original message:', msg); } catch (e) { } }
+                toast(f.text, f.type);
+            }
+
+            // ---- Toasts for the "notifications" bell (sale saved, etc.) ----
+            const NOTE_TOASTS = {
+                'Sale Executed': ['Sale saved \u2713', true],
+                'Multi-Item Sale Completed': ['Sale saved \u2713', true],
+                'Stock Purchased': ['Purchase saved \u2713', true],
+                'Multi-Item Purchase Completed': ['Purchase saved \u2713', true],
+                'Expense Logged': ['Expense saved \u2713', true],
+                'Product Added': ['Product added \u2713'],
+                'Product Edited': ['Product updated \u2713'],
+                'Initial Inventory Set Up': ['Your products are ready \u2713'],
+                'Sale Voided': ['Sale voided (cancelled). The stock was put back.'],
+                'Multi-Item Sale Voided': ['Sale voided (cancelled). The stock was put back.'],
+                'Purchase Voided': ['Purchase voided (cancelled). The stock was taken out.'],
+                'Multi-Item Purchase Voided': ['Purchase voided (cancelled). The stock was taken out.'],
+                'Expense Voided': ['Expense voided (cancelled).'],
+                'Stock Transferred': ['Stock moved \u2713'],
+                'Stock Transfer Undone': ['Stock move undone \u2713'],
+                'Fund Transfer Recorded': ['Money transfer saved \u2713'],
+                'Fund Transfer Deleted': ['Money transfer deleted.'],
+                'Journal Posted': ['Journal entry saved \u2713'],
+                'Journal Entry Deleted': ['Journal entry deleted.'],
+                'Inventory Deleted': ['Product moved to Trash.'],
+                'Restored': ['Restored \u2713'],
+                'Cash Handover Submitted': ['Cash handover sent \u2713'],
+                'Payment Channel Added': ['New payment type added \u2713'],
+                'Branch Added': ['Branch added \u2713'],
+                'Branch Closed': ['Branch closed.'],
+                'Branch Reopened': ['Branch opened again \u2713'],
+                'Employee Added': ['Team member added \u2713'],
+                'Team Member Removed': ['Team member removed.'],
+                'Role Deleted': ['Role deleted.']
+            };
+
+            function noteToast(title, msg) {
+                const e = NOTE_TOASTS[title];
+                if (!e) { toast(String(title), 'info'); return; }
+                let text = e[0];
+                if (e[1]) {
+                    text = text.replace(/\s*\u2713/, '');
+                    const amt = /ETB ([\d,]+(?:\.\d+)?)/.exec(String(msg || ''));
+                    if (amt) text += ': ETB ' + amt[1];
+                    const owed = /ETB ([\d,]+(?:\.\d+)?) owed/.exec(String(msg || ''));
+                    if (owed) text += '\nETB ' + owed[1] + ' is still not paid.';
+                }
+                toast(text, (e[1] || /\u2713/.test(e[0])) ? 'success' : 'info');
+            }
+
+            // ---- Yes/No and "type something" dialogs ----
+            function openDialog(o) {
+                return new Promise(function (resolve) {
+                    const prevFocus = document.activeElement;
+                    const overlay = document.createElement('div'); overlay.className = 'mly-overlay';
+                    const box = document.createElement('div'); box.className = 'mly-dialog';
+                    box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true');
+                    if (o.title) { const h = document.createElement('h3'); h.textContent = o.title; box.appendChild(h); }
+                    const p = document.createElement('p'); p.textContent = o.message; box.appendChild(p);
+                    let input = null;
+                    if (o.prompt) {
+                        input = document.createElement('input');
+                        input.type = 'text';
+                        input.className = 'mly-input';
+                        input.value = o.value || '';
+                        input.placeholder = o.placeholder || '';
+                        input.autocomplete = 'off';
+                        box.appendChild(input);
+                    }
+                    const row = document.createElement('div'); row.className = 'mly-actions';
+                    const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'mly-btn mly-btn-ghost';
+                    cancel.textContent = o.no || tr('ui.cancel', 'Cancel');
+                    const ok = document.createElement('button'); ok.type = 'button'; ok.className = 'mly-btn' + (o.danger ? ' mly-btn-danger' : '');
+                    ok.textContent = o.yes || (o.prompt ? tr('ui.ok', 'OK') : tr('ui.yes', 'Yes'));
+                    row.appendChild(cancel); row.appendChild(ok); box.appendChild(row);
+
+                    function close(result) {
+                        document.removeEventListener('keydown', onKey, true);
+                        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+                        try { if (prevFocus && prevFocus.focus) prevFocus.focus(); } catch (e) { }
+                        resolve(result);
+                    }
+                    function onKey(e) {
+                        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(input ? null : false); }
+                        else if (e.key === 'Enter' && input && e.target === input) { e.preventDefault(); close(input.value); }
+                        else if (e.key === 'Tab') {
+                            const f = box.querySelectorAll('input,button');
+                            const first = f[0], last = f[f.length - 1];
+                            if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+                            else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+                        }
+                    }
+                    ok.addEventListener('click', function () { close(input ? input.value : true); });
+                    cancel.addEventListener('click', function () { close(input ? null : false); });
+                    overlay.addEventListener('mousedown', function (e) { if (e.target === overlay) close(input ? null : false); });
+                    document.addEventListener('keydown', onKey, true);
+                    overlay.appendChild(box); document.body.appendChild(overlay);
+                    setTimeout(function () { (input || (o.danger ? cancel : ok)).focus(); }, 0);
+                });
+            }
+
+            // ---- "Saving..." buttons that also stop double clicks ----
+            function setSaving(btn, on, label) {
+                if (!btn) return;
+                if (on) {
+                    if (btn.dataset.mlyBusy) return;
+                    btn.dataset.mlyBusy = '1';
+                    btn.dataset.mlyHtml = btn.innerHTML;
+                    btn.style.minWidth = btn.offsetWidth + 'px';
+                    btn.disabled = true;
+                    btn.innerHTML = '<span class="mly-spin"></span> ' + label;
+                } else if (btn.dataset.mlyBusy) {
+                    btn.innerHTML = btn.dataset.mlyHtml;
+                    btn.disabled = false;
+                    btn.style.minWidth = '';
+                    delete btn.dataset.mlyBusy; delete btn.dataset.mlyHtml;
+                }
+            }
+
+            function findButton(name, ev) {
+                try {
+                    if (ev) {
+                        if (ev.submitter && ev.submitter.tagName === 'BUTTON') return ev.submitter;
+                        if (ev.currentTarget && ev.currentTarget.tagName === 'BUTTON') return ev.currentTarget;
+                        const tg = ev.target;
+                        if (tg && tg.tagName === 'FORM') {
+                            const b = tg.querySelector('button[type="submit"], button:not([type])');
+                            if (b) return b;
+                        }
+                        if (tg && tg.closest) { const b = tg.closest('button'); if (b) return b; }
+                    }
+                    return document.querySelector('[onclick*="' + name + '("]');
+                } catch (e) { return null; }
+            }
+
+            function guardSaving(name, label) {
+                const orig = window[name];
+                if (typeof orig !== 'function') return;
+                let busy = false;
+                window[name] = function () {
+                    const a0 = arguments[0];
+                    const isEvent = a0 && typeof a0.preventDefault === 'function';
+                    if (busy) { if (isEvent) a0.preventDefault(); return; }
+                    const btn = findButton(name, isEvent ? a0 : window.event);
+                    busy = true; setSaving(btn, true, typeof label === 'function' ? label() : label);
+                    let timer = null;
+                    const done = function () { busy = false; clearTimeout(timer); setSaving(btn, false); };
+                    timer = setTimeout(done, 30000);
+                    let res;
+                    try { res = orig.apply(this, arguments); } catch (e) { done(); throw e; }
+                    Promise.resolve(res).then(done, done);
+                    return res;
+                };
+            }
+
+            // Show the last message again if the page reloaded right after it
+            function showAfterReload() {
+                try {
+                    const s = sessionStorage.getItem('mly_last_toast');
+                    if (!s) return;
+                    sessionStorage.removeItem('mly_last_toast');
+                    const o = JSON.parse(s);
+                    if (o && Date.now() - o.ts < 4000) toast(o.text, o.type);
+                } catch (e) { }
+            }
+
+            return {
+                toast: toast, alert: alertReplacement, noteToast: noteToast, showAfterReload: showAfterReload,
+                confirm: function (message, o) { return openDialog(Object.assign({ title: tr('ui.are_you_sure', 'Are you sure?'), message: message }, o || {})); },
+                prompt: function (message, o) { return openDialog(Object.assign({ message: message, prompt: true }, o || {})); },
+                guardSaving: guardSaving
+            };
+        })();
+
+        window.alert = mlyUI.alert;
+        window.uiConfirm = mlyUI.confirm;
+        window.uiPrompt = mlyUI.prompt;
+        window.showToast = mlyUI.toast;
+        document.addEventListener('DOMContentLoaded', mlyUI.showAfterReload);
+
+        // Buttons that save something show "Saving..." and can't be double-clicked
+        // (function declarations below are already available at this point)
+        ['handleDefineProduct', 'handleManualVoucher', 'handlePostExpense', 'handlePostPurchase',
+         'handlePostSale', 'handleStockTransfer', 'submitCashHandover', 'submitSaleCart',
+         'submitPurchaseCart', 'submitFundTransfer', 'submitRecordPayment', 'submitAddBranch',
+         'submitAddMember', 'submitAddRole', 'saveVatDetails', 'saveRolePermissions',
+         'completeInitialInventorySetup', 'completeBusinessSetup', 'handleSetNewPassword']
+            .forEach(function (n) { mlyUI.guardSaving(n, function () { return mlyUI_label('ui.saving', 'Saving\u2026'); }); });
+        mlyUI.guardSaving('handleSignIn', function () { return mlyUI_label('ui.signing_in', 'Signing in\u2026'); });
+        mlyUI.guardSaving('handleSignUp', function () { return mlyUI_label('ui.creating', 'Creating account\u2026'); });
+        function mlyUI_label(key, fallback) { try { const v = t(key); return v && v !== key ? v : fallback; } catch (e) { return fallback; } }
         // --- MASTER ACCOUNTS ---
         const BASE_CHART_OF_ACCOUNTS = [
             { main: "Assets", sub: "Current Assets", stmt: "balance sheet", code: "1010", name: "Cash", normal: "Debit" },
@@ -1533,6 +1953,7 @@
         // =====================================================================
         const I18N = {
             en: {
+                'ui.ok': 'OK', 'ui.cancel': 'Cancel', 'ui.yes': 'Yes', 'ui.close': 'Close', 'ui.are_you_sure': 'Are you sure?', 'ui.saving': 'Saving…', 'ui.signing_in': 'Signing in…', 'ui.creating': 'Creating account…',
                 'nav.dashboard': 'Dashboard', 'nav.inventory': 'Inventory/Stock', 'nav.transfer': 'Transfer',
                 'nav.cash_handover': 'Cash Handover', 'nav.sales': 'Sales', 'nav.purchase': 'Purchase',
                 'nav.expense': 'Expense', 'nav.team': 'Team & Branches', 'nav.rentals': 'Rentals', 'nav.settings': 'Settings',
@@ -1681,10 +2102,10 @@
                 'drill.no_sales': 'No recorded transaction lines in range.', 'drill.no_expenses': 'No operational expenses logged in range.',
                 'drill.voucher_id': 'Voucher ID',
 
-                'warn.void_pur_group': 'Warning 1: Void this whole Multi-Item Purchase ({n} items)?\nWarning 2: Stock will be instantly deducted for all items. Proceed?',
-                'warn.void_pur_single': 'Warning 1: Void this Purchase?\nWarning 2: Stock will be instantly deducted. Proceed?',
-                'warn.void_sale_group': 'Warning 1: Void this whole Multi-Item Sale ({n} items)?\nWarning 2: Stock will be returned to inventory for all items. Proceed?',
-                'warn.void_sale_single': 'Warning 1: Void this Sale?\nWarning 2: Stock will be returned to inventory. Proceed?',
+                'warn.void_pur_group': 'Void (cancel) this whole purchase ({n} items)?\nThe stock will be taken out of your inventory right away.',
+                'warn.void_pur_single': 'Void (cancel) this purchase?\nThe stock will be taken out of your inventory right away.',
+                'warn.void_sale_group': 'Void (cancel) this whole sale ({n} items)?\nThe stock will be put back into your inventory.',
+                'warn.void_sale_single': 'Void (cancel) this sale?\nThe stock will be put back into your inventory.',
 
                 'acct.total_revenue': 'Total Revenue', 'acct.cogs': 'Cost of Goods Sold', 'acct.gross_profit': 'Gross Profit',
                 'acct.total_expenses': 'Total Expenses', 'acct.net_profit': 'Net Profit',
@@ -1793,6 +2214,7 @@
                 'rental.remove': 'Remove'
             },
             am: {
+                'ui.ok': 'እሺ', 'ui.cancel': 'ይቅር', 'ui.yes': 'አዎ', 'ui.close': 'ዝጋ', 'ui.are_you_sure': 'እርግጠኛ ነዎት?', 'ui.saving': 'በማስቀመጥ ላይ…', 'ui.signing_in': 'በመግባት ላይ…', 'ui.creating': 'መለያ በመፍጠር ላይ…',
                 'nav.dashboard': 'ዳሽቦርድ', 'nav.inventory': 'የዕቃ ክምችት', 'nav.transfer': 'ዝውውር',
                 'nav.cash_handover': 'ካሽ ርክክብ', 'nav.sales': 'ሽያጭ', 'nav.purchase': 'ግዢ',
                 'nav.expense': 'ወጪ', 'nav.team': 'ቡድን እና ቅርንጫፎች', 'nav.rentals': 'ኪራዮች', 'nav.settings': 'ቅንብሮች',
@@ -3172,7 +3594,7 @@
                     email = resolved || '';
                 }
                 if (!email) {
-                    email = prompt('Enter the email address for your shop account:');
+                    email = await uiPrompt('Type the email you used for your shop account.', { title: 'Reset your password', placeholder: 'name@example.com', yes: 'Send link' });
                     if (!email) return;
                     email = email.trim();
                 }
@@ -3857,6 +4279,7 @@
 
         // --- NOTIFICATION ENGINE ---
         function addNotification(title, msg, details = "") {
+            try { mlyUI.noteToast(title, msg); } catch (e) { }
             const stampedMsg = `${msg} (by ${currentUsername || 'unknown'})`;
             const notif = { id: Date.now(), title, msg: stampedMsg, details, date: new Date().toLocaleString(), read: false };
             state.notifications.unshift(notif);
@@ -3962,10 +4385,10 @@
         }
 
         async function factoryReset() {
-            if(confirm("WARNING 1: You are about to wipe the entire database clean. Are you absolutely sure?")) {
-                if(confirm("WARNING 2: This is irreversible. All data will be permanently deleted. Proceed?")) {
-                    let safetyInput = prompt("FINAL WARNING: Type the word 'DELETE' below to confirm full system wipe.");
-                    if(safetyInput === "DELETE") {
+            if(await uiConfirm('You are about to delete ALL data in this shop: products, sales, purchases, expenses and accounts.', { title: 'Delete everything?', danger: true, yes: 'Continue', no: 'No, keep my data' })) {
+                if(await uiConfirm('This cannot be undone. Your data will be gone forever. Do you want to continue?', { title: 'Last check', danger: true, yes: 'Yes, continue', no: 'No, keep my data' })) {
+                    let safetyInput = await uiPrompt('To confirm, type the word DELETE (in capital letters).', { title: 'Type DELETE', danger: true, yes: 'Delete everything', placeholder: 'DELETE' });
+                    if((safetyInput || '').trim() === "DELETE") {
                         state.inventory = []; state.salesLog = []; state.purchaseLog = []; state.expenseLog = [];
                         state.journal = []; state.trash = []; state.notifications = [];
                         // Vertical-owned state (e.g. appliance_rental's
@@ -3977,7 +4400,7 @@
                         if ('rentalBookings' in state) state.rentalBookings = [];
                         await bulkReplaceAllData();
                         location.reload();
-                    }
+                    } else if (safetyInput !== null) { showToast('Nothing was deleted. You did not type DELETE.', 'info'); }
                 }
             }
         }
@@ -4017,10 +4440,10 @@
             else { sel.dataset.prevValue = sel.value; }
         }
 
-        function addNewSaleType(sel) {
+        async function addNewSaleType(sel) {
             sel = sel || document.getElementById('sale-type');
             const fallback = sel.dataset.prevValue || 'Walk in';
-            const val = prompt('Enter a new sales type (e.g. "Contractor", "Online Order"):');
+            const val = await uiPrompt('Type a name for the new sale type. For example: Contractor, Online Order.', { title: 'New sale type', yes: 'Add' });
             if (!val || !val.trim()) { sel.value = fallback; return; }
             const trimmed = val.trim();
             if ([...sel.options].some(o => o.value.toLowerCase() === trimmed.toLowerCase())) {
@@ -4111,9 +4534,9 @@
             return `10${n}`;
         }
 
-        function addNewChannel(sel) {
+        async function addNewChannel(sel) {
             const fallback = sel.dataset.prevValue || sel.options[0].value;
-            const val = prompt('Enter a new payment channel name (e.g. "Telebirr", "CBE Birr"):');
+            const val = await uiPrompt('Type a name for the new payment type. For example: Telebirr, CBE Birr.', { title: 'New payment type', yes: 'Add' });
             if (!val || !val.trim()) { sel.value = fallback; return; }
             const trimmed = val.trim();
 
@@ -5467,7 +5890,7 @@
 
         async function deleteFundTransfer(id) {
             if (!hasPerm('dashboard.fund_transfer')) return alert("You don't have permission to undo fund transfers.");
-            if (!confirm('Delete this fund transfer? This reverses the channel balances back to before it happened.')) return;
+            if (!(await uiConfirm('Delete this money transfer? Your balances will go back to how they were before it.', { danger: true, yes: 'Yes, delete', no: 'No, keep it' }))) return;
             const idx = state.journal.findIndex(j => j.id === id);
             if (idx === -1) return;
             state.journal.splice(idx, 1);
@@ -5758,7 +6181,7 @@
                 const recoverableQty = stillPresent.reduce((sum, l) => sum + l.qty, 0);
 
                 if (recoverableQty <= 0) {
-                    const recordOnly = confirm(`None of the ${row.qty}x ${row.item_desc} moved to ${toName} is still there (it's already been sold or moved on), so there's no stock to move back.\n\nRemove this transfer record from the history anyway? This won't change any stock — it just cleans up the log (and can help if it's blocking a branch from being deleted).`);
+                    const recordOnly = await uiConfirm(`None of the ${row.qty}x ${row.item_desc} moved to ${toName} is still there. It was already sold or moved, so there is no stock to move back.\n\nDo you want to remove this transfer from the history anyway? Your stock will not change.`, { danger: true, yes: 'Yes, remove it', no: 'No, keep it' });
                     if (!recordOnly) return;
                     const { error: recDelErr, count: recCount } = await supabaseClient
                         .from('stock_transfers').delete({ count: 'exact' }).eq('id', transferId);
@@ -5769,9 +6192,9 @@
                 }
 
                 const confirmMsg = recoverableQty < row.qty
-                    ? `Only ${recoverableQty} of the ${row.qty} units transferred are still at ${toName} — the rest has already been sold or moved elsewhere and can't be recovered.\n\nMove the remaining ${recoverableQty} unit(s) of ${row.item_desc} back to ${fromName} at their original cost, and remove this record?`
-                    : `Undo this transfer? ${row.qty}x ${row.item_desc} will be moved back from ${toName} to ${fromName} at their original cost, and this record will be removed.`;
-                if (!confirm(confirmMsg)) return;
+                    ? `Only ${recoverableQty} of the ${row.qty} units are still at ${toName}. The rest was already sold or moved.\n\nMove the ${recoverableQty} remaining unit(s) of ${row.item_desc} back to ${fromName} and remove this record?`
+                    : `Undo this transfer? ${row.qty}x ${row.item_desc} will move back from ${toName} to ${fromName}, and this record will be removed.`;
+                if (!(await uiConfirm(confirmMsg, { yes: 'Yes, undo it', no: 'No' }))) return;
 
                 for (const destLot of stillPresent) {
                     const origLotId = destLot.id.slice(transferId.length + 1);
@@ -6020,7 +6443,7 @@
             if (!currentIsOwner && (record.submitted_by_username !== currentUsername || record.status !== 'pending')) {
                 return alert("You can only delete your own handover submissions, and only while they're still pending.");
             }
-            if (!confirm('Delete this handover record? This only removes the log entry — it never affected your books.')) return;
+            if (!(await uiConfirm('Delete this handover? Only the record is removed. Your accounts do not change.', { danger: true, yes: 'Yes, delete', no: 'No, keep it' }))) return;
             // .select() is required to get the deleted row(s) back -- without
             // it, Supabase reports success with zero rows affected as if
             // nothing were wrong, which is exactly what a missing/misscoped
@@ -6053,7 +6476,7 @@
         }
 
         async function decideCashHandover(id, approve) {
-            if (!confirm(approve ? 'Approve this handover as received?' : 'Reject this handover submission?')) return;
+            if (!(await uiConfirm(approve ? 'Did you receive this money? Tap "Yes, received" to approve it.' : 'Reject this handover?', { yes: approve ? 'Yes, received' : 'Yes, reject', danger: !approve, no: 'No' }))) return;
             const { error } = await supabaseClient.from('cash_handovers')
                 .update({ status: approve ? 'approved' : 'rejected', decided_by_username: currentUsername, decided_at: new Date().toISOString() })
                 .eq('id', id);
@@ -6187,7 +6610,7 @@
         // stock-affecting. Also posts the batch's cost as a recorded loss:
         // debit 6060 Inventory Write-off (Loss), credit 1200 Inventory —
         // so shrinkage shows up in the books, not just the stock count.
-        function writeOffExpiringLot(itemIndex, lotId, qtyToWriteOff) {
+        async function writeOffExpiringLot(itemIndex, lotId, qtyToWriteOff) {
             const requiredPerm = currentBusinessType === 'appliance_rental' ? 'rentals.write_off' : 'inventory.edit_products';
             if (!hasPerm(requiredPerm)) return;
             const item = state.inventory[itemIndex];
@@ -6208,7 +6631,7 @@
                 statusText = days < 0 ? `expired ${Math.abs(days)} day(s) ago` : `expiring ${lot.expiry}`;
             }
             const lossAmount = qty * lot.cost;
-            if (!confirm(`Write off ${qty} unit(s) of "${item.desc}" (batch ${statusText})?\n\nThis removes them from stock, records a loss of ETB ${lossAmount.toFixed(2)} in your accounts, and cannot be undone.`)) return;
+            if (!(await uiConfirm(`Write off ${qty} unit(s) of "${item.desc}" (batch ${statusText})?\n\nThey will be removed from your stock and counted as a loss of ETB ${lossAmount.toFixed(2)}. This cannot be undone.`, { danger: true, yes: 'Yes, write off', no: 'No' }))) return;
 
             const beforeLots = item.lots.map(l => ({...l}));
             if (partial) {
@@ -6276,7 +6699,7 @@
                 return alert(`"${item.desc}" cannot be deleted because it already has sales recorded against it (possibly in another branch). Products with sales history are kept in place to preserve accurate accounting records.`);
             }
 
-            if(!confirm(`Move [${item.category}] ${item.desc} to System Trash?\n\nThis removes it — and its stock — from EVERY branch, not just the one you're currently viewing, since the product catalog is shared.`)) return;
+            if(!(await uiConfirm(`Move [${item.category}] ${item.desc} to Trash?\n\nIt will disappear from ALL branches, because products are shared by every branch.`, { danger: true, yes: 'Yes, move to Trash', no: 'No' }))) return;
             const trashEntry = { id: `INV-${Date.now()}`, type: 'inventory', data: item, deletedAt: new Date().toISOString() };
             state.trash.push(trashEntry);
             state.inventory.splice(idx, 1);
@@ -6338,7 +6761,7 @@
                         return alert("This purchase basket can't be deleted because stock from at least one item has already been transferred to another branch. Transfer it back first, or delete the transfer record instead.");
                     }
                 }
-                if (!confirm(t('warn.void_pur_group').replace('{n}', groupRows.length))) return;
+                if (!(await uiConfirm(t('warn.void_pur_group').replace('{n}', groupRows.length), { danger: true, yes: 'Yes, void it', no: 'No, keep it' }))) return;
 
                 groupRows.forEach(row => {
                     let item = state.inventory.find(i => `[${i.category}] ${i.desc}` === row.desc || i.desc === row.desc);
@@ -6375,7 +6798,7 @@
                 return;
             }
 
-            if(!confirm(t('warn.void_pur_single'))) return;
+            if(!(await uiConfirm(t('warn.void_pur_single'), { danger: true, yes: 'Yes, void it', no: 'No, keep it' }))) return;
             let idx = state.purchaseLog.findIndex(p => p.id === id); if(idx===-1) return;
             let jv = state.journal.find(j => j.id === id);
 
@@ -6416,14 +6839,14 @@
             renderPurchaseLogTable(); renderAnalyticalDashboards();
         }
 
-        function deleteSale(id) {
+        async function deleteSale(id) {
             const sale = state.salesLog.find(s => s.id === id);
             if (!sale) return;
             if (blockIfBranchClosed(sale.branchId, 'voided')) return;
 
             if (sale.groupId) {
                 const groupRows = state.salesLog.filter(s => s.groupId === sale.groupId);
-                if (!confirm(t('warn.void_sale_group').replace('{n}', groupRows.length))) return;
+                if (!(await uiConfirm(t('warn.void_sale_group').replace('{n}', groupRows.length), { danger: true, yes: 'Yes, void it', no: 'No, keep it' }))) return;
 
                 groupRows.forEach(row => {
                     let item = state.inventory.find(i => `[${i.category}] ${i.desc}` === row.desc);
@@ -6457,7 +6880,7 @@
                 return;
             }
 
-            if(!confirm(t('warn.void_sale_single'))) return;
+            if(!(await uiConfirm(t('warn.void_sale_single'), { danger: true, yes: 'Yes, void it', no: 'No, keep it' }))) return;
             let idx = state.salesLog.findIndex(s => s.id === id); if(idx===-1) return;
             let jv = state.journal.find(j => j.id === id);
             
@@ -6489,10 +6912,10 @@
             renderSalesLogTable(); renderAnalyticalDashboards();
         }
 
-        function deleteExpense(id) {
+        async function deleteExpense(id) {
             let idx = state.expenseLog.findIndex(e => e.id === id); if(idx===-1) return;
             if (blockIfBranchClosed(state.expenseLog[idx].branchId, 'voided')) return;
-            if(!confirm("Void this Operational Expense and reverse ledger impact?")) return;
+            if(!(await uiConfirm('Void (cancel) this expense? Your accounts will go back to how they were before it.', { danger: true, yes: 'Yes, void it', no: 'No, keep it' }))) return;
             let exp = state.expenseLog[idx], jv = state.journal.find(j => j.id === id);
             
             state.trash.push({ id, type: 'expense', data: exp, journal: jv, deletedAt: new Date().toISOString() });
@@ -8185,12 +8608,12 @@
         // auto-generated by a sale/purchase/expense/payment are removed by
         // voiding that original record instead, so their linked inventory
         // and ledger effects stay consistent.
-        function deleteJournalVoucher(id) {
+        async function deleteJournalVoucher(id) {
             if (!id.startsWith('JV-')) return alert('This entry was generated automatically by a sale, purchase, expense, or payment — void the original record instead of the journal entry directly.');
             const idx = state.journal.findIndex(j => j.id === id);
             if (idx === -1) return;
             if (blockIfBranchClosed(state.journal[idx].branchId, 'deleted')) return;
-            if (!confirm('Delete this journal entry? This cannot be undone — post a corrected entry afterward if needed.')) return;
+            if (!(await uiConfirm('Delete this journal entry? This cannot be undone. If it was wrong, add a corrected entry after.', { danger: true, yes: 'Yes, delete', no: 'No, keep it' }))) return;
             state.journal.splice(idx, 1);
             queueWrite({ kind: 'delete', table: 'journal_entries', id });
             renderHistoricalJournalsTable();
@@ -8343,7 +8766,7 @@
                     } catch (err) {
                         return alert("Invalid File — this doesn't look like a valid backup (.json) file.");
                     }
-                    if (!confirm('This will REPLACE ALL current data for this shop — every branch, not just the one you\'re viewing — with the contents of the backup file. Continue?')) return;
+                    if (!(await uiConfirm('This will REPLACE ALL current data of this shop (every branch) with the data in the backup file. Do you want to continue?', { title: 'Restore this backup?', danger: true, yes: 'Yes, restore', no: 'No' }))) return;
                     try {
                         applyImportedState(imported);
                         await bulkReplaceAllData();
@@ -8725,7 +9148,7 @@
                 return alert(`"${name}" still has inventory on hand. Sell it or transfer it to another branch before closing this one.`);
             }
 
-            if (!confirm(`Close "${name}"? It'll disappear from the branch switcher and can no longer be used for new sales, purchases, or transfers — but all its existing history stays in your records, and you can reopen it any time.`)) return;
+            if (!(await uiConfirm(`Close the branch "${name}"?\n\nYou will not be able to make new sales, purchases or transfers there. Its old records stay safe, and you can open it again any time.`, { danger: true, yes: 'Yes, close it', no: 'No' }))) return;
             const { error } = await supabaseClient.from('branches').update({ closed: true }).eq('id', branchId);
             if (error) return alert(`Could not close "${name}": ${error.message}`);
             addNotification('Branch Closed', `"${name}" is closed and hidden from active use. Its history is unaffected.`);
@@ -9059,7 +9482,7 @@
 
         // --- RESET PASSWORD / REMOVE ---
         async function promptResetPassword(memberId) {
-            const newPassword = prompt('Enter a new temporary password for this team member (at least 6 characters):');
+            const newPassword = await uiPrompt('Type a new temporary password for this team member (at least 6 letters or numbers).', { title: 'New password', yes: 'Save password' });
             if (!newPassword) return;
             if (newPassword.length < 6) return alert('Password must be at least 6 characters.');
             try {
@@ -9071,7 +9494,7 @@
         }
 
         async function promptRemoveMember(memberId, name) {
-            if (!confirm(`Remove ${name} from the team? They will immediately lose the ability to log in.`)) return;
+            if (!(await uiConfirm(`Remove ${name} from your team? They will not be able to sign in anymore.`, { danger: true, yes: 'Yes, remove', no: 'No' }))) return;
             try {
                 await callEdgeFunction('remove-employee', { memberId });
                 addNotification('Team Member Removed', `${name} no longer has access.`);
@@ -9090,7 +9513,7 @@
         // checkImpersonationBanner() below re-shows the banner on boot as
         // long as that sessionStorage entry is still there.
         async function loginAsEmployee(memberId, displayName) {
-            if (!confirm(`Log in as ${displayName}? You'll see exactly what they see until you return to your own account.`)) return;
+            if (!(await uiConfirm(`Sign in as ${displayName}? You will see exactly what they see, until you go back to your own account.`, { yes: 'Yes, sign in', no: 'No' }))) return;
             try {
                 const { data: { session: ownerSession } } = await supabaseClient.auth.getSession();
                 if (!ownerSession) return alert('Could not read your current session — please refresh and try again.');
@@ -9195,7 +9618,7 @@
         // separate browser tab under a separate auth storage key and is
         // completely unaffected by this.
         async function endAdminImpersonationSession() {
-            if (!confirm('End this admin support session?')) return;
+            if (!(await uiConfirm('End this support session?', { yes: 'Yes, end it', no: 'No' }))) return;
             sessionStorage.removeItem('neba_admin_impersonation_active');
             sessionStorage.removeItem('neba_admin_impersonation_business');
             await handleSignOut();
@@ -9464,7 +9887,7 @@
             if (count && count > 0) {
                 return alert(`"${label}" can't be deleted because ${count} team member${count === 1 ? ' is' : 's are'} still assigned to it. Move them to a different role first, from the Team Members list above.`);
             }
-            if (!confirm(`Delete the "${label}" role? This can't be undone.`)) return;
+            if (!(await uiConfirm(`Delete the role "${label}"? This cannot be undone.`, { danger: true, yes: 'Yes, delete', no: 'No, keep it' }))) return;
             const { error } = await supabaseClient.from('roles').delete().eq('id', roleId);
             if (error) return alert('Could not delete role: ' + error.message);
             addNotification('Role Deleted', `"${label}" has been removed.`);
