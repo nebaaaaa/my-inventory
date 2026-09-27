@@ -4974,7 +4974,7 @@
             let p = state.currentFilter, r = 0, c = 0, e = 0;
             state.journal.forEach(j => {
                 if (verifyChronologicalOverlap(j.date, p) && shouldCountInCurrentTotals(j.branchId)) {
-                    j.lines.forEach(l => { if(l.account === "4010" || l.account === "4020") r += l.cr; if(l.account === "5010") c += l.dr; if(["6010","6020","6030"].includes(l.account)) e += l.dr; });
+                    j.lines.forEach(l => { if(l.account === "4010" || l.account === "4020") r += l.cr; if(l.account === "5010") c += l.dr; if(l.account.startsWith("6")) e += l.dr; });
                 }
             });
             document.getElementById('m-revenue').innerText = `ETB ${r.toLocaleString(undefined,{minimumFractionDigits:2})}`;
@@ -8742,7 +8742,7 @@
 
         async function exportBackupData() {
             const btn = document.getElementById('btn-backup');
-            if (btn) { btn.disabled = true; btn.innerText = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Preparing...'; }
+            if (btn) { btn.disabled = true; btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Preparing...'; }
             try {
                 const fullBackup = await buildFullBusinessBackup();
                 let blob = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(fullBackup));
@@ -8751,7 +8751,7 @@
             } catch (err) {
                 alert('Could not prepare the backup: ' + err.message);
             } finally {
-                if (btn) { btn.disabled = false; btn.innerText = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Backup'; }
+                if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Backup'; }
             }
         }
 
