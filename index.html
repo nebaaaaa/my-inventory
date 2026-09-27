@@ -220,6 +220,14 @@
             #clock { display: none; }
             .notif-panel { width: 90%; right: 5%; }
             .graph-btn { display: none; } /* Hide overlay buttons on mobile */
+            /* Most tables (Journal, Team, Trash, statements, receipts...)
+               were never individually wrapped in a scrolling div, and the
+               page itself hides horizontal overflow -- so on a phone their
+               extra columns were simply invisible, with no way to reach
+               them at all. Turning the <table> itself into the scrolling
+               box fixes every table at once, matching the few that already
+               had their own wrapper div (harmless to double up on those). */
+            table { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
             /* Two toggle buttons (language + calendar) were pushing trash/
                notifications off the edge of narrow phone screens — tighten
                the header row's spacing and shrink those two specifically. */
@@ -2574,6 +2582,16 @@
         function setCalendarPref(pref) {
             currentCalendarPref = pref;
             localStorage.setItem('neba_calendar_pref', pref);
+            const clockEl = document.getElementById('clock');
+            if (clockEl) {
+                const now = new Date();
+                if (pref === 'ethiopian') {
+                    const eth = gregorianToEthiopian(getLocalYMD(now));
+                    clockEl.innerText = `${eth.d} ${ethMonthName(eth.m)} ${eth.y}, ${now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+                } else {
+                    clockEl.innerText = now.toLocaleString();
+                }
+            }
             const btn = document.getElementById('calendar-toggle-btn');
             if (btn) {
                 btn.innerText = pref === 'ethiopian' ? 'EC' : 'GC';
@@ -9991,7 +10009,18 @@
             loadTeamView();
         }
 
-        setInterval(() => { const c = document.getElementById('clock'); if(c) c.innerText = new Date().toLocaleString(); }, 1000);
+        setInterval(() => {
+            const c = document.getElementById('clock');
+            if (!c) return;
+            const now = new Date();
+            if (currentCalendarPref === 'ethiopian') {
+                const eth = gregorianToEthiopian(getLocalYMD(now));
+                const time = now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                c.innerText = `${eth.d} ${ethMonthName(eth.m)} ${eth.y}, ${time}`;
+            } else {
+                c.innerText = now.toLocaleString();
+            }
+        }, 1000);
 
         // ---------------------------------------------------------------
         // SESSION CHECK — if the browser already has a signed-in session
