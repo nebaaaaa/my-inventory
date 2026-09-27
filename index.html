@@ -4,8 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MELEYA</title>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- xlsx and chart.js are only needed once someone opens Export or the
+         Dashboard, never at page load  "defer" lets the browser fetch them
+         in the background while the login screen finishes loading, instead
+         of the page waiting on them before it can draw anything. Both are
+         still guaranteed to finish loading before any button can be
+         clicked, so nothing about how they're used elsewhere changes. -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="business-types.config.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -4182,6 +4188,18 @@
             
             const selectedCols = Array.from(document.querySelectorAll('#export-columns-container input:checked')).map(cb => cb.value);
             if(selectedCols.length === 0) return alert("Please select at least one column to export.");
+            // xlsx.js loads with `defer` in the background; on a very slow
+            // connection it could still be mid-download the moment someone
+            // reaches Export. Wait for it rather than failing outright.
+            if (typeof XLSX === 'undefined') {
+                btn.innerText = "Loading...";
+                btn.disabled = true;
+                const waitForXlsx = () => {
+                    if (typeof XLSX !== 'undefined') executeExcelExport();
+                    else setTimeout(waitForXlsx, 150);
+                };
+                return setTimeout(waitForXlsx, 150);
+            }
 
             btn.innerText = "Processing...";
             btn.disabled = true;
@@ -4368,15 +4386,16 @@
             if (viewId === 'transfer') initStockTransferCard();
             if (viewId === 'cash_handover') renderCashHandoverView();
             if (viewId === 'sales') {
+                tableShownCounts.sales = 50;
                 syncTransactionalProductDropdownOptions(); renderSalesLogTable();
                 if (currentVerticalModule && typeof currentVerticalModule.renderBookingSection === 'function') {
                     currentVerticalModule.renderBookingSection({ state, tenantId: currentTenantId, channelAccountCodes: CHANNEL_ACCOUNT_CODES, supabaseClient, branchId: currentBranchId, calendarPref: currentCalendarPref, mountEl: document.getElementById('sales-rental-mount') });
                 }
             }
-            if (viewId === 'purchase') { syncTransactionalProductDropdownOptions(); renderPurchaseLogTable(); applyPurchaseCostFieldPermissionUI(); }
-            if (viewId === 'expenses') renderExpenseLogTable();
+            if (viewId === 'purchase') { tableShownCounts.purchase = 50; syncTransactionalProductDropdownOptions(); renderPurchaseLogTable(); applyPurchaseCostFieldPermissionUI(); }
+            if (viewId === 'expenses') { tableShownCounts.expense = 50; renderExpenseLogTable(); }
             if (viewId === 'coa') renderSystemCOAProfileLayouts();
-            if (viewId === 'journal') { prepVoucherInputTargetDropdowns(); renderHistoricalJournalsTable(); }
+            if (viewId === 'journal') { tableShownCounts.journal = 50; prepVoucherInputTargetDropdowns(); renderHistoricalJournalsTable(); }
             if (viewId === 'ledger') { prepLedgerDropdownFilterOptions(); renderGeneralLedgerCards(); }
             if (viewId === 'team') loadTeamView();
             if (viewId === 'settings') loadSettingsView();
@@ -5133,6 +5152,15 @@
             sortAnalysisTable(currentAnalysisSort.col, true); 
 
             if (isSortingOnly) return; 
+
+            // Chart.js loads in the background (see the deferred <script>
+            // tag in <head>) so it can still be mid-download the very first
+            // time a returning, already-signed-in user lands straight on
+            // the Dashboard. If so, wait and redraw once it's ready rather
+            // than throwing "Chart is not defined" -- everything above
+            // this point (the numeric metric boxes, the analytics table)
+            // has already rendered correctly either way.
+            if (!ensureChartsReady()) return;
 
             // Live Update Hack: Re-inject canvas to clean out dynamic wrappers entirely
             if(window.dashCharts) { 
@@ -8045,6 +8073,38 @@
         function printPurchaseReceipt(id, isGroup) { openBuyerInfoModal('purchase', id, isGroup, 'receipt'); }
         function printPurchaseInvoice(id, isGroup) { openBuyerInfoModal('purchase', id, isGroup, 'invoice'); }
 
+        // Long-running shops can build up thousands of sales/purchase/
+        // expense/journal rows over time  drawing every one of them into
+        // the DOM on every render gets slow, especially on cheap phones.
+        // Each table only draws its N most recent (filtered) rows, with a
+        // "Load more" button for the rest. Filters still search everything
+        // -- only what's drawn to the screen is capped. Counts reset to 50
+        // each time the tab is freshly opened (see switchView above).
+        // Chart.js is loaded with `defer`, so on a slow connection it may
+        // not have finished yet the very first time the Dashboard tries to
+        // draw. Returns true if it's ready now; otherwise schedules a retry
+        // and returns false, so the caller can bail out of drawing charts
+        // (its own numeric boxes still update either way).
+        let chartRetryPending = false;
+        function ensureChartsReady() {
+            if (typeof Chart !== 'undefined') return true;
+            if (!chartRetryPending) {
+                chartRetryPending = true;
+                const check = () => {
+                    if (typeof Chart !== 'undefined') { chartRetryPending = false; renderAnalyticalDashboards(); }
+                    else setTimeout(check, 150);
+                };
+                setTimeout(check, 150);
+            }
+            return false;
+        }
+
+        let tableShownCounts = { sales: 50, purchase: 50, expense: 50, journal: 50 };
+        function loadMoreRows(key, renderFnName) { tableShownCounts[key] += 50; window[renderFnName](); }
+        function loadMoreRowHtml(key, remaining, colspan, renderFnName) {
+            return `<tr><td colspan="${colspan}" style="text-align:center;padding:14px;"><button class="btn" style="background:var(--bg); color:var(--text); border:1px solid var(--border);" onclick="loadMoreRows('${key}','${renderFnName}')">Load 50 more (${remaining} left)</button></td></tr>`;
+        }
+
         function renderSalesLogTable() {
             const tbody = document.getElementById('sales-log-table-body');
 
@@ -8099,8 +8159,10 @@
 
             if(displayList.length===0) { tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">-- No logs --</td></tr>`; document.getElementById('sale-log-total-display').innerText = `${t('misc.total_shown')}: ETB 0.00 (0)`; return; }
 
+            displayList.sort((a,b) => new Date(b.date) - new Date(a.date));
+            const saleShown = tableShownCounts.sales;
             let rows = [];
-            displayList.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(s => {
+            displayList.slice(0, saleShown).forEach(s => {
                 const remaining = Math.max(0, s.total - (s.amountPaid || 0));
                 let statusStr = renderChannelBreakdownHtml(s._breakdown);
                 if (remaining <= 0.001) {
@@ -8129,6 +8191,7 @@
                     });
                 }
             });
+            if (displayList.length > saleShown) rows.push(loadMoreRowHtml('sales', displayList.length - saleShown, 10, 'renderSalesLogTable'));
             tbody.innerHTML = rows.join('');
             updateBranchColumnVisibility();
             // With no channel filter, the total is every transaction's full
@@ -8424,8 +8487,10 @@
 
             if(displayList.length===0) { tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">-- No logs --</td></tr>`; document.getElementById('pur-log-total-display').innerText = `${t('misc.total_shown')}: ETB 0.00 (0)`; return; }
 
+            displayList.sort((a,b) => new Date(b.date) - new Date(a.date));
+            const purShown = tableShownCounts.purchase;
             let rows = [];
-            displayList.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(p => {
+            displayList.slice(0, purShown).forEach(p => {
                 const remaining = Math.max(0, p.total - (p.amountPaid || 0));
                 // Exact per-channel amounts reveal cost, same as the
                 // cost/total columns — mask them the same way when the
@@ -8460,6 +8525,7 @@
                     });
                 }
             });
+            if (displayList.length > purShown) rows.push(loadMoreRowHtml('purchase', displayList.length - purShown, 10, 'renderPurchaseLogTable'));
             tbody.innerHTML = rows.join('');
             updateBranchColumnVisibility();
             const purTotalEl = document.getElementById('pur-log-total-display');
@@ -8532,12 +8598,15 @@
             );
 
             if(arr.length===0) { tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">-- No logs --</td></tr>`; document.getElementById('exp-log-total-display').innerText = `${t('misc.total_shown')}: ETB 0.00 (0)`; return; }
+            const sortedExp = arr.slice().sort((a,b) => new Date(b.date) - new Date(a.date));
+            const expShown = tableShownCounts.expense;
             let rows = [];
-            arr.slice().sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(ex => {
+            sortedExp.slice(0, expShown).forEach(ex => {
                 let m = CHART_OF_ACCOUNTS_MAP.find(c => c.code === ex.target);
                 let voidBtn = (hasPerm('expense.void') && !isBranchClosed(ex.branchId)) ? `<button class="btn btn-danger btn-small" onclick="deleteExpense('${ex.id}')">${t('common.delete')}</button>` : '';
                 rows.push(`<tr><td>${fmtDate(ex.date)}</td><td>${ex.target} - ${m?m.name:''}</td><td>${ex.memo}</td><td class="num"><strong>${ex.amount.toFixed(2)}</strong></td><td>${ex.source}</td><td class="branch-col">${branchNameById(ex.branchId)}</td><td><small>${getTransactionAuthor(ex.id)}</small></td><td style="text-align:center;">${voidBtn}</td></tr>`);
             });
+            if (sortedExp.length > expShown) rows.push(loadMoreRowHtml('expense', sortedExp.length - expShown, 8, 'renderExpenseLogTable'));
             tbody.innerHTML = rows.join('');
             updateBranchColumnVisibility();
             const expTotal = arr.reduce((sum, ex) => sum + ex.amount, 0);
@@ -8622,9 +8691,16 @@
 
         function renderHistoricalJournalsTable() {
             const tbody = document.getElementById('journal-table-body');
+            // Newest transactions first to decide which ones are shown,
+            // then put the shown window back into chronological order so
+            // the ledger still reads top-to-bottom as before.
+            let matchingEntries = state.journal.filter(entry => verifyEthiopianPeriod(entry.date));
+            matchingEntries.sort((a,b) => new Date(b.date) - new Date(a.date));
+            const journalShown = tableShownCounts.journal;
+            const journalTruncated = matchingEntries.length > journalShown;
+            let shownEntries = matchingEntries.slice(0, journalShown).sort((a,b) => new Date(a.date) - new Date(b.date));
             let rows = [];
-            state.journal.slice().sort((a,b) => new Date(a.date) - new Date(b.date)).forEach(entry => {
-                if(!verifyEthiopianPeriod(entry.date)) return;
+            shownEntries.forEach(entry => {
                 const canDelete = entry.id.startsWith('JV-') && hasPerm('journal.post') && !isBranchClosed(entry.branchId);
                 const deleteBtn = canDelete ? `<button class="btn btn-danger btn-small" onclick="deleteJournalVoucher('${entry.id}')">Delete</button>` : '';
                 entry.lines.forEach((l, i) => {
@@ -8632,6 +8708,7 @@
                     rows.push(`<tr><td>${i===0?fmtDate(entry.date):''}</td><td>${i===0?`<strong>${entry.id}</strong><br><small>${stripAuthorStamp(entry.desc)}</small>`:''}</td><td style="padding-left:${l.cr>0?'40px':'16px'}"><strong>${l.account}</strong> - ${m?m.name:''}</td><td class="num text-success">${l.dr>0?l.dr.toFixed(2):'-'}</td><td class="num text-danger">${l.cr>0?l.cr.toFixed(2):'-'}</td><td class="branch-col">${i===0?branchNameById(entry.branchId):''}</td><td>${i===0?`<small>${extractAuthor(entry.desc)}</small>`:''}</td><td style="text-align:center;">${i===0?deleteBtn:''}</td></tr>`);
                 });
             });
+            if (journalTruncated) rows.push(loadMoreRowHtml('journal', matchingEntries.length - journalShown, 8, 'renderHistoricalJournalsTable'));
             tbody.innerHTML = rows.length ? rows.join('') : `<tr><td colspan="8" style="text-align:center;">-- No Logs --</td></tr>`;
             updateBranchColumnVisibility();
         }
