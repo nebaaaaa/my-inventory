@@ -127,6 +127,11 @@
 </head>
 <body onclick="closeNotifPanelOutside()">
 
+<div id="admin-impersonation-banner-acct" style="display:none; position:fixed; top:0; left:0; width:100%; z-index:6000; background:var(--danger); color:white; padding:10px 16px; text-align:center; font-size:13px; font-weight:600; box-shadow:0 2px 8px rgba(0,0,0,0.15);">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> NEBA platform admin session — viewing as accountant <span id="admin-impersonation-name-acct"></span> —
+    <button class="btn btn-small" style="margin-left:8px; background:var(--primary); color:white;" onclick="endAdminAccountantImpersonationSession()">End Session</button>
+</div>
+
 <div id="auth-overlay">
     <div class="auth-brand-mark-fixed"><span class="accent">M</span><span class="dark">ELEYA</span></div>
     <svg class="auth-bg-chart" viewBox="0 0 1200 400" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
@@ -832,6 +837,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
     async function afterSignIn() {
         document.getElementById('auth-overlay').style.display = 'none';
         document.getElementById('app').style.display = 'block';
+        checkAdminAccountantImpersonationBanner();
         const { data: { user } } = await supabaseClient.auth.getUser();
         currentUserId = user ? user.id : null;
         await applyPendingAccountantProfile();
@@ -1001,9 +1007,62 @@ This field is  mandatory.",Total value,vat,value after vat`;
             </div>`;
     }
     (async () => {
+        // Check for an admin-initiated "login as accountant" handoff first —
+        // it always wins over any pre-existing session on this tab (see
+        // loginAsAccountant / tryConsumeAdminAccountantImpersonationHandoff).
+        const tookOverViaAdmin = await tryConsumeAdminAccountantImpersonationHandoff();
         const { data: { session } } = await supabaseClient.auth.getSession();
-        if (session) await afterSignIn();
+        if (session) {
+            await afterSignIn();
+        } else if (tookOverViaAdmin) {
+            // verifyOtp succeeded but getSession() raced ahead of the client
+            // persisting it — reload rather than leaving a blank screen.
+            location.reload();
+        }
     })();
+
+    // ---- Admin "Login as Accountant" impersonation handoff ----
+    // Mirrors tryConsumeAdminImpersonationHandoff() in index.html: admin.html
+    // stashes a single-use magic-link token in localStorage right before
+    // opening this page in a new tab; we consume it here (and immediately
+    // delete it from localStorage) so it can never be replayed.
+    async function tryConsumeAdminAccountantImpersonationHandoff() {
+        let raw;
+        try { raw = localStorage.getItem('neba_admin_impersonation_handoff_accountant'); } catch (e) { return false; }
+        if (!raw) return false;
+        try { localStorage.removeItem('neba_admin_impersonation_handoff_accountant'); } catch (e) {}
+
+        let handoff;
+        try { handoff = JSON.parse(raw); } catch (e) { return false; }
+        if (!handoff || !handoff.hashedToken) return false;
+        if (!handoff.issuedAt || (Date.now() - handoff.issuedAt) > 60000) return false;
+
+        const { error } = await supabaseClient.auth.verifyOtp({ token_hash: handoff.hashedToken, type: 'magiclink' });
+        if (error) {
+            alert('This admin-initiated session link is no longer valid: ' + error.message);
+            return false;
+        }
+
+        sessionStorage.setItem('neba_admin_impersonation_active_accountant', '1');
+        sessionStorage.setItem('neba_admin_impersonation_accountant_name', handoff.fullName || '');
+        return true;
+    }
+
+    function checkAdminAccountantImpersonationBanner() {
+        if (sessionStorage.getItem('neba_admin_impersonation_active_accountant') !== '1') return;
+        document.getElementById('admin-impersonation-name-acct').innerText = sessionStorage.getItem('neba_admin_impersonation_accountant_name') || 'this accountant';
+        document.getElementById('admin-impersonation-banner-acct').style.display = 'block';
+        document.body.style.paddingTop = '42px';
+    }
+
+    // Ends the support session outright — same as endAdminImpersonationSession()
+    // in index.html, this is a full sign-out rather than a session swap, since
+    // there's no admin account inside this accountant's session to "return" to.
+    async function endAdminAccountantImpersonationSession() {
+        sessionStorage.removeItem('neba_admin_impersonation_active_accountant');
+        sessionStorage.removeItem('neba_admin_impersonation_accountant_name');
+        await handleSignOut();
+    }
 
     // Left/right arrow keys step through receipts while the detail popup is
     // open — but only when focus isn't in a text field, so editing a field's

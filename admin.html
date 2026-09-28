@@ -111,9 +111,9 @@
                 <div style="overflow-x:auto;">
                     <table>
                         <thead><tr>
-                            <th>Name</th><th>Email</th><th>Phone</th><th>Signed Up</th><th>Linked Businesses</th>
+                            <th>Name</th><th>Email</th><th>Phone</th><th>Signed Up</th><th>Linked Businesses</th><th style="text-align:center;">Actions</th>
                         </tr></thead>
-                        <tbody id="accountant-table-body"><tr><td colspan="5" style="text-align:center; color:var(--text-light);">Loading…</td></tr></tbody>
+                        <tbody id="accountant-table-body"><tr><td colspan="6" style="text-align:center; color:var(--text-light);">Loading…</td></tr></tbody>
                     </table>
                 </div>
             </div>
@@ -161,14 +161,14 @@
 
 <div id="delete-modal" class="modal-overlay" onclick="closeDeleteModal()">
     <div class="modal-box" onclick="event.stopPropagation()">
-        <h3 style="color:var(--danger);">Permanently Delete Business</h3>
-        <p style="font-size:13px;">This deletes <strong id="delete-modal-business-name"></strong> and <u>every</u> branch, sale, purchase, expense, employee, and record tied to it. This cannot be undone.</p>
-        <p style="font-size:13px;">Type the business's exact name to confirm:</p>
+        <h3 id="delete-modal-title" style="color:var(--danger);">Permanently Delete Business</h3>
+        <p id="delete-modal-desc" style="font-size:13px;">This deletes <strong id="delete-modal-business-name"></strong> and <u>every</u> branch, sale, purchase, expense, employee, and record tied to it. This cannot be undone.</p>
+        <p id="delete-modal-confirm-label" style="font-size:13px;">Type the business's exact name to confirm:</p>
         <input type="text" id="delete-confirm-input" placeholder="">
         <div id="delete-modal-error" class="error-box"></div>
         <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px;">
             <button class="btn btn-outline" onclick="closeDeleteModal()">Cancel</button>
-            <button class="btn btn-danger" onclick="submitDeleteBusiness()">Delete Permanently</button>
+            <button class="btn btn-danger" onclick="submitDelete()">Delete Permanently</button>
         </div>
     </div>
 </div>
@@ -291,7 +291,7 @@
             (a.phone || '').toLowerCase().includes(q));
 
         const tbody = document.getElementById('accountant-table-body');
-        if (!filtered.length) { tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-light);">No accountants found.</td></tr>`; return; }
+        if (!filtered.length) { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-light);">No accountants found.</td></tr>`; return; }
 
         tbody.innerHTML = filtered.map(a => `<tr>
             <td><strong>${a.fullName || '—'}</strong></td>
@@ -299,7 +299,65 @@
             <td><small>${a.phone || '—'}</small></td>
             <td><small>${a.createdAt ? new Date(a.createdAt).toLocaleDateString() : '—'}</small></td>
             <td>${a.linkedBusinessCount ?? 0}</td>
+            <td style="text-align:center; white-space:nowrap;">
+                <button class="btn btn-outline btn-small" onclick="openAccountantDetailModal('${a.userId}')">View</button>
+                <button class="btn btn-outline btn-small" onclick="loginAsAccountant('${a.userId}')">Login as Accountant</button>
+                <button class="btn btn-danger btn-small" onclick="openAccountantDeleteModal('${a.userId}')">Delete</button>
+            </td>
         </tr>`).join('');
+    }
+
+    async function loginAsAccountant(userId) {
+        const btn = event.target;
+        const originalText = btn.innerText;
+        // Same "open the tab before awaiting anything" fix as loginAsOwner —
+        // see the comment in that function for why this order matters on phones.
+        const newTab = window.open('', '_blank');
+        btn.innerText = 'Signing in…';
+        btn.disabled = true;
+        try {
+            const data = await callAdminFunction('admin-login-as-accountant', { userId });
+            localStorage.setItem('neba_admin_impersonation_handoff_accountant', JSON.stringify({
+                hashedToken: data.hashedToken,
+                fullName: data.fullName,
+                issuedAt: Date.now(),
+            }));
+            if (newTab) {
+                newTab.location.href = './accountant.html';
+            } else {
+                alert('Your browser blocked the new tab. Please allow pop-ups for this site and try again.');
+            }
+        } catch (err) {
+            if (newTab) newTab.close();
+            alert(`Could not log in as accountant: ${err.message}`);
+        } finally {
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+    }
+
+    async function openAccountantDetailModal(userId) {
+        document.getElementById('detail-modal-content').innerHTML = 'Loading...';
+        document.getElementById('detail-modal').classList.add('active');
+        try {
+            const data = await callAdminFunction('admin-accountant-detail', { userId });
+            const a = data.accountant;
+            document.getElementById('detail-modal-content').innerHTML = `
+                <h3>${a.fullName || '—'}</h3>
+                <p style="font-size:13px; color:var(--text-light); margin-top:-8px;">${a.email || ''} · ${a.phone || '—'} · Signed up ${new Date(a.createdAt).toLocaleDateString()}</p>
+                <h3 style="font-size:14px; margin-top:16px;">Linked Businesses (${data.links.length})</h3>
+                <table style="margin-bottom:16px;"><tbody>
+                    ${data.links.map(l => `<tr><td>${l.businessName}</td><td>${statusBadge(l.status)}</td><td><small>${new Date(l.createdAt).toLocaleDateString()}</small></td></tr>`).join('') || '<tr><td colspan="3" style="color:var(--text-light);">None yet</td></tr>'}
+                </tbody></table>
+                <h3 style="font-size:14px;">Manually-Added Clients (${data.clients.length})</h3>
+                <table><tbody>
+                    ${data.clients.map(c => `<tr><td>${c.name}</td><td><small>${c.tin || '—'}</small></td><td>${c.linkedBusinessId ? '<small style="color:var(--success);">Linked</small>' : '<small style="color:var(--text-light);">Not linked</small>'}</td></tr>`).join('') || '<tr><td colspan="3" style="color:var(--text-light);">None yet</td></tr>'}
+                </tbody></table>
+                <div style="text-align:right; margin-top:16px;"><button class="btn btn-outline" onclick="closeDetailModal()">Close</button></div>
+            `;
+        } catch (err) {
+            document.getElementById('detail-modal-content').innerHTML = `<p style="color:var(--danger);">Could not load details: ${err.message}</p><div style="text-align:right;"><button class="btn btn-outline" onclick="closeDetailModal()">Close</button></div>`;
+        }
     }
 
     function openPlansModal() {
@@ -515,29 +573,60 @@
         }
     }
 
+    // currentDeleteTarget tracks which kind of thing the confirm-name delete
+    // modal is currently pointed at, since one shared modal now handles both
+    // businesses and accountants.
+    let currentDeleteTarget = null;
+
     function openDeleteModal(businessId) {
         const biz = businesses.find(b => b.id === businessId);
         if (!biz) return;
-        currentEditBusinessId = businessId;
+        currentDeleteTarget = { type: 'business', id: businessId, name: biz.businessName };
+        document.getElementById('delete-modal-title').innerText = 'Permanently Delete Business';
+        document.getElementById('delete-modal-desc').innerHTML = `This deletes <strong id="delete-modal-business-name">${biz.businessName}</strong> and <u>every</u> branch, sale, purchase, expense, employee, and record tied to it. This cannot be undone.`;
+        document.getElementById('delete-modal-confirm-label').innerText = "Type the business's exact name to confirm:";
         document.getElementById('delete-modal-error').style.display = 'none';
-        document.getElementById('delete-modal-business-name').innerText = biz.businessName;
         document.getElementById('delete-confirm-input').value = '';
         document.getElementById('delete-confirm-input').placeholder = biz.businessName;
         document.getElementById('delete-modal').classList.add('active');
     }
+
+    function openAccountantDeleteModal(userId) {
+        const acct = accountants.find(a => a.userId === userId);
+        if (!acct) return;
+        currentDeleteTarget = { type: 'accountant', id: userId, name: acct.fullName };
+        document.getElementById('delete-modal-title').innerText = 'Permanently Delete Accountant';
+        document.getElementById('delete-modal-desc').innerHTML = `This deletes <strong id="delete-modal-business-name">${acct.fullName}</strong>'s profile, every link they have with a business, their notes, and their login account. It does <u>not</u> delete any business's own data. This cannot be undone.`;
+        document.getElementById('delete-modal-confirm-label').innerText = "Type the accountant's exact full name to confirm:";
+        document.getElementById('delete-modal-error').style.display = 'none';
+        document.getElementById('delete-confirm-input').value = '';
+        document.getElementById('delete-confirm-input').placeholder = acct.fullName;
+        document.getElementById('delete-modal').classList.add('active');
+    }
+
     function closeDeleteModal() { document.getElementById('delete-modal').classList.remove('active'); }
 
-    async function submitDeleteBusiness() {
+    async function submitDelete() {
         const errBox = document.getElementById('delete-modal-error');
         errBox.style.display = 'none';
-        const biz = businesses.find(b => b.id === currentEditBusinessId);
+        if (!currentDeleteTarget) return;
         try {
-            await callAdminFunction('admin-delete-business', {
-                businessId: currentEditBusinessId,
-                confirmName: document.getElementById('delete-confirm-input').value,
-            });
-            closeDeleteModal();
-            await loadEverything();
+            if (currentDeleteTarget.type === 'accountant') {
+                await callAdminFunction('admin-delete-accountant', {
+                    userId: currentDeleteTarget.id,
+                    confirmName: document.getElementById('delete-confirm-input').value,
+                });
+                closeDeleteModal();
+                accountantsLoaded = false;
+                await loadAccountants();
+            } else {
+                await callAdminFunction('admin-delete-business', {
+                    businessId: currentDeleteTarget.id,
+                    confirmName: document.getElementById('delete-confirm-input').value,
+                });
+                closeDeleteModal();
+                await loadEverything();
+            }
         } catch (err) {
             errBox.innerText = err.message;
             errBox.style.display = 'block';
