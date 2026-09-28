@@ -76,22 +76,46 @@
     <div class="container">
         <div class="stat-grid" id="platform-stats" style="margin-bottom:20px;"></div>
 
-        <div class="card">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 14px;">
-                <h2 style="border:none; margin-bottom:0;">Registered Businesses</h2>
-                <div style="display:flex; gap:10px;">
-                    <button class="btn btn-outline" onclick="openPlansModal()">Manage Plans</button>
-                    <input type="text" id="business-search" placeholder="Search by name, phone, owner..." style="max-width:260px;" oninput="renderBusinessTable()">
+        <div style="display:flex; gap:8px; margin-bottom:16px;">
+            <button class="btn" id="nav-tab-businesses" onclick="switchAdminPage('businesses')">Businesses</button>
+            <button class="btn btn-outline" id="nav-tab-accountants" onclick="switchAdminPage('accountants')">Accountants</button>
+        </div>
+
+        <div id="page-businesses">
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 14px;">
+                    <h2 style="border:none; margin-bottom:0;">Registered Businesses</h2>
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn btn-outline" onclick="openPlansModal()">Manage Plans</button>
+                        <input type="text" id="business-search" placeholder="Search by name, phone, owner..." style="max-width:260px;" oninput="renderBusinessTable()">
+                    </div>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead><tr>
+                            <th>Business</th><th>Owner</th><th>Signed Up</th><th>Branches</th><th>Team</th>
+                            <th>Plan</th><th>Status</th><th>Expires</th><th style="text-align:center;">Actions</th>
+                        </tr></thead>
+                        <tbody id="business-table-body"></tbody>
+                    </table>
                 </div>
             </div>
-            <div style="overflow-x:auto;">
-                <table>
-                    <thead><tr>
-                        <th>Business</th><th>Owner</th><th>Signed Up</th><th>Branches</th><th>Team</th>
-                        <th>Plan</th><th>Status</th><th>Expires</th><th style="text-align:center;">Actions</th>
-                    </tr></thead>
-                    <tbody id="business-table-body"></tbody>
-                </table>
+        </div>
+
+        <div id="page-accountants" style="display:none;">
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 14px;">
+                    <h2 style="border:none; margin-bottom:0;">Registered Accountants</h2>
+                    <input type="text" id="accountant-search" placeholder="Search by name, phone, email..." style="max-width:260px;" oninput="renderAccountantTable()">
+                </div>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead><tr>
+                            <th>Name</th><th>Email</th><th>Phone</th><th>Signed Up</th><th>Linked Businesses</th>
+                        </tr></thead>
+                        <tbody id="accountant-table-body"><tr><td colspan="5" style="text-align:center; color:var(--text-light);">Loading…</td></tr></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -177,6 +201,8 @@
     let businesses = [];
     let plans = [];
     let currentEditBusinessId = null;
+    let accountants = [];
+    let accountantsLoaded = false;
 
     async function callAdminFunction(name, body = {}) {
         const { data: { session } } = await supabaseClient.auth.getSession();
@@ -231,6 +257,49 @@
         businesses = listResult.businesses || [];
         renderPlatformStats();
         renderBusinessTable();
+    }
+
+    // --- PAGE SWITCHING (Businesses vs Accountants) ---
+    async function switchAdminPage(page) {
+        const isBusinesses = page === 'businesses';
+        document.getElementById('page-businesses').style.display = isBusinesses ? 'block' : 'none';
+        document.getElementById('page-accountants').style.display = isBusinesses ? 'none' : 'block';
+        document.getElementById('nav-tab-businesses').className = isBusinesses ? 'btn' : 'btn btn-outline';
+        document.getElementById('nav-tab-accountants').className = isBusinesses ? 'btn btn-outline' : 'btn';
+        if (!isBusinesses && !accountantsLoaded) {
+            await loadAccountants();
+        }
+    }
+
+    async function loadAccountants() {
+        const tbody = document.getElementById('accountant-table-body');
+        try {
+            const data = await callAdminFunction('admin-list-accountants');
+            accountants = data.accountants || [];
+            accountantsLoaded = true;
+            renderAccountantTable();
+        } catch (err) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--danger);">Could not load accountants: ${err.message}</td></tr>`;
+        }
+    }
+
+    function renderAccountantTable() {
+        const q = document.getElementById('accountant-search').value.toLowerCase().trim();
+        const filtered = accountants.filter(a => !q ||
+            (a.fullName || '').toLowerCase().includes(q) ||
+            (a.email || '').toLowerCase().includes(q) ||
+            (a.phone || '').toLowerCase().includes(q));
+
+        const tbody = document.getElementById('accountant-table-body');
+        if (!filtered.length) { tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-light);">No accountants found.</td></tr>`; return; }
+
+        tbody.innerHTML = filtered.map(a => `<tr>
+            <td><strong>${a.fullName || '—'}</strong></td>
+            <td class="truncate" title="${a.email || ''}"><small>${a.email || '—'}</small></td>
+            <td><small>${a.phone || '—'}</small></td>
+            <td><small>${a.createdAt ? new Date(a.createdAt).toLocaleDateString() : '—'}</small></td>
+            <td>${a.linkedBusinessCount ?? 0}</td>
+        </tr>`).join('');
     }
 
     function openPlansModal() {
@@ -341,6 +410,14 @@
     async function loginAsOwner(businessId) {
         const btn = event.target;
         const originalText = btn.innerText;
+        // Open the tab RIGHT NOW, synchronously, while we're still inside the
+        // click handler. Phones (iOS Safari, mobile Chrome, etc.) only allow
+        // window.open to succeed when it happens in direct response to a tap —
+        // if we wait for the network request below to finish first, the tap
+        // has "expired" and the browser silently blocks the new tab. So we
+        // open a blank tab immediately, then fill in its address once we have
+        // the token.
+        const newTab = window.open('', '_blank');
         btn.innerText = 'Signing in…';
         btn.disabled = true;
         try {
@@ -354,8 +431,16 @@
                 businessName: data.businessName,
                 issuedAt: Date.now(),
             }));
-            window.open('./index.html', '_blank');
+            if (newTab) {
+                newTab.location.href = './index.html';
+            } else {
+                // Pop-up blocked even with the synchronous open (rare, but
+                // some browsers block ALL pop-ups outright). Fall back to
+                // telling the admin what to do instead of failing silently.
+                alert('Your browser blocked the new tab. Please allow pop-ups for this site and try again.');
+            }
         } catch (err) {
+            if (newTab) newTab.close();
             alert(`Could not log in as owner: ${err.message}`);
         } finally {
             btn.innerText = originalText;
