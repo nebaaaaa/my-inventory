@@ -8808,6 +8808,11 @@
                 supabaseClient.from('trash').select('*').eq('tenant_id', tid),
                 supabaseClient.from('notifications').select('*').eq('tenant_id', tid).order('id', { ascending: false })
             ]);
+            // If ANY of these failed (lost connection, expired login, etc.) the
+            // old code quietly used an empty list and produced an empty backup.
+            // Now a failed read stops the backup instead.
+            const failedRead = [biz, items, lots, sales, purchases, expenses, journal, trash, notifs].find(r => r.error);
+            if (failedRead) throw failedRead.error;
             return {
                 categories: biz.data?.categories || [],
                 customAccounts: biz.data?.custom_accounts || [],
@@ -8842,14 +8847,66 @@
             };
         }
 
+        // True when a backup holds none of the shop's real records.
+        function backupIsEmpty(b) {
+            if (!b) return true;
+            return ['inventory', 'salesLog', 'purchaseLog', 'expenseLog', 'journal'].every(k => !Array.isArray(b[k]) || b[k].length === 0);
+        }
+
+        // Builds a backup from the copy of the data kept on THIS device
+        // (used when there's no internet). It includes changes that haven't
+        // reached the cloud yet. It can only be trusted when the device
+        // holds the whole business, i.e. "All Branches" is selected.
+        function buildOfflineBackupFromDevice() {
+            if (currentBranchId !== 'all') {
+                throw new Error('You are offline, and this device only holds the data of ONE branch, so the backup would be incomplete. Connect to the internet to back up, or switch to "All Branches" first.');
+            }
+            const cached = loadCachedStateLocally();
+            return {
+                categories: state.categories || [],
+                customAccounts: state.customAccounts || [],
+                saleTypes: state.saleTypes || [],
+                inventory: state.inventory || [],
+                salesLog: state.salesLog || [],
+                purchaseLog: state.purchaseLog || [],
+                expenseLog: state.expenseLog || [],
+                journal: state.journal || [],
+                trash: state.trash || [],
+                notifications: state.notifications || [],
+                _backupInfo: {
+                    source: 'offline-device-copy',
+                    createdAt: new Date().toISOString(),
+                    deviceDataLastSyncedAt: cached?.savedAt || null
+                }
+            };
+        }
+
         async function exportBackupData() {
             const btn = document.getElementById('btn-backup');
             if (btn) { btn.disabled = true; btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Preparing...'; }
             try {
-                const fullBackup = await buildFullBusinessBackup();
+                let fullBackup;
+                let fromDevice = false;
+                if (!navigator.onLine) {
+                    fullBackup = buildOfflineBackupFromDevice();
+                    fromDevice = true;
+                } else {
+                    try {
+                        fullBackup = await buildFullBusinessBackup();
+                    } catch (err) {
+                        // Connection dropped mid-backup: fall back to the device copy.
+                        if (looksLikeNetworkError(err)) { fullBackup = buildOfflineBackupFromDevice(); fromDevice = true; }
+                        else throw err;
+                    }
+                }
+                if (backupIsEmpty(fullBackup)) {
+                    alert('Nothing was saved: there is no data to back up (the backup would be empty). If you expected data here, check your connection, refresh the page and try again.');
+                    return;
+                }
                 let blob = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(fullBackup));
                 const safeBizName = (currentTenantName || 'Shop').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-                let a = document.createElement('a'); a.setAttribute("href", blob); a.setAttribute("download", `My_Inventory_Backup_${safeBizName}_${new Date().toISOString().split('T')[0]}.json`); a.click();
+                let a = document.createElement('a'); a.setAttribute("href", blob); a.setAttribute("download", `My_Inventory_Backup_${safeBizName}_${new Date().toISOString().split('T')[0]}${fromDevice ? '_OFFLINE' : ''}.json`); a.click();
+                if (fromDevice) alert('Backup saved from the copy on this device (you are offline). It may not include changes made on other devices. Please make a normal backup again once you are online.');
             } catch (err) {
                 alert('Could not prepare the backup: ' + err.message);
             } finally {
@@ -8867,6 +8924,12 @@
                         imported = JSON.parse(ev.target.result);
                     } catch (err) {
                         return alert("Invalid File — this doesn't look like a valid backup (.json) file.");
+                    }
+                    if (backupIsEmpty(imported)) {
+                        return alert('This backup file is empty (it has no sales, purchases, stock or expenses). Restoring it would erase your data, so it was NOT restored.');
+                    }
+                    if (imported._backupInfo?.source === 'offline-device-copy') {
+                        if (!(await uiConfirm('This backup was made while offline from one device\'s copy. It may be missing newer changes made on other devices, and restoring REPLACES everything. Restore anyway?', { title: 'Offline backup', danger: true, yes: 'Yes, restore anyway', no: 'No' }))) return;
                     }
                     if (!(await uiConfirm('This will REPLACE ALL current data of this shop (every branch) with the data in the backup file. Do you want to continue?', { title: 'Restore this backup?', danger: true, yes: 'Yes, restore', no: 'No' }))) return;
                     try {
