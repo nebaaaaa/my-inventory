@@ -9671,7 +9671,7 @@
             if (targetName && hasBackup) {
                 document.getElementById('impersonation-target-name').innerText = targetName;
                 document.getElementById('impersonation-banner').style.display = 'block';
-                document.body.style.paddingTop = '42px';
+                layoutImpersonationBanners();
             }
         }
 
@@ -9711,8 +9711,28 @@
             if (sessionStorage.getItem('neba_admin_impersonation_active') !== '1') return;
             document.getElementById('admin-impersonation-business-name').innerText = sessionStorage.getItem('neba_admin_impersonation_business') || 'this business';
             document.getElementById('admin-impersonation-banner').style.display = 'block';
-            document.body.style.paddingTop = '42px';
+            layoutImpersonationBanners();
         }
+
+        // Stacks the two top banners so they never cover each other:
+        // the red admin banner sits at the very top, and the amber
+        // "Viewing as employee" banner sits directly underneath it.
+        // The page is pushed down by the total height of whatever is showing.
+        function layoutImpersonationBanners() {
+            const adminBar = document.getElementById('admin-impersonation-banner');
+            const empBar = document.getElementById('impersonation-banner');
+            let offset = 0;
+            if (adminBar && adminBar.style.display !== 'none') {
+                adminBar.style.top = '0px';
+                offset += adminBar.offsetHeight;
+            }
+            if (empBar && empBar.style.display !== 'none') {
+                empBar.style.top = offset + 'px';
+                offset += empBar.offsetHeight;
+            }
+            document.body.style.paddingTop = offset + 'px';
+        }
+        window.addEventListener('resize', layoutImpersonationBanners);
 
         // Ends the support session outright — there's no admin account inside
         // this tenant to "return" to, so this is a full sign-out, not a

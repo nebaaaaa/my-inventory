@@ -199,7 +199,11 @@
 <script>
     const SUPABASE_URL = "https://nwkrrcatdhppvlceuzwg.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im53a3JyY2F0ZGhwcHZsY2V1endnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzMjEzNjUsImV4cCI6MjA5OTg5NzM2NX0.kELqbONKGQIs2Z99Zx8rEcwuYekTCugLYtbsYW3_0h8";
-    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        // Give the admin page its own storage slot so that "Login as Owner" tabs
+        // (index.html) can't overwrite or wipe the admin's saved login.
+        auth: { storageKey: 'neba-admin-auth' }
+    });
 
     let businesses = [];
     let plans = [];
