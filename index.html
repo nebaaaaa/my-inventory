@@ -308,6 +308,12 @@
         body.row-drag-on { cursor: grabbing; -webkit-user-select: none; user-select: none; }
         .p-modal-form .form-group { display: block; width: 100%; margin-right: 0; margin-bottom: 14px; }
         .p-modal-form .form-group input { width: 100%; min-width: 0; box-sizing: border-box; }
+
+        /* ---- Edge-to-edge layout: no chunky card borders, minimal side gutters ---- */
+        .view-panel { padding: 10px 6px; }
+        .card { border: none; border-radius: 0; box-shadow: none; padding: 14px 10px; margin-bottom: 10px; }
+        .modal-overlay .card, #bulk-overlay .card { border-radius: 12px; box-shadow: var(--shadow-lg); padding: 20px; }
+        @media (min-width: 769px) { .view-panel { padding: 14px 10px; } .card { padding: 16px 14px; } }
     </style>
 </head>
 <body onclick="closeNotifPanelOutside(event)">
