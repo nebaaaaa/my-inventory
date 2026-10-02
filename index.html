@@ -314,6 +314,17 @@
         .card { border: none; border-radius: 0; box-shadow: none; padding: 14px 10px; margin-bottom: 10px; }
         .modal-overlay .card, #bulk-overlay .card { border-radius: 12px; box-shadow: var(--shadow-lg); padding: 20px; }
         @media (min-width: 769px) { .view-panel { padding: 14px 10px; } .card { padding: 16px 14px; } }
+
+        /* ---- Phones: keep table headers pinned while scrolling ----
+           The older phone rule turned every <table> into its own scroll box,
+           which made headers stick to the table instead of the scrolling area.
+           Tables inside .table-scroll go back to normal (the wrapper scrolls),
+           and all other tables get their own height limit so the header can pin. */
+        @media (max-width: 768px) {
+            table { max-height: 65vh; overflow: auto; }
+            thead th { position: sticky; top: 0; z-index: 2; background: var(--bg); }
+            .table-scroll table { display: table; max-width: none; max-height: none; overflow: visible; }
+        }
     </style>
 </head>
 <body onclick="closeNotifPanelOutside(event)">
