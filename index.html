@@ -299,6 +299,12 @@
         @keyframes mlyIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
         @keyframes mlyFade { from { opacity: 0; } to { opacity: 1; } }
         @media (prefers-reduced-motion: reduce) { .mly-toast, .mly-overlay, .mly-spin { animation: none; } }
+    
+        #inventory-table-body tr { -webkit-touch-callout: none; }
+        #inventory-table-body td { -webkit-user-select: none; user-select: none; }
+        #inventory-table-body input { -webkit-user-select: text; user-select: text; }
+        #inventory-table-body tr.row-dragging { background: #dbe7ff !important; box-shadow: 0 4px 14px rgba(0,0,0,.3); opacity: .92; }
+        body.row-drag-on { cursor: grabbing; }
     </style>
 </head>
 <body onclick="closeNotifPanelOutside(event)">
@@ -720,12 +726,16 @@
             </div>
 
             <div id="view-inventory" class="view-panel">
+                <div id="inv-bulk-bar" style="display:flex; justify-content:flex-end; margin-bottom:10px;"><button type="button" class="btn" onclick="openBulkImport()">Add in bulk</button></div>
                 <div class="card" id="inventory-def-card">
-                    <h2 id="inv-title" data-i18n="inv.add_product">Add Product</h2>
+                    <h2 id="inv-title" data-i18n="inv.add_product">Add new products</h2>
                     <form id="inventory-def-form" onsubmit="handleDefineProduct(event)">
                         <input type="hidden" id="edit-index" value="">
                         <div class="form-group"><label data-i18n="inv.category">Category</label><input type="text" id="p-category" list="category-list" required autocomplete="off"><datalist id="category-list"></datalist></div>
                         <div class="form-group"><label data-i18n="inv.product_name">Product Name</label><input type="text" id="p-desc" required></div>
+                        <div class="form-group p-stock-group"><label>Quantity</label><input type="number" id="p-qty" min="1" step="1" inputmode="numeric" required></div>
+                        <div class="form-group p-stock-group"><label>Cost Price (ETB per unit)</label><input type="number" id="p-cost" min="0.01" step="0.01" inputmode="decimal" required></div>
+                        <div class="form-group p-stock-group"><label>Supplier Name (optional)</label><input type="text" id="p-supplier" list="supplier-list" autocomplete="off" placeholder="Leave blank if none"></div>
                         <div class="form-group" id="p-daily-rate-group" style="display:none;"><label>Daily Rate (ETB)</label><input type="number" id="p-daily-rate" step="0.01" min="0"></div>
                         <div class="form-group" id="p-weekly-rate-group" style="display:none;"><label>Weekly Rate (ETB, optional)</label><input type="number" id="p-weekly-rate" step="0.01" min="0"></div>
                         <div class="form-group" id="p-monthly-rate-group" style="display:none;"><label>Monthly Rate (ETB, optional)</label><input type="number" id="p-monthly-rate" step="0.01" min="0"></div>
@@ -1986,7 +1996,7 @@
                 'dash.estimated_vat': 'Estimated VAT',
 
 
-                'inv.add_product': 'Add Product', 'inv.category': 'Category', 'inv.product_name': 'Product Name',
+                'inv.add_product': 'Add new products', 'inv.category': 'Category', 'inv.product_name': 'Product Name',
                 'inv.stock_list': 'Stock List', 'inv.search_category': 'Search Category', 'inv.search_name': 'Search Name',
                 'inv.item_spec': 'Item Specification / Name', 'inv.qty_on_hand': 'Qty On Hand',
                 'inv.cost_layers': 'Cost Price (ETB)', 'inv.selling_price': 'Selling Price (ETB)',
@@ -2247,7 +2257,7 @@
                 'dash.estimated_vat': 'የተገመተ ቫት',
 
 
-                'inv.add_product': 'ምርት ጨምር', 'inv.category': 'ምድብ', 'inv.product_name': 'የምርት ስም',
+                'inv.add_product': 'አዲስ ምርት ጨምር', 'inv.category': 'ምድብ', 'inv.product_name': 'የምርት ስም',
                 'inv.stock_list': 'የክምችት ዝርዝር', 'inv.search_category': 'ምድብ ፈልግ', 'inv.search_name': 'ስም ፈልግ',
                 'inv.item_spec': 'የዕቃ ዝርዝር / ስም', 'inv.qty_on_hand': 'በእጅ ያለ ብዛት',
                 'inv.cost_layers': 'የግዢ ዋጋ (ETB)', 'inv.selling_price': 'የሽያጭ ዋጋ (ETB)',
@@ -2851,7 +2861,7 @@
             if (accountingToggle) accountingToggle.style.display = accountingGroupVisible ? 'flex' : 'none';
 
             const cardRules = {
-                'inventory-def-card': hasPerm('inventory.edit_products'),
+                'inventory-def-card': hasPerm('inventory.edit_products'), 'inv-bulk-bar': hasPerm('inventory.edit_products') && hasPerm('inventory.view_cost'),
                 'sales-entry-card': hasPerm('sales.create'),
                 'purchase-entry-card': hasPerm('purchase.create'),
                 'expense-entry-card': hasPerm('expense.create'),
@@ -5955,6 +5965,7 @@
 
         // --- INVENTORY ---
         function renderPerpetualInventoryTable() {
+            applySavedInventoryOrder(); initInventoryRowDrag();
             const tbody = document.getElementById('inventory-table-body'); tbody.innerHTML = '';
             const cf = document.getElementById('inv-filter-category').value.toLowerCase().trim();
             const nf = document.getElementById('inv-filter-name').value.toLowerCase().trim();
@@ -6007,7 +6018,7 @@
                     }
                 }
 
-                tbody.innerHTML += `<tr style="${rowBg}">
+                tbody.innerHTML += `<tr data-item-id="${item.id}" style="${rowBg}">
                     <td><small>${item.category}</small></td>
                     <td><strong>${item.desc}</strong>${item.history&&item.history.length>0?'<span class="audit-badge badge-edited">EDITED</span>':''}</td>
                     <td class="num">${tQ}</td><td class="num price-trace">${canSeeCost ? cL : '—'}</td>
@@ -6543,7 +6554,200 @@
             renderPerpetualInventoryTable();
         }
 
-        function handleDefineProduct(e) {
+        // ---------- Add product WITH opening stock (single + bulk use this) ----------
+        // Same accounting as the opening-inventory screen: stock goes in at cost,
+        // funded as owner capital (no cash/bank balance changes).
+        function setProductFormMode(isEdit) {
+            const show = !isEdit && hasPerm('inventory.view_cost');
+            document.querySelectorAll('.p-stock-group').forEach(g => g.style.display = show ? '' : 'none');
+            ['p-qty', 'p-cost'].forEach(id => { document.getElementById(id).required = show; });
+            const bar = document.getElementById('inv-bulk-bar');
+            if (bar) bar.style.display = currentBusinessType === 'appliance_rental' ? 'none' : 'flex';
+        }
+
+        async function addProductsWithStock(list) {
+            const branchId = await resolveTransactionBranch();
+            if (!branchId) return false;
+            writeBranchId = branchId;
+            const date = new Date().toISOString().slice(0, 10);
+            const invAcc = currentBusinessType === 'appliance_rental' ? '1500' : '1200';
+            let catsChanged = false;
+            list.forEach(c => { if (!state.categories.includes(c.category)) { state.categories.push(c.category); catsChanged = true; } });
+            if (catsChanged) { syncCategoriesDatalist(); queueWrite({ kind: 'tenant_update', patch: { categories: state.categories } }); }
+            const bySup = {};
+            list.forEach(c => { (bySup[c.supplier || 'N/A'] = bySup[c.supplier || 'N/A'] || []).push(c); });
+            let n = 0, grand = 0;
+            for (const [sup, items] of Object.entries(bySup)) {
+                const gid = items.length > 1 ? `GRP-${Date.now().toString().slice(-6)}${n}` : undefined;
+                const total = items.reduce((s, c) => s + c.qty * c.cost, 0), rows = [];
+                items.forEach((c, i) => {
+                    const lotId = `PR-${Date.now().toString().slice(-5)}-${n}-${i}`;
+                    const item = { id: crypto.randomUUID(), category: c.category, desc: c.desc, sellingPrice: c.sellingPrice || 0, lots: [], history: [], dailyRate: c.dailyRate ?? null, weeklyRate: c.weeklyRate ?? null, monthlyRate: c.monthlyRate ?? null };
+                    const lot = { id: lotId, qty: c.qty, cost: c.cost, branchId, expiry: null };
+                    item.lots.push(lot); state.inventory.push(item);
+                    queueWrite({ kind: 'insert', table: 'inventory_items', row: toDbInventoryItem(item) });
+                    queueWrite({ kind: 'insert', table: 'inventory_lots', row: toDbLot(item.id, lot) });
+                    const lt = c.qty * c.cost, first = i === 0;
+                    const row = { id: lotId, date, supplier: sup, desc: `[${c.category}] ${c.desc}`, qty: c.qty, cost: c.cost, total: lt, channel: 'Mobile banking', paid: true, paidChannel: 'Mobile banking', amountPaid: first ? total : lt, payments: first ? [{ date, amount: total, channel: 'Mobile banking' }] : [], branchId, groupId: gid };
+                    rows.push(row); state.purchaseLog.push(row);
+                    queueWrite({ kind: 'insert', table: 'purchase_log', row: toDbPurchase(row) });
+                });
+                const pj = { id: rows[0].id, date, desc: stampDesc(items.length > 1 ? `Multi-Item Purchase: ${items.length} items / Supp: ${sup}` : `Purchase: ${items[0].qty}x ${items[0].desc} / Supp: ${sup}`), lines: [{ account: invAcc, dr: total, cr: 0 }, { account: '1020', cr: total, dr: 0 }], branchId };
+                const cj = { id: `CAP-${Date.now().toString().slice(-5)}${n}`, date, desc: stampDesc(`Owner Capital Injection: New Stock Funding (${items.length} items)`), lines: [{ account: '1020', dr: total, cr: 0 }, { account: '3010', cr: total, dr: 0 }], branchId };
+                [pj, cj].forEach(j => { state.journal.push(j); queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(j) }); });
+                n++; grand += total;
+            }
+            addNotification('Product Added', `Added ${list.length} product(s) with stock worth ETB ${grand.toFixed(2)}.`);
+            try { syncTransactionalProductDropdownOptions(); renderPurchaseLogTable(); } catch (e) {}
+            return true;
+        }
+
+        // ---------- Press-and-hold to reorder stock rows (order saved on this device) ----------
+        function applySavedInventoryOrder() {
+            try {
+                const o = JSON.parse(localStorage.getItem('neba_inv_order_' + currentTenantId) || '[]');
+                if (!o.length) return;
+                const pos = new Map(o.map((id, i) => [id, i]));
+                state.inventory.sort((a, b) => (pos.has(a.id) ? pos.get(a.id) : 1e9) - (pos.has(b.id) ? pos.get(b.id) : 1e9));
+            } catch (e) {}
+        }
+        function saveInventoryOrderFromDom() {
+            const ids = [...document.querySelectorAll('#inventory-table-body tr[data-item-id]')].map(r => r.dataset.itemId);
+            const pos = new Map(ids.map((id, i) => [id, i]));
+            state.inventory.sort((a, b) => pos.get(a.id) - pos.get(b.id));
+            try { localStorage.setItem('neba_inv_order_' + currentTenantId, JSON.stringify(ids)); } catch (e) {}
+            renderPerpetualInventoryTable();
+        }
+        function initInventoryRowDrag() {
+            const tb = document.getElementById('inventory-table-body');
+            if (!tb || tb.dataset.drag) return;
+            tb.dataset.drag = '1';
+            let timer = null, row = null, active = false, sx = 0, sy = 0;
+            const end = save => {
+                clearTimeout(timer);
+                const was = active; if (row) row.classList.remove('row-dragging');
+                document.body.classList.remove('row-drag-on'); row = null; active = false;
+                if (was && save) saveInventoryOrderFromDom();
+            };
+            tb.addEventListener('pointerdown', e => {
+                if (!hasPerm('inventory.edit_products') || e.button > 0) return;
+                if (document.getElementById('inv-filter-category').value || document.getElementById('inv-filter-name').value) return;
+                if (e.target.closest('input,button,select,a,.pharm-col')) return;
+                const tr = e.target.closest('tr[data-item-id]'); if (!tr) return;
+                row = tr; sx = e.clientX; sy = e.clientY;
+                timer = setTimeout(() => { active = true; tr.classList.add('row-dragging'); document.body.classList.add('row-drag-on'); if (navigator.vibrate) navigator.vibrate(30); }, 400);
+            });
+            document.addEventListener('pointermove', e => {
+                if (!row) return;
+                if (!active) { if (Math.hypot(e.clientX - sx, e.clientY - sy) > 8) { clearTimeout(timer); row = null; } return; }
+                const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('#inventory-table-body tr[data-item-id]');
+                if (over && over !== row) { const r = over.getBoundingClientRect(); over.parentNode.insertBefore(row, e.clientY < r.top + r.height / 2 ? over : over.nextSibling); }
+                if (e.clientY < 60) window.scrollBy(0, -12); else if (e.clientY > window.innerHeight - 60) window.scrollBy(0, 12);
+            });
+            document.addEventListener('pointerup', () => end(true));
+            document.addEventListener('pointercancel', () => end(false));
+            document.addEventListener('touchmove', e => { if (active) e.preventDefault(); }, { passive: false });
+            tb.addEventListener('contextmenu', e => { if (row || active) e.preventDefault(); });
+        }
+
+        // ---------- Add in bulk (Excel / CSV import with column matching) ----------
+        const BULK_FIELDS = [
+            { k: 'category', label: 'Category', syn: ['category', 'cat', 'type', 'group', 'class', 'ምድብ'] },
+            { k: 'desc', label: 'Product Name', req: 1, syn: ['product name', 'item name', 'product', 'item', 'name', 'description', 'goods', 'article', 'material', 'የምርት ስም', 'ምርት'] },
+            { k: 'qty', label: 'Quantity', req: 1, syn: ['quantity', 'qty', 'stock', 'on hand', 'units', 'count', 'pcs', 'balance', 'ብዛት'] },
+            { k: 'cost', label: 'Cost Price', req: 1, syn: ['cost price', 'buying price', 'purchase price', 'unit cost', 'unit price', 'cost', 'price', 'rate', 'ዋጋ'] },
+            { k: 'supplier', label: 'Supplier (optional)', syn: ['supplier', 'vendor', 'seller', 'supplied by', 'አቅራቢ'] },
+            { k: 'sellingPrice', label: 'Selling Price (optional)', syn: ['selling price', 'sale price', 'sell price', 'retail price', 'retail', 'mrp'] }
+        ];
+        let bulkWb = null, bulkHeaders = [], bulkData = [], bulkMap = {}, bulkValid = [];
+        const bulkEsc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        const bulkNorm = s => String(s ?? '').toLowerCase().replace(/[^a-z0-9\u1200-\u137F ]+/g, ' ').replace(/\s+/g, ' ').trim();
+        const bulkNum = v => { if (typeof v === 'number') return v; const m = String(v ?? '').replace(/,/g, '').match(/-?\d+(\.\d+)?/); return m ? parseFloat(m[0]) : NaN; };
+
+        function closeBulkImport() { document.getElementById('bulk-overlay')?.remove(); bulkWb = null; }
+        function openBulkImport() {
+            closeBulkImport();
+            const o = document.createElement('div'); o.id = 'bulk-overlay';
+            o.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:6000;display:flex;align-items:flex-start;justify-content:center;padding:20px 12px;overflow-y:auto;';
+            o.innerHTML = `<div class="card" style="max-width:900px;width:100%;margin:0;">
+                <h2>Add in bulk</h2>
+                <p style="font-size:13px;color:var(--text-light);">Choose any Excel or CSV file with your stock. You will match its columns to ours and check everything before anything is saved.</p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
+                    <input type="file" id="bulk-file" accept=".xlsx,.xls,.csv" onchange="bulkLoadFile(this.files[0])">
+                    <button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="bulkDownloadTemplate()">Download template</button>
+                </div>
+                <div id="bulk-body"></div>
+                <div style="text-align:right;margin-top:12px;"><button type="button" class="btn btn-warning" onclick="closeBulkImport()">Cancel</button> <button type="button" class="btn" id="bulk-go" style="display:none;" onclick="bulkCommit()">Import</button></div>
+            </div>`;
+            document.body.appendChild(o);
+        }
+        function bulkDownloadTemplate() {
+            if (typeof XLSX === 'undefined') return alert('Excel tools are still loading. Try again in a moment.');
+            const ws = XLSX.utils.aoa_to_sheet([['Category', 'Product Name', 'Quantity', 'Cost Price', 'Supplier', 'Selling Price'], ['Drinks', 'Mineral Water 1L', 24, 18, 'Abebe Traders', 25]]);
+            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Stock'); XLSX.writeFile(wb, 'stock-template.xlsx');
+        }
+        async function bulkLoadFile(file) {
+            if (!file) return;
+            if (typeof XLSX === 'undefined') return alert('Excel tools are still loading. Try again in a moment.');
+            try { bulkWb = XLSX.read(await file.arrayBuffer(), { type: 'array' }); } catch (e) { return alert('This file could not be read. Please use .xlsx, .xls or .csv.'); }
+            bulkPickSheet(bulkWb.SheetNames[0]);
+        }
+        function bulkPickSheet(name) {
+            const aoa = XLSX.utils.sheet_to_json(bulkWb.Sheets[name], { header: 1, raw: true, defval: '' });
+            const score = r => r.reduce((s, c) => s + (BULK_FIELDS.some(f => f.syn.some(y => bulkNorm(c) === y)) ? 1 : 0), 0);
+            let h = aoa.slice(0, 15).findIndex(r => score(r) >= 2);
+            if (h < 0) h = aoa.findIndex(r => r.filter(c => String(c).trim()).length >= 2);
+            if (h < 0) { document.getElementById('bulk-body').innerHTML = '<p style="color:#c0392b;">No table found in this sheet. It needs a header row and at least one product row.</p>'; document.getElementById('bulk-go').style.display = 'none'; return; }
+            bulkHeaders = aoa[h].map((c, i) => String(c).trim() || `Column ${i + 1}`);
+            bulkData = aoa.slice(h + 1).filter(r => r.some(c => String(c).trim() !== ''));
+            const pairs = [];
+            BULK_FIELDS.forEach(f => bulkHeaders.forEach((c, i) => { const n = bulkNorm(c); let s = 0; f.syn.forEach(y => { if (n === y) s = Math.max(s, 100); else if (n && (n.includes(y) || y.includes(n))) s = Math.max(s, y.length); }); if (s) pairs.push({ k: f.k, i, s }); }));
+            pairs.sort((a, b) => b.s - a.s); bulkMap = {}; const used = new Set();
+            pairs.forEach(p => { if (bulkMap[p.k] === undefined && !used.has(p.i)) { bulkMap[p.k] = p.i; used.add(p.i); } });
+            const opts = k => `<option value="">— none —</option>` + bulkHeaders.map((c, i) => `<option value="${i}" ${bulkMap[k] === i ? 'selected' : ''}>${bulkEsc(c)}</option>`).join('');
+            document.getElementById('bulk-body').innerHTML =
+                (bulkWb.SheetNames.length > 1 ? `<div class="form-group"><label>Sheet</label><select onchange="bulkPickSheet(this.value)">${bulkWb.SheetNames.map(s => `<option ${s === name ? 'selected' : ''}>${bulkEsc(s)}</option>`).join('')}</select></div>` : '') +
+                `<p style="font-size:13px;"><strong>Check the matches</strong> (we guessed from your column names):</p>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">` +
+                BULK_FIELDS.map(f => `<div class="form-group"><label>${f.label}${f.req ? ' *' : ''}</label><select onchange="bulkMap['${f.k}']=this.value===''?undefined:parseInt(this.value);bulkPreview()">${opts(f.k)}</select></div>`).join('') +
+                `<div class="form-group"><label>Category if the sheet has none</label><input type="text" id="bulk-defcat" value="General" oninput="bulkPreview()"></div></div>
+                <div id="bulk-preview" class="table-scroll" style="max-height:300px;overflow:auto;margin-top:10px;"></div>`;
+            bulkPreview();
+        }
+        function bulkPreview() {
+            const g = (r, k) => bulkMap[k] === undefined ? '' : r[bulkMap[k]];
+            const defCat = (document.getElementById('bulk-defcat').value || 'General').trim();
+            const seen = new Set(), out = []; bulkValid = [];
+            bulkData.forEach((r, ri) => {
+                const desc = String(g(r, 'desc')).trim(), category = String(g(r, 'category')).trim() || defCat;
+                const qty = bulkNum(g(r, 'qty')), cost = bulkNum(g(r, 'cost')), supplier = String(g(r, 'supplier')).trim(), sp = bulkNum(g(r, 'sellingPrice'));
+                if (/^(grand |sub ?)?total\b/i.test(desc)) return;
+                let err = '';
+                if (bulkMap.desc === undefined || bulkMap.qty === undefined || bulkMap.cost === undefined) err = 'Match the required (*) columns first';
+                else if (!desc) err = 'No product name';
+                else if (!(qty > 0) || Math.abs(qty - Math.round(qty)) > 1e-9) err = 'Quantity must be a whole number above 0';
+                else if (!(cost > 0)) err = 'Cost price must be above 0';
+                else {
+                    const key = category.toLowerCase() + '|' + desc.toLowerCase();
+                    if (seen.has(key)) err = 'Repeated in this file';
+                    else if (state.inventory.some(i => i.category.toLowerCase() + '|' + i.desc.toLowerCase() === key)) err = 'Already in your stock';
+                    seen.add(key);
+                }
+                if (!err) bulkValid.push({ category, desc, qty: Math.round(qty), cost, supplier: supplier || 'N/A', sellingPrice: sp > 0 ? sp : 0 });
+                out.push(`<tr style="${err ? 'background:#FDECEA;' : ''}"><td>${ri + 1}</td><td>${bulkEsc(category)}</td><td>${bulkEsc(desc)}</td><td class="num">${bulkEsc(g(r, 'qty'))}</td><td class="num">${bulkEsc(g(r, 'cost'))}</td><td>${bulkEsc(supplier)}</td><td>${err ? '<span style="color:#c0392b;">Skipped: ' + err + '</span>' : '✓ Ready'}</td></tr>`);
+            });
+            document.getElementById('bulk-preview').innerHTML = `<p style="font-size:13px;margin:0 0 6px;"><strong>${bulkValid.length}</strong> ready, <strong>${out.length - bulkValid.length}</strong> will be skipped.</p><table><thead><tr><th>#</th><th>Category</th><th>Product</th><th class="num">Qty</th><th class="num">Cost</th><th>Supplier</th><th>Status</th></tr></thead><tbody>${out.slice(0, 300).join('')}</tbody></table>${out.length > 300 ? '<p style="font-size:12px;">Showing the first 300 rows. All ready rows are imported.</p>' : ''}`;
+            const go = document.getElementById('bulk-go'); go.style.display = bulkValid.length ? '' : 'none'; go.innerText = `Import ${bulkValid.length} products`;
+        }
+        async function bulkCommit() {
+            if (!bulkValid.length) return;
+            const list = bulkValid.slice();
+            if (!(await addProductsWithStock(list))) return;
+            closeBulkImport(); renderPerpetualInventoryTable();
+            alert(`${list.length} products added.`);
+        }
+
+        async function handleDefineProduct(e) {
             e.preventDefault();
             const idx = document.getElementById('edit-index').value, cat = document.getElementById('p-category').value.trim(), desc = document.getElementById('p-desc').value.trim();
             const isRental = currentBusinessType === 'appliance_rental';
@@ -6562,10 +6766,19 @@
                 if (state.inventory.find(i => i.desc.toLowerCase()===desc.toLowerCase() && i.category.toLowerCase()===cat.toLowerCase())) {
                     return alert(`Rejection: "${desc}" already exists inside "${cat}".`);
                 }
-                const newItem = { id: crypto.randomUUID(), category: cat, desc, sellingPrice: 0, lots: [], history: [], dailyRate, weeklyRate, monthlyRate };
-                state.inventory.push(newItem);
-                queueWrite({ kind: 'insert', table: 'inventory_items', row: toDbInventoryItem(newItem) });
-                addNotification('Product Added', `Created new master item: [${cat}] ${desc}`);
+                if (document.getElementById('p-qty').required) {
+                    const qty = parseInt(document.getElementById('p-qty').value), cost = parseFloat(document.getElementById('p-cost').value);
+                    if (!qty || qty <= 0) return alert('Enter a valid quantity.');
+                    if (!cost || cost <= 0) return alert('Enter a valid cost price.');
+                    const sup = document.getElementById('p-supplier').value.trim() || 'N/A';
+                    const ok = await addProductsWithStock([{ category: cat, desc, qty, cost, supplier: sup, dailyRate, weeklyRate, monthlyRate }]);
+                    if (!ok) return;
+                } else {
+                    const newItem = { id: crypto.randomUUID(), category: cat, desc, sellingPrice: 0, lots: [], history: [], dailyRate, weeklyRate, monthlyRate };
+                    state.inventory.push(newItem);
+                    queueWrite({ kind: 'insert', table: 'inventory_items', row: toDbInventoryItem(newItem) });
+                    addNotification('Product Added', `Created new master item: [${cat}] ${desc}`);
+                }
             } else {
                 let t = state.inventory[parseInt(idx)];
                 if (state.inventory.find((i, cur) => cur !== parseInt(idx) && i.desc.toLowerCase()===desc.toLowerCase() && i.category.toLowerCase()===cat.toLowerCase())) {
@@ -6597,12 +6810,12 @@
                 document.getElementById('p-weekly-rate').value = i.weeklyRate ?? '';
                 document.getElementById('p-monthly-rate').value = i.monthlyRate ?? '';
             }
-            document.getElementById('inv-btn').innerText = "Save Changes"; document.getElementById('inv-cancel').style.display = "inline-block";
+            document.getElementById('inv-btn').innerText = "Save Changes"; document.getElementById('inv-cancel').style.display = "inline-block"; setProductFormMode(true);
         }
 
         function resetProductForm() {
             document.getElementById('inventory-def-form').reset(); document.getElementById('edit-index').value = "";
-            document.getElementById('inv-btn').innerText = "Add Product"; document.getElementById('inv-cancel').style.display = "none";
+            document.getElementById('inv-btn').innerText = "Add Product"; document.getElementById('inv-cancel').style.display = "none"; setProductFormMode(false);
         }
 
         function launchHistoryPopup(idx) {
