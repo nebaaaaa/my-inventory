@@ -303,8 +303,11 @@
         #inventory-table-body tr { -webkit-touch-callout: none; }
         #inventory-table-body td { -webkit-user-select: none; user-select: none; }
         #inventory-table-body input { -webkit-user-select: text; user-select: text; }
-        #inventory-table-body tr.row-dragging { background: #dbe7ff !important; box-shadow: 0 4px 14px rgba(0,0,0,.3); opacity: .92; }
-        body.row-drag-on { cursor: grabbing; }
+        #inventory-table-body tr.row-dragging { position: relative; z-index: 1; }
+        #inventory-table-body tr.row-dragging td { background: #dbe7ff !important; box-shadow: 0 8px 14px -6px rgba(0,0,0,.4); }
+        body.row-drag-on { cursor: grabbing; -webkit-user-select: none; user-select: none; }
+        .p-modal-form .form-group { display: block; width: 100%; margin-right: 0; margin-bottom: 14px; }
+        .p-modal-form .form-group input { width: 100%; min-width: 0; box-sizing: border-box; }
     </style>
 </head>
 <body onclick="closeNotifPanelOutside(event)">
@@ -726,21 +729,9 @@
             </div>
 
             <div id="view-inventory" class="view-panel">
-                <div id="inv-bulk-bar" style="display:flex; justify-content:flex-end; margin-bottom:10px;"><button type="button" class="btn" onclick="openBulkImport()">Add in bulk</button></div>
-                <div class="card" id="inventory-def-card">
-                    <h2 id="inv-title" data-i18n="inv.add_product">Add new products</h2>
-                    <form id="inventory-def-form" onsubmit="handleDefineProduct(event)">
-                        <input type="hidden" id="edit-index" value="">
-                        <div class="form-group"><label data-i18n="inv.category">Category</label><input type="text" id="p-category" list="category-list" required autocomplete="off"><datalist id="category-list"></datalist></div>
-                        <div class="form-group"><label data-i18n="inv.product_name">Product Name</label><input type="text" id="p-desc" required></div>
-                        <div class="form-group p-stock-group"><label>Quantity</label><input type="number" id="p-qty" min="1" step="1" inputmode="numeric" required></div>
-                        <div class="form-group p-stock-group"><label>Cost Price (ETB per unit)</label><input type="number" id="p-cost" min="0.01" step="0.01" inputmode="decimal" required></div>
-                        <div class="form-group p-stock-group"><label>Supplier Name (optional)</label><input type="text" id="p-supplier" list="supplier-list" autocomplete="off" placeholder="Leave blank if none"></div>
-                        <div class="form-group" id="p-daily-rate-group" style="display:none;"><label>Daily Rate (ETB)</label><input type="number" id="p-daily-rate" step="0.01" min="0"></div>
-                        <div class="form-group" id="p-weekly-rate-group" style="display:none;"><label>Weekly Rate (ETB, optional)</label><input type="number" id="p-weekly-rate" step="0.01" min="0"></div>
-                        <div class="form-group" id="p-monthly-rate-group" style="display:none;"><label>Monthly Rate (ETB, optional)</label><input type="number" id="p-monthly-rate" step="0.01" min="0"></div>
-                        <div class="form-group" style="padding-top: 22px;"><button type="submit" class="btn" id="inv-btn">Add Product</button><button type="button" class="btn btn-warning" id="inv-cancel" style="display:none;" onclick="resetProductForm()" data-i18n="common.cancel">Cancel</button></div>
-                    </form>
+                <div id="inventory-def-card" style="text-align:right; margin-bottom:12px;">
+                    <button type="button" class="btn" id="inv-bulk-btn" onclick="openBulkImport()">Add in bulk</button>
+                    <button type="button" class="btn" id="inv-open-add" onclick="openProductModal()" style="margin-left:8px;">+ Add Product</button>
                 </div>
 
                 <div class="card" id="inventory-default-stocklist-card">
@@ -1436,6 +1427,27 @@
                 <button class="btn btn-warning" onclick="closeRecordPaymentModal()" data-i18n="common.cancel">Cancel</button>
                 <button class="btn btn-success" onclick="submitRecordPayment()" data-i18n="common.record_payment">Record Payment</button>
             </div>
+        </div>
+    </div>
+
+    <div id="product-modal" class="modal-overlay" style="z-index:2900;" onclick="if(event.target===this) resetProductForm()">
+        <div class="modal-box" style="max-width:460px; max-height:90vh; overflow-y:auto;" onclick="event.stopPropagation()">
+            <h2 id="inv-title" style="margin-bottom:14px;">Add new products</h2>
+            <form id="inventory-def-form" class="p-modal-form" onsubmit="handleDefineProduct(event)">
+                <input type="hidden" id="edit-index" value="">
+                        <div class="form-group"><label data-i18n="inv.category">Category</label><input type="text" id="p-category" list="category-list" required autocomplete="off"><datalist id="category-list"></datalist></div>
+                        <div class="form-group"><label data-i18n="inv.product_name">Product Name</label><input type="text" id="p-desc" required></div>
+                        <div class="form-group p-stock-group"><label>Quantity</label><input type="number" id="p-qty" min="1" step="1" inputmode="numeric" required></div>
+                        <div class="form-group p-stock-group"><label>Cost Price (ETB per unit)</label><input type="number" id="p-cost" min="0.01" step="0.01" inputmode="decimal" required></div>
+                        <div class="form-group p-stock-group"><label>Supplier Name (optional)</label><input type="text" id="p-supplier" list="supplier-list" autocomplete="off" placeholder="Leave blank if none"></div>
+                        <div class="form-group" id="p-daily-rate-group" style="display:none;"><label>Daily Rate (ETB)</label><input type="number" id="p-daily-rate" step="0.01" min="0"></div>
+                        <div class="form-group" id="p-weekly-rate-group" style="display:none;"><label>Weekly Rate (ETB, optional)</label><input type="number" id="p-weekly-rate" step="0.01" min="0"></div>
+                        <div class="form-group" id="p-monthly-rate-group" style="display:none;"><label>Monthly Rate (ETB, optional)</label><input type="number" id="p-monthly-rate" step="0.01" min="0"></div>
+                <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:6px;">
+                    <button type="button" class="btn btn-warning" id="inv-cancel" onclick="resetProductForm()" data-i18n="common.cancel">Cancel</button>
+                    <button type="submit" class="btn" id="inv-btn">Add Product</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -2861,7 +2873,7 @@
             if (accountingToggle) accountingToggle.style.display = accountingGroupVisible ? 'flex' : 'none';
 
             const cardRules = {
-                'inventory-def-card': hasPerm('inventory.edit_products'), 'inv-bulk-bar': hasPerm('inventory.edit_products') && hasPerm('inventory.view_cost'),
+                'inventory-def-card': hasPerm('inventory.edit_products'),
                 'sales-entry-card': hasPerm('sales.create'),
                 'purchase-entry-card': hasPerm('purchase.create'),
                 'expense-entry-card': hasPerm('expense.create'),
@@ -3278,6 +3290,7 @@
             currentTenantName = biz.business_name;
             currentBusinessType = biz.business_type || 'retail';
             state.categories = biz.categories || [];
+            if (Array.isArray(biz.inventory_order)) state.inventoryOrder = biz.inventory_order; // shared stock-list order
             state.customAccounts = biz.custom_accounts || [];
             state.saleTypes = biz.sale_types || [];
             state.vatRegistered = !!biz.vat_registered;
@@ -6561,9 +6574,21 @@
             const show = !isEdit && hasPerm('inventory.view_cost');
             document.querySelectorAll('.p-stock-group').forEach(g => g.style.display = show ? '' : 'none');
             ['p-qty', 'p-cost'].forEach(id => { document.getElementById(id).required = show; });
-            const bar = document.getElementById('inv-bulk-bar');
-            if (bar) bar.style.display = currentBusinessType === 'appliance_rental' ? 'none' : 'flex';
+            document.getElementById('inv-title').innerText = isEdit ? 'Edit Product' : t('inv.add_product');
+            const bulk = document.getElementById('inv-bulk-btn');
+            if (bulk) bulk.style.display = (currentBusinessType === 'appliance_rental' || !hasPerm('inventory.view_cost')) ? 'none' : '';
         }
+        function showProductModal() {
+            document.getElementById('product-modal').classList.add('active');
+            setTimeout(() => document.getElementById('p-category').focus(), 60);
+        }
+        function openProductModal() {
+            resetProductForm();
+            showProductModal();
+        }
+        document.addEventListener('keydown', ev => {
+            if (ev.key === 'Escape' && document.getElementById('product-modal')?.classList.contains('active')) resetProductForm();
+        });
 
         async function addProductsWithStock(list) {
             const branchId = await resolveTransactionBranch();
@@ -6603,49 +6628,152 @@
         }
 
         // ---------- Press-and-hold to reorder stock rows (order saved on this device) ----------
+        // The stock-list order is saved in the database (businesses.inventory_order),
+        // so every device and every employee sees the same order. This device's
+        // own copy is kept as a backup for offline use.
         function applySavedInventoryOrder() {
             try {
-                const o = JSON.parse(localStorage.getItem('neba_inv_order_' + currentTenantId) || '[]');
+                let o = state.inventoryOrder;
+                if (!o || !o.length) o = JSON.parse(localStorage.getItem('neba_inv_order_' + currentTenantId) || '[]');
                 if (!o.length) return;
                 const pos = new Map(o.map((id, i) => [id, i]));
                 state.inventory.sort((a, b) => (pos.has(a.id) ? pos.get(a.id) : 1e9) - (pos.has(b.id) ? pos.get(b.id) : 1e9));
             } catch (e) {}
         }
+        let _orderSqlWarned = false;
+        async function pushInventoryOrderToCloud() {
+            const ids = state.inventoryOrder || [];
+            try {
+                const { error } = await supabaseClient.from('businesses').update({ inventory_order: ids }).eq('id', currentTenantId);
+                if (error) throw error;
+                localStorage.removeItem('neba_inv_order_pending_' + currentTenantId);
+            } catch (err) {
+                try { localStorage.setItem('neba_inv_order_pending_' + currentTenantId, '1'); } catch (e) {}
+                const msg = String(err && (err.message || err.code) || '');
+                if (!_orderSqlWarned && /inventory_order|PGRST204|42703/i.test(msg)) {
+                    _orderSqlWarned = true;
+                    alert('The new order is saved on this device only. To share it with all devices, the database needs one small setup step (see the instructions that came with this update).');
+                }
+            }
+        }
+        window.addEventListener('online', () => {
+            try { if (currentTenantId && localStorage.getItem('neba_inv_order_pending_' + currentTenantId)) pushInventoryOrderToCloud(); } catch (e) {}
+        });
         function saveInventoryOrderFromDom() {
             const ids = [...document.querySelectorAll('#inventory-table-body tr[data-item-id]')].map(r => r.dataset.itemId);
             const pos = new Map(ids.map((id, i) => [id, i]));
             state.inventory.sort((a, b) => pos.get(a.id) - pos.get(b.id));
+            state.inventoryOrder = ids;
             try { localStorage.setItem('neba_inv_order_' + currentTenantId, JSON.stringify(ids)); } catch (e) {}
+            try { cacheStateLocally(); } catch (e) {}
+            pushInventoryOrderToCloud();
             renderPerpetualInventoryTable();
         }
         function initInventoryRowDrag() {
             const tb = document.getElementById('inventory-table-body');
             if (!tb || tb.dataset.drag) return;
             tb.dataset.drag = '1';
-            let timer = null, row = null, active = false, sx = 0, sy = 0;
-            const end = save => {
+            const HOLD_MS = 400, EDGE = 56, MAX_SPEED = 18;
+            let timer = null, row = null, active = false, settling = false, sx = 0, sy = 0, py = 0, grabY = 0, raf = 0;
+
+            // Puts the dragged row under the finger (clamped inside the table box)
+            // and returns its rectangle.
+            function place() {
+                row.style.transform = '';
+                const natural = row.getBoundingClientRect().top, h = row.offsetHeight;
+                let want = py - grabY;
+                const sc = tb.closest('.table-scroll');
+                if (sc) {
+                    const r = sc.getBoundingClientRect(), head = sc.querySelector('thead')?.offsetHeight || 0;
+                    want = Math.max(r.top + head, Math.min(want, r.bottom - h));
+                }
+                row.style.transform = `translateY(${want - natural}px)`;
+                return row.getBoundingClientRect();
+            }
+            // Slides a neighbour into its new spot instead of letting it jump.
+            function swapWith(sib, before) {
+                const first = sib.getBoundingClientRect().top;
+                tb.insertBefore(row, before ? sib : sib.nextSibling);
+                const last = sib.getBoundingClientRect().top;
+                sib.style.transition = 'none';
+                sib.style.transform = `translateY(${first - last}px)`;
+                sib.getBoundingClientRect();
+                sib.style.transition = 'transform 180ms ease';
+                sib.style.transform = '';
+            }
+            const speed = dist => Math.max(2, Math.ceil(MAX_SPEED * Math.min(1, (EDGE - dist) / EDGE)));
+            function autoScroll(rr) {
+                const sc = tb.closest('.table-scroll');
+                if (sc && sc.scrollHeight > sc.clientHeight + 1) {
+                    const r = sc.getBoundingClientRect(), head = sc.querySelector('thead')?.offsetHeight || 0;
+                    if (rr.bottom > r.bottom - EDGE && sc.scrollTop + sc.clientHeight < sc.scrollHeight - 1) { sc.scrollTop += speed(r.bottom - rr.bottom); return; }
+                    if (rr.top < r.top + head + EDGE && sc.scrollTop > 0) { sc.scrollTop -= speed(rr.top - (r.top + head)); return; }
+                }
+                // Page itself: scroll when the row nears the top/bottom of the screen.
+                const area = document.querySelector('.content-area');
+                const useArea = area && area.scrollHeight > area.clientHeight + 1;
+                const top = useArea ? area.getBoundingClientRect().top : 0;
+                const bottom = useArea ? area.getBoundingClientRect().bottom : window.innerHeight;
+                const by = n => useArea ? (area.scrollTop += n) : window.scrollBy(0, n);
+                if (rr.bottom > bottom - EDGE) by(speed(bottom - rr.bottom));
+                else if (rr.top < top + EDGE) by(-speed(rr.top - top));
+            }
+            function tick() {
+                if (!active) return;
+                let rr = place();
+                autoScroll(rr);
+                rr = place();
+                for (let i = 0; i < 6; i++) {
+                    const c = rr.top + rr.height / 2;
+                    const prev = row.previousElementSibling, next = row.nextElementSibling;
+                    const pr = prev && prev.getBoundingClientRect(), nr = next && next.getBoundingClientRect();
+                    if (pr && c < pr.top + pr.height / 2) swapWith(prev, true);
+                    else if (nr && c > nr.top + nr.height / 2) swapWith(next, false);
+                    else break;
+                    rr = place();
+                }
+                raf = requestAnimationFrame(tick);
+            }
+            function start() {
+                active = true;
+                grabY = py - row.getBoundingClientRect().top;
+                row.classList.add('row-dragging');
+                row.style.transition = 'none';
+                row.style.willChange = 'transform';
+                document.body.classList.add('row-drag-on');
+                if (navigator.vibrate) navigator.vibrate(25);
+                raf = requestAnimationFrame(tick);
+            }
+            function finish(save) {
                 clearTimeout(timer);
-                const was = active; if (row) row.classList.remove('row-dragging');
-                document.body.classList.remove('row-drag-on'); row = null; active = false;
-                if (was && save) saveInventoryOrderFromDom();
-            };
+                if (!active) { row = null; return; }
+                active = false; cancelAnimationFrame(raf);
+                document.body.classList.remove('row-drag-on');
+                const r = row; row = null; settling = true;
+                r.style.transition = 'transform 160ms ease';
+                r.style.transform = '';
+                setTimeout(() => {
+                    r.classList.remove('row-dragging'); r.style.transition = ''; r.style.willChange = '';
+                    settling = false;
+                    if (save) saveInventoryOrderFromDom(); else renderPerpetualInventoryTable();
+                }, 175);
+            }
+
             tb.addEventListener('pointerdown', e => {
-                if (!hasPerm('inventory.edit_products') || e.button > 0) return;
+                if (settling || !hasPerm('inventory.edit_products') || e.button > 0) return;
                 if (document.getElementById('inv-filter-category').value || document.getElementById('inv-filter-name').value) return;
                 if (e.target.closest('input,button,select,a,.pharm-col')) return;
                 const tr = e.target.closest('tr[data-item-id]'); if (!tr) return;
-                row = tr; sx = e.clientX; sy = e.clientY;
-                timer = setTimeout(() => { active = true; tr.classList.add('row-dragging'); document.body.classList.add('row-drag-on'); if (navigator.vibrate) navigator.vibrate(30); }, 400);
+                row = tr; sx = e.clientX; sy = e.clientY; py = e.clientY;
+                timer = setTimeout(start, HOLD_MS);
             });
             document.addEventListener('pointermove', e => {
                 if (!row) return;
-                if (!active) { if (Math.hypot(e.clientX - sx, e.clientY - sy) > 8) { clearTimeout(timer); row = null; } return; }
-                const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('#inventory-table-body tr[data-item-id]');
-                if (over && over !== row) { const r = over.getBoundingClientRect(); over.parentNode.insertBefore(row, e.clientY < r.top + r.height / 2 ? over : over.nextSibling); }
-                if (e.clientY < 60) window.scrollBy(0, -12); else if (e.clientY > window.innerHeight - 60) window.scrollBy(0, 12);
+                py = e.clientY;
+                if (!active && Math.hypot(e.clientX - sx, e.clientY - sy) > 8) { clearTimeout(timer); row = null; }
             });
-            document.addEventListener('pointerup', () => end(true));
-            document.addEventListener('pointercancel', () => end(false));
+            document.addEventListener('pointerup', () => finish(true));
+            document.addEventListener('pointercancel', () => finish(false));
             document.addEventListener('touchmove', e => { if (active) e.preventDefault(); }, { passive: false });
             tb.addEventListener('contextmenu', e => { if (row || active) e.preventDefault(); });
         }
@@ -6810,12 +6938,12 @@
                 document.getElementById('p-weekly-rate').value = i.weeklyRate ?? '';
                 document.getElementById('p-monthly-rate').value = i.monthlyRate ?? '';
             }
-            document.getElementById('inv-btn').innerText = "Save Changes"; document.getElementById('inv-cancel').style.display = "inline-block"; setProductFormMode(true);
+            document.getElementById('inv-btn').innerText = "Save Changes"; setProductFormMode(true); showProductModal();
         }
 
         function resetProductForm() {
             document.getElementById('inventory-def-form').reset(); document.getElementById('edit-index').value = "";
-            document.getElementById('inv-btn').innerText = "Add Product"; document.getElementById('inv-cancel').style.display = "none"; setProductFormMode(false);
+            document.getElementById('inv-btn').innerText = "Add Product"; setProductFormMode(false); document.getElementById('product-modal').classList.remove('active');
         }
 
         function launchHistoryPopup(idx) {
