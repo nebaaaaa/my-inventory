@@ -3181,19 +3181,39 @@
             location.reload();
         }
 
+        // Finds this login's shop membership.
+        // - Retries once if the server hiccups (so a brief error does not look like "no shop").
+        // - If the login belongs to several shops, picks the one used last on this device,
+        //   otherwise the one they own. (The old single-row lookup failed for these accounts.)
+        async function fetchMyMembership(user) {
+            const run = () => supabaseClient
+                .from('business_members')
+                .select('id, business_id, username, display_name, is_owner, role_id, roles(key, label)')
+                .eq('user_id', user.id);
+            let { data: rows, error } = await run();
+            if (error && navigator.onLine) {
+                await new Promise(r => setTimeout(r, 800));
+                ({ data: rows, error } = await run());
+            }
+            if (error) return { member: null, error };
+            if (!rows || !rows.length) return { member: null, error: null };
+            const last = loadLastIdentityLocally();
+            const member = rows.find(r => last && r.business_id === last.tenantId) || rows.find(r => r.is_owner) || rows[0];
+            return { member, error: null };
+        }
+
         async function onLoginSuccess(user, isNewSignup) {
             loadOfflineQueue();
             document.getElementById('auth-overlay').style.display = 'none';
             setLanguage(currentLang);
             setCalendarPref(currentCalendarPref);
 
-            const { data: member, error: memberErr } = await supabaseClient
-                .from('business_members')
-                .select('id, business_id, username, display_name, is_owner, role_id, roles(key, label)')
-                .eq('user_id', user.id)
-                .maybeSingle();
+            const { member, error: memberErr } = await fetchMyMembership(user);
 
-            if (memberErr && looksLikeNetworkError(memberErr)) {
+            // ANY failed lookup (not only a lost connection) must never be mistaken for
+            // "this person has no shop", otherwise a working account is sent to the
+            // "One last step" setup screen.
+            if (memberErr) {
                 const lastIdentity = loadLastIdentityLocally();
                 if (lastIdentity && lastIdentity.tenantId) {
                     currentTenantId = lastIdentity.tenantId;
