@@ -15,8 +15,8 @@
          still guaranteed to finish loading before any button can be
          clicked, so nothing about how they're used elsewhere changes. -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2"></script>
     <script src="business-types.config.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1455,8 +1455,9 @@
                 <input type="hidden" id="edit-index" value="">
                         <div class="form-group"><label data-i18n="inv.category">Category</label><input type="text" id="p-category" list="category-list" required autocomplete="off"><datalist id="category-list"></datalist></div>
                         <div class="form-group"><label data-i18n="inv.product_name">Product Name</label><input type="text" id="p-desc" required></div>
-                        <div class="form-group p-stock-group"><label>Quantity</label><input type="number" id="p-qty" min="1" step="1" inputmode="numeric" required></div>
-                        <div class="form-group p-stock-group"><label>Cost Price (ETB per unit)</label><input type="number" id="p-cost" min="0.01" step="0.01" inputmode="decimal" required></div>
+                        <div class="form-group p-stock-group"><label>Quantity (optional)</label><input type="number" id="p-qty" min="1" step="1" inputmode="numeric" placeholder="Leave blank to add the product only" oninput="document.getElementById('p-cost').required = this.value.trim() !== ''"></div>
+                        <div class="form-group p-stock-group"><label>Cost Price (ETB per unit)</label><input type="number" id="p-cost" min="0.01" step="0.01" inputmode="decimal" placeholder="Required if you enter a quantity"></div>
+                        <div class="form-group p-sell-group"><label>Selling Price (optional)</label><input type="number" id="p-sell" min="0" step="0.01" inputmode="decimal" placeholder="Leave blank to set it later"></div>
                         <div class="form-group p-stock-group"><label>Supplier Name (optional)</label><input type="text" id="p-supplier" list="supplier-list" autocomplete="off" placeholder="Leave blank if none"></div>
                         <div class="form-group" id="p-daily-rate-group" style="display:none;"><label>Daily Rate (ETB)</label><input type="number" id="p-daily-rate" step="0.01" min="0"></div>
                         <div class="form-group" id="p-weekly-rate-group" style="display:none;"><label>Weekly Rate (ETB, optional)</label><input type="number" id="p-weekly-rate" step="0.01" min="0"></div>
@@ -1545,6 +1546,11 @@
     </div>
 
     <script>
+        // Safe-text helper: turns user-typed text into harmless text before it is placed inside HTML.
+        function escHtml(s) {
+            return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
         // =====================================================================
         // FRIENDLY MESSAGES
         // Small pop-up messages ("toasts"), simple Yes/No dialogs, and
@@ -2557,7 +2563,7 @@
             const sel = document.getElementById('auth-business-type');
             if (!sel || typeof BUSINESS_TYPES === 'undefined') return;
             const keys = Object.keys(BUSINESS_TYPES).sort((a, b) => (a === 'retail' ? -1 : b === 'retail' ? 1 : 0));
-            sel.innerHTML = keys.map(k => `<option value="${k}">${BUSINESS_TYPES[k].label}</option>`).join('');
+            sel.innerHTML = keys.map(k => `<option value="${escHtml(k)}">${BUSINESS_TYPES[k].label}</option>`).join('');
             updateAuthVatDetailFields();
         }
         // Appliance rental has no VAT registration option at all (the whole
@@ -3175,19 +3181,39 @@
             location.reload();
         }
 
+        // Finds this login's shop membership.
+        // - Retries once if the server hiccups (so a brief error does not look like "no shop").
+        // - If the login belongs to several shops, picks the one used last on this device,
+        //   otherwise the one they own. (The old single-row lookup failed for these accounts.)
+        async function fetchMyMembership(user) {
+            const run = () => supabaseClient
+                .from('business_members')
+                .select('id, business_id, username, display_name, is_owner, role_id, roles(key, label)')
+                .eq('user_id', user.id);
+            let { data: rows, error } = await run();
+            if (error && navigator.onLine) {
+                await new Promise(r => setTimeout(r, 800));
+                ({ data: rows, error } = await run());
+            }
+            if (error) return { member: null, error };
+            if (!rows || !rows.length) return { member: null, error: null };
+            const last = loadLastIdentityLocally();
+            const member = rows.find(r => last && r.business_id === last.tenantId) || rows.find(r => r.is_owner) || rows[0];
+            return { member, error: null };
+        }
+
         async function onLoginSuccess(user, isNewSignup) {
             loadOfflineQueue();
             document.getElementById('auth-overlay').style.display = 'none';
             setLanguage(currentLang);
             setCalendarPref(currentCalendarPref);
 
-            const { data: member, error: memberErr } = await supabaseClient
-                .from('business_members')
-                .select('id, business_id, username, display_name, is_owner, role_id, roles(key, label)')
-                .eq('user_id', user.id)
-                .maybeSingle();
+            const { member, error: memberErr } = await fetchMyMembership(user);
 
-            if (memberErr && looksLikeNetworkError(memberErr)) {
+            // ANY failed lookup (not only a lost connection) must never be mistaken for
+            // "this person has no shop", otherwise a working account is sent to the
+            // "One last step" setup screen.
+            if (memberErr) {
                 const lastIdentity = loadLastIdentityLocally();
                 if (lastIdentity && lastIdentity.tenantId) {
                     currentTenantId = lastIdentity.tenantId;
@@ -3538,7 +3564,7 @@
                 tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center; color:var(--text-light);">No items added yet.</td></tr>`;
             } else {
                 tbody.innerHTML = initialInventoryCart.map((c, i) => {
-                    let row = `<td>${c.category}</td><td>${c.name}</td><td class="num">${c.qty}</td>`;
+                    let row = `<td>${escHtml(c.category)}</td><td>${escHtml(c.name)}</td><td class="num">${c.qty}</td>`;
                     if (isPharmacy) row += `<td class="num">${c.expiry || '—'}</td>`;
                     row += `<td class="num">${c.cost.toFixed(2)}</td>`;
                     row += isRental
@@ -4399,8 +4425,8 @@
                 list.innerHTML = `<div style="padding:16px; text-align:center; color:var(--text-light); font-size:12px;">No new alerts</div>`; return;
             }
             state.notifications.slice(0, 30).forEach(n => {
-                let det = n.details ? `<div class="notif-details">${n.details}</div>` : '';
-                list.innerHTML += `<div class="notif-item ${n.read?'':'unread'}"><div class="notif-title">${n.title}</div><div class="notif-time">${n.date}</div><div class="notif-msg">${n.msg}</div>${det}</div>`;
+                let det = n.details ? `<div class="notif-details">${escHtml(n.details)}</div>` : '';
+                list.innerHTML += `<div class="notif-item ${n.read?'':'unread'}"><div class="notif-title">${escHtml(n.title)}</div><div class="notif-time">${n.date}</div><div class="notif-msg">${escHtml(n.msg)}</div>${det}</div>`;
             });
         }
 
@@ -4491,7 +4517,7 @@
 
         function syncCategoriesDatalist() {
             const dl = document.getElementById('category-list'); dl.innerHTML = '';
-            state.categories.forEach(cat => { dl.innerHTML += `<option value="${cat}"></option>`; });
+            state.categories.forEach(cat => { dl.innerHTML += `<option value="${escHtml(cat)}"></option>`; });
         }
 
         function syncSaleTypesDropdown() {
@@ -4499,8 +4525,8 @@
             if (!sel) return;
             const defaults = ['Walk in', 'Proforma', 'Customer', 'Tender'];
             const currentVal = sel.value;
-            let opts = defaults.map(d => `<option value="${d}">${d}</option>`);
-            (state.saleTypes || []).forEach(t => opts.push(`<option value="${t}">${t}</option>`));
+            let opts = defaults.map(d => `<option value="${escHtml(d)}">${escHtml(d)}</option>`);
+            (state.saleTypes || []).forEach(t => opts.push(`<option value="${escHtml(t)}">${escHtml(t)}</option>`));
             opts.push(`<option value="__add_new__">+ Add new sale type...</option>`);
             sel.innerHTML = opts.join('');
             if ([...sel.options].some(o => o.value === currentVal)) sel.value = currentVal;
@@ -4515,7 +4541,7 @@
             const prevVal = sel.value;
             const defaults = ['Walk in', 'Proforma', 'Customer', 'Tender'];
             const allTypes = defaults.concat(state.saleTypes || []);
-            sel.innerHTML = `<option value="">${t('sale.all')}</option>` + allTypes.map(ty => `<option value="${ty}">${ty}</option>`).join('');
+            sel.innerHTML = `<option value="">${t('sale.all')}</option>` + allTypes.map(ty => `<option value="${escHtml(ty)}">${escHtml(ty)}</option>`).join('');
             if ([...sel.options].some(o => o.value === prevVal)) sel.value = prevVal;
         }
 
@@ -4561,7 +4587,7 @@
 
         function buildChannelOptionsHtml(baseList, currentVal) {
             const all = [...baseList, ...customChannelNames()];
-            let html = all.map(name => `<option value="${name}" ${name === currentVal ? 'selected' : ''}>${name}</option>`).join('');
+            let html = all.map(name => `<option value="${escHtml(name)}" ${name === currentVal ? 'selected' : ''}>${escHtml(name)}</option>`).join('');
             html += `<option value="__add_new__">+ Add new channel...</option>`;
             return html;
         }
@@ -4594,14 +4620,14 @@
             if (saleFilter) {
                 const cur = saleFilter.value;
                 const opts = ['', ...BASE_SALE_CHANNELS, 'Accounts receivable', ...customChannelNames()];
-                saleFilter.innerHTML = opts.map(c => c === '' ? '<option value="">-- All --</option>' : `<option value="${c}">${c}</option>`).join('');
+                saleFilter.innerHTML = opts.map(c => c === '' ? '<option value="">-- All --</option>' : `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('');
                 if ([...saleFilter.options].some(o => o.value === cur)) saleFilter.value = cur;
             }
             const purFilter = document.getElementById('pur-log-filter-channel');
             if (purFilter) {
                 const cur = purFilter.value;
                 const opts = ['', ...BASE_PURCHASE_CHANNELS, 'Accounts payable', ...customChannelNames()];
-                purFilter.innerHTML = opts.map(c => c === '' ? '<option value="">-- All --</option>' : `<option value="${c}">${c}</option>`).join('');
+                purFilter.innerHTML = opts.map(c => c === '' ? '<option value="">-- All --</option>' : `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('');
                 if ([...purFilter.options].some(o => o.value === cur)) purFilter.value = cur;
             }
         }
@@ -4642,13 +4668,13 @@
         function syncCustomerList() {
             let dl = document.getElementById('customer-list');
             let customers = [...new Set(state.salesLog.map(s => s.customer).filter(c => c && c !== 'Walk-in'))];
-            dl.innerHTML = customers.map(c => `<option value="${c}"></option>`).join('');
+            dl.innerHTML = customers.map(c => `<option value="${escHtml(c)}"></option>`).join('');
         }
 
         function syncSupplierList() {
             let dl = document.getElementById('supplier-list');
             let suppliers = [...new Set(state.purchaseLog.map(p => p.supplier).filter(s => s))];
-            dl.innerHTML = suppliers.map(s => `<option value="${s}"></option>`).join('');
+            dl.innerHTML = suppliers.map(s => `<option value="${escHtml(s)}"></option>`).join('');
         }
 
         // --- DASHBOARD / FILTERING ---
@@ -5605,7 +5631,7 @@
                 }
                 analysisItemArr.forEach(i => {
                     tbody.innerHTML += `<tr style="transition: background 0.2s;" onmouseover="this.style.background='#F4F5F8'" onmouseout="this.style.background='transparent'">
-                        <td style="border-bottom: 1px solid #ECEDF2; padding: 12px 14px;"><strong>${i.desc}</strong></td>
+                        <td style="border-bottom: 1px solid #ECEDF2; padding: 12px 14px;"><strong>${escHtml(i.desc)}</strong></td>
                         <td style="border-bottom: 1px solid #ECEDF2; padding: 12px 14px;"><span style="padding:4px 8px; border-radius:6px; font-size:11px; font-weight:700; background:${i.speed==='Fast Moving'?'#DCEBE2':i.speed==='Medium Moving'?'#F3E4CC':'#F1DCD8'}; color:${i.speed==='Fast Moving'?'#1F7A54':i.speed==='Medium Moving'?'#A9752F':'#B23A2E'};">${i.speed}</span></td>
                         <td class="num" style="border-bottom: 1px solid #ECEDF2; padding: 12px 14px;">${i.freq}</td>
                         <td class="num" style="border-bottom: 1px solid #ECEDF2; padding: 12px 14px;">${i.qty}</td>
@@ -5630,7 +5656,7 @@
                 let matches = state.salesLog.filter(s => verifyChronologicalOverlap(s.date, period)).sort((a,b) => new Date(b.date) - new Date(a.date));
                 if(matches.length === 0) html += `<tr><td colspan="6" style="text-align:center;">${t('drill.no_sales')}</td></tr>`;
                 matches.forEach(m => {
-                    html += `<tr><td>${fmtDate(m.date)}</td><td>${m.customer}</td><td>${m.desc}</td><td class="num">${m.qty}</td><td class="num">${m.price.toFixed(2)}</td><td class="num"><strong>${m.total.toFixed(2)}</strong></td></tr>`;
+                    html += `<tr><td>${fmtDate(m.date)}</td><td>${escHtml(m.customer)}</td><td>${escHtml(m.desc)}</td><td class="num">${m.qty}</td><td class="num">${m.price.toFixed(2)}</td><td class="num"><strong>${m.total.toFixed(2)}</strong></td></tr>`;
                 });
                 html += `</tbody></table>`;
                 // Rental Revenue (4020) posts separately from Sales (4010) --
@@ -5642,7 +5668,7 @@
                     html += `<br><div><strong>Rental Bookings (4020)</strong></div><table><thead><tr><th>${t('sale.date')}</th><th>${t('sale.customer_name')}</th><th>${t('sale.product_item')}</th><th class="num">${t('tr.quantity')}</th><th class="num">${t('sale.total')}</th></tr></thead><tbody>`;
                     rentalMatches.forEach(b => {
                         const item = state.inventory.find(i => i.id === b.itemId);
-                        html += `<tr><td>${fmtDate(b.date || b.startDate)}</td><td>${b.customerName}</td><td>${item ? `[${item.category}] ${item.desc}` : '—'}</td><td class="num">${b.qty}</td><td class="num"><strong>${b.amount.toFixed(2)}</strong></td></tr>`;
+                        html += `<tr><td>${fmtDate(b.date || b.startDate)}</td><td>${escHtml(b.customerName)}</td><td>${item ? `[${escHtml(item.category)}] ${escHtml(item.desc)}` : '—'}</td><td class="num">${b.qty}</td><td class="num"><strong>${b.amount.toFixed(2)}</strong></td></tr>`;
                     });
                     html += `</tbody></table>`;
                 }
@@ -5660,7 +5686,7 @@
                 });
                 cogsRows.sort((a,b) => new Date(b.date) - new Date(a.date));
                 cogsRows.forEach(row => {
-                    html += `<tr><td>${fmtDate(row.date)}</td><td><code>${row.id}</code></td><td>${row.desc}</td><td class="num">${row.dr.toFixed(2)}</td></tr>`;
+                    html += `<tr><td>${fmtDate(row.date)}</td><td><code>${row.id}</code></td><td>${escHtml(row.desc)}</td><td class="num">${row.dr.toFixed(2)}</td></tr>`;
                 });
                 html += `</tbody></table>`;
             }
@@ -5681,7 +5707,7 @@
                 if(matches.length === 0) html += `<tr><td colspan="4" style="text-align:center;">${t('drill.no_expenses')}</td></tr>`;
                 matches.forEach(m => {
                     let nameMeta = CHART_OF_ACCOUNTS_MAP.find(c => c.code === m.target);
-                    html += `<tr><td>${fmtDate(m.date)}</td><td>${m.target} - ${nameMeta?nameMeta.name:''}</td><td>${m.memo}</td><td class="num"><strong>${m.amount.toFixed(2)}</strong></td></tr>`;
+                    html += `<tr><td>${fmtDate(m.date)}</td><td>${escHtml(m.target)} - ${nameMeta?escHtml(nameMeta.name):''}</td><td>${escHtml(m.memo)}</td><td class="num"><strong>${m.amount.toFixed(2)}</strong></td></tr>`;
                 });
                 html += `</tbody></table>`;
             }
@@ -5770,7 +5796,7 @@
                 const rows = sales.map(s => {
                     const gp = s.total - s.cogs;
                     totalRev += s.total; totalCogs += s.cogs;
-                    return `<tr><td>${fmtDate(s.date)}</td><td>${s.desc}</td><td>${s.customer || '—'}</td><td class="num">${s.total.toFixed(2)}</td><td class="num">${s.cogs.toFixed(2)}</td><td class="num">${gp.toFixed(2)}</td></tr>`;
+                    return `<tr><td>${fmtDate(s.date)}</td><td>${escHtml(s.desc)}</td><td>${escHtml(s.customer) || '—'}</td><td class="num">${s.total.toFixed(2)}</td><td class="num">${s.cogs.toFixed(2)}</td><td class="num">${gp.toFixed(2)}</td></tr>`;
                 }).join('');
                 mContent.innerHTML = `<table>
                     <thead><tr><th>Date</th><th>Item</th><th>Customer</th><th class="num">Revenue</th><th class="num">COGS</th><th class="num">Gross Profit</th></tr></thead>
@@ -5846,10 +5872,10 @@
                 </select>`;
             if (vs.mode === 'month') {
                 let monthOptions = '';
-                for (let i = 1; i <= monthCount; i++) monthOptions += `<option value="${i}" ${vs.month===i?'selected':''}>${monthLabel(i)}</option>`;
+                for (let i = 1; i <= monthCount; i++) monthOptions += `<option value="${escHtml(i)}" ${vs.month===i?'selected':''}>${monthLabel(i)}</option>`;
                 html += `<select id="vat-drilldown-month" onchange="changeVatDrillDownMonth(this.value)">${monthOptions}</select>`;
             }
-            html += `<select id="vat-drilldown-year" onchange="changeVatDrillDownYear(this.value)">${years.map(y => `<option value="${y}" ${vs.year===y?'selected':''}>${y}</option>`).join('')}</select>
+            html += `<select id="vat-drilldown-year" onchange="changeVatDrillDownYear(this.value)">${years.map(y => `<option value="${escHtml(y)}" ${vs.year===y?'selected':''}>${escHtml(y)}</option>`).join('')}</select>
             </div>
             <div style="font-size:14px; padding:10px; background:#ECEDF2; border-radius:4px; margin-bottom:14px;">
                 ${t('sale.total')}: <strong>ETB ${totalSum.toLocaleString(undefined,{minimumFractionDigits:2})}</strong><br>
@@ -5858,7 +5884,7 @@
             <table><thead><tr><th>${t('sale.date')}</th><th>${t('sale.customer_name')}</th><th>${t('sale.product_item')}</th><th class="num">${t('sale.total')}</th><th class="num">${t('dash.estimated_vat')}</th></tr></thead><tbody>`;
             if (matches.length === 0) html += `<tr><td colspan="5" style="text-align:center;">${t('drill.no_sales')}</td></tr>`;
             matches.forEach(m => {
-                html += `<tr><td>${fmtDate(m.date)}</td><td>${m.customer}</td><td>${m.desc}</td><td class="num">${m.total.toFixed(2)}</td><td class="num">${(m.total - m.total / 1.15).toFixed(2)}</td></tr>`;
+                html += `<tr><td>${fmtDate(m.date)}</td><td>${escHtml(m.customer)}</td><td>${escHtml(m.desc)}</td><td class="num">${m.total.toFixed(2)}</td><td class="num">${(m.total - m.total / 1.15).toFixed(2)}</td></tr>`;
             });
             html += `</tbody></table>`;
             mContent.innerHTML = html;
@@ -5891,7 +5917,7 @@
             const rows = channelAccounts.map(c => {
                 const bal = balances[c.code] || 0;
                 total += bal;
-                return `<tr><td>${c.name}</td><td class="num">ETB ${bal.toLocaleString(undefined,{minimumFractionDigits:2})}</td></tr>`;
+                return `<tr><td>${escHtml(c.name)}</td><td class="num">ETB ${bal.toLocaleString(undefined,{minimumFractionDigits:2})}</td></tr>`;
             }).join('');
 
             const canTransferFunds = hasPerm('dashboard.fund_transfer');
@@ -5901,7 +5927,7 @@
                 const toLine = j.lines.find(l => l.dr > 0);
                 const fromAcc = channelAccounts.find(c => c.code === fromLine?.account);
                 const toAcc = channelAccounts.find(c => c.code === toLine?.account);
-                return `<tr><td>${fmtDate(j.date)}</td><td>${fromAcc ? fromAcc.name : '—'} → ${toAcc ? toAcc.name : '—'}</td><td class="num">${(fromLine?.cr || 0).toFixed(2)}</td><td style="text-align:center;"><button class="btn btn-danger btn-small" onclick="deleteFundTransfer('${j.id}')">${t('common.delete')}</button></td></tr>`;
+                return `<tr><td>${fmtDate(j.date)}</td><td>${fromAcc ? escHtml(fromAcc.name) : '—'} → ${toAcc ? escHtml(toAcc.name) : '—'}</td><td class="num">${(fromLine?.cr || 0).toFixed(2)}</td><td style="text-align:center;"><button class="btn btn-danger btn-small" onclick="deleteFundTransfer('${j.id}')">${t('common.delete')}</button></td></tr>`;
             }).join('');
 
             mContent.innerHTML = `<table>
@@ -5921,7 +5947,7 @@
         function openFundTransferModal() {
             if (currentBranchId === 'all' || !currentBranchId) return alert('Pick a specific branch from the branch switcher first — fund transfers belong to one branch.');
             const channelAccounts = getChannelAccountsList();
-            const opts = channelAccounts.map(c => `<option value="${c.code}">${c.name}</option>`).join('');
+            const opts = channelAccounts.map(c => `<option value="${escHtml(c.code)}">${escHtml(c.name)}</option>`).join('');
             document.getElementById('ft-from-channel').innerHTML = opts;
             document.getElementById('ft-to-channel').innerHTML = opts;
             if (channelAccounts.length > 1) document.getElementById('ft-to-channel').value = channelAccounts[1].code;
@@ -6050,8 +6076,8 @@
                 }
 
                 tbody.innerHTML += `<tr data-item-id="${item.id}" style="${rowBg}">
-                    <td><small>${item.category}</small></td>
-                    <td><strong>${item.desc}</strong>${item.history&&item.history.length>0?'<span class="audit-badge badge-edited">EDITED</span>':''}</td>
+                    <td><small>${escHtml(item.category)}</small></td>
+                    <td><strong>${escHtml(item.desc)}</strong>${item.history&&item.history.length>0?'<span class="audit-badge badge-edited">EDITED</span>':''}</td>
                     <td class="num">${tQ}</td><td class="num price-trace">${canSeeCost ? cL : '—'}</td>
                     <td class="num">${priceCell}</td>
                     <td class="num"><strong>${canSeeCost ? tV.toFixed(2) : '—'}</strong></td>
@@ -6089,7 +6115,7 @@
 
             const fromSel = document.getElementById('transfer-from-branch');
             const toSel = document.getElementById('transfer-to-branch');
-            const branchOptions = accessibleBranches.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+            const branchOptions = accessibleBranches.map(b => `<option value="${b.id}">${escHtml(b.name)}</option>`).join('');
             fromSel.innerHTML = branchOptions;
             toSel.innerHTML = branchOptions;
             // Default "From" to whichever specific branch is currently active.
@@ -6100,7 +6126,7 @@
             // Item list is its own datalist (not borrowed from Sales/Purchase)
             // so it's populated correctly even if this page is opened first.
             const itemList = document.getElementById('transfer-item-list');
-            itemList.innerHTML = state.inventory.map(i => `<option value="[${i.category}] ${i.desc}"></option>`).join('');
+            itemList.innerHTML = state.inventory.map(i => `<option value="[${escHtml(i.category)}] ${escHtml(i.desc)}"></option>`).join('');
 
             document.getElementById('stock-transfer-form').reset();
             renderStockTransferHistory();
@@ -6221,7 +6247,7 @@
                 // empty history, which is exactly what was reported.
                 lastTransferRows = [];
                 console.error('Could not load transfer history:', error);
-                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--danger);">Couldn't load transfer history: ${error.message}. This may be a database permissions (RLS) issue — ask whoever manages the database to check the "stock_transfers" table's SELECT policy for this account's role.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--danger);">Couldn't load transfer history: ${escHtml(error.message)}. This may be a database permissions (RLS) issue — ask whoever manages the database to check the "stock_transfers" table's SELECT policy for this account's role.</td></tr>`;
                 return;
             }
             lastTransferRows = data || [];
@@ -6240,7 +6266,7 @@
                 const toName = branchNameById(row.to_branch_id);
                 const canUndo = !isBranchClosed(row.from_branch_id) && !isBranchClosed(row.to_branch_id);
                 const delBtn = canUndo ? `<button class="btn btn-danger btn-small" onclick="deleteStockTransfer('${row.id}', this)">${t('common.delete')}</button>` : '';
-                return `<tr><td>${fmtDate(row.date)}</td><td class="truncate-cell" title="${row.item_desc}">${row.item_desc}</td><td class="num">${row.qty}</td><td>${fromName}</td><td>${toName}</td><td><small>${row.created_by_username || '—'}</small></td><td class="truncate-cell" title="${row.notes || ''}">${row.notes || ''}</td><td style="text-align:center;">${delBtn}</td></tr>`;
+                return `<tr><td>${fmtDate(row.date)}</td><td class="truncate-cell" title="${escHtml(row.item_desc)}">${escHtml(row.item_desc)}</td><td class="num">${row.qty}</td><td>${escHtml(fromName)}</td><td>${escHtml(toName)}</td><td><small>${escHtml(row.created_by_username || '—')}</small></td><td class="truncate-cell" title="${escHtml(row.notes) || ''}">${escHtml(row.notes) || ''}</td><td style="text-align:center;">${delBtn}</td></tr>`;
             }).join('');
         }
 
@@ -6417,11 +6443,11 @@
                 const holders = getCashHoldersForBranch(b.id);
                 const holderRows = holders.map(u => {
                     const amt = computeCashHeldByEmployee(u, b.id);
-                    return `<div style="font-size:12px; color:var(--text-light); padding-left:14px; margin-top:2px;">${u}: ETB ${amt.toFixed(2)}</div>`;
+                    return `<div style="font-size:12px; color:var(--text-light); padding-left:14px; margin-top:2px;">${escHtml(u)}: ETB ${amt.toFixed(2)}</div>`;
                 }).join('');
                 return `<div style="padding:12px 0; border-bottom:1px solid var(--border);">
                     <div style="display:flex; justify-content:space-between; align-items:baseline;">
-                        <strong>${b.name}</strong>
+                        <strong>${escHtml(b.name)}</strong>
                         <strong style="color:var(--primary);">ETB ${branchTotal.toFixed(2)}</strong>
                     </div>
                     ${holderRows || `<div style="font-size:12px; color:var(--text-light); padding-left:14px; margin-top:2px;">No cash activity recorded yet.</div>`}
@@ -6467,10 +6493,10 @@
                 document.getElementById('cash-handover-pending-body').innerHTML = pendingRows.length
                     ? pendingRows.map(h => `<tr>
                         <td>${fmtDateTime(h.submitted_at)}</td>
-                        <td>${h.submitted_by_username}</td>
-                        <td>${branchNameById(h.branch_id)}</td>
+                        <td>${escHtml(h.submitted_by_username)}</td>
+                        <td>${escHtml(branchNameById(h.branch_id))}</td>
                         <td class="num">${Number(h.amount).toFixed(2)}</td>
-                        <td class="truncate-cell" title="${h.note || ''}">${h.note || '—'}</td>
+                        <td class="truncate-cell" title="${escHtml(h.note) || ''}">${escHtml(h.note) || '—'}</td>
                         <td style="text-align:center;">
                             <button class="btn btn-success btn-small" onclick="decideCashHandover('${h.id}', true)">${t('misc.approve')}</button>
                             <button class="btn btn-danger btn-small" onclick="decideCashHandover('${h.id}', false)">${t('misc.reject')}</button>
@@ -6484,12 +6510,12 @@
                 document.getElementById('cash-handover-all-history-body').innerHTML = cashHandoverCache.length
                     ? cashHandoverCache.map(h => `<tr>
                         <td>${fmtDateTime(h.submitted_at)}</td>
-                        <td>${h.submitted_by_username}</td>
-                        <td>${branchNameById(h.branch_id)}</td>
+                        <td>${escHtml(h.submitted_by_username)}</td>
+                        <td>${escHtml(branchNameById(h.branch_id))}</td>
                         <td class="num">${Number(h.amount).toFixed(2)}</td>
-                        <td class="truncate-cell" title="${h.note || ''}">${h.note || '—'}</td>
+                        <td class="truncate-cell" title="${escHtml(h.note) || ''}">${escHtml(h.note) || '—'}</td>
                         <td>${h.status === 'approved' ? `<span style="color:var(--success);">${t('status.approved')}</span>` : h.status === 'rejected' ? `<span style="color:var(--danger);">${t('status.rejected')}</span>` : `<span style="color:var(--warning);">${t('status.pending')}</span>`}</td>
-                        <td>${h.decided_by_username || '—'}</td>
+                        <td>${escHtml(h.decided_by_username || '—')}</td>
                         <td style="text-align:center;"><button class="btn btn-danger btn-small" onclick="deleteCashHandover('${h.id}')">${t('common.delete')}</button></td>
                     </tr>`).join('')
                     : `<tr><td colspan="8" style="text-align:center; color:var(--text-light);">No handovers recorded yet.</td></tr>`;
@@ -6521,7 +6547,7 @@
                     ? mine.map(h => `<tr>
                         <td>${fmtDateTime(h.submitted_at)}</td>
                         <td class="num">${Number(h.amount).toFixed(2)}</td>
-                        <td class="truncate-cell" title="${h.note || ''}">${h.note || '—'}</td>
+                        <td class="truncate-cell" title="${escHtml(h.note) || ''}">${escHtml(h.note) || '—'}</td>
                         <td>${h.status === 'approved' ? `<span style="color:var(--success);">${t('status.approved')}</span>` : h.status === 'rejected' ? `<span style="color:var(--danger);">${t('status.rejected')}</span>` : `<span style="color:var(--warning);">${t('status.pending')}</span>`}</td>
                         <td style="text-align:center;">${h.status === 'pending' ? `<button class="btn btn-danger btn-small" onclick="deleteCashHandover('${h.id}')">${t('common.delete')}</button>` : ''}</td>
                     </tr>`).join('')
@@ -6591,7 +6617,9 @@
         function setProductFormMode(isEdit) {
             const show = !isEdit && hasPerm('inventory.view_cost');
             document.querySelectorAll('.p-stock-group').forEach(g => g.style.display = show ? '' : 'none');
-            ['p-qty', 'p-cost'].forEach(id => { document.getElementById(id).required = show; });
+            ['p-qty', 'p-cost'].forEach(id => { document.getElementById(id).required = false; });
+            const showSell = !isEdit && hasPerm('inventory.adjust_price') && currentBusinessType !== 'appliance_rental';
+            document.querySelectorAll('.p-sell-group').forEach(g => g.style.display = showSell ? '' : 'none');
             document.getElementById('inv-title').innerText = isEdit ? 'Edit Product' : t('inv.add_product');
             const bulk = document.getElementById('inv-bulk-btn');
             if (bulk) bulk.style.display = (currentBusinessType === 'appliance_rental' || !hasPerm('inventory.view_cost')) ? 'none' : '';
@@ -6835,7 +6863,8 @@
         async function bulkLoadFile(file) {
             if (!file) return;
             if (typeof XLSX === 'undefined') return alert('Excel tools are still loading. Try again in a moment.');
-            try { bulkWb = XLSX.read(await file.arrayBuffer(), { type: 'array' }); } catch (e) { return alert('This file could not be read. Please use .xlsx, .xls or .csv.'); }
+            if (file.size > 5 * 1024 * 1024) return alert('This file is too big (over 5 MB). Please split it into smaller files.');
+            try { bulkWb = XLSX.read(await file.arrayBuffer(), { type: 'array', sheetRows: 5001, cellFormula: false, cellHTML: false, cellStyles: false, cellNF: false }); } catch (e) { return alert('This file could not be read. Please use .xlsx, .xls or .csv.'); }
             bulkPickSheet(bulkWb.SheetNames[0]);
         }
         function bulkPickSheet(name) {
@@ -6850,7 +6879,7 @@
             BULK_FIELDS.forEach(f => bulkHeaders.forEach((c, i) => { const n = bulkNorm(c); let s = 0; f.syn.forEach(y => { if (n === y) s = Math.max(s, 100); else if (n && (n.includes(y) || y.includes(n))) s = Math.max(s, y.length); }); if (s) pairs.push({ k: f.k, i, s }); }));
             pairs.sort((a, b) => b.s - a.s); bulkMap = {}; const used = new Set();
             pairs.forEach(p => { if (bulkMap[p.k] === undefined && !used.has(p.i)) { bulkMap[p.k] = p.i; used.add(p.i); } });
-            const opts = k => `<option value="">— none —</option>` + bulkHeaders.map((c, i) => `<option value="${i}" ${bulkMap[k] === i ? 'selected' : ''}>${bulkEsc(c)}</option>`).join('');
+            const opts = k => `<option value="">— none —</option>` + bulkHeaders.map((c, i) => `<option value="${escHtml(i)}" ${bulkMap[k] === i ? 'selected' : ''}>${bulkEsc(c)}</option>`).join('');
             document.getElementById('bulk-body').innerHTML =
                 (bulkWb.SheetNames.length > 1 ? `<div class="form-group"><label>Sheet</label><select onchange="bulkPickSheet(this.value)">${bulkWb.SheetNames.map(s => `<option ${s === name ? 'selected' : ''}>${bulkEsc(s)}</option>`).join('')}</select></div>` : '') +
                 `<p style="font-size:13px;"><strong>Check the matches</strong> (we guessed from your column names):</p>
@@ -6912,18 +6941,30 @@
                 if (state.inventory.find(i => i.desc.toLowerCase()===desc.toLowerCase() && i.category.toLowerCase()===cat.toLowerCase())) {
                     return alert(`Rejection: "${desc}" already exists inside "${cat}".`);
                 }
-                if (document.getElementById('p-qty').required) {
-                    const qty = parseInt(document.getElementById('p-qty').value), cost = parseFloat(document.getElementById('p-cost').value);
-                    if (!qty || qty <= 0) return alert('Enter a valid quantity.');
-                    if (!cost || cost <= 0) return alert('Enter a valid cost price.');
+                // Quantity and cost price are optional. If a quantity is entered, the cost price is required.
+                const qtyRaw = document.getElementById('p-qty').value.trim(), costRaw = document.getElementById('p-cost').value.trim();
+                const sellRaw = document.getElementById('p-sell').value.trim();
+                const sellingPrice = sellRaw === '' ? 0 : parseFloat(sellRaw);
+                if (sellRaw !== '' && (isNaN(sellingPrice) || sellingPrice < 0)) return alert('Enter a valid selling price.');
+                const qty = qtyRaw === '' ? 0 : Number(qtyRaw), cost = costRaw === '' ? 0 : Number(costRaw);
+                if (qtyRaw !== '') {
+                    if (!Number.isInteger(qty) || qty <= 0) return alert('Enter a whole number for the quantity.');
+                    if (!(cost > 0)) return alert('Cost price is required when you enter a quantity.');
+                } else if (costRaw !== '') {
+                    return alert('Enter a quantity too, or clear the cost price.');
+                }
+                if (qty > 0) {
+                    // Has stock: the product is added AND a purchase record is created.
                     const sup = document.getElementById('p-supplier').value.trim() || 'N/A';
-                    const ok = await addProductsWithStock([{ category: cat, desc, qty, cost, supplier: sup, dailyRate, weeklyRate, monthlyRate }]);
+                    const ok = await addProductsWithStock([{ category: cat, desc, qty, cost, supplier: sup, sellingPrice, dailyRate, weeklyRate, monthlyRate }]);
                     if (!ok) return;
                 } else {
-                    const newItem = { id: crypto.randomUUID(), category: cat, desc, sellingPrice: 0, lots: [], history: [], dailyRate, weeklyRate, monthlyRate };
+                    // No stock: only the product is added. No purchase record.
+                    const newItem = { id: crypto.randomUUID(), category: cat, desc, sellingPrice, lots: [], history: [], dailyRate, weeklyRate, monthlyRate };
                     state.inventory.push(newItem);
                     queueWrite({ kind: 'insert', table: 'inventory_items', row: toDbInventoryItem(newItem) });
                     addNotification('Product Added', `Created new master item: [${cat}] ${desc}`);
+                    try { syncTransactionalProductDropdownOptions(); } catch (e) {}
                 }
             } else {
                 let t = state.inventory[parseInt(idx)];
@@ -6994,7 +7035,7 @@
                 lots.forEach(l => {
                     const branchName = (allBranchesById[l.branchId] && allBranchesById[l.branchId].name) || '—';
                     let rowBg = '';
-                    let expiryText = l.expiry || '<span style="color:var(--text-light);">Not set</span>';
+                    let expiryText = escHtml(l.expiry) || '<span style="color:var(--text-light);">Not set</span>';
                     if (l.expiry) {
                         const days = Math.ceil((new Date(l.expiry) - new Date(new Date().toDateString())) / 86400000);
                         // Same two-tier scheme as the inventory row highlight:
@@ -7004,7 +7045,7 @@
                         expiryText = l.expiry;
                     }
                     const writeOffBtn = canWriteOff ? `<td style="text-align:right;"><button class="btn btn-small btn-danger" onclick="writeOffExpiringLot(${idx}, '${l.id}')">Write Off</button></td>` : '';
-                    html += `<tr style="${rowBg}"><td>${branchName}</td><td>${expiryText}</td><td class="num">${l.qty}</td><td class="num">${l.cost.toFixed(2)}</td>${writeOffBtn}</tr>`;
+                    html += `<tr style="${rowBg}"><td>${escHtml(branchName)}</td><td>${expiryText}</td><td class="num">${l.qty}</td><td class="num">${l.cost.toFixed(2)}</td>${writeOffBtn}</tr>`;
                 });
                 html += `</tbody></table>`;
                 mContent.innerHTML = html;
@@ -7358,7 +7399,7 @@
 
                 tbody.innerHTML += `<tr>
                     <td>${fmtDateTime(trashItem.deletedAt)}</td><td style="text-transform:uppercase;">${trashItem.type}</td>
-                    <td>${info}</td>
+                    <td>${escHtml(info)}</td>
                     <td style="text-align:center;"><button class="btn btn-success btn-small" onclick="restoreTrash(${actualIndex})">${t('misc.restore_data')}</button></td>
                 </tr>`;
             });
@@ -7462,7 +7503,7 @@
             sList.innerHTML = ''; pList.innerHTML = '';
             
             state.inventory.forEach(i => {
-                let opt = `<option value="[${i.category}] ${i.desc}"></option>`;
+                let opt = `<option value="[${escHtml(i.category)}] ${escHtml(i.desc)}"></option>`;
                 sList.innerHTML += opt; pList.innerHTML += opt;
             });
             const today = new Date().toISOString().split('T')[0];
@@ -7674,7 +7715,7 @@
             if (!sel) return;
             const cur = sel.value || base[0];
             const all = [...base, ...customChannelNames()];
-            let html = all.map(name => `<option value="${name}">${name}</option>`).join('');
+            let html = all.map(name => `<option value="${escHtml(name)}">${escHtml(name)}</option>`).join('');
             html += `<option value="__add_new__">+ Add new channel...</option>`;
             sel.innerHTML = html;
             if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
@@ -7688,8 +7729,8 @@
             if (!sel) return;
             const defaults = ['Walk in', 'Proforma', 'Customer', 'Tender'];
             const cur = sel.value;
-            let opts = defaults.map(d => `<option value="${d}">${d}</option>`);
-            (state.saleTypes || []).forEach(t => opts.push(`<option value="${t}">${t}</option>`));
+            let opts = defaults.map(d => `<option value="${escHtml(d)}">${escHtml(d)}</option>`);
+            (state.saleTypes || []).forEach(t => opts.push(`<option value="${escHtml(t)}">${escHtml(t)}</option>`));
             opts.push(`<option value="__add_new__">+ Add new sale type...</option>`);
             sel.innerHTML = opts.join('');
             if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
@@ -7731,7 +7772,7 @@
                 tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-light);">No items added yet.</td></tr>`;
             } else {
                 tbody.innerHTML = saleCart.map((c, i) => `<tr>
-                    <td><span style="color:var(--text-light); font-size:11px;">${c.category}</span><br>${c.desc}</td><td class="num">${c.qty}</td><td class="num">${c.price.toFixed(2)}</td>
+                    <td><span style="color:var(--text-light); font-size:11px;">${escHtml(c.category)}</span><br>${escHtml(c.desc)}</td><td class="num">${c.qty}</td><td class="num">${c.price.toFixed(2)}</td>
                     <td class="num">${(c.qty * c.price).toFixed(2)}</td>
                     <td style="text-align:center;"><button class="btn btn-danger btn-small" onclick="removeFromSaleCart(${i})">✕</button></td>
                 </tr>`).join('');
@@ -7964,7 +8005,7 @@
             amtInput.max = remaining.toFixed(2);
             document.getElementById('record-payment-amount-group').style.display = hideAmount ? 'none' : 'block';
             document.getElementById('record-payment-amount-locked-note').style.display = hideAmount ? 'block' : 'none';
-            document.getElementById('record-payment-channel').innerHTML = ['Cash', 'Mobile banking', ...customChannelNames()].map(name => `<option value="${name}">${name}</option>`).join('');
+            document.getElementById('record-payment-channel').innerHTML = ['Cash', 'Mobile banking', ...customChannelNames()].map(name => `<option value="${escHtml(name)}">${escHtml(name)}</option>`).join('');
             document.getElementById('record-payment-modal').classList.add('active');
         }
         function closeRecordPaymentModal() {
@@ -8068,7 +8109,7 @@
         }
 
         function renderChannelBreakdownHtml(breakdown) {
-            return breakdown.map(b => `<small>${b.channel}: ${b.amount.toFixed(2)}</small>`).join('<br>');
+            return breakdown.map(b => `<small>${escHtml(b.channel)}: ${b.amount.toFixed(2)}</small>`).join('<br>');
         }
 
         // ---------------------------------------------------------------
@@ -8114,8 +8155,8 @@
         function buyerInfoStackHTML(row) {
             if (!row.buyerTin && !row.buyerTradeName) return '';
             const parts = [];
-            if (row.buyerTradeName) parts.push(row.buyerTradeName);
-            if (row.buyerTin) parts.push(`TIN: ${row.buyerTin}`);
+            if (row.buyerTradeName) parts.push(escHtml(row.buyerTradeName));
+            if (row.buyerTin) parts.push(`TIN: ${escHtml(row.buyerTin)}`);
             return `<br><small style="color:var(--text-light);">${parts.join(' · ')}</small>`;
         }
         function docHeaderLines(data) {
@@ -8177,14 +8218,14 @@
             const vatAmt = data.vatIncluded ? data.total - taxable : 0;
             const tendered = data.total;
             const payLabel = (data.channelBreakdown && data.channelBreakdown[0] && data.channelBreakdown[0].channel)
-                ? data.channelBreakdown[0].channel.toUpperCase() : 'CASH';
+                ? escHtml(data.channelBreakdown[0].channel.toUpperCase()) : 'CASH';
             // Item unit price & line total print BEFORE VAT on a real fiscal
             // receipt, even though the figures stored on the sale include it.
             const itemRows = data.lines.map(l => {
                 const unit = (data.vatIncluded && l.unit != null) ? l.unit / 1.15 : l.unit;
                 const lineTotal = data.vatIncluded ? l.total / 1.15 : l.total;
                 return `<tr><td></td><td class="right">${l.qty} X</td><td class="right">*${unit != null ? unit.toFixed(2) : '—'}</td></tr>
-                        <tr><td>${l.desc}</td><td></td><td class="right">*${lineTotal.toFixed(2)}</td></tr>`;
+                        <tr><td>${escHtml(l.desc)}</td><td></td><td class="right">*${lineTotal.toFixed(2)}</td></tr>`;
             }).join('');
             const sharedStyle = `
                 @page { size: 80mm auto; margin: 0; }
@@ -8202,21 +8243,21 @@
             `;
             if (!fiscal) {
                 // Non-VAT-registered shops: plain receipt, no fiscal-style layout.
-                return `<!doctype html><html><head><meta charset="utf-8"><title>${data.docLabel}</title><style>${sharedStyle}</style></head><body>
-                    <div class="center b" style="font-size:13px;">${currentTenantName || 'Your Shop'}</div>
+                return `<!doctype html><html><head><meta charset="utf-8"><title>${escHtml(data.docLabel)}</title><style>${sharedStyle}</style></head><body>
+                    <div class="center b" style="font-size:13px;">${escHtml(currentTenantName || 'Your Shop')}</div>
                     <div class="center small">${fmtDateGregorian(data.date)}</div>
                     <hr>
-                    <div class="b">${data.docLabel}</div>
-                    <div>${data.counterpartyLabel}: ${data.counterpartyName || '—'}</div>
+                    <div class="b">${escHtml(data.docLabel)}</div>
+                    <div>${escHtml(data.counterpartyLabel)}: ${escHtml(data.counterpartyName || '—')}</div>
                     <hr>
                     <table>
                         <tr class="small b"><td>Item</td><td class="right">Qty</td><td class="right">Total</td></tr>
-                        ${data.lines.map(l => `<tr><td>${l.desc}</td><td class="right">${l.qty}</td><td class="right">${l.total.toFixed(2)}</td></tr>`).join('')}
+                        ${data.lines.map(l => `<tr><td>${escHtml(l.desc)}</td><td class="right">${l.qty}</td><td class="right">${l.total.toFixed(2)}</td></tr>`).join('')}
                     </table>
                     <hr>
                     <table><tr class="totrow"><td>TOTAL</td><td class="right" colspan="2">ETB ${data.total.toFixed(2)}</td></tr></table>
                     <hr>
-                    <div class="center small">Ref: ${data.docNumber}</div>
+                    <div class="center small">Ref: ${escHtml(data.docNumber)}</div>
                     <div class="center small" style="margin-top:6px;">Prepared by Meleya Software Solutions.</div>
                 ${'</bo' + 'dy></html>'}`;
             }
@@ -8225,19 +8266,19 @@
             // per-branch sequential FS No. counter and a registered fiscal
             // device serial number. Deliberately plain/unstyled (no color,
             // no bold) since they vary receipt to receipt.
-            const fsNo = data.fsNo || 'PLACEHOLDER';
-            const etSerial = data.etSerial || 'PLACEHOLDER';
+            const fsNo = escHtml(data.fsNo || 'PLACEHOLDER');
+            const etSerial = escHtml(data.etSerial || 'PLACEHOLDER');
             const now = new Date();
             const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-            return `<!doctype html><html><head><meta charset="utf-8"><title>${data.docLabel}</title><style>${sharedStyle}</style></head><body>
-                ${headerLines.map(l => `<div class="center">${l}</div>`).join('')}
+            return `<!doctype html><html><head><meta charset="utf-8"><title>${escHtml(data.docLabel)}</title><style>${sharedStyle}</style></head><body>
+                ${headerLines.map(l => `<div class="center">${escHtml(l)}</div>`).join('')}
                 <div>FS No. ${fsNo}</div>
                 <div class="datetime"><span>${fmtDateGregorian(data.date)}</span><span>${timeStr}</span></div>
                 <div class="center b">=========== CASH INVOICE ===========</div>
-                ${data.buyerTin ? `<div>Buyer's T I N: ${data.buyerTin}</div>` : ''}
-                <div>${data.counterpartyLabel}: ${data.counterpartyName || '—'}</div>
-                <div>Ref: ${data.docNumber}</div>
-                <div>Operator: ${data.operator || '—'}</div>
+                ${data.buyerTin ? `<div>Buyer's T I N: ${escHtml(data.buyerTin)}</div>` : ''}
+                <div>${escHtml(data.counterpartyLabel)}: ${escHtml(data.counterpartyName || '—')}</div>
+                <div>Ref: ${escHtml(data.docNumber)}</div>
+                <div>Operator: ${escHtml(data.operator || '—')}</div>
                 <table>
                     <tr class="small b"><td>Description</td><td class="right">Qty</td><td class="right">Price</td></tr>
                     <tr><td colspan="3"><hr></td></tr>
@@ -8260,7 +8301,7 @@
             const headerLines = docHeaderLines(data);
             const taxable = data.vatIncluded ? data.total / 1.15 : null;
             const vatAmt = data.vatIncluded ? data.total - taxable : 0;
-            return `<!doctype html><html><head><meta charset="utf-8"><title>${data.docLabel}</title><style>
+            return `<!doctype html><html><head><meta charset="utf-8"><title>${escHtml(data.docLabel)}</title><style>
                 @page { size: A4; margin: 18mm; }
                 * { box-sizing: border-box; }
                 body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #111; }
@@ -8280,21 +8321,21 @@
             </style></head><body>
                 <div class="header">
                     <div>
-                        <div class="biz-name">${currentTenantName || 'Your Shop'}</div>
-                        ${headerLines.map(l => `<div>${l}</div>`).join('')}
+                        <div class="biz-name">${escHtml(currentTenantName || 'Your Shop')}</div>
+                        ${headerLines.map(l => `<div>${escHtml(l)}</div>`).join('')}
                     </div>
                     <div>
-                        <div class="doc-title">${data.docLabel}</div>
-                        <div style="text-align:right;">Ref: ${data.docNumber}</div>
+                        <div class="doc-title">${escHtml(data.docLabel)}</div>
+                        <div style="text-align:right;">Ref: ${escHtml(data.docNumber)}</div>
                         <div style="text-align:right;">Date: ${fmtDateGregorian(data.date)}</div>
                     </div>
                 </div>
-                ${data.buyerTin ? `<div>Buyer's TIN: ${data.buyerTin}</div>` : ''}
-                <div style="margin-bottom:10px;"><strong>${data.counterpartyLabel}:</strong> ${data.counterpartyName || '—'}${data.counterpartyPhone ? ` &middot; ${data.counterpartyPhone}` : ''}${data.buyerTradeName ? ` &middot; Trade Name: ${data.buyerTradeName}` : ''}</div>
+                ${data.buyerTin ? `<div>Buyer's TIN: ${escHtml(data.buyerTin)}</div>` : ''}
+                <div style="margin-bottom:10px;"><strong>${escHtml(data.counterpartyLabel)}:</strong> ${escHtml(data.counterpartyName || '—')}${data.counterpartyPhone ? ` &middot; ${escHtml(data.counterpartyPhone)}` : ''}${data.buyerTradeName ? ` &middot; Trade Name: ${escHtml(data.buyerTradeName)}` : ''}</div>
                 <table>
                     <thead><tr><th>Description</th><th class="right">Qty</th><th class="right">Unit Price</th><th class="right">Total</th></tr></thead>
                     <tbody>
-                        ${data.lines.map(l => `<tr><td>${l.desc}</td><td class="right">${l.qty}</td><td class="right">${l.unit != null ? l.unit.toFixed(2) : '—'}</td><td class="right">${l.total.toFixed(2)}</td></tr>`).join('')}
+                        ${data.lines.map(l => `<tr><td>${escHtml(l.desc)}</td><td class="right">${l.qty}</td><td class="right">${l.unit != null ? l.unit.toFixed(2) : '—'}</td><td class="right">${l.total.toFixed(2)}</td></tr>`).join('')}
                     </tbody>
                 </table>
                 <table class="totals">
@@ -8303,7 +8344,7 @@
                     <tr><td class="lbl">Paid</td><td class="right">ETB ${(data.amountPaid || 0).toFixed(2)}</td></tr>
                     <tr><td class="lbl">Balance Due</td><td class="right">ETB ${balance.toFixed(2)}</td></tr>
                 </table>
-                ${(data.extraNotes || []).length ? `<div class="notes">${data.extraNotes.join('<br>')}</div>` : ''}
+                ${(data.extraNotes || []).length ? `<div class="notes">${data.extraNotes.map(escHtml).join('<br>')}</div>` : ''}
                 <div class="footer">Thank you for your business.</div>
                 <div class="footer" style="margin-top:4px;">Prepared by Meleya Software Solutions.</div>
             ${'</bo' + 'dy></html>'}`;
@@ -8497,7 +8538,7 @@
             if (authorSel) {
                 const prevAuthor = authorSel.value;
                 const authors = Array.from(new Set(state.salesLog.map(s => getTransactionAuthor(s.id)).filter(a => a && a !== '—'))).sort();
-                authorSel.innerHTML = `<option value="">${t('sale.all')}</option>` + authors.map(a => `<option value="${a}">${a}</option>`).join('');
+                authorSel.innerHTML = `<option value="">${t('sale.all')}</option>` + authors.map(a => `<option value="${escHtml(a)}">${escHtml(a)}</option>`).join('');
                 if (authors.includes(prevAuthor)) authorSel.value = prevAuthor;
             }
 
@@ -8565,12 +8606,12 @@
                 const priceCell = s.price === null ? '—' : s.price.toFixed(2);
                 const isExpanded = s.isGroup && expandedSaleGroups.has(s.groupId);
                 const descCell = s.isGroup
-                    ? `<span style="cursor:pointer;" onclick="toggleSaleGroupExpand('${s.groupId}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="m5 11 4-7"></path><path d="m19 11-4-7"></path><path d="M2 11h20"></path><path d="m3.5 11 1.6 7.4a2 2 0 0 0 2 1.6h9.8a2 2 0 0 0 2-1.6l1.7-7.4"></path><path d="M4.5 15.5h15"></path></svg> ${isExpanded ? '▾' : '▸'} ${s.desc}</span>`
-                    : `<span class="truncate-cell" title="${s.desc}">${s.desc}</span>`;
-                rows.push(`<tr><td>${fmtDate(s.date)}</td><td>${s.customer}${buyerInfoStackHTML(s)}</td><td class="truncate-cell">${descCell}</td><td class="num">${s.qty}</td><td class="num">${priceCell}</td><td class="num"><strong>${s.total.toFixed(2)}</strong>${s.vatIncluded ? `<br><small style="color:var(--text-light);">${t('sale.with_vat')}</small>` : ''}</td><td>${statusStr}<br><small style="color:var(--accent)">[${s.type || 'Walk in'}]</small></td><td class="branch-col">${branchNameById(s.branchId)}</td><td><small>${getTransactionAuthor(s.id)}</small></td><td style="text-align:center; white-space:nowrap;">${payBtn}${voidBtn}${printBtns}</td></tr>`);
+                    ? `<span style="cursor:pointer;" onclick="toggleSaleGroupExpand('${escHtml(s.groupId)}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="m5 11 4-7"></path><path d="m19 11-4-7"></path><path d="M2 11h20"></path><path d="m3.5 11 1.6 7.4a2 2 0 0 0 2 1.6h9.8a2 2 0 0 0 2-1.6l1.7-7.4"></path><path d="M4.5 15.5h15"></path></svg> ${isExpanded ? '▾' : '▸'} ${escHtml(s.desc)}</span>`
+                    : `<span class="truncate-cell" title="${escHtml(s.desc)}">${escHtml(s.desc)}</span>`;
+                rows.push(`<tr><td>${fmtDate(s.date)}</td><td>${escHtml(s.customer)}${buyerInfoStackHTML(s)}</td><td class="truncate-cell">${descCell}</td><td class="num">${s.qty}</td><td class="num">${priceCell}</td><td class="num"><strong>${s.total.toFixed(2)}</strong>${s.vatIncluded ? `<br><small style="color:var(--text-light);">${t('sale.with_vat')}</small>` : ''}</td><td>${statusStr}<br><small style="color:var(--accent)">[${escHtml(s.type || 'Walk in')}]</small></td><td class="branch-col">${escHtml(branchNameById(s.branchId))}</td><td><small>${escHtml(getTransactionAuthor(s.id))}</small></td><td style="text-align:center; white-space:nowrap;">${payBtn}${voidBtn}${printBtns}</td></tr>`);
                 if (isExpanded) {
                     s.itemRows.forEach(r => {
-                        rows.push(`<tr style="background:var(--bg);"><td></td><td></td><td class="truncate-cell" style="padding-left:32px;" title="${r.desc}"><small>↳ ${r.desc}</small></td><td class="num"><small>${r.qty}</small></td><td class="num"><small>${r.price.toFixed(2)}</small></td><td class="num"><small>${r.total.toFixed(2)}</small></td><td colspan="4"></td></tr>`);
+                        rows.push(`<tr style="background:var(--bg);"><td></td><td></td><td class="truncate-cell" style="padding-left:32px;" title="${escHtml(r.desc)}"><small>↳ ${escHtml(r.desc)}</small></td><td class="num"><small>${r.qty}</small></td><td class="num"><small>${r.price.toFixed(2)}</small></td><td class="num"><small>${r.total.toFixed(2)}</small></td><td colspan="4"></td></tr>`);
                     });
                 }
             });
@@ -8648,7 +8689,7 @@
                 tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-light);">No items added yet.</td></tr>`;
             } else {
                 tbody.innerHTML = purchaseCart.map((c, i) => `<tr>
-                    <td><span style="color:var(--text-light); font-size:11px;">${c.category}</span><br>${c.desc}</td><td class="num">${c.qty}</td><td class="num">${canSeeCost ? c.cost.toFixed(2) : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'}</td>
+                    <td><span style="color:var(--text-light); font-size:11px;">${escHtml(c.category)}</span><br>${escHtml(c.desc)}</td><td class="num">${c.qty}</td><td class="num">${canSeeCost ? c.cost.toFixed(2) : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'}</td>
                     <td class="num">${canSeeCost ? (c.qty * c.cost).toFixed(2) : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'}</td>
                     <td style="text-align:center;"><button class="btn btn-danger btn-small" onclick="removeFromPurchaseCart(${i})">✕</button></td>
                 </tr>`).join('');
@@ -8831,7 +8872,7 @@
             if (authorSel) {
                 const prevAuthor = authorSel.value;
                 const authors = Array.from(new Set(state.purchaseLog.map(p => getTransactionAuthor(p.id)).filter(a => a && a !== '—'))).sort();
-                authorSel.innerHTML = `<option value="">${t('sale.all')}</option>` + authors.map(a => `<option value="${a}">${a}</option>`).join('');
+                authorSel.innerHTML = `<option value="">${t('sale.all')}</option>` + authors.map(a => `<option value="${escHtml(a)}">${escHtml(a)}</option>`).join('');
                 if (authors.includes(prevAuthor)) authorSel.value = prevAuthor;
             }
 
@@ -8879,7 +8920,7 @@
                 // cost/total columns — mask them the same way when the
                 // viewer isn't allowed to see cost, but still show which
                 // channels were involved.
-                let statusStr = canSeeCost ? renderChannelBreakdownHtml(p._breakdown) : paymentChannelSummary(p);
+                let statusStr = canSeeCost ? renderChannelBreakdownHtml(p._breakdown) : escHtml(paymentChannelSummary(p));
                 if (remaining <= 0.001) {
                     statusStr += `<br><small style="color:var(--success)">[Paid in full]</small>`;
                 } else if (!canSeeCost) {
@@ -8899,12 +8940,12 @@
                 const totalCell = canSeeCost ? p.total.toFixed(2) : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
                 const isExpanded = p.isGroup && expandedPurchaseGroups.has(p.groupId);
                 const descCell = p.isGroup
-                    ? `<span style="cursor:pointer;" onclick="togglePurchaseGroupExpand('${p.groupId}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="m5 11 4-7"></path><path d="m19 11-4-7"></path><path d="M2 11h20"></path><path d="m3.5 11 1.6 7.4a2 2 0 0 0 2 1.6h9.8a2 2 0 0 0 2-1.6l1.7-7.4"></path><path d="M4.5 15.5h15"></path></svg> ${isExpanded ? '▾' : '▸'} ${p.desc}</span>`
-                    : `<span class="truncate-cell" title="${p.desc}">${p.desc}</span>`;
-                rows.push(`<tr><td>${fmtDate(p.date)}</td><td>${p.supplier}${buyerInfoStackHTML(p)}</td><td class="truncate-cell">${descCell}</td><td class="num">${p.qty}</td><td class="num">${costCell}</td><td class="num"><strong>${totalCell}</strong></td><td>${statusStr}</td><td class="branch-col">${branchNameById(p.branchId)}</td><td><small>${getTransactionAuthor(p.id)}</small></td><td style="text-align:center; white-space:nowrap;">${payBtn}${voidBtn}${printBtns}</td></tr>`);
+                    ? `<span style="cursor:pointer;" onclick="togglePurchaseGroupExpand('${escHtml(p.groupId)}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="m5 11 4-7"></path><path d="m19 11-4-7"></path><path d="M2 11h20"></path><path d="m3.5 11 1.6 7.4a2 2 0 0 0 2 1.6h9.8a2 2 0 0 0 2-1.6l1.7-7.4"></path><path d="M4.5 15.5h15"></path></svg> ${isExpanded ? '▾' : '▸'} ${escHtml(p.desc)}</span>`
+                    : `<span class="truncate-cell" title="${escHtml(p.desc)}">${escHtml(p.desc)}</span>`;
+                rows.push(`<tr><td>${fmtDate(p.date)}</td><td>${escHtml(p.supplier)}${buyerInfoStackHTML(p)}</td><td class="truncate-cell">${descCell}</td><td class="num">${p.qty}</td><td class="num">${costCell}</td><td class="num"><strong>${totalCell}</strong></td><td>${statusStr}</td><td class="branch-col">${escHtml(branchNameById(p.branchId))}</td><td><small>${escHtml(getTransactionAuthor(p.id))}</small></td><td style="text-align:center; white-space:nowrap;">${payBtn}${voidBtn}${printBtns}</td></tr>`);
                 if (isExpanded) {
                     p.itemRows.forEach(r => {
-                        rows.push(`<tr style="background:var(--bg);"><td></td><td></td><td class="truncate-cell" style="padding-left:32px;" title="${r.desc}"><small>↳ ${r.desc}</small></td><td class="num"><small>${r.qty}</small></td><td class="num"><small>${canSeeCost ? r.cost.toFixed(2) : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'}</small></td><td class="num"><small>${canSeeCost ? r.total.toFixed(2) : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'}</small></td><td colspan="4"></td></tr>`);
+                        rows.push(`<tr style="background:var(--bg);"><td></td><td></td><td class="truncate-cell" style="padding-left:32px;" title="${escHtml(r.desc)}"><small>↳ ${escHtml(r.desc)}</small></td><td class="num"><small>${r.qty}</small></td><td class="num"><small>${canSeeCost ? r.cost.toFixed(2) : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'}</small></td><td class="num"><small>${canSeeCost ? r.total.toFixed(2) : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'}</small></td><td colspan="4"></td></tr>`);
                     });
                 }
             });
@@ -8962,7 +9003,7 @@
             if (authorSel) {
                 const prevAuthor = authorSel.value;
                 const authors = Array.from(new Set(state.expenseLog.map(ex => getTransactionAuthor(ex.id)).filter(a => a && a !== '—'))).sort();
-                authorSel.innerHTML = `<option value="">${t('sale.all')}</option>` + authors.map(a => `<option value="${a}">${a}</option>`).join('');
+                authorSel.innerHTML = `<option value="">${t('sale.all')}</option>` + authors.map(a => `<option value="${escHtml(a)}">${escHtml(a)}</option>`).join('');
                 if (authors.includes(prevAuthor)) authorSel.value = prevAuthor;
             }
 
@@ -8987,7 +9028,7 @@
             sortedExp.slice(0, expShown).forEach(ex => {
                 let m = CHART_OF_ACCOUNTS_MAP.find(c => c.code === ex.target);
                 let voidBtn = (hasPerm('expense.void') && !isBranchClosed(ex.branchId)) ? `<button class="btn btn-danger btn-small" onclick="deleteExpense('${ex.id}')">${t('common.delete')}</button>` : '';
-                rows.push(`<tr><td>${fmtDate(ex.date)}</td><td>${ex.target} - ${m?m.name:''}</td><td>${ex.memo}</td><td class="num"><strong>${ex.amount.toFixed(2)}</strong></td><td>${ex.source}</td><td class="branch-col">${branchNameById(ex.branchId)}</td><td><small>${getTransactionAuthor(ex.id)}</small></td><td style="text-align:center;">${voidBtn}</td></tr>`);
+                rows.push(`<tr><td>${fmtDate(ex.date)}</td><td>${escHtml(ex.target)} - ${m?escHtml(m.name):''}</td><td>${escHtml(ex.memo)}</td><td class="num"><strong>${ex.amount.toFixed(2)}</strong></td><td>${escHtml(ex.source)}</td><td class="branch-col">${escHtml(branchNameById(ex.branchId))}</td><td><small>${escHtml(getTransactionAuthor(ex.id))}</small></td><td style="text-align:center;">${voidBtn}</td></tr>`);
             });
             if (sortedExp.length > expShown) rows.push(loadMoreRowHtml('expense', sortedExp.length - expShown, 8, 'renderExpenseLogTable'));
             tbody.innerHTML = rows.join('');
@@ -8998,7 +9039,7 @@
 
         function renderSystemCOAProfileLayouts() {
             const tbody = document.getElementById('coa-table-body'); tbody.innerHTML = '';
-            CHART_OF_ACCOUNTS_MAP.forEach(a => { tbody.innerHTML += `<tr><td><strong>${a.main}</strong></td><td>${a.sub}</td><td><code>${a.code}</code></td><td><strong>${a.name}</strong></td><td style="text-transform:uppercase;font-size:11px;">${a.stmt}</td><td>${a.normal === 'Debit' ? t('acct.debit') : t('acct.credit')}</td></tr>`; });
+            CHART_OF_ACCOUNTS_MAP.forEach(a => { tbody.innerHTML += `<tr><td><strong>${a.main}</strong></td><td>${a.sub}</td><td><code>${escHtml(a.code)}</code></td><td><strong>${escHtml(a.name)}</strong></td><td style="text-transform:uppercase;font-size:11px;">${a.stmt}</td><td>${a.normal === 'Debit' ? t('acct.debit') : t('acct.credit')}</td></tr>`; });
         }
 
         function populateExpenseAccountDropdown() {
@@ -9006,7 +9047,7 @@
             const prevVal = sel.value;
             sel.innerHTML = '';
             CHART_OF_ACCOUNTS_MAP.filter(a => a.main === 'Expenses' && a.code !== '5010').forEach(a => {
-                sel.innerHTML += `<option value="${a.code}">${a.name} (${a.code})</option>`;
+                sel.innerHTML += `<option value="${escHtml(a.code)}">${escHtml(a.name)} (${escHtml(a.code)})</option>`;
             });
             if ([...sel.options].some(o => o.value === prevVal)) sel.value = prevVal;
         }
@@ -9018,13 +9059,13 @@
         function populateExpenseAccountFilterDropdown() {
             const sel = document.getElementById('exp-log-filter-account'); if (!sel) return;
             const prevVal = sel.value;
-            sel.innerHTML = `<option value="">${t('sale.all')}</option>` + CHART_OF_ACCOUNTS_MAP.filter(a => a.main === 'Expenses').map(a => `<option value="${a.code}">${a.name} (${a.code})</option>`).join('');
+            sel.innerHTML = `<option value="">${t('sale.all')}</option>` + CHART_OF_ACCOUNTS_MAP.filter(a => a.main === 'Expenses').map(a => `<option value="${escHtml(a.code)}">${escHtml(a.name)} (${escHtml(a.code)})</option>`).join('');
             if ([...sel.options].some(o => o.value === prevVal)) sel.value = prevVal;
         }
 
         function prepVoucherInputTargetDropdowns() {
             const dr = document.getElementById('jv-dr-acc'), cr = document.getElementById('jv-cr-acc'); dr.innerHTML = ''; cr.innerHTML = '';
-            CHART_OF_ACCOUNTS_MAP.forEach(a => { let s = `<option value="${a.code}">${a.code} - ${a.name}</option>`; dr.innerHTML += s; cr.innerHTML += s; });
+            CHART_OF_ACCOUNTS_MAP.forEach(a => { let s = `<option value="${escHtml(a.code)}">${escHtml(a.code)} - ${escHtml(a.name)}</option>`; dr.innerHTML += s; cr.innerHTML += s; });
             document.getElementById('jv-date').value = new Date().toISOString().split('T')[0];
             syncAllEthiopianDatePickers();
         }
@@ -9088,7 +9129,7 @@
                 const deleteBtn = canDelete ? `<button class="btn btn-danger btn-small" onclick="deleteJournalVoucher('${entry.id}')">Delete</button>` : '';
                 entry.lines.forEach((l, i) => {
                     let m = CHART_OF_ACCOUNTS_MAP.find(a => a.code === l.account);
-                    rows.push(`<tr><td>${i===0?fmtDate(entry.date):''}</td><td>${i===0?`<strong>${entry.id}</strong><br><small>${stripAuthorStamp(entry.desc)}</small>`:''}</td><td style="padding-left:${l.cr>0?'40px':'16px'}"><strong>${l.account}</strong> - ${m?m.name:''}</td><td class="num text-success">${l.dr>0?l.dr.toFixed(2):'-'}</td><td class="num text-danger">${l.cr>0?l.cr.toFixed(2):'-'}</td><td class="branch-col">${i===0?branchNameById(entry.branchId):''}</td><td>${i===0?`<small>${extractAuthor(entry.desc)}</small>`:''}</td><td style="text-align:center;">${i===0?deleteBtn:''}</td></tr>`);
+                    rows.push(`<tr><td>${i===0?fmtDate(entry.date):''}</td><td>${i===0?`<strong>${entry.id}</strong><br><small>${escHtml(stripAuthorStamp(entry.desc))}</small>`:''}</td><td style="padding-left:${l.cr>0?'40px':'16px'}"><strong>${escHtml(l.account)}</strong> - ${m?escHtml(m.name):''}</td><td class="num text-success">${l.dr>0?l.dr.toFixed(2):'-'}</td><td class="num text-danger">${l.cr>0?l.cr.toFixed(2):'-'}</td><td class="branch-col">${i===0?escHtml(branchNameById(entry.branchId)):''}</td><td>${i===0?`<small>${escHtml(extractAuthor(entry.desc))}</small>`:''}</td><td style="text-align:center;">${i===0?deleteBtn:''}</td></tr>`);
                 });
             });
             if (journalTruncated) rows.push(loadMoreRowHtml('journal', matchingEntries.length - journalShown, 8, 'renderHistoricalJournalsTable'));
@@ -9099,7 +9140,7 @@
         function prepLedgerDropdownFilterOptions() {
             const f = document.getElementById('ledger-filter');
             let opts = [];
-            CHART_OF_ACCOUNTS_MAP.forEach(a => { opts.push(`<option value="${a.code}">${a.code} - ${a.name}</option>`); });
+            CHART_OF_ACCOUNTS_MAP.forEach(a => { opts.push(`<option value="${escHtml(a.code)}">${escHtml(a.code)} - ${escHtml(a.name)}</option>`); });
             f.innerHTML = opts.join('');
             renderGeneralLedgerCards();
         }
@@ -9114,7 +9155,7 @@
                 en.lines.forEach(l => {
                     if (l.account === code) {
                         c++; let s = l.dr - l.cr; if(m.normal==="Credit") s = -s; bal += s;
-                        rows.push(`<tr><td>${fmtDate(en.date)}</td><td><strong>${en.id}</strong> - ${en.desc}</td><td class="num">${l.dr>0?l.dr.toFixed(2):'-'}</td><td class="num">${l.cr>0?l.cr.toFixed(2):'-'}</td><td class="num"><strong>${bal.toFixed(2)}</strong></td></tr>`);
+                        rows.push(`<tr><td>${fmtDate(en.date)}</td><td><strong>${en.id}</strong> - ${escHtml(en.desc)}</td><td class="num">${l.dr>0?l.dr.toFixed(2):'-'}</td><td class="num">${l.cr>0?l.cr.toFixed(2):'-'}</td><td class="num"><strong>${bal.toFixed(2)}</strong></td></tr>`);
                     }
                 });
             });
@@ -9131,8 +9172,8 @@
                 let d = 0, c = 0, s = `<h2>${t('acct.trial_balance_verification')}</h2><table><thead><tr><th>${t('acct.code')}</th><th>${t('team.name')}</th><th class="num">${t('acct.debit')}</th><th class="num">${t('acct.credit')}</th></tr></thead><tbody>`;
                 CHART_OF_ACCOUNTS_MAP.forEach(a => {
                     let b = bal[a.code] || 0; if(b===0) return;
-                    if (a.normal==="Debit") { s += `<tr><td><code>${a.code}</code></td><td>${a.name}</td><td class="num">${b.toFixed(2)}</td><td class="num">-</td></tr>`; d+=b; } 
-                    else { s += `<tr><td><code>${a.code}</code></td><td>${a.name}</td><td class="num">-</td><td class="num">${b.toFixed(2)}</td></tr>`; c+=b; }
+                    if (a.normal==="Debit") { s += `<tr><td><code>${escHtml(a.code)}</code></td><td>${escHtml(a.name)}</td><td class="num">${b.toFixed(2)}</td><td class="num">-</td></tr>`; d+=b; } 
+                    else { s += `<tr><td><code>${escHtml(a.code)}</code></td><td>${escHtml(a.name)}</td><td class="num">-</td><td class="num">${b.toFixed(2)}</td></tr>`; c+=b; }
                 });
                 out.innerHTML = s + `<tr class="total-row"><td>${t('acct.totals')}</td><td></td><td class="num">${d.toFixed(2)}</td><td class="num">${c.toFixed(2)}</td></tr></tbody></table>`;
             } else if (type === 'income') {
@@ -9467,7 +9508,12 @@
         function clearSearchHistoryScope(scope) {
             try { localStorage.removeItem(searchHistKey(scope)); } catch (e) {}
         }
-        function escForJsString(s) { return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+        function escForJsString(s) {
+            // Safe to drop between single quotes inside an inline onclick="..." attribute:
+            // first make it a safe JS string, then HTML-escape it for the attribute.
+            const js = String(s ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r/g, '\\r').replace(/\n/g, '\\n').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+            return escHtml(js);
+        }
         function renderSearchHistoryBlock(scope, containerId, submitFnName) {
             const el = document.getElementById(containerId);
             if (!el) return;
@@ -9603,7 +9649,7 @@
             const showClosed = document.getElementById('show-closed-branches')?.checked;
             const visible = showClosed ? teamBranchesCache : teamBranchesCache.filter(b => !b.closed);
             if (!visible.length) { tbody.innerHTML = `<tr><td colspan="2" style="text-align:center; color:var(--text-light);">${teamBranchesCache.length ? 'No open branches. Check "Show closed branches" to see them.' : 'No branches yet.'}</td></tr>`; return; }
-            tbody.innerHTML = visible.map(b => `<tr class="clickable-row" onclick="openBranchActionsModal('${b.id}')"><td><strong>${b.name}</strong>${b.closed ? ' <span style="color:var(--text-light); font-size:11px;">(Closed)</span>' : ''}</td><td>${b.address || '—'}</td></tr>`).join('');
+            tbody.innerHTML = visible.map(b => `<tr class="clickable-row" onclick="openBranchActionsModal('${b.id}')"><td><strong>${escHtml(b.name)}</strong>${b.closed ? ' <span style="color:var(--text-light); font-size:11px;">(Closed)</span>' : ''}</td><td>${b.address || '—'}</td></tr>`).join('');
         }
 
         function openBranchActionsModal(branchId) {
@@ -9621,12 +9667,12 @@
                 body.innerHTML = `
                     <p style="font-size:13px; color:var(--text-light); margin-bottom:8px;">${t('team.branch_closed_desc')}</p>
                     <button class="btn" style="width:100%; margin-bottom:8px;" onclick="closeBranchActionsModal(); openEditBranchModal('${b.id}')">${t('common.edit')}</button>
-                    <button class="btn" style="width:100%;" onclick="closeBranchActionsModal(); reopenBranch('${b.id}', '${b.name.replace(/'/g,"\\'")}')">${t('team.reopen_branch')}</button>
+                    <button class="btn" style="width:100%;" onclick="closeBranchActionsModal(); reopenBranch('${b.id}', '${escForJsString(b.name)}')">${t('team.reopen_branch')}</button>
                 `;
             } else {
                 body.innerHTML = `
                     <button class="btn" style="width:100%; margin-bottom:8px;" onclick="closeBranchActionsModal(); openEditBranchModal('${b.id}')">${t('common.edit')}</button>
-                    <button class="btn btn-danger" style="width:100%;" ${canClose ? '' : 'disabled title="A business must have at least one open branch"'} onclick="closeBranchActionsModal(); promptCloseBranch('${b.id}', '${b.name.replace(/'/g,"\\'")}')">${t('team.close_branch')}</button>
+                    <button class="btn btn-danger" style="width:100%;" ${canClose ? '' : 'disabled title="A business must have at least one open branch"'} onclick="closeBranchActionsModal(); promptCloseBranch('${b.id}', '${escForJsString(b.name)}')">${t('team.close_branch')}</button>
                     ${canClose ? `<p style="font-size:12px; color:var(--text-light); margin-top:8px;">${t('team.close_hint')}</p>` : `<p style="font-size:12px; color:var(--text-light); margin-top:8px;">${t('team.only_open_branch')}</p>`}
                 `;
             }
@@ -9763,7 +9809,7 @@
             if (!sel) return;
             if (accessibleBranches.length <= 1) { sel.style.display = 'none'; return; }
             const options = [`<option value="all" ${currentBranchId === 'all' ? 'selected' : ''}>All Branches</option>`]
-                .concat(accessibleBranches.map(b => `<option value="${b.id}" ${b.id === currentBranchId ? 'selected' : ''}>${b.name}</option>`));
+                .concat(accessibleBranches.map(b => `<option value="${b.id}" ${b.id === currentBranchId ? 'selected' : ''}>${escHtml(b.name)}</option>`));
             sel.innerHTML = options.join('');
             sel.style.display = 'inline-block';
         }
@@ -9811,7 +9857,7 @@
             return new Promise((resolve) => {
                 _pendingBranchPickResolve = resolve;
                 const sel = document.getElementById('pick-transaction-branch-select');
-                const options = accessibleBranches.map(b => `<option value="${b.id}">${b.name}</option>`);
+                const options = accessibleBranches.map(b => `<option value="${b.id}">${escHtml(b.name)}</option>`);
                 if (allowAll) options.unshift(`<option value="all">Whole Business</option>`);
                 sel.innerHTML = options.join('');
                 document.getElementById('pick-transaction-branch-modal').classList.add('active');
@@ -9858,16 +9904,16 @@
             if (!members.length) { tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-light);">No team members yet.</td></tr>`; return; }
 
             tbody.innerHTML = members.map(m => {
-                const roleLabel = m.is_owner ? 'Owner' : (m.roles ? m.roles.label : '—');
+                const roleLabel = m.is_owner ? 'Owner' : (m.roles ? escHtml(m.roles.label) : '—');
                 let branchLabel;
                 if (m.is_owner) branchLabel = 'All branches';
                 else {
                     const ids = branchAccessByMember[m.id] || [];
-                    branchLabel = ids.length ? teamBranchesCache.filter(b => ids.includes(b.id)).map(b => b.name).join(', ') : '<span style="color:var(--danger);">No branches assigned</span>';
+                    branchLabel = ids.length ? teamBranchesCache.filter(b => ids.includes(b.id)).map(b => escHtml(b.name)).join(', ') : '<span style="color:var(--danger);">No branches assigned</span>';
                 }
                 return `<tr class="clickable-row" onclick="openMemberActionsModal('${m.id}')">
-                    <td><strong>${m.display_name || m.username}</strong></td>
-                    <td>${m.username}</td>
+                    <td><strong>${escHtml(m.display_name) || escHtml(m.username)}</strong></td>
+                    <td>${escHtml(m.username)}</td>
                     <td>${roleLabel}</td>
                     <td>${branchLabel}</td>
                 </tr>`;
@@ -9879,7 +9925,7 @@
             if (!m) return;
             const canManage = hasPerm('team.manage_members') && !m.is_owner;
             const canLoginAs = currentIsOwner && !m.is_owner;
-            const name = (m.display_name || m.username).replace(/'/g, "\\'");
+            const name = escForJsString(m.display_name || m.username);
 
             document.getElementById('member-actions-title').innerText = m.display_name || m.username;
             const body = document.getElementById('member-actions-body');
@@ -9910,7 +9956,7 @@
             roleSel.innerHTML = teamRolesCache.filter(r => r.key !== 'owner').map(r => `<option value="${r.id}">${r.label}</option>`).join('');
 
             const branchBox = document.getElementById('member-branch-checkboxes');
-            branchBox.innerHTML = teamBranchesCache.filter(b => !b.closed).map(b => `<label class="check-label"><input type="checkbox" value="${b.id}" checked>${b.name}</label>`).join('');
+            branchBox.innerHTML = teamBranchesCache.filter(b => !b.closed).map(b => `<label class="check-label"><input type="checkbox" value="${b.id}" checked>${escHtml(b.name)}</label>`).join('');
 
             document.getElementById('add-member-modal').style.display = 'flex';
         }
@@ -9970,7 +10016,7 @@
                     roleSel.innerHTML = teamRolesCache.filter(r => r.key !== 'owner').map(r => `<option value="${r.id}" ${r.id === m.role_id ? 'selected' : ''}>${r.label}</option>`).join('');
 
                     const branchBox = document.getElementById('member-branch-checkboxes');
-                    branchBox.innerHTML = teamBranchesCache.filter(b => !b.closed || currentBranchIds.includes(b.id)).map(b => `<label class="check-label"><input type="checkbox" value="${b.id}" ${currentBranchIds.includes(b.id) ? 'checked' : ''}>${b.name}${b.closed ? ' (Closed)' : ''}</label>`).join('');
+                    branchBox.innerHTML = teamBranchesCache.filter(b => !b.closed || currentBranchIds.includes(b.id)).map(b => `<label class="check-label"><input type="checkbox" value="${b.id}" ${currentBranchIds.includes(b.id) ? 'checked' : ''}>${escHtml(b.name)}${b.closed ? ' (Closed)' : ''}</label>`).join('');
 
                     const btn = document.getElementById('add-member-submit-btn');
                     btn.innerText = 'Save Changes';
@@ -10350,7 +10396,7 @@
                             <div id="role-perms-${role.id}"></div>
                             <div style="display:flex; gap:8px; margin-top:14px;">
                                 <button class="btn btn-small" onclick="saveRolePermissions('${role.id}')">${t('misc.save_permissions')}</button>
-                                ${role.is_builtin ? '' : `<button class="btn btn-danger btn-small" onclick="deleteRole('${role.id}', '${role.label.replace(/'/g,"\\'")}')">${t('misc.delete_role')}</button>`}
+                                ${role.is_builtin ? '' : `<button class="btn btn-danger btn-small" onclick="deleteRole('${role.id}', '${escForJsString(role.label)}')">${t('misc.delete_role')}</button>`}
                             </div>
                         </div>
                     `}
