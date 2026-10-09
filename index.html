@@ -1172,6 +1172,8 @@
                         <tbody id="scn-body"></tbody>
                     </table>
                     <div style="margin-top:12px; font-weight:700; color:var(--primary);">Scanned stock value: <span id="scn-total">ETB 0.00</span></div>
+                    <div id="scn-waiting" style="margin-top:14px;"></div>
+                    <h3 style="margin:18px 0 8px;font-size:15px;">Saved receipts (audit copies)</h3><div id="scn-receipts"></div>
                 </div>
             </div>
 
@@ -11283,6 +11285,7 @@
                     <td class="num">${r.last_cost == null ? '—' : money(r.last_cost)}</td><td class="num">${money(v)}</td></tr>`;
             }).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text-light);">No scanned stock yet. Scan a purchase receipt to start.</td></tr>';
             $('scn-total').textContent = 'ETB ' + money(tot);
+            if (window.scnAfterLoad) window.scnAfterLoad(rows);
         }
 
         // ---- photo -> base64 (same approach as the accountant app) ----
@@ -11312,9 +11315,14 @@
             return { merchant: d.seller_name || '', tin: d.seller_tin || '', no: d.receipt_no || '', date, before: d.before_vat ?? '', vat: d.vat ?? '', total: d.total ?? '', items: items.length ? items : blank().items, error: items.length ? '' : 'No items were found. Add them by hand below.' };
         }
 
-        const open = html => { $('scn-modal-body').innerHTML = html; $('scn-modal').classList.add('active'); };
+        const open = html => { $('scn-modal').querySelector('h3').textContent = 'Review scanned receipt'; $('scn-modal-body').innerHTML = html; $('scn-modal').classList.add('active'); };
         const close = () => $('scn-modal').classList.remove('active');
 
+        // New-scan suggestion: does this line look like something already in Scanned Stock?
+        const hint = (i, it) => {
+            const m = window.scnSuggest && it.name.trim() ? window.scnSuggest(it.name, null, rows).filter(x => x.item.name_key !== scnNameKey(it.name))[0] : null;
+            return m && m.score >= 45 ? `<tr><td colspan="6" style="font-size:12px;color:var(--text-light);padding-top:0;">Looks like <b>${esc(m.item.name)}</b> (${m.label}) <button type="button" class="btn btn-small" onclick="scnRow(${i},'name',${esc(JSON.stringify(m.item.name))});scnRefresh()">Use this name</button></td></tr>` : '';
+        };
         function review() {
             const d = draft, inp = 'style="width:100%;"';
             open(`${d.error ? `<p style="color:#c0392b;font-size:13px;">${esc(d.error)}</p>` : ''}
@@ -11330,7 +11338,7 @@
                   <td><input type="text" value="${esc(it.unit)}" oninput="scnRow(${i},'unit',this.value)" placeholder="pk, kg…" style="width:80px;"></td>
                   <td><input type="number" step="any" value="${esc(it.price)}" oninput="scnRow(${i},'price',this.value)" style="width:100px;"></td>
                   <td><input type="number" step="any" min="1" value="${esc(it.pack)}" oninput="scnRow(${i},'pack',this.value)" style="width:80px;"></td>
-                  <td><button type="button" class="btn btn-danger btn-small" onclick="scnDel(${i})">✕</button></td></tr>`).join('')}
+                  <td><button type="button" class="btn btn-danger btn-small" onclick="scnDel(${i})">✕</button></td></tr>${hint(i, it)}`).join('')}
               </tbody></table></div>
               <div style="display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;margin-top:14px;">
                 <button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="scnAdd()">+ Add line</button>
@@ -11396,12 +11404,203 @@
         };
 
         // Show the tab only to owners, and load data when it opens.
+        window.scnReload = load; window.scnRefresh = review;
         window.scnShowNav = () => { const n = $('nav-scanned'); if (n) n.style.display = (typeof currentIsOwner !== 'undefined' && currentIsOwner) ? 'flex' : 'none'; };
         const baseSwitch = window.switchView;
         window.switchView = function (v) {
             if (v === 'scanned' && !currentIsOwner) return;
             baseSwitch(v);
             if (v === 'scanned') { $('page-title').innerText = 'Scanned Stock'; load(); }
+        };
+    })();
+    </script>
+
+
+    <script>
+    // ============ SCANNED STOCK, part 2: selling, matching on Print, waiting list, audit list ============
+    (function () {
+        const $ = id => document.getElementById(id);
+        const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+        const r2 = n => Math.round(n * 100) / 100;
+        const money = n => num(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const key = s => window.scnNameKey(s);
+        let items = [], aliasMap = new Map(), ctx = null, busy = false;
+
+        // ---------- matching rules ----------
+        const SIZE = /(\d+(?:\.\d+)?)(kg|g|ml|l|cm|m|pcs|pc)\b/g;
+        const toks = s => key(s).split(' ').filter(Boolean);
+        const sizes = s => (key(s).match(SIZE) || []).map(x => x.replace(/pcs$/, 'pc'));
+        const lev = (a, b) => { const m = [...Array(a.length + 1)].map((_, i) => [i, ...Array(b.length).fill(0)]); for (let j = 1; j <= b.length; j++) m[0][j] = j; for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) m[i][j] = Math.min(m[i - 1][j] + 1, m[i][j - 1] + 1, m[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); return m[a.length][b.length]; };
+        function nameScore(a, b) {
+            const A = toks(a), B = toks(b); if (!A.length || !B.length) return 0;
+            if (key(a) === key(b)) return 95;
+            let hit = 0; B.forEach(w => { if (A.some(x => x === w || (x.length > 3 && w.length > 3 && lev(x, w) <= 1))) hit++; });
+            let sc = 70 * hit / Math.max(A.length, B.length);
+            const sa = sizes(a), sb = sizes(b);
+            if (sa.length && sb.length) sc += sa.join() === sb.join() ? 10 : -40;
+            return Math.max(0, sc);
+        }
+        const unitOpts = it => [{ unit: it.base_unit, mult: 1 }, ...(it.units || []).map(u => ({ unit: u.unit, mult: num(u.base_qty) || 1 }))];
+        // Price check: compare the selling price with the latest cost of each unit; pick the unit that fits best.
+        function priceCheck(price, it) {
+            const opts = unitOpts(it), cost = num(it.last_cost);
+            if (!price || !cost) return { adj: 0, warn: false, opt: opts[0] };
+            let best = null;
+            opts.forEach(o => { const ratio = price / (cost * o.mult), dist = ratio < 1 ? 1 - ratio : ratio > 2 ? ratio - 2 : 0; if (!best || dist < best.dist) best = { o, ratio, dist }; });
+            const r = best.ratio, adj = r >= 1 && r <= 2 ? 0 : (r > 0.8 && r < 1) || (r > 2 && r <= 3) ? -8 : -25;
+            return { adj, warn: adj <= -25, opt: best.o };
+        }
+        // Top 3 suggestions for a sale item name (price may be null for new-scan hints).
+        window.scnSuggest = (name, price, list) => {
+            const k = key(name), al = aliasMap.get(k), out = [];
+            (list || items).forEach(it => {
+                let sc, via = '', pc = priceCheck(price, it), opt = pc.opt;
+                if (al && al.item_id === it.id) { sc = 100; via = 'Remembered'; if (al.sold_unit) opt = unitOpts(it).find(o => o.unit === al.sold_unit) || opt; }
+                else { sc = nameScore(name, it.name) + (price ? pc.adj : 0); }
+                if (sc >= 45) out.push({ item: it, score: sc, label: via || (sc >= 75 ? 'Strong match' : 'Possible match'), opt, warn: price ? pc.warn : false });
+            });
+            return out.sort((a, b) => b.score - a.score).slice(0, 3);
+        };
+
+        async function ensure() {
+            const tid = currentTenantId;
+            const [a, b] = await Promise.all([
+                supabaseClient.from('scanned_stock_items').select('*').eq('tenant_id', tid).order('name'),
+                supabaseClient.from('scanned_stock_aliases').select('*').eq('tenant_id', tid)]);
+            if (a.error) throw a.error; if (b.error) throw b.error;
+            items = a.data || []; aliasMap = new Map((b.data || []).map(x => [x.alias_key, x]));
+        }
+        async function aiHelp(lines) {
+            const weak = lines.map((l, i) => ({ l, i })).filter(x => !x.l.sug.length || x.l.sug[0].score < 75);
+            if (!weak.length || !items.length) return;
+            try {
+                const r = await fetch('/api/match-items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sales: weak.map(x => ({ i: x.i, name: x.l.desc, price: x.l.unit })), items: items.map(x => ({ id: x.id, name: x.name, cost: x.last_cost })) }) });
+                const d = await r.json(); if (!r.ok) return;
+                (d.matches || []).forEach(m => { const L = lines[m.i], it = items.find(x => x.id === m.item_id); if (L && it && !L.sug.some(s => s.item.id === it.id)) { const pc = priceCheck(L.unit, it); L.sug.unshift({ item: it, score: 60, label: 'AI suggestion', opt: pc.opt, warn: pc.warn }); } });
+            } catch (e) { }
+        }
+
+        // ---------- match window ----------
+        const shut = () => { $('scn-modal').classList.remove('active'); ctx = null; };
+        async function openMatch(lines, onDone) {
+            const m = $('scn-modal'); m.querySelector('h3').textContent = 'Match sold items to scanned stock';
+            $('scn-modal-body').innerHTML = '<p>Checking scanned stock…</p>'; m.classList.add('active');
+            try { await ensure(); } catch (e) { shut(); alert('Could not load scanned stock: ' + (e.message || e)); return onDone && onDone(null); }
+            lines.forEach(l => { l.sug = window.scnSuggest(l.desc, l.unit); });
+            await aiHelp(lines);
+            lines.forEach(l => { const t = l.sug[0]; l.sel = t ? { id: t.item.id, mult: t.opt.mult, unit: t.opt.unit } : { id: '' }; });
+            ctx = { lines, onDone }; drawMatch();
+        }
+        function drawMatch() {
+            const L = ctx.lines;
+            $('scn-modal-body').innerHTML = `<p style="font-size:12px;color:var(--text-light);margin:0 0 8px;">Accepting a suggestion prints that name on the receipt and takes the stock from that item. Matches are remembered for next time.</p>
+              ${L.map((l, i) => {
+                const sel = l.sel, cur = items.find(x => x.id === sel.id), sg = l.sug.find(s => s.item.id === sel.id);
+                const rest = items.filter(x => !l.sug.some(s => s.item.id === x.id));
+                return `<div style="border-bottom:1px solid var(--border,#ddd);padding:10px 0;">
+                  <div><b>${esc(l.desc)}</b> &times; ${esc(l.qty)} @ ${money(l.unit)}</div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
+                    <select onchange="scnPick(${i},this.value)" style="flex:1 1 220px;">
+                      ${l.sug.map(s => `<option value="${s.item.id}" ${sel.id === s.item.id ? 'selected' : ''}>${esc(s.item.name)} — ${s.label}</option>`).join('')}
+                      ${rest.length ? '<option disabled>— other scanned items —</option>' : ''}
+                      ${rest.map(x => `<option value="${x.id}" ${sel.id === x.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}
+                      <option value="" ${sel.id === '' ? 'selected' : ''}>No match (new item, goes negative)</option>
+                      <option value="__skip" ${sel.id === '__skip' ? 'selected' : ''}>Skip (do not deduct)</option>
+                    </select>
+                    ${cur && unitOpts(cur).length > 1 ? `<select onchange="scnUnit(${i},this.value)">${unitOpts(cur).map(o => `<option value="${esc(o.unit)}" ${sel.unit === o.unit ? 'selected' : ''}>sold as ${esc(o.unit)}${o.mult > 1 ? ' (' + o.mult + ' ' + esc(cur.base_unit) + ')' : ''}</option>`).join('')}</select>` : ''}
+                  </div>
+                  ${sg && sg.warn ? '<div style="color:#c0392b;font-size:12px;margin-top:4px;">Price looks very different from the cost. Check the unit or the match.</div>' : ''}
+                </div>`;
+            }).join('')}
+              <div style="display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;margin-top:14px;">
+                <button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="scnLater()">${ctx.onDone ? 'Print without scanned stock' : 'Close'}</button>
+                <button type="button" class="btn" id="scn-mconfirm" onclick="scnConfirmMatch()">${ctx.onDone ? 'Confirm &amp; print' : 'Confirm'}</button>
+              </div>`;
+        }
+        window.scnPick = (i, v) => { const l = ctx.lines[i], it = items.find(x => x.id === v), s = l.sug.find(x => x.item.id === v), o = s ? s.opt : it ? priceCheck(l.unit, it).opt : null; l.sel = v === '' || v === '__skip' ? { id: v } : { id: v, mult: o.mult, unit: o.unit }; drawMatch(); };
+        window.scnUnit = (i, u) => { const l = ctx.lines[i], it = items.find(x => x.id === l.sel.id), o = unitOpts(it).find(x => x.unit === u); l.sel.mult = o.mult; l.sel.unit = o.unit; drawMatch(); };
+        window.scnLater = () => { const f = ctx && ctx.onDone; shut(); if (f) f([]); };
+
+        window.scnConfirmMatch = async () => {
+            if (busy || !ctx) return; busy = true;
+            const btn = $('scn-mconfirm'); btn.disabled = true; btn.textContent = 'Saving…';
+            const tid = currentTenantId, done = [], f = ctx.onDone; let failed = null;
+            try {
+                for (const l of ctx.lines) {
+                    const s = l.sel;
+                    if (s.id === '__skip') { const r = await supabaseClient.from('scanned_stock_pending').insert({ tenant_id: tid, sale_ref: l._rowId, item_name: l.desc, qty: num(l.qty), unit_price: num(l.unit), status: 'skipped', printed_name: l.desc }); if (r.error && r.error.code !== '23505') throw r.error; continue; }
+                    let item = items.find(x => x.id === s.id), mult = s.mult || 1;
+                    if (!item) {
+                        item = items.find(x => x.name_key === key(l.desc));
+                        if (!item) { const r = await supabaseClient.from('scanned_stock_items').insert({ tenant_id: tid, name: l.desc, name_key: key(l.desc), base_unit: 'pcs', units: [], qty: 0, last_cost: null }).select().single(); if (r.error) throw r.error; item = r.data; items.push(item); }
+                        mult = 1;
+                    }
+                    const baseQty = num(l.qty) * mult;
+                    // 1) claim the sale line first (a unique index stops double deduction)
+                    const led = await supabaseClient.from('scanned_stock_pending').insert({ tenant_id: tid, sale_ref: l._rowId, item_name: l.desc, qty: baseQty, base_qty: baseQty, unit_price: num(l.unit), status: 'done', item_id: item.id, printed_name: item.name });
+                    if (led.error) { if (led.error.code === '23505') { done.push({ l, name: item.name }); continue; } throw led.error; }
+                    // 2) deduct (re-read the row so we never overwrite a newer quantity)
+                    const cur = await supabaseClient.from('scanned_stock_items').select('qty').eq('id', item.id).single();
+                    const up = cur.error ? cur : await supabaseClient.from('scanned_stock_items').update({ qty: num(cur.data.qty) - baseQty, updated_at: new Date().toISOString() }).eq('id', item.id);
+                    if (up.error) { await supabaseClient.from('scanned_stock_pending').delete().eq('tenant_id', tid).eq('sale_ref', l._rowId); throw up.error; }
+                    // 3) remember this name for next time
+                    if (key(l.desc) !== item.name_key) { await supabaseClient.from('scanned_stock_aliases').upsert({ tenant_id: tid, alias_key: key(l.desc), item_id: item.id, sold_unit: s.unit || null }, { onConflict: 'tenant_id,alias_key' }); }
+                    done.push({ l, name: item.name });
+                }
+            } catch (e) { failed = e; }
+            busy = false; shut();
+            if (failed) alert('Scanned stock could not be fully updated: ' + (failed.message || failed) + (f ? '\nThe receipt will still print. The unfinished lines stay in the waiting list.' : ''));
+            if (f) f(done);
+            if (window.scnReload && $('view-scanned').classList.contains('active')) window.scnReload();
+        };
+
+        // ---------- hook into Print (owners only; printing is never blocked) ----------
+        const oBuild = window.buildSalePrintData;
+        window.buildSalePrintData = function (id, g) {
+            const d = oBuild(id, g);
+            if (d) { const rs = g ? state.salesLog.filter(x => x.groupId === id) : state.salesLog.filter(x => x.id === id); d.lines.forEach((l, i) => { if (rs[i]) { l._rowId = rs[i].id; l._vat = !!rs[i].vatIncluded; } }); d._scn = true; }
+            return d;
+        };
+        async function viaScanned(d, orig) {
+            if (!d || !d._scn || typeof currentIsOwner === 'undefined' || !currentIsOwner) return orig(d);
+            const vat = d.lines.filter(l => l._vat && l._rowId);
+            if (!vat.length) return orig(d);
+            try {
+                const led = await supabaseClient.from('scanned_stock_pending').select('sale_ref,printed_name').eq('tenant_id', currentTenantId).in('sale_ref', vat.map(l => l._rowId));
+                if (led.error) throw led.error;
+                const got = new Map((led.data || []).map(x => [x.sale_ref, x.printed_name]));
+                d.lines.forEach(l => { if (got.get(l._rowId)) l.desc = got.get(l._rowId); });
+                const todo = vat.filter(l => !got.has(l._rowId)).map(l => ({ _rowId: l._rowId, desc: l.desc, qty: l.qty, unit: l.unit, line: l }));
+                if (!todo.length) return orig(d);
+                openMatch(todo, res => { (res || []).forEach(x => { x.l.line.desc = x.name; }); orig(d); });
+            } catch (e) { orig(d); }
+        }
+        const oR = window.printReceiptFor, oI = window.printInvoiceFor;
+        window.printReceiptFor = d => viaScanned(d, oR);
+        window.printInvoiceFor = d => viaScanned(d, oI);
+
+        // ---------- Scanned Stock tab: waiting list + saved receipts ----------
+        window.scnAfterLoad = async rows => {
+            const tid = currentTenantId, w = $('scn-waiting'), rc = $('scn-receipts');
+            try {
+                const cutoff = rows.length ? rows.map(r => r.created_at).sort()[0].slice(0, 10) : null;
+                const cand = cutoff ? (state.salesLog || []).filter(r => r.vatIncluded && r.date >= cutoff).slice(-300) : [];
+                let waiting = [];
+                if (cand.length) {
+                    const led = await supabaseClient.from('scanned_stock_pending').select('sale_ref').eq('tenant_id', tid).in('sale_ref', cand.map(r => r.id));
+                    const had = new Set((led.data || []).map(x => x.sale_ref));
+                    waiting = cand.filter(r => !had.has(r.id));
+                }
+                w.innerHTML = waiting.length ? `<div style="background:rgba(255,193,7,.15);border:1px solid #e0a800;border-radius:8px;padding:10px;"><b>${waiting.length} VAT sale line(s) waiting</b> to be matched (printed receipts are matched automatically).
+                    <div style="font-size:12px;margin:6px 0;">${waiting.slice(-8).map(r => esc(r.date) + ' · ' + esc(r.desc) + ' × ' + esc(r.qty)).join('<br>')}</div>
+                    <button type="button" class="btn btn-small" id="scn-wbtn">Match now</button></div>` : '';
+                const b = $('scn-wbtn'); if (b) b.onclick = () => openMatch(waiting.map(r => ({ _rowId: r.id, desc: r.desc, qty: r.qty, unit: r.price })), null);
+            } catch (e) { w.innerHTML = ''; }
+            const r = await supabaseClient.from('scanned_receipts').select('*').eq('tenant_id', tid).order('created_at', { ascending: false }).limit(30);
+            rc.innerHTML = r.error ? '<span style="color:#c0392b;">Could not load receipts.</span>' : (r.data || []).length ? r.data.map(x => `<details style="border-bottom:1px solid var(--border,#ddd);padding:6px 0;"><summary>${esc(x.receipt_date || String(x.created_at).slice(0, 10))} · ${esc(x.merchant || 'Unknown merchant')} · No. ${esc(x.receipt_no || '-')} · Total ${x.total == null ? '-' : money(x.total)}</summary>
+                <table style="margin-top:6px;"><thead><tr><th>Item</th><th class="num">Qty</th><th>Unit</th><th class="num">Price</th><th class="num">Pcs/unit</th></tr></thead><tbody>${(x.items || []).map(i => `<tr><td>${esc(i.name)}</td><td class="num">${esc(i.qty)}</td><td>${esc(i.unit || '')}</td><td class="num">${i.unit_price == null ? '-' : money(i.unit_price)}</td><td class="num">${esc(i.pcs_per_unit)}</td></tr>`).join('')}</tbody></table>
+                <div style="font-size:12px;color:var(--text-light);">Before VAT ${x.before_vat == null ? '-' : money(x.before_vat)} · VAT ${x.vat == null ? '-' : money(x.vat)} · TIN ${esc(x.merchant_tin || '-')}</div></details>`).join('') : '<span style="color:var(--text-light);font-size:13px;">No receipts saved yet.</span>';
         };
     })();
     </script>
