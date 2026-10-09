@@ -588,6 +588,7 @@
                     <button onclick="switchView('statements')" id="nav-statements"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><line x1="3" y1="22" x2="21" y2="22"></line><line x1="6" y1="18" x2="6" y2="11"></line><line x1="10" y1="18" x2="10" y2="11"></line><line x1="14" y1="18" x2="14" y2="11"></line><line x1="18" y1="18" x2="18" y2="11"></line><polygon points="12 2 20 7 4 7"></polygon></svg> Financial Statements</button>
                 </div>
                 <button onclick="switchView('team')" id="nav-team" style="display:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg> <span data-i18n="nav.team">Team &amp; Branches</span></button>
+                <button onclick="switchView('scanned')" id="nav-scanned" style="display:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"></path><line x1="7" y1="12" x2="17" y2="12"></line></svg> <span>Scanned Stock</span></button>
                 <button onclick="switchView('settings')" id="nav-settings" style="display:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg> <span data-i18n="nav.settings">Settings</span></button>
             </nav>
         </div>
@@ -1159,6 +1160,21 @@
                 </div>
             </div>
 
+            <div id="view-scanned" class="view-panel">
+                <div class="card">
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                        <h2 style="border:none; margin:0; padding:0;">Scanned Stock</h2>
+                        <div><input type="file" id="scn-file" accept="image/*" style="display:none;" onchange="scnPickFile(this)"><button type="button" class="btn" onclick="document.getElementById('scn-file').click()">Scan purchase receipt</button></div>
+                    </div>
+                    <p style="font-size:12px; color:var(--text-light); margin:0 0 10px;">Separate from your main inventory. Only stock from scanned receipts is counted here (owners only).</p>
+                    <table>
+                        <thead><tr><th>Item</th><th class="num">Quantity</th><th class="num">Last cost</th><th class="num">Value</th></tr></thead>
+                        <tbody id="scn-body"></tbody>
+                    </table>
+                    <div style="margin-top:12px; font-weight:700; color:var(--primary);">Scanned stock value: <span id="scn-total">ETB 0.00</span></div>
+                </div>
+            </div>
+
             <div id="view-journal" class="view-panel">
                 <div class="card" id="journal-entry-card">
                     <h2 data-i18n="acct.new_journal_entry">New Journal Entry</h2>
@@ -1467,6 +1483,13 @@
                     <button type="submit" class="btn" id="inv-btn">Add Product</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <div id="scn-modal" class="modal-overlay" style="z-index:3100;">
+        <div class="modal-box" style="max-width:920px; width:96%; max-height:92vh; overflow:auto;" onclick="event.stopPropagation()">
+            <h3 style="color:var(--primary); margin-top:0;">Review scanned receipt</h3>
+            <div id="scn-modal-body"></div>
         </div>
     </div>
 
@@ -3292,6 +3315,7 @@
             // Settings nav item follows the same rule.
             const settingsNav = document.getElementById('nav-settings');
             if (settingsNav) settingsNav.style.display = currentIsOwner ? 'flex' : 'none';
+            if (window.scnShowNav) window.scnShowNav();
 
             const { data: biz, error: bizErr } = await supabaseClient.from('businesses').select('*').eq('id', currentTenantId).single();
             if (bizErr || !biz) {
@@ -11229,6 +11253,156 @@
                 startTourLoop();
             }
         }
+    })();
+    </script>
+
+
+    <script>
+    // ===================== SCANNED STOCK (owner only, runs separately from main inventory) =====================
+    (function () {
+        const $ = id => document.getElementById(id);
+        const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+        const r2 = n => Math.round(n * 100) / 100;
+        const money = n => num(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const p2 = n => String(n).padStart(2, '0');
+        // Cleaned name used for matching ("Sugar 1 KG" and "sugar 1kg" become the same key).
+        window.scnNameKey = s => String(s || '').toLowerCase().replace(/(\d)\s+(kg|g|l|ml|pcs|pc|m|cm)\b/g, '$1$2').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+        let rows = [], draft = null, busy = false;
+
+        async function load() {
+            const { data, error } = await supabaseClient.from('scanned_stock_items').select('*').eq('tenant_id', currentTenantId).order('name');
+            if (error) { $('scn-body').innerHTML = '<tr><td colspan="4" style="color:#c0392b;">Could not load: ' + esc(error.message) + '</td></tr>'; return; }
+            rows = data || [];
+            let tot = 0;
+            $('scn-body').innerHTML = rows.length ? rows.map(r => {
+                const v = num(r.qty) * num(r.last_cost); tot += v;
+                const packs = (r.units || []).map(u => `1 ${esc(u.unit)} = ${num(u.base_qty)} ${esc(r.base_unit)}`).join(', ');
+                return `<tr><td>${esc(r.name)}${packs ? `<div style="font-size:11px;color:var(--text-light);">${packs}</div>` : ''}</td>
+                    <td class="num" style="${num(r.qty) < 0 ? 'color:#c0392b;font-weight:700;' : ''}">${money(r.qty)} ${esc(r.base_unit)}</td>
+                    <td class="num">${r.last_cost == null ? '—' : money(r.last_cost)}</td><td class="num">${money(v)}</td></tr>`;
+            }).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text-light);">No scanned stock yet. Scan a purchase receipt to start.</td></tr>';
+            $('scn-total').textContent = 'ETB ' + money(tot);
+        }
+
+        // ---- photo -> base64 (same approach as the accountant app) ----
+        function loadImg(file) { return new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error('Could not open this image')); i.src = URL.createObjectURL(file); }); }
+        async function compress(file) {
+            const img = await loadImg(file); let max = 1600, q = 0.8, blob = null;
+            for (let a = 0; a < 5; a++) {
+                const s = Math.min(1, max / Math.max(img.width, img.height)), c = document.createElement('canvas');
+                c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+                c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+                blob = await new Promise(r => c.toBlob(r, 'image/jpeg', q));
+                if (blob.size <= 900 * 1024) break;
+                max = Math.round(max * 0.8); q = Math.max(0.5, q - 0.1);
+            }
+            URL.revokeObjectURL(img.src); return blob;
+        }
+        const toB64 = blob => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = () => no(new Error('Could not read image')); r.readAsDataURL(blob); });
+
+        const blank = () => ({ merchant: '', tin: '', no: '', date: '', before: '', vat: '', total: '', items: [{ name: '', qty: 1, unit: '', price: '', pack: 1 }], error: '' });
+        function fromExtract(d) {
+            let date = '';
+            try { if (d.date_year && d.date_month && d.date_day) date = d.date_calendar === 'EC' ? ethiopianToGregorianISO(d.date_year, d.date_month, d.date_day) : `${d.date_year}-${p2(d.date_month)}-${p2(d.date_day)}`; } catch (e) { }
+            const items = (d.items || []).map(i => {
+                const m = String(i.pack_hint || '').match(/\d+/);
+                return { name: i.description || '', qty: i.quantity ?? 1, unit: i.measurement || '', price: i.unit_price ?? (i.quantity ? r2(num(i.amount) / i.quantity) : ''), pack: m ? Number(m[0]) : 1 };
+            });
+            return { merchant: d.seller_name || '', tin: d.seller_tin || '', no: d.receipt_no || '', date, before: d.before_vat ?? '', vat: d.vat ?? '', total: d.total ?? '', items: items.length ? items : blank().items, error: items.length ? '' : 'No items were found. Add them by hand below.' };
+        }
+
+        const open = html => { $('scn-modal-body').innerHTML = html; $('scn-modal').classList.add('active'); };
+        const close = () => $('scn-modal').classList.remove('active');
+
+        function review() {
+            const d = draft, inp = 'style="width:100%;"';
+            open(`${d.error ? `<p style="color:#c0392b;font-size:13px;">${esc(d.error)}</p>` : ''}
+              <p style="font-size:12px;color:var(--text-light);margin:0 0 10px;">Check every line against the paper receipt. Names are saved exactly as you leave them here.</p>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+                ${[['merchant', 'Merchant', 'text'], ['tin', 'Merchant TIN', 'text'], ['no', 'Receipt No.', 'text'], ['date', 'Date', 'date'], ['before', 'Before VAT', 'number'], ['vat', 'VAT', 'number'], ['total', 'Total', 'number']]
+                    .map(([k, l, t]) => `<div class="form-group" style="flex:1 1 140px;margin:0;"><label>${l}</label><input type="${t}" step="0.01" value="${esc(d[k])}" oninput="scnHead('${k}',this.value)" ${inp}></div>`).join('')}
+              </div>
+              <div style="overflow-x:auto;"><table><thead><tr><th>Item (as on receipt)</th><th class="num">Qty</th><th>Unit</th><th class="num">Price / unit</th><th class="num" title="If 1 unit holds several pieces, e.g. 1 pk = 10 pcs, enter 10. Stock is saved in pieces.">Pcs in 1 unit</th><th></th></tr></thead><tbody>
+                ${d.items.map((it, i) => `<tr>
+                  <td><input type="text" value="${esc(it.name)}" oninput="scnRow(${i},'name',this.value)" style="min-width:180px;width:100%;"></td>
+                  <td><input type="number" step="any" value="${esc(it.qty)}" oninput="scnRow(${i},'qty',this.value)" style="width:80px;"></td>
+                  <td><input type="text" value="${esc(it.unit)}" oninput="scnRow(${i},'unit',this.value)" placeholder="pk, kg…" style="width:80px;"></td>
+                  <td><input type="number" step="any" value="${esc(it.price)}" oninput="scnRow(${i},'price',this.value)" style="width:100px;"></td>
+                  <td><input type="number" step="any" min="1" value="${esc(it.pack)}" oninput="scnRow(${i},'pack',this.value)" style="width:80px;"></td>
+                  <td><button type="button" class="btn btn-danger btn-small" onclick="scnDel(${i})">✕</button></td></tr>`).join('')}
+              </tbody></table></div>
+              <div style="display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;margin-top:14px;">
+                <button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="scnAdd()">+ Add line</button>
+                <div style="display:flex;gap:10px;"><button type="button" class="btn btn-danger" onclick="scnCancel()">Cancel</button><button type="button" class="btn" id="scn-confirm" onclick="scnSave()">Confirm &amp; add to stock</button></div>
+              </div>`);
+        }
+
+        window.scnPickFile = async input => {
+            const f = input.files && input.files[0]; input.value = ''; if (!f) return;
+            open('<p>Reading the receipt… this can take a few seconds.</p>');
+            try {
+                const res = await fetch('/api/extract-receipt-items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: await toB64(await compress(f)) }) });
+                const data = await res.json().catch(() => null);
+                if (!res.ok) throw new Error((data && data.error) || 'Failed (' + res.status + ')');
+                draft = fromExtract(data);
+            } catch (e) { draft = blank(); draft.error = 'Could not read this receipt automatically (' + e.message + '). Fill it in by hand.'; }
+            review();
+        };
+        window.scnHead = (k, v) => { draft[k] = v; };
+        window.scnRow = (i, k, v) => { draft.items[i][k] = v; };
+        window.scnAdd = () => { draft.items.push({ name: '', qty: 1, unit: '', price: '', pack: 1 }); review(); };
+        window.scnDel = i => { draft.items.splice(i, 1); if (!draft.items.length) draft.items = blank().items; review(); };
+        window.scnCancel = () => { draft = null; close(); };
+
+        window.scnSave = async () => {
+            if (busy || !draft) return;
+            const d = draft, items = d.items.filter(i => i.name.trim() && num(i.qty) !== 0);
+            if (!items.length) return alert('Add at least one item with a name and quantity.');
+            busy = true; const btn = $('scn-confirm'); btn.disabled = true; btn.textContent = 'Saving…';
+            try {
+                const tid = currentTenantId;
+                // 1) audit copy of the receipt (text only, no photo)
+                const rec = await supabaseClient.from('scanned_receipts').insert({
+                    tenant_id: tid, merchant: d.merchant || null, merchant_tin: d.tin || null, receipt_no: d.no || null, receipt_date: d.date || null,
+                    before_vat: d.before === '' ? null : num(d.before), vat: d.vat === '' ? null : num(d.vat), total: d.total === '' ? null : num(d.total),
+                    items: items.map(i => ({ name: i.name.trim(), qty: num(i.qty), unit: i.unit || null, unit_price: i.price === '' ? null : num(i.price), pcs_per_unit: Math.max(1, num(i.pack) || 1) }))
+                });
+                if (rec.error) throw rec.error;
+                // 2) add to scanned stock (same cleaned name = same row)
+                const keys = [...new Set(items.map(i => scnNameKey(i.name)))];
+                const ex = await supabaseClient.from('scanned_stock_items').select('*').eq('tenant_id', tid).in('name_key', keys);
+                if (ex.error) throw ex.error;
+                const map = new Map((ex.data || []).map(e => [e.name_key, e]));
+                for (const it of items) {
+                    const key = scnNameKey(it.name), pack = Math.max(1, num(it.pack) || 1), unit = (it.unit || '').trim();
+                    const baseQty = num(it.qty) * pack, baseCost = it.price === '' ? null : r2(num(it.price) / pack), cur = map.get(key);
+                    const units = cur ? [...(cur.units || [])] : [];
+                    if (pack > 1 && unit && !units.some(u => u.unit.toLowerCase() === unit.toLowerCase())) units.push({ unit, base_qty: pack });
+                    let res;
+                    if (cur) {
+                        res = await supabaseClient.from('scanned_stock_items').update({ qty: num(cur.qty) + baseQty, last_cost: baseCost ?? cur.last_cost, units, updated_at: new Date().toISOString() }).eq('id', cur.id).select().single();
+                    } else {
+                        res = await supabaseClient.from('scanned_stock_items').insert({ tenant_id: tid, name: it.name.trim(), name_key: key, base_unit: pack > 1 ? 'pcs' : (unit || 'pcs'), units, qty: baseQty, last_cost: baseCost }).select().single();
+                    }
+                    if (res.error) throw res.error;
+                    map.set(key, res.data);
+                }
+                draft = null; close(); await load();
+            } catch (e) {
+                alert('Could not save: ' + (e.message || e) + '\n\nNothing was lost on your screen — fix it and press Confirm again. If the receipt was already saved, check Scanned Stock before retrying so items are not added twice.');
+                btn.disabled = false; btn.textContent = 'Confirm & add to stock';
+            } finally { busy = false; }
+        };
+
+        // Show the tab only to owners, and load data when it opens.
+        window.scnShowNav = () => { const n = $('nav-scanned'); if (n) n.style.display = (typeof currentIsOwner !== 'undefined' && currentIsOwner) ? 'flex' : 'none'; };
+        const baseSwitch = window.switchView;
+        window.switchView = function (v) {
+            if (v === 'scanned' && !currentIsOwner) return;
+            baseSwitch(v);
+            if (v === 'scanned') { $('page-title').innerText = 'Scanned Stock'; load(); }
+        };
     })();
     </script>
 
