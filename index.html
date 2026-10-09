@@ -11605,5 +11605,24 @@
     })();
     </script>
 
+
+    <script>
+    // Scanned Stock part 3: deleting a sale puts its scanned stock back (runs for owners and employees).
+    (function () {
+        const oQ = window.queueWrite;
+        window.queueWrite = function (op) {
+            if (op && op.kind === 'delete' && op.table === 'sales_log' && op.id) {
+                try {
+                    supabaseClient.rpc('scanned_restore_sale', { p_sale_ref: String(op.id) }).then(() => {
+                        const v = document.getElementById('view-scanned');
+                        if (window.scnReload && v && v.classList.contains('active')) window.scnReload();
+                    }, () => { });
+                } catch (e) { }
+            }
+            return oQ.apply(this, arguments);
+        };
+    })();
+    </script>
+
 </body>
 </html>
