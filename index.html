@@ -11643,14 +11643,22 @@
             '#scn-ring{position:fixed;width:64px;height:64px;margin:-32px 0 0 -32px;pointer-events:none;z-index:9999;opacity:0;transition:opacity .2s}' +
             '#scn-ring circle{fill:none;stroke:var(--primary,#4f46e5);stroke-width:4;stroke-linecap:round;stroke-dasharray:157;stroke-dashoffset:157;transform:rotate(-90deg);transform-origin:50% 50%}' +
             '#scn-ring.on{opacity:.9}#scn-ring.on circle{transition:stroke-dashoffset ' + (HOLD_MS - RING_AFTER) + 'ms linear;stroke-dashoffset:0}';
+        css.textContent += 'body.scn-holding,body.scn-holding *{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important}';
         document.head.appendChild(css);
 
         const active = id => { const v = document.getElementById(id); return !!(v && v.classList.contains('active')); };
-        function cancel() { clearTimeout(timer); clearTimeout(ringTimer); timer = ringTimer = null; holding = false; if (ring) ring.classList.remove('on'); }
+        function cancel() { clearTimeout(timer); clearTimeout(ringTimer); timer = ringTimer = null; holding = false; document.body.classList.remove('scn-holding'); if (ring) ring.classList.remove('on'); }
+        // Only look INSIDE the open page: the <body> itself has a click handler, so it must not count as a button.
+        function blocked(t) {
+            const view = t.closest('.view-panel');
+            if (!view) return true;                       // sidebar, header, pop-up windows
+            for (let n = t; n && n !== view; n = n.parentElement) { if (n.matches(SKIP)) return true; }
+            return false;
+        }
         function eligible(e) {
             if (typeof currentIsOwner === 'undefined' || !currentIsOwner) return false;
             if (e.pointerType === 'mouse' && e.button !== 0) return false;
-            if (e.target && e.target.closest && e.target.closest(SKIP)) return false;
+            if (!e.target || !e.target.closest || blocked(e.target)) return false;
             return active('view-inventory') || active('view-scanned');
         }
         function go() {
@@ -11665,7 +11673,7 @@
         document.addEventListener('pointerdown', e => {
             cancel();
             if (!eligible(e)) return;
-            holding = true; startX = e.clientX; startY = e.clientY;
+            holding = true; document.body.classList.add('scn-holding'); startX = e.clientX; startY = e.clientY;
             ringTimer = setTimeout(() => {
                 if (!ring) { ring = document.createElement('div'); ring.id = 'scn-ring'; ring.innerHTML = '<svg width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="25"/></svg>'; document.body.appendChild(ring); }
                 ring.style.left = startX + 'px'; ring.style.top = startY + 'px'; void ring.offsetWidth; ring.classList.add('on');
