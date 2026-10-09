@@ -11435,8 +11435,8 @@
         function nameScore(a, b) {
             const A = toks(a), B = toks(b); if (!A.length || !B.length) return 0;
             if (key(a) === key(b)) return 95;
-            let hit = 0; B.forEach(w => { if (A.some(x => x === w || (x.length > 3 && w.length > 3 && lev(x, w) <= 1))) hit++; });
-            let sc = 70 * hit / Math.max(A.length, B.length);
+            let hit = 0, wordHit = 0; B.forEach(w => { if (A.some(x => x === w || (x.length > 3 && w.length > 3 && lev(x, w) <= 1))) { hit++; if (!/^\d+(\.\d+)?(kg|g|ml|l|cm|m|pcs|pc)$/.test(w)) wordHit++; } }); if (!wordHit) return 0;
+            let sc = 55 * hit / Math.min(A.length, B.length) + 15 * hit / Math.max(A.length, B.length);
             const sa = sizes(a), sb = sizes(b);
             if (sa.length && sb.length) sc += sa.join() === sb.join() ? 10 : -40;
             return Math.max(0, sc);
@@ -11465,11 +11465,20 @@
 
         async function ensure() {
             const tid = currentTenantId;
-            const [a, b] = await Promise.all([
-                supabaseClient.from('scanned_stock_items').select('*').eq('tenant_id', tid).order('name'),
-                supabaseClient.from('scanned_stock_aliases').select('*').eq('tenant_id', tid)]);
-            if (a.error) throw a.error; if (b.error) throw b.error;
-            items = a.data || []; aliasMap = new Map((b.data || []).map(x => [x.alias_key, x]));
+            if (currentIsOwner) {
+                const [a, b] = await Promise.all([
+                    supabaseClient.from('scanned_stock_items').select('*').eq('tenant_id', tid).order('name'),
+                    supabaseClient.from('scanned_stock_aliases').select('*').eq('tenant_id', tid)]);
+                if (a.error) throw a.error; if (b.error) throw b.error;
+                items = a.data || []; aliasMap = new Map((b.data || []).map(x => [x.alias_key, x]));
+                return;
+            }
+            // Employees: names and pack sizes only (no quantity, no cost), so no price check for them.
+            const r = await supabaseClient.rpc('scanned_match_data', { p_tenant: tid });
+            if (r.error) throw r.error;
+            const d = r.data || {};
+            items = (d.items || []).map(x => ({ ...x, last_cost: null, qty: 0 }));
+            aliasMap = new Map((d.aliases || []).map(x => [x.alias_key, x]));
         }
         async function aiHelp(lines) {
             const weak = lines.map((l, i) => ({ l, i })).filter(x => !x.l.sug.length || x.l.sug[0].score < 75);
@@ -11526,29 +11535,18 @@
             if (busy || !ctx) return; busy = true;
             const btn = $('scn-mconfirm'); btn.disabled = true; btn.textContent = 'Saving…';
             const tid = currentTenantId, done = [], f = ctx.onDone; let failed = null;
-            try {
-                for (const l of ctx.lines) {
-                    const s = l.sel;
-                    if (s.id === '__skip') { const r = await supabaseClient.from('scanned_stock_pending').insert({ tenant_id: tid, sale_ref: l._rowId, item_name: l.desc, qty: num(l.qty), unit_price: num(l.unit), status: 'skipped', printed_name: l.desc }); if (r.error && r.error.code !== '23505') throw r.error; continue; }
-                    let item = items.find(x => x.id === s.id), mult = s.mult || 1;
-                    if (!item) {
-                        item = items.find(x => x.name_key === key(l.desc));
-                        if (!item) { const r = await supabaseClient.from('scanned_stock_items').insert({ tenant_id: tid, name: l.desc, name_key: key(l.desc), base_unit: 'pcs', units: [], qty: 0, last_cost: null }).select().single(); if (r.error) throw r.error; item = r.data; items.push(item); }
-                        mult = 1;
-                    }
-                    const baseQty = num(l.qty) * mult;
-                    // 1) claim the sale line first (a unique index stops double deduction)
-                    const led = await supabaseClient.from('scanned_stock_pending').insert({ tenant_id: tid, sale_ref: l._rowId, item_name: l.desc, qty: baseQty, base_qty: baseQty, unit_price: num(l.unit), status: 'done', item_id: item.id, printed_name: item.name });
-                    if (led.error) { if (led.error.code === '23505') { done.push({ l, name: item.name }); continue; } throw led.error; }
-                    // 2) deduct (re-read the row so we never overwrite a newer quantity)
-                    const cur = await supabaseClient.from('scanned_stock_items').select('qty').eq('id', item.id).single();
-                    const up = cur.error ? cur : await supabaseClient.from('scanned_stock_items').update({ qty: num(cur.data.qty) - baseQty, updated_at: new Date().toISOString() }).eq('id', item.id);
-                    if (up.error) { await supabaseClient.from('scanned_stock_pending').delete().eq('tenant_id', tid).eq('sale_ref', l._rowId); throw up.error; }
-                    // 3) remember this name for next time
-                    if (key(l.desc) !== item.name_key) { await supabaseClient.from('scanned_stock_aliases').upsert({ tenant_id: tid, alias_key: key(l.desc), item_id: item.id, sold_unit: s.unit || null }, { onConflict: 'tenant_id,alias_key' }); }
-                    done.push({ l, name: item.name });
-                }
-            } catch (e) { failed = e; }
+            for (const l of ctx.lines) {
+                const s = l.sel || { id: '' };
+                try {
+                    const skip = s.id === '__skip', item = (!skip && s.id) ? items.find(x => x.id === s.id) : null;
+                    const r = await supabaseClient.rpc('scanned_apply_sale', {
+                        p_tenant: tid, p_sale_ref: String(l._rowId), p_desc: l.desc, p_desc_key: key(l.desc),
+                        p_item_id: item ? item.id : null, p_qty: num(l.qty), p_mult: item ? (s.mult || 1) : 1,
+                        p_unit_price: num(l.unit), p_sold_unit: s.unit || null, p_skip: skip });
+                    if (r.error) throw r.error;
+                    if (!skip && r.data && r.data.name) done.push({ l, name: r.data.name });
+                } catch (e) { failed = failed || e; }
+            }
             busy = false; shut();
             if (failed) alert('Scanned stock could not be fully updated: ' + (failed.message || failed) + (f ? '\nThe receipt will still print. The unfinished lines stay in the waiting list.' : ''));
             if (f) f(done);
@@ -11563,15 +11561,15 @@
             return d;
         };
         async function viaScanned(d, orig) {
-            if (!d || !d._scn || typeof currentIsOwner === 'undefined' || !currentIsOwner) return orig(d);
+            if (!d || !d._scn) return orig(d);
             const vat = d.lines.filter(l => l._vat && l._rowId);
             if (!vat.length) return orig(d);
             try {
-                const led = await supabaseClient.from('scanned_stock_pending').select('sale_ref,printed_name').eq('tenant_id', currentTenantId).in('sale_ref', vat.map(l => l._rowId));
+                const led = await supabaseClient.rpc('scanned_matched_names', { p_tenant: currentTenantId, p_refs: vat.map(l => String(l._rowId)) });
                 if (led.error) throw led.error;
                 const got = new Map((led.data || []).map(x => [x.sale_ref, x.printed_name]));
-                d.lines.forEach(l => { if (got.get(l._rowId)) l.desc = got.get(l._rowId); });
-                const todo = vat.filter(l => !got.has(l._rowId)).map(l => ({ _rowId: l._rowId, desc: l.desc, qty: l.qty, unit: l.unit, line: l }));
+                d.lines.forEach(l => { if (got.get(String(l._rowId))) l.desc = got.get(String(l._rowId)); });
+                const todo = vat.filter(l => !got.has(String(l._rowId))).map(l => ({ _rowId: l._rowId, desc: l.desc, qty: l.qty, unit: l.unit, line: l }));
                 if (!todo.length) return orig(d);
                 openMatch(todo, res => { (res || []).forEach(x => { x.l.line.desc = x.name; }); orig(d); });
             } catch (e) { orig(d); }
