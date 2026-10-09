@@ -588,7 +588,6 @@
                     <button onclick="switchView('statements')" id="nav-statements"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><line x1="3" y1="22" x2="21" y2="22"></line><line x1="6" y1="18" x2="6" y2="11"></line><line x1="10" y1="18" x2="10" y2="11"></line><line x1="14" y1="18" x2="14" y2="11"></line><line x1="18" y1="18" x2="18" y2="11"></line><polygon points="12 2 20 7 4 7"></polygon></svg> Financial Statements</button>
                 </div>
                 <button onclick="switchView('team')" id="nav-team" style="display:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg> <span data-i18n="nav.team">Team &amp; Branches</span></button>
-                <button onclick="switchView('scanned')" id="nav-scanned" style="display:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"></path><line x1="7" y1="12" x2="17" y2="12"></line></svg> <span>Scanned Stock</span></button>
                 <button onclick="switchView('settings')" id="nav-settings" style="display:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg> <span data-i18n="nav.settings">Settings</span></button>
             </nav>
         </div>
@@ -1163,17 +1162,18 @@
             <div id="view-scanned" class="view-panel">
                 <div class="card">
                     <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; margin-bottom:12px;">
-                        <h2 style="border:none; margin:0; padding:0;">Scanned Stock</h2>
+                        <div style="display:flex;gap:10px;align-items:center;"><button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="switchView('inventory')" title="Back to Inventory">&#8249; Inventory</button><h2 style="border:none; margin:0; padding:0;">Scanned Stock</h2></div>
                         <div><input type="file" id="scn-file" accept="image/*" style="display:none;" onchange="scnPickFile(this)"><button type="button" class="btn" onclick="document.getElementById('scn-file').click()">Scan purchase receipt</button></div>
                     </div>
                     <p style="font-size:12px; color:var(--text-light); margin:0 0 10px;">Separate from your main inventory. Only stock from scanned receipts is counted here (owners only).</p>
-                    <table>
+                    <div style="display:flex;gap:8px;margin:0 0 12px;"><button type="button" class="btn btn-small" id="scn-tab-stock" onclick="scnTab('stock')">Stock</button><button type="button" class="btn btn-small" id="scn-tab-receipts" onclick="scnTab('receipts')" style="background:#4a4e63;opacity:.75;">Receipts</button></div>
+                    <div id="scn-pane-stock"><table>
                         <thead><tr><th>Item</th><th class="num">Quantity</th><th class="num">Last cost</th><th class="num">Value</th></tr></thead>
                         <tbody id="scn-body"></tbody>
                     </table>
                     <div style="margin-top:12px; font-weight:700; color:var(--primary);">Scanned stock value: <span id="scn-total">ETB 0.00</span></div>
-                    <div id="scn-waiting" style="margin-top:14px;"></div>
-                    <h3 style="margin:18px 0 8px;font-size:15px;">Saved receipts (audit copies)</h3><div id="scn-receipts"></div>
+                    <div id="scn-waiting" style="margin-top:14px;"></div></div>
+                    <div id="scn-pane-receipts" style="display:none;"><h3 style="margin:18px 0 8px;font-size:15px;">Saved receipts (audit copies)</h3><div id="scn-receipts"></div></div>
                 </div>
             </div>
 
@@ -11404,13 +11404,19 @@
         };
 
         // Show the tab only to owners, and load data when it opens.
+        window.scnTab = t => {
+            const st = t !== 'receipts';
+            $('scn-pane-stock').style.display = st ? '' : 'none';
+            $('scn-pane-receipts').style.display = st ? 'none' : '';
+            [['scn-tab-stock', st], ['scn-tab-receipts', !st]].forEach(([id, on]) => { const b = $(id); if (b) { b.style.background = on ? '' : '#4a4e63'; b.style.opacity = on ? '1' : '.75'; } });
+        };
         window.scnReload = load; window.scnRefresh = review;
         window.scnShowNav = () => { const n = $('nav-scanned'); if (n) n.style.display = (typeof currentIsOwner !== 'undefined' && currentIsOwner) ? 'flex' : 'none'; };
         const baseSwitch = window.switchView;
         window.switchView = function (v) {
             if (v === 'scanned' && !currentIsOwner) return;
             baseSwitch(v);
-            if (v === 'scanned') { $('page-title').innerText = 'Scanned Stock'; load(); }
+            if (v === 'scanned') { $('page-title').innerText = 'Scanned Stock'; const n = $('nav-inventory'); if (n) n.classList.add('active'); window.scnTab('stock'); load(); }
         };
     })();
     </script>
@@ -11619,6 +11625,62 @@
             }
             return oQ.apply(this, arguments);
         };
+    })();
+    </script>
+
+
+    <script>
+    // Scanned Stock: hidden entrance. Owners press and hold on empty space of the Inventory page
+    // (about 1 second, a thin ring fills up) to slide into Scanned Stock. Hold again there to go back.
+    (function () {
+        const HOLD_MS = 900, RING_AFTER = 250, MOVE_PX = 12;
+        const SKIP = 'button,a,input,select,textarea,label,summary,option,[onclick],[role="button"],[contenteditable="true"],.modal-overlay,.modal-box';
+        let timer = null, ringTimer = null, ring = null, holding = false, startX = 0, startY = 0, doneAt = 0;
+        const css = document.createElement('style');
+        css.textContent = '@keyframes scnIn{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}' +
+            '@keyframes scnBack{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}' +
+            '.scn-in{animation:scnIn .35s ease}.scn-back{animation:scnBack .35s ease}' +
+            '#scn-ring{position:fixed;width:64px;height:64px;margin:-32px 0 0 -32px;pointer-events:none;z-index:9999;opacity:0;transition:opacity .2s}' +
+            '#scn-ring circle{fill:none;stroke:var(--primary,#4f46e5);stroke-width:4;stroke-linecap:round;stroke-dasharray:157;stroke-dashoffset:157;transform:rotate(-90deg);transform-origin:50% 50%}' +
+            '#scn-ring.on{opacity:.9}#scn-ring.on circle{transition:stroke-dashoffset ' + (HOLD_MS - RING_AFTER) + 'ms linear;stroke-dashoffset:0}';
+        document.head.appendChild(css);
+
+        const active = id => { const v = document.getElementById(id); return !!(v && v.classList.contains('active')); };
+        function cancel() { clearTimeout(timer); clearTimeout(ringTimer); timer = ringTimer = null; holding = false; if (ring) ring.classList.remove('on'); }
+        function eligible(e) {
+            if (typeof currentIsOwner === 'undefined' || !currentIsOwner) return false;
+            if (e.pointerType === 'mouse' && e.button !== 0) return false;
+            if (e.target && e.target.closest && e.target.closest(SKIP)) return false;
+            return active('view-inventory') || active('view-scanned');
+        }
+        function go() {
+            const toScanned = active('view-inventory');
+            cancel(); doneAt = Date.now();
+            try { if (navigator.vibrate) navigator.vibrate(25); } catch (e) { }
+            try { const sel = window.getSelection && window.getSelection(); if (sel) sel.removeAllRanges(); } catch (e) { }
+            switchView(toScanned ? 'scanned' : 'inventory');
+            const el = document.getElementById(toScanned ? 'view-scanned' : 'view-inventory');
+            if (el) { el.classList.remove('scn-in', 'scn-back'); void el.offsetWidth; el.classList.add(toScanned ? 'scn-in' : 'scn-back'); setTimeout(() => el.classList.remove('scn-in', 'scn-back'), 450); }
+        }
+        document.addEventListener('pointerdown', e => {
+            cancel();
+            if (!eligible(e)) return;
+            holding = true; startX = e.clientX; startY = e.clientY;
+            ringTimer = setTimeout(() => {
+                if (!ring) { ring = document.createElement('div'); ring.id = 'scn-ring'; ring.innerHTML = '<svg width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="25"/></svg>'; document.body.appendChild(ring); }
+                ring.style.left = startX + 'px'; ring.style.top = startY + 'px'; void ring.offsetWidth; ring.classList.add('on');
+            }, RING_AFTER);
+            timer = setTimeout(go, HOLD_MS);
+        }, true);
+        document.addEventListener('pointermove', e => { if (holding && Math.hypot(e.clientX - startX, e.clientY - startY) > MOVE_PX) cancel(); }, true);
+        ['pointerup', 'pointercancel', 'dragstart', 'wheel'].forEach(n => document.addEventListener(n, cancel, true));
+        window.addEventListener('scroll', cancel, true);
+        document.addEventListener('visibilitychange', cancel);
+        // while holding (and just after), stop the phone's text-selection / context menu from popping up
+        document.addEventListener('selectstart', e => { if (holding) e.preventDefault(); }, true);
+        document.addEventListener('contextmenu', e => { if (holding || Date.now() - doneAt < 800) e.preventDefault(); }, true);
+        // the finger is still down when the page switches; ignore the click that follows its release
+        document.addEventListener('click', e => { if (Date.now() - doneAt < 600) { e.stopPropagation(); e.preventDefault(); } }, true);
     })();
     </script>
 
