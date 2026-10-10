@@ -11751,6 +11751,10 @@
         let timer = null, glowTimer = null, glow = null, holding = false, swallow = false, startX = 0, startY = 0;
 
         const css = document.createElement('style');
+        // One shared band of colour for every glow layer. Neighbouring colours are close relatives
+        // (pink > violet > blue > cyan > blue > violet > coral > orange > gold > pink), so they blend smoothly.
+        const STOPS = '#FF5FD2 0deg,#D45CFF 30deg,#9A62FF 60deg,#5B74FF 90deg,#2E90FF 120deg,#26C6FF 150deg,#3FA0FF 180deg,#7A68FF 210deg,#C45CFF 240deg,#FF6A9A 270deg,#FF9A3C 300deg,#FFC247 330deg,#FF5FD2 360deg';
+        const grad = 'background:conic-gradient(from var(--a),' + STOPS + ');background:conic-gradient(in oklab from var(--a),' + STOPS + ');';
         css.textContent =
             '@property --a{syntax:"<angle>";inherits:false;initial-value:0deg}' +
             '@property --k{syntax:"<number>";inherits:true;initial-value:1}' +
@@ -11770,11 +11774,11 @@
                 'mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);' +
                 'animation:scnSpin var(--sp) linear infinite var(--dir),scnBreath var(--bp) ease-in-out infinite alternate}' +
             // hot, almost-white line right on the edge
-            '#scn-glow .g1{--bw:clamp(2px,.7vmin,4px);--sp:14s;--bp:3.1s;--o:1;--dir:normal;filter:blur(.5px) brightness(1.2);background:conic-gradient(from var(--a),#FFB0E6,#C4A8FF,#98B8FF,#86E4FF,#FFBE84,#FFE084,#FFB0E6)}' +
-            // narrow soft bloom: pink, violet, blue, cyan, orange, gold
-            '#scn-glow .g2{--bw:clamp(8px,2.3vmin,16px);--sp:20s;--bp:2.7s;--o:.95;--dir:reverse;filter:blur(7px);background:conic-gradient(from var(--a),#FF42CE,#7655FF,#2C86FF,#22C6FF,#FF962B,#FFBE2B,#FF42CE)}' +
+            '#scn-glow .g1{--bw:clamp(1.5px,.45vmin,3px);--sp:18s;--bp:3.1s;--o:1;--dir:normal;filter:blur(.4px) brightness(1.25) saturate(.75);' + grad + '}' +
+            // narrow soft bloom
+            '#scn-glow .g2{--bw:clamp(5px,1.3vmin,10px);--sp:18s;--bp:2.7s;--o:.95;--dir:normal;filter:blur(5px);' + grad + '}' +
             // faint haze a little further in
-            '#scn-glow .g3{--bw:clamp(16px,4.2vmin,30px);--sp:26s;--bp:3.6s;--o:.55;--dir:normal;filter:blur(18px);background:conic-gradient(from var(--a),#FF42CE,#7655FF,#2C86FF,#FF962B,#FF42CE)}' +
+            '#scn-glow .g3{--bw:clamp(9px,2.2vmin,16px);--sp:18s;--bp:3.6s;--o:.55;--dir:normal;filter:blur(11px);' + grad + '}' +
             // 2) the colour wash that floods the screen from the top-right corner to the bottom-left at the moment of switching
             '#scn-wash{position:fixed;inset:0;z-index:9997;pointer-events:none;display:none;opacity:0;--sw:0%;' +
                 'background:radial-gradient(120% 95% at 100% 0%,rgba(135,55,255,.62),transparent 62%),radial-gradient(115% 80% at 0% 100%,rgba(35,125,255,.5),transparent 64%),linear-gradient(160deg,rgba(115,75,255,.42),rgba(225,85,225,.36) 55%,rgba(40,120,255,.46));' +
