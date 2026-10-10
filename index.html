@@ -1587,11 +1587,12 @@
     <datalist id="buyer-tin-list"></datalist>
     <datalist id="buyer-trade-name-list"></datalist>
     <div id="buyer-info-modal" class="modal-overlay" onclick="closeBuyerInfoModal()">
-        <div class="modal-box" onclick="event.stopPropagation()" style="max-width:420px;">
+        <div class="modal-box" onclick="event.stopPropagation()" style="max-width:480px; max-height:92vh; overflow-y:auto;">
             <h3 style="color:var(--primary); margin-bottom:6px;">Buyer Details</h3>
             <p style="font-size:12px; color:var(--text-light); margin-bottom:14px;">Optional -- prints on the receipt/invoice. Saved for this transaction, so it's remembered next time you print the other document for it.</p>
             <div class="form-group" style="margin-bottom:12px;"><label>Buyer's TIN</label><input type="text" id="buyer-info-tin" list="buyer-tin-list" style="width:100%;" autocomplete="off" oninput="handleBuyerTinInput()"></div>
             <div class="form-group" style="margin-bottom:16px;"><label>Customer Name / Trade Name</label><input type="text" id="buyer-info-name" list="buyer-trade-name-list" style="width:100%;" autocomplete="off" oninput="handleBuyerNameInput()"></div>
+            <div id="buyer-info-prices" style="display:none; margin-bottom:16px; border-top:1px solid var(--border); padding-top:12px;"></div>
             <div style="display:flex; gap:10px; justify-content:flex-end;">
                 <button type="button" class="btn" style="background:#4a4e63;" onclick="closeBuyerInfoModal()">Cancel</button>
                 <button type="button" class="btn" onclick="confirmBuyerInfoAndPrint()">Print</button>
@@ -3831,7 +3832,8 @@
                 channel: s.channel, type: s.type, paid: s.paid, paidChannel: s.paid_channel,
                 restorationLayers: s.restoration_layers || [], branchId: s.branch_id,
                 amountPaid: parseFloat(s.amount_paid) || 0, payments: s.payments || [], groupId: s.group_id || null,
-                vatIncluded: !!s.vat_included, buyerTin: s.buyer_tin || '', buyerTradeName: s.buyer_trade_name || ''
+                vatIncluded: !!s.vat_included, buyerTin: s.buyer_tin || '', buyerTradeName: s.buyer_trade_name || '',
+                printPrice: (s.print_price == null || !isFinite(parseFloat(s.print_price))) ? null : parseFloat(s.print_price)
             }));
 
             state.purchaseLog = (purchases.data || []).map(p => ({
@@ -5159,7 +5161,7 @@
                 if (!s.vatIncluded || !shouldCountInCurrentTotals(s.branchId)) return false;
                 const eth = gregorianToEthiopian(s.date);
                 return eth.y === vatEthNow.y && eth.m === vatEthNow.m;
-            }).reduce((sum, s) => sum + (s.total - s.total / 1.15), 0);
+            }).reduce((sum, s) => { const b = saleVatBase(s); return sum + (b - b / 1.15); }, 0);
             const vatEl = document.getElementById('m-vat');
             if (vatEl) vatEl.innerText = `ETB ${vatSum.toLocaleString(undefined,{minimumFractionDigits:2})}`;
 
@@ -5917,8 +5919,8 @@
                 return true;
             }).sort((a,b) => new Date(b.date) - new Date(a.date));
 
-            let totalSum = matches.reduce((sum, s) => sum + s.total, 0);
-            let vatSum = matches.reduce((sum, s) => sum + (s.total - s.total / 1.15), 0);
+            let totalSum = matches.reduce((sum, s) => sum + saleVatBase(s), 0);
+            let vatSum = matches.reduce((sum, s) => { const b = saleVatBase(s); return sum + (b - b / 1.15); }, 0);
 
             let html = `<div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
                 <select id="vat-drilldown-mode" onchange="changeVatDrillDownMode(this.value)" style="min-width:110px;">
@@ -5939,9 +5941,10 @@
             <table><thead><tr><th>${t('sale.date')}</th><th>${t('sale.customer_name')}</th><th>${t('sale.product_item')}</th><th class="num">${t('sale.total')}</th><th class="num">${t('dash.estimated_vat')}</th></tr></thead><tbody>`;
             if (matches.length === 0) html += `<tr><td colspan="5" style="text-align:center;">${t('drill.no_sales')}</td></tr>`;
             matches.forEach(m => {
-                html += `<tr><td>${fmtDate(m.date)}</td><td>${escHtml(m.customer)}</td><td>${escHtml(m.desc)}</td><td class="num">${m.total.toFixed(2)}</td><td class="num">${(m.total - m.total / 1.15).toFixed(2)}</td></tr>`;
+                html += `<tr><td>${fmtDate(m.date)}</td><td>${escHtml(m.customer)}</td><td>${escHtml(m.desc)}</td><td class="num">${saleVatBase(m).toFixed(2)}${m.printPrice != null ? '*' : ''}</td><td class="num">${(saleVatBase(m) - saleVatBase(m) / 1.15).toFixed(2)}</td></tr>`;
             });
             html += `</tbody></table>`;
+            if (matches.some(m => m.printPrice != null)) html += `<p style="font-size:11px;color:var(--text-light);margin-top:8px;">* Uses the edited printed price instead of the selling price.</p>`;
             mContent.innerHTML = html;
         }
 
@@ -8142,6 +8145,12 @@
         // [{channel:'Cash',amount:100}, {channel:'Mobile banking',amount:100}].
         // Any amount still outstanding is added under unpaidLabel (Accounts
         // receivable/payable), so the three numbers always add up to total.
+        // The amount a sale line shows on its printed receipt/invoice. If a "printed price" was
+        // set for the line (Buyer Details window on Print) it is printed price x qty, otherwise the
+        // real line total. Estimated VAT on the dashboard is worked out from THIS figure.
+        function saleVatBase(s) {
+            return (s.printPrice != null && isFinite(s.printPrice)) ? Math.round(s.printPrice * s.qty * 100) / 100 : s.total;
+        }
         function getChannelBreakdown(record, total, unpaidLabel) {
             const breakdown = [];
             (record.payments || []).forEach(p => {
@@ -8482,7 +8491,66 @@
             buyerInfoMaps = buildBuyerInfoMaps();
             document.getElementById('buyer-info-tin').value = existing.tin;
             document.getElementById('buyer-info-name').value = existing.name;
+            drawPrintedPrices(kind, id, isGroup);
             document.getElementById('buyer-info-modal').classList.add('active');
+        }
+        // ---- Printed prices (sales only) ----
+        // What prints can differ from the selling price. Each line gets a "Printed price" box.
+        // The real sale is never touched; the edited price is saved on the sale line (print_price)
+        // so reprints match, and the printed Total/VAT and the dashboard's estimated VAT follow it.
+        let bppRows = [];
+        function drawPrintedPrices(kind, id, isGroup) {
+            const box = document.getElementById('buyer-info-prices');
+            bppRows = [];
+            if (kind !== 'sale') { box.style.display = 'none'; box.innerHTML = ''; return; }
+            bppRows = isGroup ? state.salesLog.filter(s => s.groupId === id) : state.salesLog.filter(s => s.id === id);
+            if (!bppRows.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+            box.style.display = 'block';
+            box.innerHTML = `<div style="font-size:12px; font-weight:700; color:var(--primary); margin-bottom:4px;">Printed prices</div>
+                <p style="font-size:11px; color:var(--text-light); margin-bottom:10px;">Change the price that prints on the receipt/invoice. Your real sale is not changed. The printed Total and VAT, and the dashboard's estimated VAT, follow these prices. Saved for this sale, so reprints match. Clear a box to go back to the selling price.</p>
+                ${bppRows.map((r, i) => `<div style="display:flex; gap:8px; align-items:center; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);">
+                    <div style="flex:1 1 auto; min-width:0; font-size:12px;"><div style="font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escHtml(r.desc)}</div><div style="color:var(--text-light);">${escHtml(r.qty)} &times; selling ${Number(r.price).toFixed(2)}</div></div>
+                    <input type="number" step="0.01" min="0" inputmode="decimal" data-bpp="${i}" value="${r.printPrice != null ? r.printPrice : Number(r.price)}" placeholder="${Number(r.price)}" style="width:110px; min-width:0;" oninput="bppRecalc()">
+                </div>`).join('')}
+                <div id="bpp-sum" style="margin-top:10px; font-size:12px;"></div>
+                <button type="button" class="btn btn-small" style="background:#4a4e63; margin-top:8px;" onclick="bppReset()">Use selling prices</button>`;
+            bppRecalc();
+        }
+        // Reads the boxes. Returns an array of new printed prices (null = same as selling price), or null if a box is invalid.
+        function bppRead() {
+            const out = [];
+            const inputs = document.querySelectorAll('#buyer-info-prices input[data-bpp]');
+            for (const inp of inputs) {
+                const r = bppRows[parseInt(inp.dataset.bpp)];
+                const raw = inp.value.trim();
+                if (raw === '') { out.push(null); continue; }
+                const n = parseFloat(raw);
+                if (!isFinite(n) || n < 0) return null;
+                out.push(Math.abs(n - r.price) < 0.005 ? null : Math.round(n * 100) / 100);
+            }
+            return out;
+        }
+        function bppRecalc() {
+            const sum = document.getElementById('bpp-sum'); if (!sum) return;
+            const vals = bppRead();
+            if (!vals) { sum.innerHTML = '<span style="color:var(--danger);">Enter a valid price (0 or more).</span>'; return; }
+            const total = bppRows.reduce((t, r, i) => t + (vals[i] != null ? Math.round(vals[i] * r.qty * 100) / 100 : r.total), 0);
+            const vat = bppRows.some(r => r.vatIncluded) ? total - total / 1.15 : 0;
+            sum.innerHTML = `Printed total: <b>ETB ${total.toFixed(2)}</b>${vat ? ` &middot; VAT (15%): <b>ETB ${vat.toFixed(2)}</b>` : ''}`;
+        }
+        function bppReset() {
+            document.querySelectorAll('#buyer-info-prices input[data-bpp]').forEach(inp => { inp.value = Number(bppRows[parseInt(inp.dataset.bpp)].price); });
+            bppRecalc();
+        }
+        function savePrintedPrices(vals) {
+            let changed = false;
+            bppRows.forEach((r, i) => {
+                const cur = r.printPrice != null ? r.printPrice : null;
+                if (vals[i] === cur) return;
+                r.printPrice = vals[i]; changed = true;
+                queueWrite({ kind: 'update', table: 'sales_log', id: r.id, patch: { print_price: vals[i] } });
+            });
+            if (changed) { try { renderSalesLogTable(); renderAnalyticalDashboards(); } catch (e) { console.warn(e); } }
         }
         function closeBuyerInfoModal() {
             document.getElementById('buyer-info-modal').classList.remove('active');
@@ -8494,7 +8562,13 @@
             const tin = document.getElementById('buyer-info-tin').value.trim();
             if (tin && !isValidTin(tin)) return alert("Buyer's TIN must be 10 to 12 digits.");
             const name = document.getElementById('buyer-info-name').value.trim();
+            let printedVals = null;
+            if (kind === 'sale' && bppRows.length) {
+                printedVals = bppRead();
+                if (!printedVals) return alert('Printed price must be a number, 0 or more. Clear the box to use the selling price.');
+            }
             saveBuyerInfo(kind, id, isGroup, tin, name);
+            if (printedVals) savePrintedPrices(printedVals);
             closeBuyerInfoModal();
             let data = null;
             if (kind === 'sale') data = buildSalePrintData(id, isGroup);
@@ -8511,9 +8585,16 @@
             const rows = isGroup ? state.salesLog.filter(s => s.groupId === id) : state.salesLog.filter(s => s.id === id);
             if (!rows.length) return null;
             const primary = isGroup ? findPrimaryGroupRow('sale', id) : rows[0];
-            const total = rows.reduce((s, r) => s + r.total, 0);
-            const amountPaid = rows.reduce((s, r) => s + (r.amountPaid || 0), 0);
-            const record = { payments: rows.flatMap(r => r.payments || []), amountPaid };
+            // Printed prices (if any were set) replace the selling price on the PRINT only.
+            const edited = rows.some(r => r.printPrice != null);
+            const realTotal = rows.reduce((s, r) => s + r.total, 0);
+            const total = edited ? rows.reduce((s, r) => s + saleVatBase(r), 0) : realTotal;
+            const realPaid = rows.reduce((s, r) => s + (r.amountPaid || 0), 0);
+            // A fully paid sale prints as fully paid at the printed total; part-paid sales keep what was really paid.
+            const fullyPaid = realPaid >= realTotal - 0.005;
+            const amountPaid = !edited ? realPaid : (fullyPaid ? total : Math.min(realPaid, total));
+            const scale = (edited && fullyPaid && realTotal > 0) ? total / realTotal : 1;
+            const record = { payments: rows.flatMap(r => r.payments || []).map(p => scale === 1 ? p : { ...p, amount: p.amount * scale }), amountPaid };
             return {
                 docNumber: String(isGroup ? id : primary.id).slice(-8),
                 date: primary.date, branchId: primary.branchId,
@@ -8521,7 +8602,7 @@
                 counterpartyName: primary.customer, counterpartyPhone: '',
                 buyerTin: primary.buyerTin || '', buyerTradeName: primary.buyerTradeName || '',
                 operator: getTransactionAuthor(primary.id),
-                lines: rows.map(r => ({ desc: r.desc, qty: r.qty, unit: r.price, total: r.total })),
+                lines: rows.map(r => { const ed = r.printPrice != null; return { desc: r.desc, qty: r.qty, unit: ed ? r.printPrice : r.price, total: ed ? saleVatBase(r) : r.total, _realUnit: r.price }; }),
                 total, amountPaid, vatIncluded: rows.some(r => r.vatIncluded),
                 channelBreakdown: getChannelBreakdown(record, total, 'Accounts receivable')
             };
@@ -9284,7 +9365,8 @@
                     channel: s.channel, type: s.type, paid: s.paid, paidChannel: s.paid_channel,
                     restorationLayers: s.restoration_layers || [], branchId: s.branch_id,
                     amountPaid: parseFloat(s.amount_paid) || 0, payments: s.payments || [], groupId: s.group_id || null,
-                    vatIncluded: !!s.vat_included, buyerTin: s.buyer_tin || '', buyerTradeName: s.buyer_trade_name || ''
+                    vatIncluded: !!s.vat_included, buyerTin: s.buyer_tin || '', buyerTradeName: s.buyer_trade_name || '',
+                    printPrice: (s.print_price == null || !isFinite(parseFloat(s.print_price))) ? null : parseFloat(s.print_price)
                 })),
                 purchaseLog: (purchases.data || []).map(p => ({
                     id: p.id, date: p.date, supplier: p.supplier, desc: p.desc, qty: p.qty,
@@ -11720,7 +11802,7 @@
                 if (led.error) throw led.error;
                 const got = new Map((led.data || []).map(x => [x.sale_ref, x.printed_name]));
                 d.lines.forEach(l => { if (got.get(String(l._rowId))) l.desc = got.get(String(l._rowId)); });
-                const todo = vat.filter(l => !got.has(String(l._rowId))).map(l => ({ _rowId: l._rowId, desc: l.desc, qty: l.qty, unit: l.unit, line: l }));
+                const todo = vat.filter(l => !got.has(String(l._rowId))).map(l => ({ _rowId: l._rowId, desc: l.desc, qty: l.qty, unit: (l._realUnit != null ? l._realUnit : l.unit), line: l }));
                 if (!todo.length) return orig(d);
                 openMatch(todo, res => { (res || []).forEach(x => { x.l.line.desc = x.name; }); orig(d); });
             } catch (e) { orig(d); }
