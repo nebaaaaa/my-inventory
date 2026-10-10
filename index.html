@@ -1587,12 +1587,11 @@
     <datalist id="buyer-tin-list"></datalist>
     <datalist id="buyer-trade-name-list"></datalist>
     <div id="buyer-info-modal" class="modal-overlay" onclick="closeBuyerInfoModal()">
-        <div class="modal-box" onclick="event.stopPropagation()" style="max-width:480px; max-height:92vh; overflow-y:auto;">
+        <div class="modal-box" onclick="event.stopPropagation()" style="max-width:420px;">
             <h3 style="color:var(--primary); margin-bottom:6px;">Buyer Details</h3>
             <p style="font-size:12px; color:var(--text-light); margin-bottom:14px;">Optional -- prints on the receipt/invoice. Saved for this transaction, so it's remembered next time you print the other document for it.</p>
             <div class="form-group" style="margin-bottom:12px;"><label>Buyer's TIN</label><input type="text" id="buyer-info-tin" list="buyer-tin-list" style="width:100%;" autocomplete="off" oninput="handleBuyerTinInput()"></div>
             <div class="form-group" style="margin-bottom:16px;"><label>Customer Name / Trade Name</label><input type="text" id="buyer-info-name" list="buyer-trade-name-list" style="width:100%;" autocomplete="off" oninput="handleBuyerNameInput()"></div>
-            <div id="buyer-info-prices" style="display:none; margin-bottom:16px; border-top:1px solid var(--border); padding-top:12px;"></div>
             <div style="display:flex; gap:10px; justify-content:flex-end;">
                 <button type="button" class="btn" style="background:#4a4e63;" onclick="closeBuyerInfoModal()">Cancel</button>
                 <button type="button" class="btn" onclick="confirmBuyerInfoAndPrint()">Print</button>
@@ -5156,14 +5155,8 @@
             // the CURRENT Ethiopian calendar month (1-30, regardless of
             // whichever period the rest of the dashboard is filtered to).
             // Purely informational.
-            const vatEthNow = gregorianToEthiopian(todayISO());
-            let vatSum = state.salesLog.filter(s => {
-                if (!s.vatIncluded || !shouldCountInCurrentTotals(s.branchId)) return false;
-                const eth = gregorianToEthiopian(s.date);
-                return eth.y === vatEthNow.y && eth.m === vatEthNow.m;
-            }).reduce((sum, s) => { const b = saleVatBase(s); return sum + (b - b / 1.15); }, 0);
-            const vatEl = document.getElementById('m-vat');
-            if (vatEl) vatEl.innerText = `ETB ${vatSum.toLocaleString(undefined,{minimumFractionDigits:2})}`;
+            refreshVatBox();
+            if (window.scnVatEnsure) window.scnVatEnsure(false); // owners: fetch scanned receipts, then the box refreshes itself
 
             let absoluteBalances = runAbsoluteAccountBalances();
             let cashTotal = (absoluteBalances["1010"] || 0) + (absoluteBalances["1020"] || 0)
@@ -5889,6 +5882,10 @@
             document.getElementById('modal-title').innerText = t('dash.estimated_vat');
             renderVatDrillDownModal();
             document.getElementById('audit-modal').style.display = "flex";
+            if (window.scnVatEnsure) window.scnVatEnsure(true).then(() => {
+                const mm = document.getElementById('audit-modal');
+                if (mm && mm.style.display === 'flex' && document.getElementById('modal-title').innerText === t('dash.estimated_vat')) renderVatDrillDownModal();
+            });
         }
 
         // Gregorian month names are deliberately kept in English no matter
@@ -5906,21 +5903,18 @@
             const monthLabel = (i) => isEth ? ethMonthName(i) : VAT_GREG_MONTH_NAMES[i - 1];
             const periodOf = (isoDate) => isEth ? gregorianToEthiopian(isoDate) : (d => ({ y: d[0], m: d[1] }))(isoDate.split('-').map(Number));
 
-            let years = Array.from(new Set(state.salesLog.filter(s => s.vatIncluded).map(s => periodOf(s.date).y)));
+            const rAll = scannedVatReceipts();
+            let years = Array.from(new Set([...state.salesLog.filter(s => s.vatIncluded).map(s => periodOf(s.date).y), ...rAll.map(r => periodOf(r.date).y)]));
             if (!years.includes(vs.year)) years.push(vs.year);
             years.sort((a,b) => b - a);
-
-            let matches = state.salesLog.filter(s => {
-                if (!s.vatIncluded) return false;
-                if (!shouldCountInCurrentTotals(s.branchId)) return false;
-                const p = periodOf(s.date);
-                if (p.y !== vs.year) return false;
-                if (vs.mode === 'month' && p.m !== vs.month) return false;
-                return true;
-            }).sort((a,b) => new Date(b.date) - new Date(a.date));
-
+            const inPeriod = iso => { const p = periodOf(iso); return p.y === vs.year && !(vs.mode === 'month' && p.m !== vs.month); };
+            let matches = state.salesLog.filter(s => s.vatIncluded && shouldCountInCurrentTotals(s.branchId) && inPeriod(s.date)).sort((a,b) => new Date(b.date) - new Date(a.date));
+            let pMatches = rAll.filter(r => inPeriod(r.date)).sort((a,b) => new Date(b.date) - new Date(a.date));
+            const f2 = n => n.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2});
             let totalSum = matches.reduce((sum, s) => sum + saleVatBase(s), 0);
             let vatSum = matches.reduce((sum, s) => { const b = saleVatBase(s); return sum + (b - b / 1.15); }, 0);
+            let pTotal = pMatches.reduce((sum, r) => sum + r.total, 0);
+            let pVat = pMatches.reduce((sum, r) => sum + (r.total - r.total / 1.15), 0);
 
             let html = `<div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
                 <select id="vat-drilldown-mode" onchange="changeVatDrillDownMode(this.value)" style="min-width:110px;">
@@ -5934,14 +5928,18 @@
             }
             html += `<select id="vat-drilldown-year" onchange="changeVatDrillDownYear(this.value)">${years.map(y => `<option value="${escHtml(y)}" ${vs.year===y?'selected':''}>${escHtml(y)}</option>`).join('')}</select>
             </div>
-            <div style="font-size:14px; padding:10px; background:#ECEDF2; border-radius:4px; margin-bottom:14px;">
-                ${t('sale.total')}: <strong>ETB ${totalSum.toLocaleString(undefined,{minimumFractionDigits:2})}</strong><br>
-                ${t('dash.estimated_vat')}: <strong style="color:#C97A22;">ETB ${vatSum.toLocaleString(undefined,{minimumFractionDigits:2})}</strong>
+            <div style="font-size:14px; padding:10px; background:#ECEDF2; border-radius:4px; margin-bottom:14px; line-height:1.7;">
+                Sales total: <strong>ETB ${f2(totalSum)}</strong> &middot; VAT on sales: <strong>ETB ${f2(vatSum)}</strong><br>
+                Scanned purchases total: <strong>ETB ${f2(pTotal)}</strong> &middot; VAT on purchases (deducted): <strong>ETB ${f2(pVat)}</strong><br>
+                ${t('dash.estimated_vat')} (sales VAT &minus; purchase VAT): <strong style="color:#C97A22;">ETB ${f2(vatSum - pVat)}</strong>
             </div>
             <table><thead><tr><th>${t('sale.date')}</th><th>${t('sale.customer_name')}</th><th>${t('sale.product_item')}</th><th class="num">${t('sale.total')}</th><th class="num">${t('dash.estimated_vat')}</th></tr></thead><tbody>`;
-            if (matches.length === 0) html += `<tr><td colspan="5" style="text-align:center;">${t('drill.no_sales')}</td></tr>`;
+            if (matches.length === 0 && pMatches.length === 0) html += `<tr><td colspan="5" style="text-align:center;">${t('drill.no_sales')}</td></tr>`;
             matches.forEach(m => {
                 html += `<tr><td>${fmtDate(m.date)}</td><td>${escHtml(m.customer)}</td><td>${escHtml(m.desc)}</td><td class="num">${saleVatBase(m).toFixed(2)}${m.printPrice != null ? '*' : ''}</td><td class="num">${(saleVatBase(m) - saleVatBase(m) / 1.15).toFixed(2)}</td></tr>`;
+            });
+            pMatches.forEach(r => {
+                html += `<tr><td>${fmtDate(r.date)}</td><td>${escHtml(r.merchant || 'Unknown merchant')}</td><td>Scanned purchase receipt${r.receiptNo ? ' No. ' + escHtml(r.receiptNo) : ''}</td><td class="num">${r.total.toFixed(2)}</td><td class="num">-${(r.total - r.total / 1.15).toFixed(2)}</td></tr>`;
             });
             html += `</tbody></table>`;
             if (matches.some(m => m.printPrice != null)) html += `<p style="font-size:11px;color:var(--text-light);margin-top:8px;">* Uses the edited printed price instead of the selling price.</p>`;
@@ -8151,6 +8149,21 @@
         function saleVatBase(s) {
             return (s.printPrice != null && isFinite(s.printPrice)) ? Math.round(s.printPrice * s.qty * 100) / 100 : s.total;
         }
+        // Scanned purchase receipts (owners; loaded by the Scanned Stock script into window.scnVatReceipts).
+        function scannedVatReceipts() {
+            return (window.scnVatReceipts || []).filter(r => r.date && r.total != null && isFinite(r.total));
+        }
+        // Estimated VAT for the current Ethiopian month = VAT on VAT sales (printed price if one was set)
+        // minus VAT on scanned purchase receipts (worked out from each receipt's TOTAL: total - total/1.15).
+        function refreshVatBox() {
+            const vatEl = document.getElementById('m-vat'); if (!vatEl) return;
+            const now = gregorianToEthiopian(todayISO());
+            const sameMonth = iso => { const e = gregorianToEthiopian(iso); return e.y === now.y && e.m === now.m; };
+            const outVat = state.salesLog.filter(s => s.vatIncluded && shouldCountInCurrentTotals(s.branchId) && sameMonth(s.date))
+                .reduce((sum, s) => { const b = saleVatBase(s); return sum + (b - b / 1.15); }, 0);
+            const inVat = scannedVatReceipts().filter(r => sameMonth(r.date)).reduce((sum, r) => sum + (r.total - r.total / 1.15), 0);
+            vatEl.innerText = `ETB ${(outVat - inVat).toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2})}`;
+        }
         function getChannelBreakdown(record, total, unpaidLabel) {
             const breakdown = [];
             (record.payments || []).forEach(p => {
@@ -8491,66 +8504,7 @@
             buyerInfoMaps = buildBuyerInfoMaps();
             document.getElementById('buyer-info-tin').value = existing.tin;
             document.getElementById('buyer-info-name').value = existing.name;
-            drawPrintedPrices(kind, id, isGroup);
             document.getElementById('buyer-info-modal').classList.add('active');
-        }
-        // ---- Printed prices (sales only) ----
-        // What prints can differ from the selling price. Each line gets a "Printed price" box.
-        // The real sale is never touched; the edited price is saved on the sale line (print_price)
-        // so reprints match, and the printed Total/VAT and the dashboard's estimated VAT follow it.
-        let bppRows = [];
-        function drawPrintedPrices(kind, id, isGroup) {
-            const box = document.getElementById('buyer-info-prices');
-            bppRows = [];
-            if (kind !== 'sale') { box.style.display = 'none'; box.innerHTML = ''; return; }
-            bppRows = isGroup ? state.salesLog.filter(s => s.groupId === id) : state.salesLog.filter(s => s.id === id);
-            if (!bppRows.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
-            box.style.display = 'block';
-            box.innerHTML = `<div style="font-size:12px; font-weight:700; color:var(--primary); margin-bottom:4px;">Printed prices</div>
-                <p style="font-size:11px; color:var(--text-light); margin-bottom:10px;">Change the price that prints on the receipt/invoice. Your real sale is not changed. The printed Total and VAT, and the dashboard's estimated VAT, follow these prices. Saved for this sale, so reprints match. Clear a box to go back to the selling price.</p>
-                ${bppRows.map((r, i) => `<div style="display:flex; gap:8px; align-items:center; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);">
-                    <div style="flex:1 1 auto; min-width:0; font-size:12px;"><div style="font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escHtml(r.desc)}</div><div style="color:var(--text-light);">${escHtml(r.qty)} &times; selling ${Number(r.price).toFixed(2)}</div></div>
-                    <input type="number" step="0.01" min="0" inputmode="decimal" data-bpp="${i}" value="${r.printPrice != null ? r.printPrice : Number(r.price)}" placeholder="${Number(r.price)}" style="width:110px; min-width:0;" oninput="bppRecalc()">
-                </div>`).join('')}
-                <div id="bpp-sum" style="margin-top:10px; font-size:12px;"></div>
-                <button type="button" class="btn btn-small" style="background:#4a4e63; margin-top:8px;" onclick="bppReset()">Use selling prices</button>`;
-            bppRecalc();
-        }
-        // Reads the boxes. Returns an array of new printed prices (null = same as selling price), or null if a box is invalid.
-        function bppRead() {
-            const out = [];
-            const inputs = document.querySelectorAll('#buyer-info-prices input[data-bpp]');
-            for (const inp of inputs) {
-                const r = bppRows[parseInt(inp.dataset.bpp)];
-                const raw = inp.value.trim();
-                if (raw === '') { out.push(null); continue; }
-                const n = parseFloat(raw);
-                if (!isFinite(n) || n < 0) return null;
-                out.push(Math.abs(n - r.price) < 0.005 ? null : Math.round(n * 100) / 100);
-            }
-            return out;
-        }
-        function bppRecalc() {
-            const sum = document.getElementById('bpp-sum'); if (!sum) return;
-            const vals = bppRead();
-            if (!vals) { sum.innerHTML = '<span style="color:var(--danger);">Enter a valid price (0 or more).</span>'; return; }
-            const total = bppRows.reduce((t, r, i) => t + (vals[i] != null ? Math.round(vals[i] * r.qty * 100) / 100 : r.total), 0);
-            const vat = bppRows.some(r => r.vatIncluded) ? total - total / 1.15 : 0;
-            sum.innerHTML = `Printed total: <b>ETB ${total.toFixed(2)}</b>${vat ? ` &middot; VAT (15%): <b>ETB ${vat.toFixed(2)}</b>` : ''}`;
-        }
-        function bppReset() {
-            document.querySelectorAll('#buyer-info-prices input[data-bpp]').forEach(inp => { inp.value = Number(bppRows[parseInt(inp.dataset.bpp)].price); });
-            bppRecalc();
-        }
-        function savePrintedPrices(vals) {
-            let changed = false;
-            bppRows.forEach((r, i) => {
-                const cur = r.printPrice != null ? r.printPrice : null;
-                if (vals[i] === cur) return;
-                r.printPrice = vals[i]; changed = true;
-                queueWrite({ kind: 'update', table: 'sales_log', id: r.id, patch: { print_price: vals[i] } });
-            });
-            if (changed) { try { renderSalesLogTable(); renderAnalyticalDashboards(); } catch (e) { console.warn(e); } }
         }
         function closeBuyerInfoModal() {
             document.getElementById('buyer-info-modal').classList.remove('active');
@@ -8562,13 +8516,7 @@
             const tin = document.getElementById('buyer-info-tin').value.trim();
             if (tin && !isValidTin(tin)) return alert("Buyer's TIN must be 10 to 12 digits.");
             const name = document.getElementById('buyer-info-name').value.trim();
-            let printedVals = null;
-            if (kind === 'sale' && bppRows.length) {
-                printedVals = bppRead();
-                if (!printedVals) return alert('Printed price must be a number, 0 or more. Clear the box to use the selling price.');
-            }
             saveBuyerInfo(kind, id, isGroup, tin, name);
-            if (printedVals) savePrintedPrices(printedVals);
             closeBuyerInfoModal();
             let data = null;
             if (kind === 'sale') data = buildSalePrintData(id, isGroup);
@@ -8602,7 +8550,7 @@
                 counterpartyName: primary.customer, counterpartyPhone: '',
                 buyerTin: primary.buyerTin || '', buyerTradeName: primary.buyerTradeName || '',
                 operator: getTransactionAuthor(primary.id),
-                lines: rows.map(r => { const ed = r.printPrice != null; return { desc: r.desc, qty: r.qty, unit: ed ? r.printPrice : r.price, total: ed ? saleVatBase(r) : r.total, _realUnit: r.price }; }),
+                lines: rows.map(r => { const ed = r.printPrice != null; return { desc: r.desc, qty: r.qty, unit: ed ? r.printPrice : r.price, total: ed ? saleVatBase(r) : r.total, _realUnit: r.price, _realTotal: r.total }; }),
                 total, amountPaid, vatIncluded: rows.some(r => r.vatIncluded),
                 channelBreakdown: getChannelBreakdown(record, total, 'Accounts receivable')
             };
@@ -11598,6 +11546,7 @@
                     items: items.map(i => ({ name: i.name.trim(), qty: num(i.qty), unit: i.unit || null, unit_price: i.price === '' ? null : num(i.price), pcs_per_unit: Math.max(1, num(i.pack) || 1) }))
                 });
                 if (rec.error) throw rec.error;
+                window.scnVatStamp = 0;
                 // 2) add to scanned stock (same cleaned name = same row)
                 const keys = [...new Set(items.map(i => scnNameKey(i.name)))];
                 const ex = await supabaseClient.from('scanned_stock_items').select('*').eq('tenant_id', tid).in('name_key', keys);
@@ -11725,24 +11674,29 @@
 
         // ---------- match window ----------
         const shut = () => { $('scn-modal').classList.remove('active'); ctx = null; };
-        async function openMatch(lines, onDone) {
-            const m = $('scn-modal'); m.querySelector('h3').textContent = 'Match sold items to scanned stock';
+        async function openMatch(lines, onDone, extra) {
+            const m = $('scn-modal'); m.querySelector('h3').textContent = extra ? 'Review before printing' : 'Match sold items to scanned stock';
             $('scn-modal-body').innerHTML = '<p>Checking scanned stock…</p>'; m.classList.add('active');
-            try { await ensure(); } catch (e) { shut(); alert('Could not load scanned stock: ' + (e.message || e)); return onDone && onDone(null); }
-            lines.forEach(l => { l.sug = window.scnSuggest(l.desc, l.unit); });
-            await aiHelp(lines);
-            lines.forEach(l => { const t = l.sug[0]; l.sel = t ? { id: t.item.id, mult: t.opt.mult, unit: t.opt.unit } : { id: '' }; });
-            ctx = { lines, onDone }; drawMatch();
+            let note = '';
+            if (lines.length) {
+                try { await ensure(); } catch (e) {
+                    if (!extra) { shut(); alert('Could not load scanned stock: ' + (e.message || e)); return onDone && onDone(null); }
+                    lines = []; note = 'Scanned stock could not be loaded, so matching is skipped for this print.';
+                }
+            }
+            if (lines.length) {
+                lines.forEach(l => { l.sug = window.scnSuggest(l.desc, l.unit); });
+                await aiHelp(lines);
+                lines.forEach(l => { const t = l.sug[0]; l.sel = t ? { id: t.item.id, mult: t.opt.mult, unit: t.opt.unit } : { id: '' }; });
+            }
+            ctx = { lines, onDone, extra: extra || null, note };
+            if (extra) ctx.all = extra.d.lines.map(dl => ({ dl, ml: lines.find(x => x.line === dl) || null, real: dl._realUnit != null ? dl._realUnit : dl.unit, val: String(dl.unit), name: extra.got.get(String(dl._rowId)) || null }));
+            drawMatch();
         }
-        function drawMatch() {
-            const L = ctx.lines;
-            $('scn-modal-body').innerHTML = `<p style="font-size:12px;color:var(--text-light);margin:0 0 8px;">Accepting a suggestion prints that name on the receipt and takes the stock from that item. Matches are remembered for next time.</p>
-              ${L.map((l, i) => {
-                const sel = l.sel, cur = items.find(x => x.id === sel.id), sg = l.sug.find(s => s.item.id === sel.id);
-                const rest = items.filter(x => !l.sug.some(s => s.item.id === x.id));
-                return `<div style="border-bottom:1px solid var(--border,#ddd);padding:10px 0;">
-                  <div><b>${esc(l.desc)}</b> &times; ${esc(l.qty)} @ ${money(l.unit)}</div>
-                  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
+        function selHtml(l, i) {
+            const sel = l.sel, cur = items.find(x => x.id === sel.id), sg = l.sug.find(s => s.item.id === sel.id);
+            const rest = items.filter(x => !l.sug.some(s => s.item.id === x.id));
+            return `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
                     <select onchange="scnPick(${i},this.value)" style="flex:1 1 220px;">
                       ${l.sug.map(s => `<option value="${s.item.id}" ${sel.id === s.item.id ? 'selected' : ''}>${esc(s.item.name)} — ${s.label}</option>`).join('')}
                       ${rest.length ? '<option disabled>— other scanned items —</option>' : ''}
@@ -11752,20 +11706,67 @@
                     </select>
                     ${cur && unitOpts(cur).length > 1 ? `<select onchange="scnUnit(${i},this.value)">${unitOpts(cur).map(o => `<option value="${esc(o.unit)}" ${sel.unit === o.unit ? 'selected' : ''}>sold as ${esc(o.unit)}${o.mult > 1 ? ' (' + o.mult + ' ' + esc(cur.base_unit) + ')' : ''}</option>`).join('')}</select>` : ''}
                   </div>
-                  ${sg && sg.warn ? '<div style="color:#c0392b;font-size:12px;margin-top:4px;">Price looks very different from the cost. Check the unit or the match.</div>' : ''}
+                  ${sg && sg.warn ? '<div style="color:#c0392b;font-size:12px;margin-top:4px;">Price looks very different from the cost. Check the unit or the match.</div>' : ''}`;
+        }
+        // Reads the printed-price boxes. Returns one entry per receipt line: a new printed price, null (= selling price) or undefined (line cannot be edited); false if a box is invalid.
+        function priceVals() {
+            const out = [];
+            for (const a of ctx.all) {
+                if (!a.dl._rowId) { out.push(undefined); continue; }
+                const raw = String(a.val).trim();
+                if (raw === '') { out.push(null); continue; }
+                const n = parseFloat(raw);
+                if (!isFinite(n) || n < 0) return false;
+                out.push(Math.abs(n - a.real) < 0.005 ? null : r2(n));
+            }
+            return out;
+        }
+        function psumHtml() {
+            const pv = priceVals();
+            if (!pv) return '<span style="color:#c0392b;">Enter a valid printed price (0 or more).</span>';
+            const total = ctx.all.reduce((t, a, j) => t + (pv[j] != null ? r2(pv[j] * num(a.dl.qty)) : num(a.dl._realTotal != null ? a.dl._realTotal : a.dl.total)), 0);
+            const vat = ctx.extra.d.vatIncluded ? total - total / 1.15 : 0;
+            return `Printed total: <b>ETB ${money(total)}</b>${vat ? ` &middot; VAT (15%): <b>ETB ${money(vat)}</b>` : ''}`;
+        }
+        window.scnPrice = (j, v) => { ctx.all[j].val = v; const s = $('scn-psum'); if (s) s.innerHTML = psumHtml(); };
+        function drawMatch() {
+            const X = ctx.extra, L = ctx.lines;
+            const intro = X
+                ? `Set the printed price for each line. It changes only what prints (the line price, Total and VAT) and the dashboard's estimated VAT; your real sale stays as it is, and the price is remembered for this sale. Clear a box to use the selling price.${L.length ? ' Accepting a stock suggestion prints that name and takes the stock from that item. Matches are remembered for next time.' : ''}`
+                : 'Accepting a suggestion prints that name and takes the stock from that item. Matches are remembered for next time.';
+            const rowsHtml = X ? ctx.all.map((a, j) => {
+                const ml = a.ml;
+                return `<div style="border-bottom:1px solid var(--border,#ddd);padding:10px 0;">
+                  <div><b>${esc(a.dl.desc)}</b> &times; ${esc(a.dl.qty)} @ selling price ${money(a.real)}</div>
+                  ${ml ? selHtml(ml, L.indexOf(ml)) : (a.name ? `<div style="font-size:12px;color:var(--text-light);margin-top:4px;">Already matched to scanned stock.</div>` : '')}
+                  ${a.dl._rowId ? `<div style="display:flex;gap:8px;align-items:center;margin-top:8px;"><label style="margin:0;">Printed price</label><input type="number" step="0.01" min="0" inputmode="decimal" value="${esc(a.val)}" placeholder="${esc(a.real)}" oninput="scnPrice(${j},this.value)" style="width:130px;min-width:0;"></div>` : ''}
                 </div>`;
-            }).join('')}
+            }).join('') : L.map((l, i) => `<div style="border-bottom:1px solid var(--border,#ddd);padding:10px 0;">
+                  <div><b>${esc(l.desc)}</b> &times; ${esc(l.qty)} @ ${money(l.unit)}</div>
+                  ${selHtml(l, i)}
+                </div>`).join('');
+            $('scn-modal-body').innerHTML = `<p style="font-size:12px;color:var(--text-light);margin:0 0 8px;">${intro}</p>
+              ${ctx.note ? `<p style="font-size:12px;color:#c0392b;margin:0 0 8px;">${esc(ctx.note)}</p>` : ''}
+              ${rowsHtml}
+              ${X ? `<div id="scn-psum" style="margin-top:10px;font-size:13px;">${psumHtml()}</div>` : ''}
               <div style="display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;margin-top:14px;">
-                <button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="scnLater()">${ctx.onDone ? 'Print without scanned stock' : 'Close'}</button>
+                <button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="scnLater()">${ctx.onDone ? (X ? 'Print without matching' : 'Print without scanned stock') : 'Close'}</button>
                 <button type="button" class="btn" id="scn-mconfirm" onclick="scnConfirmMatch()">${ctx.onDone ? 'Confirm &amp; print' : 'Confirm'}</button>
               </div>`;
         }
         window.scnPick = (i, v) => { const l = ctx.lines[i], it = items.find(x => x.id === v), s = l.sug.find(x => x.item.id === v), o = s ? s.opt : it ? priceCheck(l.unit, it).opt : null; l.sel = v === '' || v === '__skip' ? { id: v } : { id: v, mult: o.mult, unit: o.unit }; drawMatch(); };
         window.scnUnit = (i, u) => { const l = ctx.lines[i], it = items.find(x => x.id === l.sel.id), o = unitOpts(it).find(x => x.unit === u); l.sel.mult = o.mult; l.sel.unit = o.unit; drawMatch(); };
-        window.scnLater = () => { const f = ctx && ctx.onDone; shut(); if (f) f([]); };
+        window.scnLater = () => {
+            let pv = null;
+            if (ctx && ctx.extra) { pv = priceVals(); if (pv === false) return alert('Printed price must be a number, 0 or more. Clear the box to use the selling price.'); }
+            const f = ctx && ctx.onDone; shut(); if (f) f([], pv);
+        };
 
         window.scnConfirmMatch = async () => {
-            if (busy || !ctx) return; busy = true;
+            if (busy || !ctx) return;
+            let pv = null;
+            if (ctx.extra) { pv = priceVals(); if (pv === false) return alert('Printed price must be a number, 0 or more. Clear the box to use the selling price.'); }
+            busy = true;
             const btn = $('scn-mconfirm'); btn.disabled = true; btn.textContent = 'Saving…';
             const tid = currentTenantId, done = [], f = ctx.onDone; let failed = null;
             for (const l of ctx.lines) {
@@ -11782,7 +11783,7 @@
             }
             busy = false; shut();
             if (failed) alert('Scanned stock could not be fully updated: ' + (failed.message || failed) + (f ? '\nThe receipt will still print. The unfinished lines stay in the waiting list.' : ''));
-            if (f) f(done);
+            if (f) f(done, pv);
             if (window.scnReload && $('view-scanned').classList.contains('active')) window.scnReload();
         };
 
@@ -11790,23 +11791,72 @@
         const oBuild = window.buildSalePrintData;
         window.buildSalePrintData = function (id, g) {
             const d = oBuild(id, g);
-            if (d) { const rs = g ? state.salesLog.filter(x => x.groupId === id) : state.salesLog.filter(x => x.id === id); d.lines.forEach((l, i) => { if (rs[i]) { l._rowId = rs[i].id; l._vat = !!rs[i].vatIncluded; } }); d._scn = true; }
+            if (d) { const rs = g ? state.salesLog.filter(x => x.groupId === id) : state.salesLog.filter(x => x.id === id); d.lines.forEach((l, i) => { if (rs[i]) { l._rowId = rs[i].id; l._vat = !!rs[i].vatIncluded; } }); d._scn = true; d._sid = id; d._sg = !!g; }
             return d;
         };
+        // Saves the printed prices onto the sale lines (print_price). Returns true if anything changed.
+        function savePrices(d, pv) {
+            let changed = false;
+            d.lines.forEach((l, j) => {
+                if (pv[j] === undefined) return;
+                const row = (state.salesLog || []).find(r => String(r.id) === String(l._rowId)); if (!row) return;
+                const cur = row.printPrice != null ? row.printPrice : null;
+                if (pv[j] === cur) return;
+                row.printPrice = pv[j]; changed = true;
+                queueWrite({ kind: 'update', table: 'sales_log', id: row.id, patch: { print_price: pv[j] } });
+            });
+            if (changed) { try { renderSalesLogTable(); renderAnalyticalDashboards(); } catch (e) { console.warn(e); } }
+            return changed;
+        }
+        // Every sale print opens the review window: stock matching for new VAT lines + printed prices for all lines.
         async function viaScanned(d, orig) {
             if (!d || !d._scn) return orig(d);
             const vat = d.lines.filter(l => l._vat && l._rowId);
-            if (!vat.length) return orig(d);
+            let got = new Map(), todo = [];
             try {
-                const led = await supabaseClient.rpc('scanned_matched_names', { p_tenant: currentTenantId, p_refs: vat.map(l => String(l._rowId)) });
-                if (led.error) throw led.error;
-                const got = new Map((led.data || []).map(x => [x.sale_ref, x.printed_name]));
-                d.lines.forEach(l => { if (got.get(String(l._rowId))) l.desc = got.get(String(l._rowId)); });
-                const todo = vat.filter(l => !got.has(String(l._rowId))).map(l => ({ _rowId: l._rowId, desc: l.desc, qty: l.qty, unit: (l._realUnit != null ? l._realUnit : l.unit), line: l }));
-                if (!todo.length) return orig(d);
-                openMatch(todo, res => { (res || []).forEach(x => { x.l.line.desc = x.name; }); orig(d); });
-            } catch (e) { orig(d); }
+                if (vat.length) {
+                    const led = await supabaseClient.rpc('scanned_matched_names', { p_tenant: currentTenantId, p_refs: vat.map(l => String(l._rowId)) });
+                    if (led.error) throw led.error;
+                    got = new Map((led.data || []).map(x => [x.sale_ref, x.printed_name]));
+                    d.lines.forEach(l => { if (got.get(String(l._rowId))) l.desc = got.get(String(l._rowId)); });
+                    todo = vat.filter(l => !got.has(String(l._rowId))).map(l => ({ _rowId: l._rowId, desc: l.desc, qty: l.qty, unit: (l._realUnit != null ? l._realUnit : l.unit), line: l }));
+                }
+            } catch (e) { got = new Map(); todo = []; }
+            const finish = (res, pv) => {
+                (res || []).forEach(x => { x.l.line.desc = x.name; });
+                let out = d;
+                if (pv && savePrices(d, pv)) {
+                    const nd = window.buildSalePrintData(d._sid, d._sg);
+                    if (nd) { nd.docLabel = d.docLabel; nd.lines.forEach((l, i) => { if (d.lines[i]) l.desc = d.lines[i].desc; }); out = nd; }
+                }
+                orig(out);
+            };
+            openMatch(todo, finish, { d, got });
         }
+        // ---------- scanned purchase receipts -> Estimated VAT on the dashboard (owners only) ----------
+        let vatBusy = null;
+        window.scnVatReceipts = window.scnVatReceipts || [];
+        window.scnVatEnsure = force => {
+            if (typeof currentIsOwner === 'undefined' || !currentIsOwner) return Promise.resolve();
+            if (window.scnVatTenant !== currentTenantId) { window.scnVatTenant = currentTenantId; window.scnVatReceipts = []; window.scnVatStamp = 0; }
+            if (vatBusy) return vatBusy;
+            if (!force && window.scnVatStamp && Date.now() - window.scnVatStamp < 60000) return Promise.resolve();
+            vatBusy = (async () => {
+                try {
+                    const out = [];
+                    for (let from = 0; from < 10000; from += 1000) {
+                        const r = await supabaseClient.from('scanned_receipts').select('id,receipt_date,created_at,total,merchant,receipt_no').eq('tenant_id', currentTenantId).order('created_at', { ascending: false }).range(from, from + 999);
+                        if (r.error) throw r.error;
+                        (r.data || []).forEach(x => out.push({ id: x.id, merchant: x.merchant, receiptNo: x.receipt_no, total: x.total == null ? null : parseFloat(x.total), date: /^\d{4}-\d{2}-\d{2}$/.test(x.receipt_date || '') ? x.receipt_date : String(x.created_at || '').slice(0, 10) }));
+                        if ((r.data || []).length < 1000) break;
+                    }
+                    window.scnVatReceipts = out;
+                    try { refreshVatBox(); } catch (e) { }
+                } catch (e) { console.warn('Scanned receipts for VAT not loaded:', e); }
+                finally { window.scnVatStamp = Date.now(); vatBusy = null; }
+            })();
+            return vatBusy;
+        };
         const oR = window.printReceiptFor, oI = window.printInvoiceFor;
         window.printReceiptFor = d => viaScanned(d, oR);
         window.printInvoiceFor = d => viaScanned(d, oI);
