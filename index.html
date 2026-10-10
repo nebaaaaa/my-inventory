@@ -11755,52 +11755,74 @@
             '@property --a{syntax:"<angle>";inherits:false;initial-value:0deg}' +
             '@property --k{syntax:"<number>";inherits:true;initial-value:1}' +
             '@property --rev{syntax:"<percentage>";inherits:false;initial-value:0%}' +
+            '@property --sw{syntax:"<percentage>";inherits:false;initial-value:0%}' +
             '@keyframes scnSpin{to{--a:360deg}}' +
-            '@keyframes scnBreath{from{opacity:.6}to{opacity:1}}' +
-            '@keyframes scnFade{from{opacity:0;transform:scale(.972)}55%{opacity:1}to{opacity:1;transform:none}}' +
-            '.scn-fade{animation:scnFade .6s cubic-bezier(.2,.8,.3,1) both}' +
-            // the whole glow is revealed from the bottom edge upward (--rev), and thickens (--k)
+            '@keyframes scnBreath{from{opacity:calc(var(--o) * .65)}to{opacity:var(--o)}}' +
+            '@keyframes scnFade{from{opacity:0;transform:scale(.985)}to{opacity:1;transform:none}}' +
+            '.scn-fade{animation:scnFade .7s cubic-bezier(.2,.8,.3,1) both}' +
+            // 1) the thin glow that hugs the screen edge. It lights up from the bottom while you hold.
             '#scn-glow{position:fixed;inset:0;z-index:9998;pointer-events:none;display:none;opacity:0;--k:1;--rev:0%;--r:clamp(22px,6.5vmin,54px);' +
                 '-webkit-mask-image:linear-gradient(to top,#000 calc(var(--rev) - 35%),transparent var(--rev));' +
                 'mask-image:linear-gradient(to top,#000 calc(var(--rev) - 35%),transparent var(--rev))}' +
-            '#scn-glow.flare{filter:brightness(1.12)}' +
+            '#scn-glow.flare{filter:brightness(1.1)}' +
             '#scn-glow i{position:absolute;inset:0;border-radius:var(--r);padding:calc(var(--bw) * var(--k));' +
                 '-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;' +
                 'mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);' +
                 'animation:scnSpin var(--sp) linear infinite var(--dir),scnBreath var(--bp) ease-in-out infinite alternate}' +
-            // thin bright line
-            '#scn-glow .g1{--bw:2.5px;--sp:6s;--bp:3.1s;--dir:normal;filter:blur(.6px);background:conic-gradient(from var(--a),#FF7AB6,#B58CFF,#7C9BFF,#4FD6FF,#FFA77A,#FFD27A,#FF7AB6)}' +
-            // soft bloom, flowing the other way
-            '#scn-glow .g2{--bw:11px;--sp:8s;--bp:2.7s;--dir:reverse;filter:blur(9px);background:conic-gradient(from var(--a),#63D2FF,#8E86FF,#D77BFF,#FF6FA3,#FFA06B,#63D2FF)}' +
-            // wide cloud of light bleeding into the screen
-            '#scn-glow .g3{--bw:30px;--sp:12s;--bp:3.6s;--dir:normal;filter:blur(28px);background:conic-gradient(from var(--a),#D77BFF,#FF6FA3,#FFBE7A,#5FD7FF,#8E86FF,#D77BFF)}' +
+            // hot, almost-white line right on the edge
+            '#scn-glow .g1{--bw:clamp(2px,.7vmin,4px);--sp:14s;--bp:3.1s;--o:1;--dir:normal;filter:blur(.5px) brightness(1.2);background:conic-gradient(from var(--a),#FFB0E6,#C4A8FF,#98B8FF,#86E4FF,#FFBE84,#FFE084,#FFB0E6)}' +
+            // narrow soft bloom: pink, violet, blue, cyan, orange, gold
+            '#scn-glow .g2{--bw:clamp(8px,2.3vmin,16px);--sp:20s;--bp:2.7s;--o:.95;--dir:reverse;filter:blur(7px);background:conic-gradient(from var(--a),#FF42CE,#7655FF,#2C86FF,#22C6FF,#FF962B,#FFBE2B,#FF42CE)}' +
+            // faint haze a little further in
+            '#scn-glow .g3{--bw:clamp(16px,4.2vmin,30px);--sp:26s;--bp:3.6s;--o:.55;--dir:normal;filter:blur(18px);background:conic-gradient(from var(--a),#FF42CE,#7655FF,#2C86FF,#FF962B,#FF42CE)}' +
+            // 2) the colour wash that floods the screen from the top-right corner to the bottom-left at the moment of switching
+            '#scn-wash{position:fixed;inset:0;z-index:9997;pointer-events:none;display:none;opacity:0;--sw:0%;' +
+                'background:radial-gradient(120% 95% at 100% 0%,rgba(135,55,255,.62),transparent 62%),radial-gradient(115% 80% at 0% 100%,rgba(35,125,255,.5),transparent 64%),linear-gradient(160deg,rgba(115,75,255,.42),rgba(225,85,225,.36) 55%,rgba(40,120,255,.46));' +
+                '-webkit-mask-image:linear-gradient(to bottom left,#000 calc(var(--sw) - 40%),transparent var(--sw));' +
+                'mask-image:linear-gradient(to bottom left,#000 calc(var(--sw) - 40%),transparent var(--sw))}' +
             'body.scn-holding,body.scn-holding *{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important}' +
-            '@media (prefers-reduced-motion:reduce){#scn-glow i{animation:none}.scn-fade{animation:none}}';
+            '@media (prefers-reduced-motion:reduce){#scn-glow i{animation:none}.scn-fade{animation:none}#scn-wash{display:none!important}}';
         document.head.appendChild(css);
 
+        let wash = null, fxTimers = [];
+        const later = (fn, ms) => { fxTimers.push(setTimeout(fn, ms)); };
+        const clearFx = () => { fxTimers.forEach(clearTimeout); fxTimers = []; };
         function ensureGlow() {
             if (!glow) { glow = document.createElement('div'); glow.id = 'scn-glow'; glow.innerHTML = '<i class="g3"></i><i class="g2"></i><i class="g1"></i>'; document.body.appendChild(glow); }
             return glow;
         }
-        function glowOn() {            // light sweeps up from the bottom edge while the finger stays down
+        function ensureWash() { if (!wash) { wash = document.createElement('div'); wash.id = 'scn-wash'; document.body.appendChild(wash); } return wash; }
+        function glowOn() {            // while the finger stays down, a thin glow lights up from the bottom edge
+            clearFx();
+            if (wash) { wash.style.transition = 'none'; wash.style.display = 'none'; wash.style.opacity = '0'; }
             const g = ensureGlow(); clearTimeout(g._h); g.classList.remove('flare');
             g.style.transition = 'none'; g.style.display = 'block'; g.style.opacity = '0';
-            g.style.setProperty('--rev', '0%'); g.style.setProperty('--k', '.55');
+            g.style.setProperty('--rev', '0%'); g.style.setProperty('--k', '.6');
             void g.offsetWidth;
             const d = HOLD_MS - GLOW_AFTER;
             g.style.transition = 'opacity 250ms ease, --rev ' + d + 'ms cubic-bezier(.4,.12,.45,1), --k ' + d + 'ms ease-out';
             g.style.opacity = '1'; g.style.setProperty('--rev', '135%'); g.style.setProperty('--k', '1');
         }
-        function glowFlare() {         // bright swell at the moment of switching
+        function glowFlare() {         // the moment of switching: edge swells, colour floods in from the top-right corner
+            clearFx();
             const g = ensureGlow(); clearTimeout(g._h); g.style.display = 'block'; g.classList.add('flare');
-            g.style.transition = 'opacity 150ms ease, --rev 150ms ease-out, --k 260ms ease-out';
-            g.style.opacity = '1'; g.style.setProperty('--rev', '135%'); g.style.setProperty('--k', '1.9');
+            g.style.transition = 'opacity 150ms ease, --rev 150ms ease-out, --k 300ms ease-out';
+            g.style.opacity = '1'; g.style.setProperty('--rev', '135%'); g.style.setProperty('--k', '1.5');
+            if (!reduce) {
+                const w = ensureWash(); clearTimeout(w._h);
+                w.style.transition = 'none'; w.style.display = 'block'; w.style.opacity = '0'; w.style.setProperty('--sw', '0%');
+                void w.offsetWidth;
+                w.style.transition = 'opacity 220ms ease-out, --sw 620ms cubic-bezier(.45,.05,.35,1)';
+                w.style.opacity = '1'; w.style.setProperty('--sw', '150%');
+                later(() => { w.style.transition = 'opacity 1100ms ease-in-out'; w.style.opacity = '0'; w._h = setTimeout(() => { w.style.display = 'none'; }, 1160); }, 640);
+            }
+            later(() => glowOff(false), reduce ? 150 : 600);
         }
-        function glowOff(fast) {       // fast = hold cancelled (light drains back down); slow = soft fade after switching
+        function glowOff(fast) {       // fast = hold cancelled (light drains back down); slow = edge glow fades away after switching
             if (!glow) return; const g = glow; g.classList.remove('flare');
             if (fast) { g.style.transition = 'opacity 280ms ease, --rev 280ms ease-in'; g.style.opacity = '0'; g.style.setProperty('--rev', '0%'); }
-            else { g.style.transition = 'opacity 1000ms ease, --k 1000ms ease-out'; g.style.opacity = '0'; g.style.setProperty('--k', '2.6'); }
-            clearTimeout(g._h); g._h = setTimeout(() => { g.style.display = 'none'; }, fast ? 320 : 1060);
+            else { g.style.transition = 'opacity 1700ms ease-out, --k 1700ms ease-out'; g.style.opacity = '0'; g.style.setProperty('--k', '1'); }
+            clearTimeout(g._h); g._h = setTimeout(() => { g.style.display = 'none'; }, fast ? 320 : 1760);
         }
 
         const active = id => { const v = document.getElementById(id); return !!(v && v.classList.contains('active')); };
@@ -11836,8 +11858,7 @@
                 switchView(toScanned ? 'scanned' : 'inventory');
                 const el = document.getElementById(toScanned ? 'view-scanned' : 'view-inventory');
                 if (el) { el.classList.remove('scn-fade'); void el.offsetWidth; el.classList.add('scn-fade'); setTimeout(() => el.classList.remove('scn-fade'), 600); }
-            }, reduce ? 0 : 180);
-            setTimeout(() => glowOff(false), reduce ? 100 : 480);
+            }, reduce ? 0 : 330);
         }
         document.addEventListener('pointerdown', e => {
             swallow = false; cancel();
