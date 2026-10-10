@@ -11751,9 +11751,34 @@
         let timer = null, glowTimer = null, glow = null, holding = false, swallow = false, startX = 0, startY = 0;
 
         const css = document.createElement('style');
-        // One shared band of colour for every glow layer. Neighbouring colours are close relatives
-        // (pink > violet > blue > cyan > blue > violet > coral > orange > gold > pink), so they blend smoothly.
-        const STOPS = '#FF5FD2 0deg,#D45CFF 30deg,#9A62FF 60deg,#5B74FF 90deg,#2E90FF 120deg,#26C6FF 150deg,#3FA0FF 180deg,#7A68FF 210deg,#C45CFF 240deg,#FF6A9A 270deg,#FF9A3C 300deg,#FFC247 330deg,#FF5FD2 360deg';
+        // One shared band of colour for every glow layer. The key colours below are close relatives
+        // (pink > violet > blue > cyan > blue > violet > magenta > orange > gold > pink). A smooth curve is drawn
+        // through them in a perceptual colour space (OKLab) and sampled every 10 degrees, so there are no visible
+        // bands or dull patches between colours.
+        const KEYS = ['#FF5FD2', '#C55CFF', '#8466FF', '#3E8CFF', '#27C4FF', '#4D90FF', '#8C66FF', '#E25CE0', '#FF8A52', '#FFC24D'];
+        function buildStops(keys, samples) {
+            const lin = c => c <= .04045 ? c / 12.92 : Math.pow((c + .055) / 1.055, 2.4);
+            const gam = c => { c = Math.max(0, Math.min(1, c)); return c <= .0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1 / 2.4) - .055; };
+            const toLab = h => {
+                const [r, g, b] = [1, 3, 5].map(i => lin(parseInt(h.substr(i, 2), 16) / 255));
+                const l = Math.cbrt(.4122214708 * r + .5363325363 * g + .0514459929 * b), m = Math.cbrt(.2119034982 * r + .6806995451 * g + .1073969566 * b), s = Math.cbrt(.0883024619 * r + .2817188376 * g + .6299787005 * b);
+                return [.2104542553 * l + .793617785 * m - .0040720468 * s, 1.9779984951 * l - 2.428592205 * m + .4505937099 * s, .0259040371 * l + .7827717662 * m - .808675766 * s];
+            };
+            const toHex = ([L, a, b]) => {
+                const l = Math.pow(L + .3963377774 * a + .2158037573 * b, 3), m = Math.pow(L - .1055613458 * a - .0638541728 * b, 3), s = Math.pow(L - .0894841775 * a - 1.291485548 * b, 3);
+                return '#' + [4.0767416621 * l - 3.3077115913 * m + .2309699292 * s, -1.2684380046 * l + 2.6097574011 * m - .3413193965 * s, -.0041960863 * l - .7034186147 * m + 1.707614701 * s]
+                    .map(v => Math.round(gam(v) * 255).toString(16).padStart(2, '0')).join('');
+            };
+            const P = keys.map(toLab), n = P.length, out = [];
+            for (let i = 0; i <= samples; i++) {
+                const u = (i % samples) / samples * n, k = Math.floor(u), t = u - k;
+                const p0 = P[(k - 1 + n) % n], p1 = P[k % n], p2 = P[(k + 1) % n], p3 = P[(k + 2) % n];
+                const c = [0, 1, 2].map(j => .5 * (2 * p1[j] + (-p0[j] + p2[j]) * t + (2 * p0[j] - 5 * p1[j] + 4 * p2[j] - p3[j]) * t * t + (-p0[j] + 3 * p1[j] - 3 * p2[j] + p3[j]) * t * t * t));
+                out.push(toHex(c) + ' ' + Math.round(i / samples * 360) + 'deg');
+            }
+            return out.join(',');
+        }
+        const STOPS = buildStops(KEYS, 36);
         const grad = 'background:conic-gradient(from var(--a),' + STOPS + ');background:conic-gradient(in oklab from var(--a),' + STOPS + ');';
         css.textContent =
             '@property --a{syntax:"<angle>";inherits:false;initial-value:0deg}' +
@@ -11774,11 +11799,11 @@
                 'mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);' +
                 'animation:scnSpin var(--sp) linear infinite var(--dir),scnBreath var(--bp) ease-in-out infinite alternate}' +
             // hot, almost-white line right on the edge
-            '#scn-glow .g1{--bw:clamp(1.5px,.45vmin,3px);--sp:18s;--bp:3.1s;--o:1;--dir:normal;filter:blur(.4px) brightness(1.25) saturate(.75);' + grad + '}' +
+            '#scn-glow .g1{--bw:clamp(1px,.3vmin,2px);--sp:18s;--bp:3.1s;--o:1;--dir:normal;filter:blur(.7px) brightness(1.2) saturate(.8);' + grad + '}' +
             // narrow soft bloom
-            '#scn-glow .g2{--bw:clamp(5px,1.3vmin,10px);--sp:18s;--bp:2.7s;--o:.95;--dir:normal;filter:blur(5px);' + grad + '}' +
+            '#scn-glow .g2{--bw:clamp(3px,.8vmin,6px);--sp:18s;--bp:2.7s;--o:.95;--dir:normal;filter:blur(4px);' + grad + '}' +
             // faint haze a little further in
-            '#scn-glow .g3{--bw:clamp(9px,2.2vmin,16px);--sp:18s;--bp:3.6s;--o:.55;--dir:normal;filter:blur(11px);' + grad + '}' +
+            '#scn-glow .g3{--bw:clamp(6px,1.4vmin,10px);--sp:18s;--bp:3.6s;--o:.55;--dir:normal;filter:blur(9px);' + grad + '}' +
             // 2) the colour wash that floods the screen from the top-right corner to the bottom-left at the moment of switching
             '#scn-wash{position:fixed;inset:0;z-index:9997;pointer-events:none;display:none;opacity:0;--sw:0%;' +
                 'background:radial-gradient(120% 95% at 100% 0%,rgba(135,55,255,.62),transparent 62%),radial-gradient(115% 80% at 0% 100%,rgba(35,125,255,.5),transparent 64%),linear-gradient(160deg,rgba(115,75,255,.42),rgba(225,85,225,.36) 55%,rgba(40,120,255,.46));' +
