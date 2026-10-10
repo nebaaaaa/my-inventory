@@ -11745,7 +11745,7 @@
     // Hold again on empty space of the Scanned Stock page to go back.
     // Holding on a table row is NOT this gesture: that is the row-rearranging hold, which works on both tables.
     (function () {
-        const HOLD_MS = 900, GLOW_AFTER = 180, MOVE_PX = 12;
+        const HOLD_MS = 900, GLOW_AFTER = 100, MOVE_PX = 12;
         const SKIP = 'button,a,input,select,textarea,label,summary,option,[onclick],[role="button"],[contenteditable="true"]';
         const reduce = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
         let timer = null, glowTimer = null, glow = null, holding = false, swallow = false, startX = 0, startY = 0;
@@ -11753,40 +11753,54 @@
         const css = document.createElement('style');
         css.textContent =
             '@property --a{syntax:"<angle>";inherits:false;initial-value:0deg}' +
-            '@property --w{syntax:"<length>";inherits:true;initial-value:0px}' +
+            '@property --k{syntax:"<number>";inherits:true;initial-value:1}' +
+            '@property --rev{syntax:"<percentage>";inherits:false;initial-value:0%}' +
             '@keyframes scnSpin{to{--a:360deg}}' +
-            '@keyframes scnFade{from{opacity:0;transform:scale(.985)}to{opacity:1;transform:none}}' +
-            '.scn-fade{animation:scnFade .55s ease both}' +
-            '#scn-glow{position:fixed;inset:0;z-index:9998;pointer-events:none;display:none;opacity:0;--w:0px}' +
-            '#scn-glow::before,#scn-glow::after{content:"";position:absolute;inset:0;border-radius:28px;' +
-                'background:conic-gradient(from var(--a),#BC82F3,#F5B9EA,#FF6778,#FFBA71,#C686FF,#8D99FF,#BC82F3);' +
+            '@keyframes scnBreath{from{opacity:.6}to{opacity:1}}' +
+            '@keyframes scnFade{from{opacity:0;transform:scale(.972)}55%{opacity:1}to{opacity:1;transform:none}}' +
+            '.scn-fade{animation:scnFade .6s cubic-bezier(.2,.8,.3,1) both}' +
+            // the whole glow is revealed from the bottom edge upward (--rev), and thickens (--k)
+            '#scn-glow{position:fixed;inset:0;z-index:9998;pointer-events:none;display:none;opacity:0;--k:1;--rev:0%;--r:clamp(22px,6.5vmin,54px);' +
+                '-webkit-mask-image:linear-gradient(to top,#000 calc(var(--rev) - 35%),transparent var(--rev));' +
+                'mask-image:linear-gradient(to top,#000 calc(var(--rev) - 35%),transparent var(--rev))}' +
+            '#scn-glow.flare{filter:brightness(1.12)}' +
+            '#scn-glow i{position:absolute;inset:0;border-radius:var(--r);padding:calc(var(--bw) * var(--k));' +
                 '-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;' +
                 'mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);' +
-                'animation:scnSpin 3.2s linear infinite}' +
-            '#scn-glow::before{padding:calc(var(--w) * .3);filter:blur(1.5px)}' +
-            '#scn-glow::after{padding:var(--w);filter:blur(18px)}' +
+                'animation:scnSpin var(--sp) linear infinite var(--dir),scnBreath var(--bp) ease-in-out infinite alternate}' +
+            // thin bright line
+            '#scn-glow .g1{--bw:2.5px;--sp:6s;--bp:3.1s;--dir:normal;filter:blur(.6px);background:conic-gradient(from var(--a),#FF7AB6,#B58CFF,#7C9BFF,#4FD6FF,#FFA77A,#FFD27A,#FF7AB6)}' +
+            // soft bloom, flowing the other way
+            '#scn-glow .g2{--bw:11px;--sp:8s;--bp:2.7s;--dir:reverse;filter:blur(9px);background:conic-gradient(from var(--a),#63D2FF,#8E86FF,#D77BFF,#FF6FA3,#FFA06B,#63D2FF)}' +
+            // wide cloud of light bleeding into the screen
+            '#scn-glow .g3{--bw:30px;--sp:12s;--bp:3.6s;--dir:normal;filter:blur(28px);background:conic-gradient(from var(--a),#D77BFF,#FF6FA3,#FFBE7A,#5FD7FF,#8E86FF,#D77BFF)}' +
             'body.scn-holding,body.scn-holding *{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important}' +
-            '@media (prefers-reduced-motion:reduce){#scn-glow::before,#scn-glow::after{animation:none}.scn-fade{animation:none}}';
+            '@media (prefers-reduced-motion:reduce){#scn-glow i{animation:none}.scn-fade{animation:none}}';
         document.head.appendChild(css);
 
-        function ensureGlow() { if (!glow) { glow = document.createElement('div'); glow.id = 'scn-glow'; document.body.appendChild(glow); } return glow; }
-        function glowOn() {            // light grows slowly while the finger stays down
-            const g = ensureGlow(); clearTimeout(g._h);
-            g.style.transition = 'none'; g.style.display = 'block'; g.style.opacity = '0'; g.style.setProperty('--w', '0px');
+        function ensureGlow() {
+            if (!glow) { glow = document.createElement('div'); glow.id = 'scn-glow'; glow.innerHTML = '<i class="g3"></i><i class="g2"></i><i class="g1"></i>'; document.body.appendChild(glow); }
+            return glow;
+        }
+        function glowOn() {            // light sweeps up from the bottom edge while the finger stays down
+            const g = ensureGlow(); clearTimeout(g._h); g.classList.remove('flare');
+            g.style.transition = 'none'; g.style.display = 'block'; g.style.opacity = '0';
+            g.style.setProperty('--rev', '0%'); g.style.setProperty('--k', '.55');
             void g.offsetWidth;
-            g.style.transition = 'opacity 350ms ease, --w ' + (HOLD_MS - GLOW_AFTER) + 'ms cubic-bezier(.3,0,.7,1)';
-            g.style.opacity = '.9'; g.style.setProperty('--w', '16px');
+            const d = HOLD_MS - GLOW_AFTER;
+            g.style.transition = 'opacity 250ms ease, --rev ' + d + 'ms cubic-bezier(.4,.12,.45,1), --k ' + d + 'ms ease-out';
+            g.style.opacity = '1'; g.style.setProperty('--rev', '135%'); g.style.setProperty('--k', '1');
         }
-        function glowFlare() {         // quick bright burst at the moment of switching
-            const g = ensureGlow(); clearTimeout(g._h); g.style.display = 'block';
-            g.style.transition = 'opacity 180ms ease, --w 240ms ease-out';
-            g.style.opacity = '1'; g.style.setProperty('--w', '36px');
+        function glowFlare() {         // bright swell at the moment of switching
+            const g = ensureGlow(); clearTimeout(g._h); g.style.display = 'block'; g.classList.add('flare');
+            g.style.transition = 'opacity 150ms ease, --rev 150ms ease-out, --k 260ms ease-out';
+            g.style.opacity = '1'; g.style.setProperty('--rev', '135%'); g.style.setProperty('--k', '1.9');
         }
-        function glowOff(fast) {       // soft fade out (fast when the hold is cancelled)
-            if (!glow) return;
-            glow.style.transition = 'opacity ' + (fast ? 220 : 800) + 'ms ease, --w ' + (fast ? 220 : 800) + 'ms ease';
-            glow.style.opacity = '0'; glow.style.setProperty('--w', fast ? '0px' : '70px');
-            clearTimeout(glow._h); const g = glow; g._h = setTimeout(() => { g.style.display = 'none'; }, fast ? 260 : 860);
+        function glowOff(fast) {       // fast = hold cancelled (light drains back down); slow = soft fade after switching
+            if (!glow) return; const g = glow; g.classList.remove('flare');
+            if (fast) { g.style.transition = 'opacity 280ms ease, --rev 280ms ease-in'; g.style.opacity = '0'; g.style.setProperty('--rev', '0%'); }
+            else { g.style.transition = 'opacity 1000ms ease, --k 1000ms ease-out'; g.style.opacity = '0'; g.style.setProperty('--k', '2.6'); }
+            clearTimeout(g._h); g._h = setTimeout(() => { g.style.display = 'none'; }, fast ? 320 : 1060);
         }
 
         const active = id => { const v = document.getElementById(id); return !!(v && v.classList.contains('active')); };
