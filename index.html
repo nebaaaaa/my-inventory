@@ -11755,7 +11755,7 @@
         // (pink > violet > blue > cyan > blue > violet > magenta > orange > gold > pink). A smooth curve is drawn
         // through them in a perceptual colour space (OKLab) and sampled every 10 degrees, so there are no visible
         // bands or dull patches between colours.
-        const KEYS = ['#FF5FD2', '#C55CFF', '#8466FF', '#3E8CFF', '#27C4FF', '#4D90FF', '#8C66FF', '#E25CE0', '#FF8A52', '#FFC24D'];
+        const KEYS = ['#FF6BC8', '#B565FF', '#6C7DFF', '#34B8FF', '#6C7DFF', '#B565FF', '#FF7DB0'];
         function buildStops(keys, samples) {
             const lin = c => c <= .04045 ? c / 12.92 : Math.pow((c + .055) / 1.055, 2.4);
             const gam = c => { c = Math.max(0, Math.min(1, c)); return c <= .0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1 / 2.4) - .055; };
@@ -11799,11 +11799,11 @@
                 'mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);' +
                 'animation:scnSpin var(--sp) linear infinite var(--dir),scnBreath var(--bp) ease-in-out infinite alternate}' +
             // hot, almost-white line right on the edge
-            '#scn-glow .g1{--bw:clamp(1px,.3vmin,2px);--sp:18s;--bp:3.1s;--o:1;--dir:normal;filter:blur(.7px) brightness(1.2) saturate(.8);' + grad + '}' +
+            '#scn-glow .g1{--bw:clamp(1px,.3vmin,2px);--sp:18s;--bp:3.1s;--o:1;--dir:normal;filter:blur(1.6px) brightness(1.15) saturate(.85);' + grad + '}' +
             // narrow soft bloom
-            '#scn-glow .g2{--bw:clamp(3px,.8vmin,6px);--sp:18s;--bp:2.7s;--o:.95;--dir:normal;filter:blur(4px);' + grad + '}' +
+            '#scn-glow .g2{--bw:clamp(3px,.8vmin,6px);--sp:18s;--bp:2.7s;--o:.95;--dir:normal;filter:blur(6px);' + grad + '}' +
             // faint haze a little further in
-            '#scn-glow .g3{--bw:clamp(6px,1.4vmin,10px);--sp:18s;--bp:3.6s;--o:.55;--dir:normal;filter:blur(9px);' + grad + '}' +
+            '#scn-glow .g3{--bw:clamp(6px,1.4vmin,10px);--sp:18s;--bp:3.6s;--o:.55;--dir:normal;filter:blur(13px);' + grad + '}' +
             // 2) the colour wash that floods the screen from the top-right corner to the bottom-left at the moment of switching
             '#scn-wash{position:fixed;inset:0;z-index:9997;pointer-events:none;display:none;opacity:0;--sw:0%;' +
                 'background:radial-gradient(120% 95% at 100% 0%,rgba(135,55,255,.62),transparent 62%),radial-gradient(115% 80% at 0% 100%,rgba(35,125,255,.5),transparent 64%),linear-gradient(160deg,rgba(115,75,255,.42),rgba(225,85,225,.36) 55%,rgba(40,120,255,.46));' +
