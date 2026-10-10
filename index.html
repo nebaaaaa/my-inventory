@@ -11272,21 +11272,131 @@
         window.scnNameKey = s => String(s || '').toLowerCase().replace(/(\d)\s+(kg|g|l|ml|pcs|pc|m|cm)\b/g, '$1$2').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
         let rows = [], draft = null, busy = false;
 
-        async function load() {
-            const { data, error } = await supabaseClient.from('scanned_stock_items').select('*').eq('tenant_id', currentTenantId).order('name');
-            if (error) { $('scn-body').innerHTML = '<tr><td colspan="4" style="color:#c0392b;">Could not load: ' + esc(error.message) + '</td></tr>'; return; }
-            rows = data || [];
+        // Order of the rows (press-and-hold to rearrange). Saved in the database (sort_order) and on this device.
+        let orderWarned = false;
+        const localOrderKey = () => 'neba_scn_order_' + currentTenantId;
+        function applyOrder() {
+            let pos = null;
+            if (rows.some(r => r.sort_order != null)) pos = new Map(rows.filter(r => r.sort_order != null).map(r => [r.id, r.sort_order]));
+            else { try { const o = JSON.parse(localStorage.getItem(localOrderKey()) || '[]'); if (o.length) pos = new Map(o.map((id, i) => [id, i])); } catch (e) { } }
+            rows.sort((a, b) => ((pos && pos.has(a.id)) ? pos.get(a.id) : 1e9) - ((pos && pos.has(b.id)) ? pos.get(b.id) : 1e9) || String(a.name).localeCompare(String(b.name)));
+        }
+        function render() {
             let tot = 0;
             $('scn-body').innerHTML = rows.length ? rows.map(r => {
                 const v = num(r.qty) * num(r.last_cost); tot += v;
                 const packs = (r.units || []).map(u => `1 ${esc(u.unit)} = ${num(u.base_qty)} ${esc(r.base_unit)}`).join(', ');
-                return `<tr><td>${esc(r.name)}${packs ? `<div style="font-size:11px;color:var(--text-light);">${packs}</div>` : ''}</td>
+                return `<tr data-item-id="${esc(r.id)}"><td>${esc(r.name)}${packs ? `<div style="font-size:11px;color:var(--text-light);">${packs}</div>` : ''}</td>
                     <td class="num" style="${num(r.qty) < 0 ? 'color:#c0392b;font-weight:700;' : ''}">${money(r.qty)} ${esc(r.base_unit)}</td>
                     <td class="num">${r.last_cost == null ? '—' : money(r.last_cost)}</td><td class="num">${money(v)}</td></tr>`;
             }).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text-light);">No scanned stock yet. Scan a purchase receipt to start.</td></tr>';
             $('scn-total').textContent = 'ETB ' + money(tot);
+        }
+        async function load() {
+            const { data, error } = await supabaseClient.from('scanned_stock_items').select('*').eq('tenant_id', currentTenantId).order('name');
+            if (error) { $('scn-body').innerHTML = '<tr><td colspan="4" style="color:#c0392b;">Could not load: ' + esc(error.message) + '</td></tr>'; return; }
+            rows = data || [];
+            applyOrder(); render(); initDrag();
             if (window.scnAfterLoad) window.scnAfterLoad(rows);
         }
+        async function saveOrder() {
+            const ids = [...document.querySelectorAll('#scn-body tr[data-item-id]')].map(r => r.dataset.itemId);
+            const pos = new Map(ids.map((id, i) => [id, i]));
+            rows.forEach(r => { if (pos.has(r.id)) r.sort_order = pos.get(r.id); });
+            applyOrder(); render();
+            try { localStorage.setItem(localOrderKey(), JSON.stringify(ids)); } catch (e) { }
+            try {
+                const { error } = await supabaseClient.rpc('scanned_set_order', { p_tenant: currentTenantId, p_ids: ids });
+                if (error) throw error;
+            } catch (e) {
+                if (!orderWarned) { orderWarned = true; alert('The new order is saved on this device only. To share it with your other devices, run the file scanned-stock-v5.sql in Supabase (one time).'); }
+            }
+        }
+        // Press-and-hold a row to pick it up, drag it up or down, let go to drop it (same feel as the Inventory table).
+        function makeRowDrag(tb, opts) {
+            if (!tb || tb.dataset.drag) return;
+            tb.dataset.drag = '1';
+            const HOLD_MS = 400, EDGE = 56, MAX_SPEED = 18;
+            let timer = null, row = null, active = false, settling = false, sx = 0, sy = 0, py = 0, grabY = 0, raf = 0;
+            function place() {
+                row.style.transform = '';
+                const natural = row.getBoundingClientRect().top, h = row.offsetHeight;
+                let want = py - grabY;
+                const sc = tb.closest('.table-scroll');
+                if (sc) { const r = sc.getBoundingClientRect(), head = sc.querySelector('thead')?.offsetHeight || 0; want = Math.max(r.top + head, Math.min(want, r.bottom - h)); }
+                row.style.transform = `translateY(${want - natural}px)`;
+                return row.getBoundingClientRect();
+            }
+            function swapWith(sib, before) {
+                const first = sib.getBoundingClientRect().top;
+                tb.insertBefore(row, before ? sib : sib.nextSibling);
+                const last = sib.getBoundingClientRect().top;
+                sib.style.transition = 'none'; sib.style.transform = `translateY(${first - last}px)`;
+                sib.getBoundingClientRect();
+                sib.style.transition = 'transform 180ms ease'; sib.style.transform = '';
+            }
+            const speed = dist => Math.max(2, Math.ceil(MAX_SPEED * Math.min(1, (EDGE - dist) / EDGE)));
+            function autoScroll(rr) {
+                const sc = tb.closest('.table-scroll');
+                if (sc && sc.scrollHeight > sc.clientHeight + 1) {
+                    const r = sc.getBoundingClientRect(), head = sc.querySelector('thead')?.offsetHeight || 0;
+                    if (rr.bottom > r.bottom - EDGE && sc.scrollTop + sc.clientHeight < sc.scrollHeight - 1) { sc.scrollTop += speed(r.bottom - rr.bottom); return; }
+                    if (rr.top < r.top + head + EDGE && sc.scrollTop > 0) { sc.scrollTop -= speed(rr.top - (r.top + head)); return; }
+                }
+                const area = document.querySelector('.content-area');
+                const useArea = area && area.scrollHeight > area.clientHeight + 1;
+                const top = useArea ? area.getBoundingClientRect().top : 0;
+                const bottom = useArea ? area.getBoundingClientRect().bottom : window.innerHeight;
+                const by = n => useArea ? (area.scrollTop += n) : window.scrollBy(0, n);
+                if (rr.bottom > bottom - EDGE) by(speed(bottom - rr.bottom));
+                else if (rr.top < top + EDGE) by(-speed(rr.top - top));
+            }
+            function tick() {
+                if (!active) return;
+                let rr = place(); autoScroll(rr); rr = place();
+                for (let i = 0; i < 6; i++) {
+                    const c = rr.top + rr.height / 2, prev = row.previousElementSibling, next = row.nextElementSibling;
+                    const pr = prev && prev.getBoundingClientRect(), nr = next && next.getBoundingClientRect();
+                    if (pr && c < pr.top + pr.height / 2) swapWith(prev, true);
+                    else if (nr && c > nr.top + nr.height / 2) swapWith(next, false);
+                    else break;
+                    rr = place();
+                }
+                raf = requestAnimationFrame(tick);
+            }
+            function start() {
+                active = true; grabY = py - row.getBoundingClientRect().top;
+                row.classList.add('row-dragging'); row.style.transition = 'none'; row.style.willChange = 'transform';
+                document.body.classList.add('row-drag-on');
+                if (navigator.vibrate) navigator.vibrate(25);
+                raf = requestAnimationFrame(tick);
+            }
+            function finish(save) {
+                clearTimeout(timer);
+                if (!active) { row = null; return; }
+                active = false; cancelAnimationFrame(raf);
+                document.body.classList.remove('row-drag-on');
+                const r = row; row = null; settling = true;
+                r.style.transition = 'transform 160ms ease'; r.style.transform = '';
+                setTimeout(() => { r.classList.remove('row-dragging'); r.style.transition = ''; r.style.willChange = ''; settling = false; if (save) opts.onSave(); else opts.onCancel(); }, 175);
+            }
+            tb.addEventListener('pointerdown', e => {
+                if (settling || e.button > 0 || !opts.canStart()) return;
+                if (e.target.closest('input,button,select,a')) return;
+                const tr = e.target.closest('tr[data-item-id]'); if (!tr) return;
+                row = tr; sx = e.clientX; sy = e.clientY; py = e.clientY;
+                timer = setTimeout(start, HOLD_MS);
+            });
+            document.addEventListener('pointermove', e => { if (!row) return; py = e.clientY; if (!active && Math.hypot(e.clientX - sx, e.clientY - sy) > 8) { clearTimeout(timer); row = null; } });
+            document.addEventListener('pointerup', () => finish(true));
+            document.addEventListener('pointercancel', () => finish(false));
+            document.addEventListener('touchmove', e => { if (active) e.preventDefault(); }, { passive: false });
+            tb.addEventListener('contextmenu', e => { if (row || active) e.preventDefault(); });
+        }
+        function initDrag() { makeRowDrag($('scn-body'), { canStart: () => rows.length > 1, onSave: saveOrder, onCancel: render }); }
+        const dragCss = document.createElement('style');
+        dragCss.textContent = '#scn-body tr{-webkit-touch-callout:none}#scn-body td{-webkit-user-select:none;user-select:none}#scn-body tr.row-dragging{position:relative;z-index:1}#scn-body tr.row-dragging td{background:#dbe7ff !important;box-shadow:0 8px 14px -6px rgba(0,0,0,.4)}';
+        document.head.appendChild(dragCss);
 
         // ---- photo -> base64 (same approach as the accountant app) ----
         function loadImg(file) { return new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error('Could not open this image')); i.src = URL.createObjectURL(file); }); }
@@ -11631,64 +11741,106 @@
 
     <script>
     // Scanned Stock: hidden entrance. Owners press and hold on empty space of the Inventory page
-    // (about 1 second, a thin ring fills up) to slide into Scanned Stock. Hold again there to go back.
+    // (about 1 second). Colourful light grows around the screen edges, and when it peaks the page changes.
+    // Hold again on empty space of the Scanned Stock page to go back.
+    // Holding on a table row is NOT this gesture: that is the row-rearranging hold, which works on both tables.
     (function () {
-        const HOLD_MS = 900, RING_AFTER = 250, MOVE_PX = 12;
-        const SKIP = 'button,a,input,select,textarea,label,summary,option,[onclick],[role="button"],[contenteditable="true"],.modal-overlay,.modal-box';
-        let timer = null, ringTimer = null, ring = null, holding = false, startX = 0, startY = 0, doneAt = 0;
+        const HOLD_MS = 900, GLOW_AFTER = 180, MOVE_PX = 12;
+        const SKIP = 'button,a,input,select,textarea,label,summary,option,[onclick],[role="button"],[contenteditable="true"]';
+        const reduce = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+        let timer = null, glowTimer = null, glow = null, holding = false, swallow = false, startX = 0, startY = 0;
+
         const css = document.createElement('style');
-        css.textContent = '@keyframes scnIn{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}' +
-            '@keyframes scnBack{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}' +
-            '.scn-in{animation:scnIn .35s ease}.scn-back{animation:scnBack .35s ease}' +
-            '#scn-ring{position:fixed;width:64px;height:64px;margin:-32px 0 0 -32px;pointer-events:none;z-index:9999;opacity:0;transition:opacity .2s}' +
-            '#scn-ring circle{fill:none;stroke:var(--primary,#4f46e5);stroke-width:4;stroke-linecap:round;stroke-dasharray:157;stroke-dashoffset:157;transform:rotate(-90deg);transform-origin:50% 50%}' +
-            '#scn-ring.on{opacity:.9}#scn-ring.on circle{transition:stroke-dashoffset ' + (HOLD_MS - RING_AFTER) + 'ms linear;stroke-dashoffset:0}';
-        css.textContent += 'body.scn-holding,body.scn-holding *{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important}';
+        css.textContent =
+            '@property --a{syntax:"<angle>";inherits:false;initial-value:0deg}' +
+            '@property --w{syntax:"<length>";inherits:true;initial-value:0px}' +
+            '@keyframes scnSpin{to{--a:360deg}}' +
+            '@keyframes scnFade{from{opacity:0;transform:scale(.985)}to{opacity:1;transform:none}}' +
+            '.scn-fade{animation:scnFade .55s ease both}' +
+            '#scn-glow{position:fixed;inset:0;z-index:9998;pointer-events:none;display:none;opacity:0;--w:0px}' +
+            '#scn-glow::before,#scn-glow::after{content:"";position:absolute;inset:0;border-radius:28px;' +
+                'background:conic-gradient(from var(--a),#BC82F3,#F5B9EA,#FF6778,#FFBA71,#C686FF,#8D99FF,#BC82F3);' +
+                '-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;' +
+                'mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);' +
+                'animation:scnSpin 3.2s linear infinite}' +
+            '#scn-glow::before{padding:calc(var(--w) * .3);filter:blur(1.5px)}' +
+            '#scn-glow::after{padding:var(--w);filter:blur(18px)}' +
+            'body.scn-holding,body.scn-holding *{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important}' +
+            '@media (prefers-reduced-motion:reduce){#scn-glow::before,#scn-glow::after{animation:none}.scn-fade{animation:none}}';
         document.head.appendChild(css);
 
+        function ensureGlow() { if (!glow) { glow = document.createElement('div'); glow.id = 'scn-glow'; document.body.appendChild(glow); } return glow; }
+        function glowOn() {            // light grows slowly while the finger stays down
+            const g = ensureGlow(); clearTimeout(g._h);
+            g.style.transition = 'none'; g.style.display = 'block'; g.style.opacity = '0'; g.style.setProperty('--w', '0px');
+            void g.offsetWidth;
+            g.style.transition = 'opacity 350ms ease, --w ' + (HOLD_MS - GLOW_AFTER) + 'ms cubic-bezier(.3,0,.7,1)';
+            g.style.opacity = '.9'; g.style.setProperty('--w', '16px');
+        }
+        function glowFlare() {         // quick bright burst at the moment of switching
+            const g = ensureGlow(); clearTimeout(g._h); g.style.display = 'block';
+            g.style.transition = 'opacity 180ms ease, --w 240ms ease-out';
+            g.style.opacity = '1'; g.style.setProperty('--w', '36px');
+        }
+        function glowOff(fast) {       // soft fade out (fast when the hold is cancelled)
+            if (!glow) return;
+            glow.style.transition = 'opacity ' + (fast ? 220 : 800) + 'ms ease, --w ' + (fast ? 220 : 800) + 'ms ease';
+            glow.style.opacity = '0'; glow.style.setProperty('--w', fast ? '0px' : '70px');
+            clearTimeout(glow._h); const g = glow; g._h = setTimeout(() => { g.style.display = 'none'; }, fast ? 260 : 860);
+        }
+
         const active = id => { const v = document.getElementById(id); return !!(v && v.classList.contains('active')); };
-        function cancel() { clearTimeout(timer); clearTimeout(ringTimer); timer = ringTimer = null; holding = false; document.body.classList.remove('scn-holding'); if (ring) ring.classList.remove('on'); }
-        // Only look INSIDE the open page: the <body> itself has a click handler, so it must not count as a button.
+        function cancel() {
+            const was = holding;
+            clearTimeout(timer); clearTimeout(glowTimer); timer = glowTimer = null; holding = false;
+            document.body.classList.remove('scn-holding');
+            if (was) glowOff(true);
+        }
+        // Only the open page counts. Buttons, inputs and anything inside a TABLE are left alone,
+        // so holding a table row still rearranges rows instead of switching pages.
         function blocked(t) {
             const view = t.closest('.view-panel');
-            if (!view) return true;                       // sidebar, header, pop-up windows
-            for (let n = t; n && n !== view; n = n.parentElement) { if (n.matches(SKIP)) return true; }
+            if (!view) return true;
+            for (let n = t; n && n !== view; n = n.parentElement) { if (n.matches(SKIP) || n.tagName === 'TABLE') return true; }
             return false;
         }
         function eligible(e) {
             if (typeof currentIsOwner === 'undefined' || !currentIsOwner) return false;
             if (e.pointerType === 'mouse' && e.button !== 0) return false;
+            if (document.body.classList.contains('row-drag-on')) return false;
             if (!e.target || !e.target.closest || blocked(e.target)) return false;
             return active('view-inventory') || active('view-scanned');
         }
         function go() {
             const toScanned = active('view-inventory');
-            cancel(); doneAt = Date.now();
+            clearTimeout(timer); clearTimeout(glowTimer); timer = glowTimer = null; holding = false; swallow = true;
+            document.body.classList.remove('scn-holding');
             try { if (navigator.vibrate) navigator.vibrate(25); } catch (e) { }
             try { const sel = window.getSelection && window.getSelection(); if (sel) sel.removeAllRanges(); } catch (e) { }
-            switchView(toScanned ? 'scanned' : 'inventory');
-            const el = document.getElementById(toScanned ? 'view-scanned' : 'view-inventory');
-            if (el) { el.classList.remove('scn-in', 'scn-back'); void el.offsetWidth; el.classList.add(toScanned ? 'scn-in' : 'scn-back'); setTimeout(() => el.classList.remove('scn-in', 'scn-back'), 450); }
+            glowFlare();
+            setTimeout(() => {
+                switchView(toScanned ? 'scanned' : 'inventory');
+                const el = document.getElementById(toScanned ? 'view-scanned' : 'view-inventory');
+                if (el) { el.classList.remove('scn-fade'); void el.offsetWidth; el.classList.add('scn-fade'); setTimeout(() => el.classList.remove('scn-fade'), 600); }
+            }, reduce ? 0 : 180);
+            setTimeout(() => glowOff(false), reduce ? 100 : 480);
         }
         document.addEventListener('pointerdown', e => {
-            cancel();
+            swallow = false; cancel();
             if (!eligible(e)) return;
             holding = true; document.body.classList.add('scn-holding'); startX = e.clientX; startY = e.clientY;
-            ringTimer = setTimeout(() => {
-                if (!ring) { ring = document.createElement('div'); ring.id = 'scn-ring'; ring.innerHTML = '<svg width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="25"/></svg>'; document.body.appendChild(ring); }
-                ring.style.left = startX + 'px'; ring.style.top = startY + 'px'; void ring.offsetWidth; ring.classList.add('on');
-            }, RING_AFTER);
+            glowTimer = setTimeout(glowOn, GLOW_AFTER);
             timer = setTimeout(go, HOLD_MS);
         }, true);
         document.addEventListener('pointermove', e => { if (holding && Math.hypot(e.clientX - startX, e.clientY - startY) > MOVE_PX) cancel(); }, true);
-        ['pointerup', 'pointercancel', 'dragstart', 'wheel'].forEach(n => document.addEventListener(n, cancel, true));
+        ['pointercancel', 'dragstart', 'wheel'].forEach(n => document.addEventListener(n, cancel, true));
+        document.addEventListener('pointerup', () => { cancel(); if (swallow) setTimeout(() => { swallow = false; }, 400); }, true);
         window.addEventListener('scroll', cancel, true);
         document.addEventListener('visibilitychange', cancel);
-        // while holding (and just after), stop the phone's text-selection / context menu from popping up
         document.addEventListener('selectstart', e => { if (holding) e.preventDefault(); }, true);
-        document.addEventListener('contextmenu', e => { if (holding || Date.now() - doneAt < 800) e.preventDefault(); }, true);
-        // the finger is still down when the page switches; ignore the click that follows its release
-        document.addEventListener('click', e => { if (Date.now() - doneAt < 600) { e.stopPropagation(); e.preventDefault(); } }, true);
+        document.addEventListener('contextmenu', e => { if (holding || swallow) e.preventDefault(); }, true);
+        // the finger is still down when the page changes: ignore the click made when it lifts
+        document.addEventListener('click', e => { if (swallow) { e.stopPropagation(); e.preventDefault(); swallow = false; } }, true);
     })();
     </script>
 
