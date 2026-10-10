@@ -69,6 +69,35 @@
         .aside-footer { padding: 12px 12px 22px 12px; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.18); justify-content: space-between; }
         .footer-buttons { display: flex; gap: 6px; }
 
+
+        /* ===== Scanned Stock "incognito" dark mode =====
+           Switched on only while the Scanned Stock page is open (class added to <html> by the
+           switchView wrapper in the SCANNED STOCK script). Every other page keeps the normal look. */
+        html.scn-dark {
+            color-scheme: dark;
+            --primary: #e4e4ea;
+            --secondary: #1c1c23;
+            --bg: #0b0b0e;
+            --surface: #15151a;
+            --border: #2a2a33;
+            --text: #e4e4ea;
+            --text-light: #8d8d9b;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.5);
+            --shadow-md: 0 4px 16px rgba(0,0,0,0.55);
+            --shadow-lg: 0 12px 32px rgba(0,0,0,0.7);
+        }
+        html.scn-dark aside#sidebar { background: #07070a; border-right-color: #1c1c23; }
+        html.scn-dark .aside-footer { background: rgba(255,255,255,0.03); }
+        html.scn-dark input, html.scn-dark select, html.scn-dark textarea { background: #0e0e12; color: var(--text); border-color: #30303b; }
+        html.scn-dark input::placeholder, html.scn-dark textarea::placeholder { color: #6a6a78; }
+        html.scn-dark tr:hover { background: #1d1d25; }
+        html.scn-dark .modal-overlay { background: rgba(0,0,0,0.78); }
+        html.scn-dark .notif-panel { background: var(--surface); }
+        html.scn-dark .notif-item.unread { background: #1d1a14; }
+        html.scn-dark #scn-body tr.row-dragging td { background: #262633 !important; }
+        html.scn-dark ::-webkit-scrollbar-thumb { background: #34343f; border-radius: 6px; }
+        html.scn-dark ::-webkit-scrollbar-track { background: #0b0b0e; }
+
         /* Main Body Workspaces */
         main { flex: 1 1 0%; min-width: 0; display: flex; flex-direction: column; overflow: hidden; position: relative; }
         header { background: var(--surface); padding: 16px 28px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-shrink: 0; }
@@ -11526,6 +11555,12 @@
         window.switchView = function (v) {
             if (v === 'scanned' && !currentIsOwner) return;
             baseSwitch(v);
+            // Incognito dark look: only on the Scanned Stock page.
+            document.documentElement.classList.toggle('scn-dark', v === 'scanned');
+            let tc = document.querySelector('meta[name="theme-color"]');
+            if (!tc) { tc = document.createElement('meta'); tc.name = 'theme-color'; document.head.appendChild(tc); }
+            if (v === 'scanned') { tc.dataset.prev = tc.content || ''; tc.content = '#0b0b0e'; }
+            else if (tc.dataset.prev !== undefined) { tc.content = tc.dataset.prev; }
             if (v === 'scanned') { $('page-title').innerText = 'Scanned Stock'; const n = $('nav-inventory'); if (n) n.classList.add('active'); window.scnTab('stock'); load(); }
         };
     })();
