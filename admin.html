@@ -177,11 +177,11 @@
 </div>
 
 <div id="plans-modal" class="modal-overlay" onclick="closePlansModal()">
-    <div class="modal-box" style="max-width:600px;" onclick="event.stopPropagation()">
+    <div class="modal-box" style="max-width:680px;" onclick="event.stopPropagation()">
         <h3>Manage Subscription Plans</h3>
         <div id="plans-modal-error" class="error-box"></div>
         <table style="margin-bottom:16px;">
-            <thead><tr><th>Name</th><th>Branches</th><th>Employees</th><th>Price (ETB)</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th>Branches</th><th>Employees</th><th>Price (ETB)</th><th>Premium</th><th></th></tr></thead>
             <tbody id="plans-table-body"></tbody>
         </table>
         <h3 style="font-size:14px;">Add New Plan</h3>
@@ -389,6 +389,7 @@
             <td>${p.max_branches ?? '&#8734;'}</td>
             <td>${p.max_employees ?? '&#8734;'}</td>
             <td>${p.price_etb}</td>
+            <td><button class="btn btn-small ${p.is_premium ? 'btn-success' : 'btn-outline'}" title="Premium plans get scanned receipts, stock matching and printed-price editing" onclick="togglePlanPremium('${p.id}', ${!p.is_premium})">${p.is_premium ? 'Premium ✓' : 'Standard'}</button></td>
             <td style="text-align:center;"><button class="btn btn-small ${p.is_active ? 'btn-outline' : 'btn-success'}" onclick="togglePlanActive('${p.id}', ${!p.is_active})">${p.is_active ? 'Deactivate' : 'Reactivate'}</button></td>
         </tr>`).join('');
     }
@@ -410,6 +411,21 @@
             openPlansModal();
         } catch (err) {
             errBox.innerText = err.message;
+            errBox.style.display = 'block';
+        }
+    }
+
+    // Premium plans unlock scanned receipts, stock matching and printed-price editing in the shop app.
+    async function togglePlanPremium(planId, makePremium) {
+        const errBox = document.getElementById('plans-modal-error');
+        errBox.style.display = 'none';
+        try {
+            const { error } = await supabaseClient.from('subscription_plans').update({ is_premium: makePremium }).eq('id', planId);
+            if (error) throw error;
+            await loadEverything();
+            renderPlansTable();
+        } catch (err) {
+            errBox.innerText = 'Could not change Premium: ' + err.message + ' (run premium-and-sales-receipts.sql in Supabase first)';
             errBox.style.display = 'block';
         }
     }

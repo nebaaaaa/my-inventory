@@ -1199,14 +1199,19 @@
                         <div><input type="file" id="scn-file" accept="image/*" style="display:none;" onchange="scnPickFile(this)"><button type="button" class="btn" onclick="document.getElementById('scn-file').click()">Scan purchase receipt</button></div>
                     </div>
                     <p style="font-size:12px; color:var(--text-light); margin:0 0 10px;">Separate from your main inventory. Only stock from scanned receipts is counted here (owners only).</p>
-                    <div style="display:flex;gap:8px;margin:0 0 12px;"><button type="button" class="btn btn-small" id="scn-tab-stock" onclick="scnTab('stock')">Stock</button><button type="button" class="btn btn-small" id="scn-tab-receipts" onclick="scnTab('receipts')" style="background:#4a4e63;opacity:.75;">Receipts</button></div>
+                    <div style="display:flex;gap:8px;margin:0 0 12px;"><button type="button" class="btn btn-small" id="scn-tab-stock" onclick="scnTab('stock')">Stock</button><button type="button" class="btn btn-small" id="scn-tab-purchases" onclick="scnTab('purchases')" style="background:#4a4e63;opacity:.75;">Purchase receipts</button><button type="button" class="btn btn-small" id="scn-tab-sales" onclick="scnTab('sales')" style="background:#4a4e63;opacity:.75;">Sales receipts</button></div>
                     <div id="scn-pane-stock"><table>
                         <thead><tr><th>Item</th><th class="num">Quantity</th><th class="num">Last cost</th><th class="num">Value</th></tr></thead>
                         <tbody id="scn-body"></tbody>
                     </table>
                     <div style="margin-top:12px; font-weight:700; color:var(--primary);">Scanned stock value: <span id="scn-total">ETB 0.00</span></div>
                     <div id="scn-waiting" style="margin-top:14px;"></div></div>
-                    <div id="scn-pane-receipts" style="display:none;"><h3 style="margin:18px 0 8px;font-size:15px;">Saved receipts (audit copies)</h3><div id="scn-receipts"></div></div>
+                    <div id="scn-pane-purchases" style="display:none;"><h3 style="margin:18px 0 8px;font-size:15px;">Purchase receipts (scanned copies)</h3>
+                        <div class="scn-filter"><label>From</label><input type="date" id="scn-p-from" onchange="scnRenderReceipts()" style="min-width:auto;"><label>To</label><input type="date" id="scn-p-to" onchange="scnRenderReceipts()" style="min-width:auto;"><button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="scnClearDates('p')">Clear</button></div>
+                        <div id="scn-receipts"></div></div>
+                    <div id="scn-pane-sales" style="display:none;"><h3 style="margin:18px 0 8px;font-size:15px;">Sales receipts (as printed)</h3>
+                        <div class="scn-filter"><label>From</label><input type="date" id="scn-s-from" onchange="scnRenderReceipts()" style="min-width:auto;"><label>To</label><input type="date" id="scn-s-to" onchange="scnRenderReceipts()" style="min-width:auto;"><button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="scnClearDates('s')">Clear</button></div>
+                        <div id="scn-sales-receipts"></div></div>
                 </div>
             </div>
 
@@ -2072,6 +2077,7 @@
         let writeBranchId = null;        // which branch a specific write goes to — always a real branch, never 'all'
         let currentPlanMaxBranches = null;   // null = unlimited (no plan, or plan has no cap)
         let currentPlanMaxEmployees = null;  // null = unlimited (no plan, or plan has no cap)
+        let currentPlanPremium = false;      // Premium plan: scanned receipts, stock matching and printed-price editing
         function syncWriteBranchId() {
             writeBranchId = (currentBranchId === 'all') ? writeBranchId : currentBranchId;
         }
@@ -2678,6 +2684,7 @@
             if (typeof renderPerpetualInventoryTable === 'function' && document.getElementById('view-inventory')?.classList.contains('active')) renderPerpetualInventoryTable();
             if (typeof renderSalesLogTable === 'function' && document.getElementById('view-sales')?.classList.contains('active')) renderSalesLogTable();
             if (typeof renderPurchaseLogTable === 'function' && document.getElementById('view-purchase')?.classList.contains('active')) renderPurchaseLogTable();
+            if (window.scnRenderReceipts) window.scnRenderReceipts();
             if (typeof renderStockTransferHistoryRows === 'function') renderStockTransferHistoryRows(lastTransferRows);
             if (typeof renderExpenseLogTable === 'function' && document.getElementById('view-expenses')?.classList.contains('active')) renderExpenseLogTable();
             if (typeof renderTrashTable === 'function' && document.getElementById('view-trash')?.classList.contains('active')) renderTrashTable();
@@ -2722,6 +2729,7 @@
             if (typeof renderPerpetualInventoryTable === 'function' && document.getElementById('view-inventory')?.classList.contains('active')) renderPerpetualInventoryTable();
             if (typeof renderSalesLogTable === 'function' && document.getElementById('view-sales')?.classList.contains('active')) renderSalesLogTable();
             if (typeof renderPurchaseLogTable === 'function' && document.getElementById('view-purchase')?.classList.contains('active')) renderPurchaseLogTable();
+            if (window.scnRenderReceipts) window.scnRenderReceipts();
             if (typeof renderStockTransferHistoryRows === 'function') renderStockTransferHistoryRows(lastTransferRows);
             if (typeof renderExpenseLogTable === 'function' && document.getElementById('view-expenses')?.classList.contains('active')) renderExpenseLogTable();
             if (typeof renderTrashTable === 'function' && document.getElementById('view-trash')?.classList.contains('active')) renderTrashTable();
@@ -3392,10 +3400,17 @@
                 const { data: planRow } = await supabaseClient.from('subscription_plans').select('max_branches, max_employees').eq('id', biz.subscription_plan_id).maybeSingle();
                 currentPlanMaxBranches = planRow ? planRow.max_branches : null;
                 currentPlanMaxEmployees = planRow ? planRow.max_employees : null;
+                // Separate lookup so a missing is_premium column (SQL not run yet) never breaks the limits above.
+                try {
+                    const pr = await supabaseClient.from('subscription_plans').select('is_premium').eq('id', biz.subscription_plan_id).maybeSingle();
+                    currentPlanPremium = !!(pr.data && pr.data.is_premium);
+                } catch (e) { currentPlanPremium = false; }
             } else {
                 currentPlanMaxBranches = null;
                 currentPlanMaxEmployees = null;
+                currentPlanPremium = false;
             }
+            if (window.scnShowNav) window.scnShowNav();
 
             currentTenantName = biz.business_name;
             currentBusinessType = biz.business_type || 'retail';
@@ -8643,7 +8658,11 @@
             else if (kind === 'booking' && window.rentalUI && window.rentalUI.buildBookingPrintDataPublic) data = window.rentalUI.buildBookingPrintDataPublic(id, isGroup);
             if (!data) return;
             if (names) data.lines.forEach((l, i) => { if (names[i]) l.desc = names[i]; });
-            if (docType === 'invoice') { data.docLabel = 'INVOICE'; printInvoiceFor(data); } else printReceiptFor(data);
+            if (docType === 'invoice') data.docLabel = 'INVOICE';
+            const printedHtml = docType === 'invoice' ? renderInvoiceHTML(data) : renderReceiptHTML(data);
+            // Premium: keep a copy of every printed sales document, exactly as printed.
+            if (kind === 'sale' && window.scnSaveSalesReceipt) { try { window.scnSaveSalesReceipt(printedHtml, data, docType); } catch (e) { console.warn(e); } }
+            printDocumentHTML(printedHtml);
         }
 
         // ---- Sale / Purchase adapters (bookings' own adapter lives in
@@ -11705,16 +11724,14 @@
 
         // Show the tab only to owners, and load data when it opens.
         window.scnTab = t => {
-            const st = t !== 'receipts';
-            $('scn-pane-stock').style.display = st ? '' : 'none';
-            $('scn-pane-receipts').style.display = st ? 'none' : '';
-            [['scn-tab-stock', st], ['scn-tab-receipts', !st]].forEach(([id, on]) => { const b = $(id); if (b) { b.style.background = on ? '' : '#4a4e63'; b.style.opacity = on ? '1' : '.75'; } });
+            if (t === 'receipts') t = 'purchases';
+            ['stock', 'purchases', 'sales'].forEach(n => { const pane = $('scn-pane-' + n), b = $('scn-tab-' + n), on = n === t; if (pane) pane.style.display = on ? '' : 'none'; if (b) { b.style.background = on ? '' : '#4a4e63'; b.style.opacity = on ? '1' : '.75'; } });
         };
         window.scnReload = load; window.scnRefresh = review;
-        window.scnShowNav = () => { const n = $('nav-scanned'); if (n) n.style.display = (typeof currentIsOwner !== 'undefined' && currentIsOwner) ? 'flex' : 'none'; };
+        window.scnShowNav = () => { const n = $('nav-scanned'); if (n) n.style.display = (typeof currentIsOwner !== 'undefined' && currentIsOwner && currentPlanPremium) ? 'flex' : 'none'; };
         const baseSwitch = window.switchView;
         window.switchView = function (v) {
-            if (v === 'scanned' && !currentIsOwner) return;
+            if (v === 'scanned' && (!currentIsOwner || !currentPlanPremium)) return;
             baseSwitch(v);
             // Incognito dark look: only on the Scanned Stock page.
             document.documentElement.classList.toggle('scn-dark', v === 'scanned');
@@ -11905,6 +11922,7 @@
         // Called by the Print window (main script). d = the document data for this sale.
         window.scnPrintHook = {
             async prepare(d, box, onChange) {
+                if (!currentPlanPremium) { box.innerHTML = ''; return null; } // Premium only: no matching / printed-price editing
                 const vat = d.lines.filter(l => l._vat && l._rowId);
                 let got = new Map(), note = '';
                 try {
@@ -11932,6 +11950,7 @@
                         done.forEach(x => { const k = mine.ui.d.lines.indexOf(x.l.line); if (k >= 0) out[k] = x.name; });
                         if (failed) alert('Scanned stock could not be fully updated: ' + (failed.message || failed) + '\nThe receipt will still print. The unfinished lines stay in the waiting list.');
                         if (pv) savePrices(mine.ui.d, pv);
+                        try { notifyChanges(mine, pv, out); } catch (e) { console.warn(e); }
                         if (ctx === mine) ctx = null;
                         if (window.scnReload && $('view-scanned').classList.contains('active')) window.scnReload();
                         return out;
@@ -11948,6 +11967,22 @@
             if (d) { const rs = g ? state.salesLog.filter(x => x.groupId === id) : state.salesLog.filter(x => x.id === id); d.lines.forEach((l, i) => { if (rs[i]) { l._rowId = rs[i].id; l._vat = !!rs[i].vatIncluded; } }); d._scn = true; d._sid = id; d._sg = !!g; }
             return d;
         };
+        // Tells the owners (bell notification) when a printed receipt differs from the real sale:
+        // a different item name or a different price on any line.
+        function notifyChanges(c, pv, out) {
+            const det = []; let realT = 0, printT = 0;
+            c.ui.all.forEach((a, j) => {
+                const qty = num(a.dl.qty), real = num(a.real);
+                const price = (pv && pv[j] != null) ? pv[j] : real;
+                realT += qty * real; printT += qty * price;
+                const nm = out[j] || a.dl.desc, parts = [];
+                if (nm !== a.dl.desc) parts.push('item "' + a.dl.desc + '" printed as "' + nm + '"');
+                if (Math.abs(price - real) >= 0.005) parts.push('price ETB ' + money(real) + ' printed as ETB ' + money(price));
+                if (parts.length) det.push(a.dl.qty + ' x ' + a.dl.desc + ': ' + parts.join('; '));
+            });
+            if (!det.length) return;
+            addNotification('Printed receipt was changed', 'A printed receipt does not match the real sale. Real total ETB ' + money(r2(realT)) + ', printed total ETB ' + money(r2(printT)) + '.', det.join('\n'));
+        }
         // Saves the printed prices onto the sale lines (print_price). Returns true if anything changed.
         function savePrices(d, pv) {
             let changed = false;
@@ -11966,7 +12001,7 @@
         let vatBusy = null;
         window.scnVatReceipts = window.scnVatReceipts || [];
         window.scnVatEnsure = force => {
-            if (typeof currentIsOwner === 'undefined' || !currentIsOwner) return Promise.resolve();
+            if (typeof currentIsOwner === 'undefined' || !currentIsOwner || !currentPlanPremium) return Promise.resolve();
             if (window.scnVatTenant !== currentTenantId) { window.scnVatTenant = currentTenantId; window.scnVatReceipts = []; window.scnVatStamp = 0; }
             if (vatBusy) return vatBusy;
             if (!force && window.scnVatStamp && Date.now() - window.scnVatStamp < 60000) return Promise.resolve();
@@ -12017,7 +12052,7 @@
                 ${x.merchant_tin ? `<div class="sp-c">TIN: ${esc(x.merchant_tin)}</div>` : ''}
                 ${lines(lay.header)}
                 <div class="sp-hr"></div>
-                ${row(x.receipt_no ? 'No. ' + esc(x.receipt_no) : '', esc(date) + (lay.time ? ' ' + esc(lay.time) : ''))}
+                ${row(x.receipt_no ? 'No. ' + esc(x.receipt_no) : '', esc(fmtDate(date)) + (lay.time ? ' ' + esc(lay.time) : ''))}
                 ${lay.title ? `<div class="sp-c sp-b" style="margin-top:4px;">${esc(lay.title)}</div>` : ''}
                 <div class="sp-hr"></div>
                 ${items || '<div class="sp-c sp-s">(no lines)</div>'}
@@ -12046,8 +12081,59 @@
                     <button type="button" class="btn btn-small" id="scn-wbtn">Match now</button></div>` : '';
                 const b = $('scn-wbtn'); if (b) b.onclick = () => openMatch(waiting.map(r => ({ _rowId: r.id, desc: r.desc, qty: r.qty, unit: r.price })), null);
             } catch (e) { w.innerHTML = ''; }
-            const r = await supabaseClient.from('scanned_receipts').select('*').eq('tenant_id', tid).order('created_at', { ascending: false }).limit(30);
-            rc.innerHTML = r.error ? '<span style="color:#c0392b;">Could not load receipts.</span>' : (r.data || []).length ? '<div class="scn-papers">' + r.data.map(paperCard).join('') + '</div>' : '<span style="color:var(--text-light);font-size:13px;">No receipts saved yet.</span>';
+            // Purchase receipts (scanned copies) and sales receipts (as printed): load, then draw with the date filter.
+            const pr = await supabaseClient.from('scanned_receipts').select('*').eq('tenant_id', tid).order('created_at', { ascending: false }).limit(500);
+            purErr = !!pr.error; purRows = pr.data || [];
+            const sr = await supabaseClient.from('scanned_sales_receipts').select('id,created_at,doc_type,doc_number,sale_date,customer,total,html').eq('tenant_id', tid).order('created_at', { ascending: false }).limit(300);
+            salErr = sr.error ? sr.error.message : ''; salRows = sr.data || [];
+            window.scnRenderReceipts();
+        };
+        let purRows = [], salRows = [], purErr = false, salErr = '';
+        if (!document.getElementById('scn-filter-css')) {
+            const st = document.createElement('style'); st.id = 'scn-filter-css';
+            st.textContent = `.scn-filter{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 12px;font-size:13px;}.scn-filter input{width:auto;}
+            .scn-sal{background:#fffdf7;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.35);padding:8px;color:#222;font-size:12px;}
+            .scn-sal .scn-sal-h{display:flex;justify-content:space-between;gap:8px;margin-bottom:6px;font-weight:600;}
+            .scn-sal .scn-sal-w{width:100%;overflow:hidden;position:relative;}.scn-sal iframe{border:0;background:#fff;transform-origin:0 0;display:block;}
+            .scn-sal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:18px;align-items:start;}.scn-sal.inv{grid-column:1/-1;}`;
+            document.head.appendChild(st);
+        }
+        const isoDay = x => /^\d{4}-\d{2}-\d{2}$/.test(x || '') ? x : '';
+        const inRange = (d, f, t) => !(f && d < f) && !(t && d > t);
+        const val = id => { const e = document.getElementById(id); return e ? e.value : ''; };
+        window.scnClearDates = k => { ['from', 'to'].forEach(n => { const e = document.getElementById('scn-' + k + '-' + n); if (e) e.value = ''; }); if (window.syncAllEthiopianDatePickers) syncAllEthiopianDatePickers(); window.scnRenderReceipts(); };
+        // Draws both receipt lists. The date boxes follow the calendar button at the top (Ethiopian or Gregorian);
+        // they always hold the Gregorian date inside, so the comparison below is plain text comparison.
+        window.scnRenderReceipts = () => {
+            const rc = $('scn-receipts'), sc = $('scn-sales-receipts'); if (!rc || !sc) return;
+            const pf = val('scn-p-from'), pt = val('scn-p-to'), sf = val('scn-s-from'), st = val('scn-s-to');
+            const pl = purRows.filter(x => inRange(isoDay(x.receipt_date) || String(x.created_at || '').slice(0, 10), pf, pt));
+            rc.innerHTML = purErr ? '<span style="color:#c0392b;">Could not load receipts.</span>' : pl.length ? '<div class="scn-papers">' + pl.map(paperCard).join('') + '</div>' : '<span style="color:var(--text-light);font-size:13px;">' + (purRows.length ? 'No receipts in these dates.' : 'No receipts saved yet.') + '</span>';
+            const sl = salRows.filter(x => inRange(isoDay(x.sale_date) || String(x.created_at || '').slice(0, 10), sf, st));
+            sc.innerHTML = salErr ? '<span style="color:#c0392b;">Could not load sales receipts. Run premium-and-sales-receipts.sql in Supabase (one time).</span>'
+                : sl.length ? '<div class="scn-sal-grid">' + sl.map(x => `<div class="scn-sal ${x.doc_type === 'invoice' ? 'inv' : ''}" style="${x.doc_type === 'invoice' ? 'max-width:620px;' : ''}">
+                    <div class="scn-sal-h"><span>${esc(fmtDate(isoDay(x.sale_date) || String(x.created_at || '').slice(0, 10)))}</span><span>${x.doc_type === 'invoice' ? 'Invoice' : 'Receipt'} ${esc(x.doc_number || '')}</span></div>
+                    <div class="scn-sal-w" data-w="${x.doc_type === 'invoice' ? 794 : 300}"><iframe data-i="${esc(x.id)}" scrolling="no" sandbox="allow-same-origin"></iframe></div></div>`).join('') + '</div>'
+                : '<span style="color:var(--text-light);font-size:13px;">' + (salRows.length ? 'No sales receipts in these dates.' : 'No printed sales receipts saved yet.') + '</span>';
+            sc.querySelectorAll('iframe[data-i]').forEach(fr => {
+                const row = salRows.find(r => String(r.id) === fr.dataset.i), wrap = fr.parentElement, W = +wrap.dataset.w;
+                fr.style.width = W + 'px';
+                fr.onload = () => { try {
+                    const h = fr.contentDocument.documentElement.scrollHeight, sc2 = Math.min(1, (wrap.clientWidth || W) / W);
+                    fr.style.height = h + 'px'; fr.style.transform = `scale(${sc2})`; wrap.style.height = Math.round(h * sc2) + 'px';
+                } catch (e) { } };
+                fr.srcdoc = (row && row.html) || '';
+            });
+        };
+        // Called by the Print window after a sales receipt/invoice is printed (Premium only).
+        // Saves the exact printed page; printing again the same document replaces the older copy.
+        window.scnSaveSalesReceipt = async (html, d, docType) => {
+            if (!currentPlanPremium || !currentTenantId) return;
+            try {
+                const r = await supabaseClient.rpc('scanned_save_sales_receipt', { p_tenant: currentTenantId, p_doc_type: docType === 'invoice' ? 'invoice' : 'receipt', p_doc_number: String(d.docNumber || ''), p_sale_date: isoDay(d.date) || null, p_customer: d.counterpartyName || null, p_total: num(d.total), p_html: html });
+                if (r.error) throw r.error;
+                if (window.scnReload && $('view-scanned') && $('view-scanned').classList.contains('active')) window.scnReload();
+            } catch (e) { console.warn('Sales receipt copy not saved (run premium-and-sales-receipts.sql once):', e); }
         };
     })();
     </script>
@@ -12203,7 +12289,7 @@
             return false;
         }
         function eligible(e) {
-            if (typeof currentIsOwner === 'undefined' || !currentIsOwner) return false;
+            if (typeof currentIsOwner === 'undefined' || !currentIsOwner || !currentPlanPremium) return false;
             if (e.pointerType === 'mouse' && e.button !== 0) return false;
             if (document.body.classList.contains('row-drag-on')) return false;
             if (!e.target || !e.target.closest || blocked(e.target)) return false;
