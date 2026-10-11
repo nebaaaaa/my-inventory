@@ -5915,6 +5915,19 @@
             let vatSum = matches.reduce((sum, s) => { const b = saleVatBase(s); return sum + (b - b / 1.15); }, 0);
             let pTotal = pMatches.reduce((sum, r) => sum + r.total, 0);
             let pVat = pMatches.reduce((sum, r) => sum + (r.total - r.total / 1.15), 0);
+            const ledger = buildVatLedger(isEth);
+            let carryHtml;
+            if (vs.mode === 'month') {
+                const e = ledger.get(vs.year * 100 + vs.month) || { carryIn: 0, net: vatSum - pVat };
+                carryHtml = `${e.carryIn < 0 ? `Credit carried in from earlier months: <strong>ETB ${f2(e.carryIn)}</strong><br>` : ''}
+                ${t('dash.estimated_vat')} (sales VAT &minus; purchase VAT${e.carryIn < 0 ? ' + carried credit' : ''}): <strong style="color:#C97A22;">ETB ${f2(e.net)}</strong>${e.net < 0 ? '<br><span style="font-size:12px;">Negative: this amount is carried into next month.</span>' : ''}`;
+            } else {
+                const yr = []; for (let i = 1; i <= monthCount; i++) { const e = ledger.get(vs.year * 100 + i); if (e) yr.push(e); }
+                const cIn = yr.length ? yr[0].carryIn : 0, due = yr.reduce((a, e) => a + Math.max(0, e.net), 0);
+                const cOut = yr.length && yr[yr.length - 1].net < 0 ? yr[yr.length - 1].net : 0;
+                carryHtml = `${cIn < 0 ? `Credit carried in from last year: <strong>ETB ${f2(cIn)}</strong><br>` : ''}
+                VAT due for the year (sum of months, after carry-forward): <strong style="color:#C97A22;">ETB ${f2(due)}</strong>${cOut < 0 ? `<br>Credit carried into next year: <strong>ETB ${f2(cOut)}</strong>` : ''}`;
+            }
 
             let html = `<div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
                 <select id="vat-drilldown-mode" onchange="changeVatDrillDownMode(this.value)" style="min-width:110px;">
@@ -5931,7 +5944,7 @@
             <div style="font-size:14px; padding:10px; background:#ECEDF2; border-radius:4px; margin-bottom:14px; line-height:1.7;">
                 Sales total: <strong>ETB ${f2(totalSum)}</strong> &middot; VAT on sales: <strong>ETB ${f2(vatSum)}</strong><br>
                 Scanned purchases total: <strong>ETB ${f2(pTotal)}</strong> &middot; VAT on purchases (deducted): <strong>ETB ${f2(pVat)}</strong><br>
-                ${t('dash.estimated_vat')} (sales VAT &minus; purchase VAT): <strong style="color:#C97A22;">ETB ${f2(vatSum - pVat)}</strong>
+                ${carryHtml}
             </div>
             <table><thead><tr><th>${t('sale.date')}</th><th>${t('sale.customer_name')}</th><th>${t('sale.product_item')}</th><th class="num">${t('sale.total')}</th><th class="num">${t('dash.estimated_vat')}</th></tr></thead><tbody>`;
             if (matches.length === 0 && pMatches.length === 0) html += `<tr><td colspan="5" style="text-align:center;">${t('drill.no_sales')}</td></tr>`;
@@ -8153,16 +8166,40 @@
         function scannedVatReceipts() {
             return (window.scnVatReceipts || []).filter(r => r.date && r.total != null && isFinite(r.total));
         }
-        // Estimated VAT for the current Ethiopian month = VAT on VAT sales (printed price if one was set)
-        // minus VAT on scanned purchase receipts (worked out from each receipt's TOTAL: total - total/1.15).
+        // Month-by-month VAT with carry-forward. Each month: VAT on sales (printed price if one was set)
+        // minus VAT on scanned purchase receipts (from each receipt's TOTAL: total - total/1.15).
+        // If a month ends negative (purchase VAT is bigger), that negative amount is carried into the next
+        // month and keeps carrying until a month's result is no longer negative.
+        // Returns Map(year*100+month -> { out, inn, carryIn (<=0), net }).
+        function buildVatLedger(isEth) {
+            const per = iso => isEth ? gregorianToEthiopian(iso) : (d => ({ y: d[0], m: d[1] }))(String(iso).split('-').map(Number));
+            const mc = isEth ? 13 : 12, map = new Map();
+            const slot = p => {
+                if (!p || !isFinite(p.y) || !isFinite(p.m)) return { out: 0, inn: 0 };
+                const k = p.y * 100 + p.m;
+                if (!map.has(k)) map.set(k, { y: p.y, m: p.m, out: 0, inn: 0, carryIn: 0, net: 0 });
+                return map.get(k);
+            };
+            state.salesLog.forEach(s => { if (s.vatIncluded && shouldCountInCurrentTotals(s.branchId)) { const b = saleVatBase(s); slot(per(s.date)).out += b - b / 1.15; } });
+            scannedVatReceipts().forEach(r => { slot(per(r.date)).inn += r.total - r.total / 1.15; });
+            slot(per(todayISO()));
+            const keys = [...map.keys()].sort((a, b) => a - b);
+            let y = Math.floor(keys[0] / 100), m = keys[0] % 100, carry = 0;
+            const last = keys[keys.length - 1];
+            while (y * 100 + m <= last) {
+                const e = slot({ y, m });
+                e.carryIn = carry; e.net = e.out - e.inn + carry;
+                carry = e.net < 0 ? e.net : 0;
+                if (++m > mc) { m = 1; y++; }
+            }
+            return map;
+        }
+        // Estimated VAT box = this Ethiopian month's result including any credit carried in.
         function refreshVatBox() {
             const vatEl = document.getElementById('m-vat'); if (!vatEl) return;
             const now = gregorianToEthiopian(todayISO());
-            const sameMonth = iso => { const e = gregorianToEthiopian(iso); return e.y === now.y && e.m === now.m; };
-            const outVat = state.salesLog.filter(s => s.vatIncluded && shouldCountInCurrentTotals(s.branchId) && sameMonth(s.date))
-                .reduce((sum, s) => { const b = saleVatBase(s); return sum + (b - b / 1.15); }, 0);
-            const inVat = scannedVatReceipts().filter(r => sameMonth(r.date)).reduce((sum, r) => sum + (r.total - r.total / 1.15), 0);
-            vatEl.innerText = `ETB ${(outVat - inVat).toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2})}`;
+            const e = buildVatLedger(true).get(now.y * 100 + now.m);
+            vatEl.innerText = `ETB ${(e ? e.net : 0).toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2})}`;
         }
         function getChannelBreakdown(record, total, unpaidLabel) {
             const breakdown = [];
