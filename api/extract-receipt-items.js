@@ -7,7 +7,7 @@
 // the GEMINI_API_KEY environment variable and never reaches the browser.
 //
 // Frontend calls:  POST /api/extract-receipt-items   body: { image: "<base64 jpeg, no data: prefix>" }
-// Returns:         { seller_name, seller_tin, receipt_no, date_*, is_vat,
+// Returns:         { seller_name, seller_tin, receipt_no, date_*, is_vat, doc_title, receipt_time, header_lines, footer_lines,
 //                    before_vat, vat, total, items: [ ... every line ... ], missing_fields }
 
 export const config = { maxDuration: 30 };
@@ -37,6 +37,10 @@ Return ONLY raw JSON, no markdown fences, no commentary:
   "date_month": number or null,
   "date_day": number or null,
   "is_vat": boolean,
+  "doc_title": string or null,
+  "receipt_time": string or null,
+  "header_lines": string[],
+  "footer_lines": string[],
   "before_vat": number or null,
   "vat": number or null,
   "total": number or null,
@@ -60,6 +64,10 @@ Rules for each item:
 - "measurement": only a unit that is actually printed next to the item (PCS, KG, M, L, BOX, PK...). Otherwise null — never guess.
 - "pack_hint": only if the description itself states a pack size, for example "12PCS/BOX", "carton of 24", "1x10". Copy that text; otherwise null.
 - "before_vat", "vat", "total" are always the receipt-wide totals, never per-item figures.
+- "doc_title": the banner/title line printed on the document, copied exactly (for example "CASH INVOICE" or "Sales Invoice"). Otherwise null.
+- "receipt_time": the time printed next to the date (HH:MM). Otherwise null.
+- "header_lines": every OTHER text line printed at the top, in order, copied exactly (address, phone, VAT registration number, branch, etc.). Do not repeat the seller name, the TIN line, the receipt number, the date or the title. Use [] if none.
+- "footer_lines": every text line printed BELOW the totals, in order, copied exactly (payment method, item count, fiscal/ET device number, cashier, thank-you note, etc.). Do not repeat any totals. Use [] if none.
 - "missing_fields": only from this set, and only if you could not confidently read it: "Seller name", "Seller TIN", "Items", "Total".`;
 
 const VAT_RATE = 0.15;
@@ -122,6 +130,12 @@ function cleanItems(rawItems) {
         });
     }
     return out;
+}
+
+// Short, clean text lines for the receipt look-alike (header/footer text).
+function cleanLines(v) {
+    if (!Array.isArray(v)) return [];
+    return v.map((x) => String(x == null ? '' : x).trim().slice(0, 90)).filter(Boolean).slice(0, 14);
 }
 
 // Tried in order. 429/503 (busy) -> try the next model.
@@ -206,6 +220,10 @@ export default async function handler(req, res) {
         parsed = fillMissingVatFields(parsed);
         parsed.date_calendar = parsed.date_calendar === 'EC' ? 'EC' : 'GC';
         parsed.items = cleanItems(parsed.items);
+        parsed.header_lines = cleanLines(parsed.header_lines);
+        parsed.footer_lines = cleanLines(parsed.footer_lines);
+        parsed.doc_title = parsed.doc_title ? String(parsed.doc_title).trim().slice(0, 60) : null;
+        parsed.receipt_time = /^\d{1,2}[:.]\d{2}/.test(String(parsed.receipt_time || '').trim()) ? String(parsed.receipt_time).trim().slice(0, 10) : null;
         parsed.missing_fields = Array.isArray(parsed.missing_fields) ? parsed.missing_fields : [];
         if (!parsed.items.length && !parsed.missing_fields.includes('Items')) parsed.missing_fields.push('Items');
         res.status(200).json(parsed);

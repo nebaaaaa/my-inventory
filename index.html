@@ -1586,15 +1586,22 @@
 
     <datalist id="buyer-tin-list"></datalist>
     <datalist id="buyer-trade-name-list"></datalist>
-    <div id="buyer-info-modal" class="modal-overlay" onclick="closeBuyerInfoModal()">
-        <div class="modal-box" onclick="event.stopPropagation()" style="max-width:420px;">
-            <h3 style="color:var(--primary); margin-bottom:6px;">Buyer Details</h3>
-            <p style="font-size:12px; color:var(--text-light); margin-bottom:14px;">Optional -- prints on the receipt/invoice. Saved for this transaction, so it's remembered next time you print the other document for it.</p>
-            <div class="form-group" style="margin-bottom:12px;"><label>Buyer's TIN</label><input type="text" id="buyer-info-tin" list="buyer-tin-list" style="width:100%;" autocomplete="off" oninput="handleBuyerTinInput()"></div>
-            <div class="form-group" style="margin-bottom:16px;"><label>Customer Name / Trade Name</label><input type="text" id="buyer-info-name" list="buyer-trade-name-list" style="width:100%;" autocomplete="off" oninput="handleBuyerNameInput()"></div>
-            <div style="display:flex; gap:10px; justify-content:flex-end;">
+    <div id="buyer-info-modal" class="modal-overlay">
+        <div class="modal-box" onclick="event.stopPropagation()" style="max-width:920px; width:96vw; max-height:94vh; overflow-y:auto;">
+            <h3 id="pm-title" style="color:var(--primary); margin-bottom:12px;">Print</h3>
+            <div style="display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start;">
+                <div style="flex:1 1 340px; min-width:0;">
+                    <div class="form-group" style="margin-bottom:10px;"><label>Buyer's TIN <span style="font-weight:400; color:var(--text-light);">(optional)</span></label><input type="text" id="buyer-info-tin" list="buyer-tin-list" style="width:100%;" autocomplete="off" oninput="handleBuyerTinInput()"></div>
+                    <div class="form-group" style="margin-bottom:10px;"><label>Customer Name / Trade Name <span style="font-weight:400; color:var(--text-light);">(optional)</span></label><input type="text" id="buyer-info-name" list="buyer-trade-name-list" style="width:100%;" autocomplete="off" oninput="handleBuyerNameInput()"></div>
+                    <div id="pm-lines"></div>
+                </div>
+                <div style="flex:1 1 300px; min-width:0;">
+                    <div id="pm-preview-wrap" style="background:#e4e5ea; border-radius:8px; padding:10px; overflow:hidden;"><div id="pm-preview-sizer" style="overflow:hidden;"><iframe id="pm-preview" title="Preview" style="border:0; background:#fff; display:block; box-shadow:0 2px 8px rgba(0,0,0,.25);"></iframe></div></div>
+                </div>
+            </div>
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px;">
                 <button type="button" class="btn" style="background:#4a4e63;" onclick="closeBuyerInfoModal()">Cancel</button>
-                <button type="button" class="btn" onclick="confirmBuyerInfoAndPrint()">Print</button>
+                <button type="button" class="btn" id="pm-print" onclick="confirmBuyerInfoAndPrint()">Print</button>
             </div>
         </div>
     </div>
@@ -5916,18 +5923,25 @@
             let pTotal = pMatches.reduce((sum, r) => sum + r.total, 0);
             let pVat = pMatches.reduce((sum, r) => sum + (r.total - r.total / 1.15), 0);
             const ledger = buildVatLedger(isEth);
-            let carryHtml;
+            // Simple summary: a few labelled lines, then one clear result.
+            let sumRows, resLabel, resVal;
             if (vs.mode === 'month') {
                 const e = ledger.get(vs.year * 100 + vs.month) || { carryIn: 0, net: vatSum - pVat };
-                carryHtml = `${e.carryIn < 0 ? `Credit carried in from earlier months: <strong>ETB ${f2(e.carryIn)}</strong><br>` : ''}
-                ${t('dash.estimated_vat')} (sales VAT &minus; purchase VAT${e.carryIn < 0 ? ' + carried credit' : ''}): <strong style="color:#C97A22;">ETB ${f2(e.net)}</strong>${e.net < 0 ? '<br><span style="font-size:12px;">Negative: this amount is carried into next month.</span>' : ''}`;
+                sumRows = [['VAT on sales', vatSum], ['VAT on purchases', pVat]];
+                if (e.carryIn < 0) sumRows.push(['Credit from earlier months', -e.carryIn]);
+                resLabel = e.net >= 0 ? 'VAT to pay' : 'Credit carried to next month';
+                resVal = Math.abs(e.net);
             } else {
                 const yr = []; for (let i = 1; i <= monthCount; i++) { const e = ledger.get(vs.year * 100 + i); if (e) yr.push(e); }
                 const cIn = yr.length ? yr[0].carryIn : 0, due = yr.reduce((a, e) => a + Math.max(0, e.net), 0);
-                const cOut = yr.length && yr[yr.length - 1].net < 0 ? yr[yr.length - 1].net : 0;
-                carryHtml = `${cIn < 0 ? `Credit carried in from last year: <strong>ETB ${f2(cIn)}</strong><br>` : ''}
-                VAT due for the year (sum of months, after carry-forward): <strong style="color:#C97A22;">ETB ${f2(due)}</strong>${cOut < 0 ? `<br>Credit carried into next year: <strong>ETB ${f2(cOut)}</strong>` : ''}`;
+                const cOut = yr.length && yr[yr.length - 1].net < 0 ? -yr[yr.length - 1].net : 0;
+                sumRows = [['VAT on sales', vatSum], ['VAT on purchases', pVat]];
+                if (cIn < 0) sumRows.push(['Credit from last year', -cIn]);
+                if (cOut > 0) sumRows.push(['Credit carried to next year', cOut]);
+                resLabel = 'VAT to pay'; resVal = due;
             }
+            const sumHtml = sumRows.map(r => `<div style="display:flex; justify-content:space-between; gap:12px;"><span>${r[0]}</span><span>ETB ${f2(r[1])}</span></div>`).join('')
+                + `<div style="display:flex; justify-content:space-between; gap:12px; margin-top:6px; padding-top:6px; border-top:1px solid #c9ccd6; font-weight:700; color:#C97A22;"><span>${resLabel}</span><span>ETB ${f2(resVal)}</span></div>`;
 
             let html = `<div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
                 <select id="vat-drilldown-mode" onchange="changeVatDrillDownMode(this.value)" style="min-width:110px;">
@@ -5941,11 +5955,7 @@
             }
             html += `<select id="vat-drilldown-year" onchange="changeVatDrillDownYear(this.value)">${years.map(y => `<option value="${escHtml(y)}" ${vs.year===y?'selected':''}>${escHtml(y)}</option>`).join('')}</select>
             </div>
-            <div style="font-size:14px; padding:10px; background:#ECEDF2; border-radius:4px; margin-bottom:14px; line-height:1.7;">
-                Sales total: <strong>ETB ${f2(totalSum)}</strong> &middot; VAT on sales: <strong>ETB ${f2(vatSum)}</strong><br>
-                Scanned purchases total: <strong>ETB ${f2(pTotal)}</strong> &middot; VAT on purchases (deducted): <strong>ETB ${f2(pVat)}</strong><br>
-                ${carryHtml}
-            </div>
+            <div style="font-size:14px; padding:10px 12px; background:#ECEDF2; border-radius:4px; margin-bottom:14px; line-height:1.6;">${sumHtml}</div>
             <table><thead><tr><th>${t('sale.date')}</th><th>${t('sale.customer_name')}</th><th>${t('sale.product_item')}</th><th class="num">${t('sale.total')}</th><th class="num">${t('dash.estimated_vat')}</th></tr></thead><tbody>`;
             if (matches.length === 0 && pMatches.length === 0) html += `<tr><td colspan="5" style="text-align:center;">${t('drill.no_sales')}</td></tr>`;
             matches.forEach(m => {
@@ -8529,51 +8539,116 @@
         function handleBuyerTinInput() {
             const match = buyerInfoMaps.nameByTin.get(document.getElementById('buyer-info-tin').value.trim());
             if (match) document.getElementById('buyer-info-name').value = match;
+            pmPreviewSoon();
         }
         function handleBuyerNameInput() {
             const match = buyerInfoMaps.tinByName.get(document.getElementById('buyer-info-name').value.trim().toLowerCase());
             if (match) document.getElementById('buyer-info-tin').value = match;
+            pmPreviewSoon();
         }
-        function openBuyerInfoModal(kind, id, isGroup, docType) {
+        // ---- ONE Print window: buyer details + (sales) items/printed prices/stock match + live preview of the document ----
+        let pm = null, pmTimer = null;
+        function pmData() {
+            if (!pm) return null;
+            let d = null;
+            if (pm.kind === 'sale') {
+                const ov = pm.hook ? pm.hook.overrides() : null;
+                d = buildSalePrintData(pm.id, pm.isGroup, ov ? ov.map(o => o.price) : undefined);
+                if (d && ov) d.lines.forEach((l, i) => { if (ov[i] && ov[i].desc) l.desc = ov[i].desc; });
+            } else if (pm.kind === 'purchase') d = buildPurchasePrintData(pm.id, pm.isGroup);
+            else if (pm.kind === 'booking' && window.rentalUI && window.rentalUI.buildBookingPrintDataPublic) d = window.rentalUI.buildBookingPrintDataPublic(pm.id, pm.isGroup);
+            if (!d) return null;
+            d.buyerTin = document.getElementById('buyer-info-tin').value.trim();
+            d.buyerTradeName = document.getElementById('buyer-info-name').value.trim();
+            if (pm.docType === 'invoice') d.docLabel = 'INVOICE';
+            return d;
+        }
+        function pmPreviewSoon() { clearTimeout(pmTimer); pmTimer = setTimeout(pmPreview, 200); }
+        function pmPreview() {
+            const fr = document.getElementById('pm-preview'); if (!fr || !pm) return;
+            let d = null; try { d = pmData(); } catch (e) { console.warn('Preview failed', e); }
+            if (!d) return;
+            const W = pm.docType === 'invoice' ? 794 : 300;
+            fr.style.width = W + 'px';
+            fr.onload = () => {
+                try {
+                    const h = fr.contentDocument.documentElement.scrollHeight, wrap = document.getElementById('pm-preview-wrap');
+                    const avail = (wrap.clientWidth - 20) || W, sc = Math.min(1, avail / W);
+                    fr.style.height = h + 'px'; fr.style.transformOrigin = '0 0'; fr.style.transform = `scale(${sc})`;
+                    const sz = document.getElementById('pm-preview-sizer'); sz.style.height = Math.round(h * sc) + 'px'; sz.style.width = Math.round(W * sc) + 'px'; sz.style.margin = '0 auto';
+                } catch (e) { }
+            };
+            fr.srcdoc = renderReceiptOrInvoice(d);
+        }
+        function renderReceiptOrInvoice(d) { return pm && pm.docType === 'invoice' ? renderInvoiceHTML(d) : renderReceiptHTML(d); }
+        async function openBuyerInfoModal(kind, id, isGroup, docType) {
             pendingPrintCtx = { kind, id, isGroup, docType };
+            pm = { kind, id, isGroup, docType, hook: null };
+            const my = pm;
             const existing = getExistingBuyerInfo(kind, id, isGroup);
             syncBuyerDatalists();
             buyerInfoMaps = buildBuyerInfoMaps();
             document.getElementById('buyer-info-tin').value = existing.tin;
             document.getElementById('buyer-info-name').value = existing.name;
+            document.getElementById('pm-title').textContent = docType === 'invoice' ? 'Print invoice' : 'Print receipt';
+            const box = document.getElementById('pm-lines'), btn = document.getElementById('pm-print');
+            box.innerHTML = ''; btn.disabled = false;
             document.getElementById('buyer-info-modal').classList.add('active');
+            pmPreview();
+            if (kind === 'sale' && window.scnPrintHook) {
+                const base = buildSalePrintData(id, isGroup);
+                if (base) {
+                    btn.disabled = true;
+                    box.innerHTML = '<div style="font-size:12px; color:var(--text-light); padding:8px 0;">Loading items…</div>';
+                    try {
+                        const h = await window.scnPrintHook.prepare(base, box, pmPreviewSoon);
+                        if (pm === my) my.hook = h; else if (h && h.dispose) h.dispose();
+                    } catch (e) { console.warn(e); if (pm === my) box.innerHTML = ''; }
+                    if (pm === my) { btn.disabled = false; pmPreview(); }
+                }
+            }
         }
         function closeBuyerInfoModal() {
+            if (pm && pm.hook && pm.hook.dispose) { try { pm.hook.dispose(); } catch (e) { } }
+            clearTimeout(pmTimer);
             document.getElementById('buyer-info-modal').classList.remove('active');
-            pendingPrintCtx = null;
+            pendingPrintCtx = null; pm = null;
         }
-        function confirmBuyerInfoAndPrint() {
-            if (!pendingPrintCtx) return;
+        async function confirmBuyerInfoAndPrint() {
+            if (!pendingPrintCtx || !pm) return;
             const { kind, id, isGroup, docType } = pendingPrintCtx;
             const tin = document.getElementById('buyer-info-tin').value.trim();
             if (tin && !isValidTin(tin)) return alert("Buyer's TIN must be 10 to 12 digits.");
+            if (pm.hook && !pm.hook.validate()) return alert('Printed price must be a number, 0 or more. Clear the box to use the selling price.');
             const name = document.getElementById('buyer-info-name').value.trim();
+            const btn = document.getElementById('pm-print'); btn.disabled = true;
             saveBuyerInfo(kind, id, isGroup, tin, name);
-            closeBuyerInfoModal();
+            let names = null;
+            if (pm && pm.hook) { try { names = await pm.hook.commit(); } catch (e) { console.warn(e); } }
+            closeBuyerInfoModal(); btn.disabled = false;
             let data = null;
             if (kind === 'sale') data = buildSalePrintData(id, isGroup);
             else if (kind === 'purchase') data = buildPurchasePrintData(id, isGroup);
             else if (kind === 'booking' && window.rentalUI && window.rentalUI.buildBookingPrintDataPublic) data = window.rentalUI.buildBookingPrintDataPublic(id, isGroup);
             if (!data) return;
+            if (names) data.lines.forEach((l, i) => { if (names[i]) l.desc = names[i]; });
             if (docType === 'invoice') { data.docLabel = 'INVOICE'; printInvoiceFor(data); } else printReceiptFor(data);
         }
 
         // ---- Sale / Purchase adapters (bookings' own adapter lives in
         // verticals/appliance_rental.js and calls printReceiptFor/
         // printInvoiceFor directly) ----
-        function buildSalePrintData(id, isGroup) {
+        function buildSalePrintData(id, isGroup, priceOv) {
             const rows = isGroup ? state.salesLog.filter(s => s.groupId === id) : state.salesLog.filter(s => s.id === id);
             if (!rows.length) return null;
             const primary = isGroup ? findPrimaryGroupRow('sale', id) : rows[0];
             // Printed prices (if any were set) replace the selling price on the PRINT only.
-            const edited = rows.some(r => r.printPrice != null);
+            // priceOv (optional, per line): number = printed price, null = selling price, undefined = as saved. Used by the live preview.
+            const pp = (r, i) => (priceOv && priceOv[i] !== undefined) ? priceOv[i] : (r.printPrice != null ? r.printPrice : null);
+            const eff = (r, i) => { const p = pp(r, i); return p != null ? Math.round(p * r.qty * 100) / 100 : r.total; };
+            const edited = rows.some((r, i) => pp(r, i) != null);
             const realTotal = rows.reduce((s, r) => s + r.total, 0);
-            const total = edited ? rows.reduce((s, r) => s + saleVatBase(r), 0) : realTotal;
+            const total = edited ? rows.reduce((s, r, i) => s + eff(r, i), 0) : realTotal;
             const realPaid = rows.reduce((s, r) => s + (r.amountPaid || 0), 0);
             // A fully paid sale prints as fully paid at the printed total; part-paid sales keep what was really paid.
             const fullyPaid = realPaid >= realTotal - 0.005;
@@ -8587,7 +8662,7 @@
                 counterpartyName: primary.customer, counterpartyPhone: '',
                 buyerTin: primary.buyerTin || '', buyerTradeName: primary.buyerTradeName || '',
                 operator: getTransactionAuthor(primary.id),
-                lines: rows.map(r => { const ed = r.printPrice != null; return { desc: r.desc, qty: r.qty, unit: ed ? r.printPrice : r.price, total: ed ? saleVatBase(r) : r.total, _realUnit: r.price, _realTotal: r.total }; }),
+                lines: rows.map((r, i) => { const p = pp(r, i); return { desc: r.desc, qty: r.qty, unit: p != null ? p : r.price, total: eff(r, i), _realUnit: r.price, _realTotal: r.total }; }),
                 total, amountPaid, vatIncluded: rows.some(r => r.vatIncluded),
                 channelBreakdown: getChannelBreakdown(record, total, 'Accounts receivable')
             };
@@ -11516,9 +11591,11 @@
             try { if (d.date_year && d.date_month && d.date_day) date = d.date_calendar === 'EC' ? ethiopianToGregorianISO(d.date_year, d.date_month, d.date_day) : `${d.date_year}-${p2(d.date_month)}-${p2(d.date_day)}`; } catch (e) { }
             const items = (d.items || []).map(i => {
                 const m = String(i.pack_hint || '').match(/\d+/);
-                return { name: i.description || '', qty: i.quantity ?? 1, unit: i.measurement || '', price: i.unit_price ?? (i.quantity ? r2(num(i.amount) / i.quantity) : ''), pack: m ? Number(m[0]) : 1 };
+                return { name: i.description || '', qty: i.quantity ?? 1, unit: i.measurement || '', price: i.unit_price ?? (i.quantity ? r2(num(i.amount) / i.quantity) : ''), pack: m ? Number(m[0]) : 1, amount: i.amount ?? '' };
             });
-            return { merchant: d.seller_name || '', tin: d.seller_tin || '', no: d.receipt_no || '', date, before: d.before_vat ?? '', vat: d.vat ?? '', total: d.total ?? '', items: items.length ? items : blank().items, error: items.length ? '' : 'No items were found. Add them by hand below.' };
+            const ls = v => Array.isArray(v) ? v.map(x => String(x || '').trim()).filter(Boolean).slice(0, 14) : [];
+            const layout = { title: d.doc_title ? String(d.doc_title).trim() : '', time: d.receipt_time ? String(d.receipt_time).trim() : '', header: ls(d.header_lines), footer: ls(d.footer_lines) };
+            return { merchant: d.seller_name || '', tin: d.seller_tin || '', no: d.receipt_no || '', date, before: d.before_vat ?? '', vat: d.vat ?? '', total: d.total ?? '', items: items.length ? items : blank().items, layout, error: items.length ? '' : 'No items were found. Add them by hand below.' };
         }
 
         const open = html => { $('scn-modal').querySelector('h3').textContent = 'Review scanned receipt'; $('scn-modal-body').innerHTML = html; $('scn-modal').classList.add('active'); };
@@ -11564,7 +11641,7 @@
             review();
         };
         window.scnHead = (k, v) => { draft[k] = v; };
-        window.scnRow = (i, k, v) => { draft.items[i][k] = v; };
+        window.scnRow = (i, k, v) => { draft.items[i][k] = v; if (k === 'qty' || k === 'price') draft.items[i].amount = ''; }; // edited qty/price -> line amount is recalculated on save
         window.scnAdd = () => { draft.items.push({ name: '', qty: 1, unit: '', price: '', pack: 1 }); review(); };
         window.scnDel = i => { draft.items.splice(i, 1); if (!draft.items.length) draft.items = blank().items; review(); };
         window.scnCancel = () => { draft = null; close(); };
@@ -11577,11 +11654,16 @@
             try {
                 const tid = currentTenantId;
                 // 1) audit copy of the receipt (text only, no photo)
-                const rec = await supabaseClient.from('scanned_receipts').insert({
+                const recRow = {
                     tenant_id: tid, merchant: d.merchant || null, merchant_tin: d.tin || null, receipt_no: d.no || null, receipt_date: d.date || null,
                     before_vat: d.before === '' ? null : num(d.before), vat: d.vat === '' ? null : num(d.vat), total: d.total === '' ? null : num(d.total),
-                    items: items.map(i => ({ name: i.name.trim(), qty: num(i.qty), unit: i.unit || null, unit_price: i.price === '' ? null : num(i.price), pcs_per_unit: Math.max(1, num(i.pack) || 1) }))
-                });
+                    items: items.map(i => ({ name: i.name.trim(), qty: num(i.qty), unit: i.unit || null, unit_price: i.price === '' ? null : num(i.price), pcs_per_unit: Math.max(1, num(i.pack) || 1), amount: (i.amount === '' || i.amount == null) ? (i.price === '' ? null : r2(num(i.qty) * num(i.price))) : num(i.amount) }))
+                };
+                // layout = the extra printed lines (title, time, header/footer text) so the saved copy looks like the paper.
+                // If the column has not been added yet (migration-receipt-layout.sql), save without it.
+                const lay = d.layout && (d.layout.title || d.layout.time || (d.layout.header || []).length || (d.layout.footer || []).length) ? d.layout : null;
+                let rec = await supabaseClient.from('scanned_receipts').insert(lay ? { ...recRow, layout: lay } : recRow);
+                if (rec.error && lay) rec = await supabaseClient.from('scanned_receipts').insert(recRow);
                 if (rec.error) throw rec.error;
                 window.scnVatStamp = 0;
                 // 2) add to scanned stock (same cleaned name = same row)
@@ -11709,25 +11791,16 @@
             } catch (e) { }
         }
 
-        // ---------- match window ----------
+        // ---------- stock matching helpers (used by the "Match now" window and by the Print window) ----------
         const shut = () => { $('scn-modal').classList.remove('active'); ctx = null; };
-        async function openMatch(lines, onDone, extra) {
-            const m = $('scn-modal'); m.querySelector('h3').textContent = extra ? 'Review before printing' : 'Match sold items to scanned stock';
+        const suggestFor = lines => lines.forEach(l => { l.sug = window.scnSuggest(l.desc, l.unit); });
+        const pickDefaults = lines => lines.forEach(l => { const t = l.sug[0]; l.sel = t ? { id: t.item.id, mult: t.opt.mult, unit: t.opt.unit } : { id: '' }; });
+        async function openMatch(lines, onDone) {
+            const m = $('scn-modal'); m.querySelector('h3').textContent = 'Match sold items to scanned stock';
             $('scn-modal-body').innerHTML = '<p>Checking scanned stock…</p>'; m.classList.add('active');
-            let note = '';
-            if (lines.length) {
-                try { await ensure(); } catch (e) {
-                    if (!extra) { shut(); alert('Could not load scanned stock: ' + (e.message || e)); return onDone && onDone(null); }
-                    lines = []; note = 'Scanned stock could not be loaded, so matching is skipped for this print.';
-                }
-            }
-            if (lines.length) {
-                lines.forEach(l => { l.sug = window.scnSuggest(l.desc, l.unit); });
-                await aiHelp(lines);
-                lines.forEach(l => { const t = l.sug[0]; l.sel = t ? { id: t.item.id, mult: t.opt.mult, unit: t.opt.unit } : { id: '' }; });
-            }
-            ctx = { lines, onDone, extra: extra || null, note };
-            if (extra) ctx.all = extra.d.lines.map(dl => ({ dl, ml: lines.find(x => x.line === dl) || null, real: dl._realUnit != null ? dl._realUnit : dl.unit, val: String(dl.unit), name: extra.got.get(String(dl._rowId)) || null }));
+            try { await ensure(); } catch (e) { shut(); alert('Could not load scanned stock: ' + (e.message || e)); return onDone && onDone(null); }
+            suggestFor(lines); await aiHelp(lines); pickDefaults(lines);
+            ctx = { lines, onDone, ui: null };
             drawMatch();
         }
         function selHtml(l, i) {
@@ -11745,68 +11818,22 @@
                   </div>
                   ${sg && sg.warn ? '<div style="color:#c0392b;font-size:12px;margin-top:4px;">Price looks very different from the cost. Check the unit or the match.</div>' : ''}`;
         }
-        // Reads the printed-price boxes. Returns one entry per receipt line: a new printed price, null (= selling price) or undefined (line cannot be edited); false if a box is invalid.
-        function priceVals() {
-            const out = [];
-            for (const a of ctx.all) {
-                if (!a.dl._rowId) { out.push(undefined); continue; }
-                const raw = String(a.val).trim();
-                if (raw === '') { out.push(null); continue; }
-                const n = parseFloat(raw);
-                if (!isFinite(n) || n < 0) return false;
-                out.push(Math.abs(n - a.real) < 0.005 ? null : r2(n));
-            }
-            return out;
-        }
-        function psumHtml() {
-            const pv = priceVals();
-            if (!pv) return '<span style="color:#c0392b;">Enter a valid printed price (0 or more).</span>';
-            const total = ctx.all.reduce((t, a, j) => t + (pv[j] != null ? r2(pv[j] * num(a.dl.qty)) : num(a.dl._realTotal != null ? a.dl._realTotal : a.dl.total)), 0);
-            const vat = ctx.extra.d.vatIncluded ? total - total / 1.15 : 0;
-            return `Printed total: <b>ETB ${money(total)}</b>${vat ? ` &middot; VAT (15%): <b>ETB ${money(vat)}</b>` : ''}`;
-        }
-        window.scnPrice = (j, v) => { ctx.all[j].val = v; const s = $('scn-psum'); if (s) s.innerHTML = psumHtml(); };
         function drawMatch() {
-            const X = ctx.extra, L = ctx.lines;
-            const intro = X
-                ? `Set the printed price for each line. It changes only what prints (the line price, Total and VAT) and the dashboard's estimated VAT; your real sale stays as it is, and the price is remembered for this sale. Clear a box to use the selling price.${L.length ? ' Accepting a stock suggestion prints that name and takes the stock from that item. Matches are remembered for next time.' : ''}`
-                : 'Accepting a suggestion prints that name and takes the stock from that item. Matches are remembered for next time.';
-            const rowsHtml = X ? ctx.all.map((a, j) => {
-                const ml = a.ml;
-                return `<div style="border-bottom:1px solid var(--border,#ddd);padding:10px 0;">
-                  <div><b>${esc(a.dl.desc)}</b> &times; ${esc(a.dl.qty)} @ selling price ${money(a.real)}</div>
-                  ${ml ? selHtml(ml, L.indexOf(ml)) : (a.name ? `<div style="font-size:12px;color:var(--text-light);margin-top:4px;">Already matched to scanned stock.</div>` : '')}
-                  ${a.dl._rowId ? `<div style="display:flex;gap:8px;align-items:center;margin-top:8px;"><label style="margin:0;">Printed price</label><input type="number" step="0.01" min="0" inputmode="decimal" value="${esc(a.val)}" placeholder="${esc(a.real)}" oninput="scnPrice(${j},this.value)" style="width:130px;min-width:0;"></div>` : ''}
-                </div>`;
-            }).join('') : L.map((l, i) => `<div style="border-bottom:1px solid var(--border,#ddd);padding:10px 0;">
+            if (ctx.ui) return drawLines();
+            $('scn-modal-body').innerHTML = ctx.lines.map((l, i) => `<div style="border-bottom:1px solid var(--border,#ddd);padding:10px 0;">
                   <div><b>${esc(l.desc)}</b> &times; ${esc(l.qty)} @ ${money(l.unit)}</div>
                   ${selHtml(l, i)}
-                </div>`).join('');
-            $('scn-modal-body').innerHTML = `<p style="font-size:12px;color:var(--text-light);margin:0 0 8px;">${intro}</p>
-              ${ctx.note ? `<p style="font-size:12px;color:#c0392b;margin:0 0 8px;">${esc(ctx.note)}</p>` : ''}
-              ${rowsHtml}
-              ${X ? `<div id="scn-psum" style="margin-top:10px;font-size:13px;">${psumHtml()}</div>` : ''}
-              <div style="display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;margin-top:14px;">
-                <button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="scnLater()">${ctx.onDone ? (X ? 'Print without matching' : 'Print without scanned stock') : 'Close'}</button>
-                <button type="button" class="btn" id="scn-mconfirm" onclick="scnConfirmMatch()">${ctx.onDone ? 'Confirm &amp; print' : 'Confirm'}</button>
+                </div>`).join('') + `<div style="display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;margin-top:14px;">
+                <button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="scnLater()">Close</button>
+                <button type="button" class="btn" id="scn-mconfirm" onclick="scnConfirmMatch()">Confirm</button>
               </div>`;
         }
         window.scnPick = (i, v) => { const l = ctx.lines[i], it = items.find(x => x.id === v), s = l.sug.find(x => x.item.id === v), o = s ? s.opt : it ? priceCheck(l.unit, it).opt : null; l.sel = v === '' || v === '__skip' ? { id: v } : { id: v, mult: o.mult, unit: o.unit }; drawMatch(); };
         window.scnUnit = (i, u) => { const l = ctx.lines[i], it = items.find(x => x.id === l.sel.id), o = unitOpts(it).find(x => x.unit === u); l.sel.mult = o.mult; l.sel.unit = o.unit; drawMatch(); };
-        window.scnLater = () => {
-            let pv = null;
-            if (ctx && ctx.extra) { pv = priceVals(); if (pv === false) return alert('Printed price must be a number, 0 or more. Clear the box to use the selling price.'); }
-            const f = ctx && ctx.onDone; shut(); if (f) f([], pv);
-        };
-
-        window.scnConfirmMatch = async () => {
-            if (busy || !ctx) return;
-            let pv = null;
-            if (ctx.extra) { pv = priceVals(); if (pv === false) return alert('Printed price must be a number, 0 or more. Clear the box to use the selling price.'); }
-            busy = true;
-            const btn = $('scn-mconfirm'); btn.disabled = true; btn.textContent = 'Saving…';
-            const tid = currentTenantId, done = [], f = ctx.onDone; let failed = null;
-            for (const l of ctx.lines) {
+        // Saves the stock matches (and remembers them). Returns { done: [{ l, name }], failed }.
+        async function applyMatches(lines) {
+            const tid = currentTenantId, done = []; let failed = null;
+            for (const l of lines) {
                 const s = l.sel || { id: '' };
                 try {
                     const skip = s.id === '__skip', item = (!skip && s.id) ? items.find(x => x.id === s.id) : null;
@@ -11818,16 +11845,95 @@
                     if (!skip && r.data && r.data.name) done.push({ l, name: r.data.name });
                 } catch (e) { failed = failed || e; }
             }
+            return { done, failed };
+        }
+        window.scnLater = () => shut();
+        window.scnConfirmMatch = async () => {
+            if (busy || !ctx || ctx.ui) return; busy = true;
+            const btn = $('scn-mconfirm'); btn.disabled = true; btn.textContent = 'Saving…';
+            const { failed } = await applyMatches(ctx.lines);
             busy = false; shut();
-            if (failed) alert('Scanned stock could not be fully updated: ' + (failed.message || failed) + (f ? '\nThe receipt will still print. The unfinished lines stay in the waiting list.' : ''));
-            if (f) f(done, pv);
+            if (failed) alert('Scanned stock could not be fully updated: ' + (failed.message || failed));
             if (window.scnReload && $('view-scanned').classList.contains('active')) window.scnReload();
+        };
+
+        // ---------- the Print window's item list: printed price + stock match for every line ----------
+        // Returns one entry per line: new printed price, null (= selling price), undefined (line cannot be edited); false if a box is invalid.
+        function priceVals(c) {
+            const out = [];
+            for (const a of c.ui.all) {
+                if (!a.dl._rowId) { out.push(undefined); continue; }
+                const raw = String(a.val).trim();
+                if (raw === '') { out.push(null); continue; }
+                const n = parseFloat(raw);
+                if (!isFinite(n) || n < 0) return false;
+                out.push(Math.abs(n - a.real) < 0.005 ? null : r2(n));
+            }
+            return out;
+        }
+        // The name that will print for a line: the chosen stock item, else the name matched before, else as sold.
+        function lineName(c, a) {
+            if (a.ml && a.ml.sel && a.ml.sel.id && a.ml.sel.id !== '__skip') { const it = items.find(x => x.id === a.ml.sel.id); if (it) return it.name; }
+            return c.ui.names[a.j] || a.dl.desc;
+        }
+        window.scnPrice = (j, v) => { ctx.ui.all[j].val = v; if (ctx.ui.onChange) ctx.ui.onChange(); };
+        function drawLines() {
+            const ui = ctx.ui, L = ctx.lines;
+            ui.box.innerHTML = `<div style="font-size:12px;font-weight:700;color:var(--primary);margin:6px 0 2px;">Items</div>`
+                + (ui.note ? `<div style="font-size:12px;color:#c0392b;margin-bottom:6px;">${esc(ui.note)}</div>` : '')
+                + ui.all.map(a => `<div style="border-top:1px solid var(--border,#ddd);padding:8px 0;">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:10px;">
+                      <div style="min-width:0;flex:1 1 auto;"><div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(a.dl.desc)}</div>
+                        <div style="font-size:11px;color:var(--text-light);">${esc(a.dl.qty)} &times; ${money(a.real)}${!a.ml && ui.names[a.j] ? ' &middot; &#10003; stock matched' : ''}</div></div>
+                      ${a.dl._rowId ? `<div style="flex:0 0 auto;"><div style="font-size:11px;color:var(--text-light);">Printed price</div><input type="number" step="0.01" min="0" inputmode="decimal" value="${esc(a.val)}" placeholder="${esc(a.real)}" oninput="scnPrice(${a.j},this.value)" style="width:110px;min-width:0;"></div>` : ''}
+                    </div>
+                    ${a.ml ? selHtml(a.ml, L.indexOf(a.ml)) : ''}
+                  </div>`).join('');
+            if (ui.onChange) ui.onChange();
+        }
+        // Called by the Print window (main script). d = the document data for this sale.
+        window.scnPrintHook = {
+            async prepare(d, box, onChange) {
+                const vat = d.lines.filter(l => l._vat && l._rowId);
+                let got = new Map(), note = '';
+                try {
+                    if (vat.length) {
+                        const led = await supabaseClient.rpc('scanned_matched_names', { p_tenant: currentTenantId, p_refs: vat.map(l => String(l._rowId)) });
+                        if (led.error) throw led.error;
+                        got = new Map((led.data || []).map(x => [x.sale_ref, x.printed_name]));
+                    }
+                } catch (e) { got = new Map(); }
+                const names = d.lines.map(l => got.get(String(l._rowId)) || null);
+                let todo = vat.filter(l => !got.has(String(l._rowId))).map(l => ({ _rowId: l._rowId, desc: l.desc, qty: l.qty, unit: (l._realUnit != null ? l._realUnit : l.unit), line: l }));
+                if (todo.length) {
+                    try { await ensure(); suggestFor(todo); await aiHelp(todo); pickDefaults(todo); }
+                    catch (e) { todo = []; note = 'Stock matching is unavailable right now.'; }
+                }
+                const mine = { lines: todo, onDone: null, ui: { box, d, names, onChange, note,
+                    all: d.lines.map((dl, j) => ({ j, dl, ml: todo.find(x => x.line === dl) || null, real: (dl._realUnit != null ? dl._realUnit : dl.unit), val: String(dl.unit) })) } };
+                ctx = mine; drawLines();
+                return {
+                    overrides: () => { const pv = priceVals(mine); return mine.ui.all.map((a, j) => ({ desc: lineName(mine, a), price: pv ? pv[j] : undefined })); },
+                    validate: () => priceVals(mine) !== false,
+                    commit: async () => {
+                        const out = mine.ui.names.slice(), pv = priceVals(mine);
+                        const { done, failed } = await applyMatches(mine.lines);
+                        done.forEach(x => { const k = mine.ui.d.lines.indexOf(x.l.line); if (k >= 0) out[k] = x.name; });
+                        if (failed) alert('Scanned stock could not be fully updated: ' + (failed.message || failed) + '\nThe receipt will still print. The unfinished lines stay in the waiting list.');
+                        if (pv) savePrices(mine.ui.d, pv);
+                        if (ctx === mine) ctx = null;
+                        if (window.scnReload && $('view-scanned').classList.contains('active')) window.scnReload();
+                        return out;
+                    },
+                    dispose: () => { if (ctx === mine) ctx = null; }
+                };
+            }
         };
 
         // ---------- hook into Print (owners only; printing is never blocked) ----------
         const oBuild = window.buildSalePrintData;
-        window.buildSalePrintData = function (id, g) {
-            const d = oBuild(id, g);
+        window.buildSalePrintData = function (id, g, ov) {
+            const d = oBuild(id, g, ov);
             if (d) { const rs = g ? state.salesLog.filter(x => x.groupId === id) : state.salesLog.filter(x => x.id === id); d.lines.forEach((l, i) => { if (rs[i]) { l._rowId = rs[i].id; l._vat = !!rs[i].vatIncluded; } }); d._scn = true; d._sid = id; d._sg = !!g; }
             return d;
         };
@@ -11844,31 +11950,6 @@
             });
             if (changed) { try { renderSalesLogTable(); renderAnalyticalDashboards(); } catch (e) { console.warn(e); } }
             return changed;
-        }
-        // Every sale print opens the review window: stock matching for new VAT lines + printed prices for all lines.
-        async function viaScanned(d, orig) {
-            if (!d || !d._scn) return orig(d);
-            const vat = d.lines.filter(l => l._vat && l._rowId);
-            let got = new Map(), todo = [];
-            try {
-                if (vat.length) {
-                    const led = await supabaseClient.rpc('scanned_matched_names', { p_tenant: currentTenantId, p_refs: vat.map(l => String(l._rowId)) });
-                    if (led.error) throw led.error;
-                    got = new Map((led.data || []).map(x => [x.sale_ref, x.printed_name]));
-                    d.lines.forEach(l => { if (got.get(String(l._rowId))) l.desc = got.get(String(l._rowId)); });
-                    todo = vat.filter(l => !got.has(String(l._rowId))).map(l => ({ _rowId: l._rowId, desc: l.desc, qty: l.qty, unit: (l._realUnit != null ? l._realUnit : l.unit), line: l }));
-                }
-            } catch (e) { got = new Map(); todo = []; }
-            const finish = (res, pv) => {
-                (res || []).forEach(x => { x.l.line.desc = x.name; });
-                let out = d;
-                if (pv && savePrices(d, pv)) {
-                    const nd = window.buildSalePrintData(d._sid, d._sg);
-                    if (nd) { nd.docLabel = d.docLabel; nd.lines.forEach((l, i) => { if (d.lines[i]) l.desc = d.lines[i].desc; }); out = nd; }
-                }
-                orig(out);
-            };
-            openMatch(todo, finish, { d, got });
         }
         // ---------- scanned purchase receipts -> Estimated VAT on the dashboard (owners only) ----------
         let vatBusy = null;
@@ -11894,11 +11975,50 @@
             })();
             return vatBusy;
         };
-        const oR = window.printReceiptFor, oI = window.printInvoiceFor;
-        window.printReceiptFor = d => viaScanned(d, oR);
-        window.printInvoiceFor = d => viaScanned(d, oI);
 
         // ---------- Scanned Stock tab: waiting list + saved receipts ----------
+        // ---------- saved receipts shown as paper-style cards (audit copies) ----------
+        if (!document.getElementById('scn-paper-css')) {
+            const st = document.createElement('style'); st.id = 'scn-paper-css';
+            st.textContent = `.scn-papers{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:26px 18px;align-items:start;padding:6px 2px 16px;}
+            .scn-paper{position:relative;background:#fffdf7;color:#1d1d1d;font:12px/1.45 "Courier New",Courier,monospace;padding:14px 14px 16px;box-shadow:0 2px 8px rgba(0,0,0,.35);margin-bottom:8px;word-break:break-word;}
+            .scn-paper:after{content:"";position:absolute;left:0;bottom:-10px;width:100%;height:10px;background:linear-gradient(135deg,#fffdf7 5px,transparent 0) 0 0/10px 10px,linear-gradient(225deg,#fffdf7 5px,transparent 0) 0 0/10px 10px;}
+            .scn-paper .sp-c{text-align:center;}.scn-paper .sp-b{font-weight:700;}.scn-paper .sp-m{text-transform:uppercase;font-size:14px;letter-spacing:.5px;}
+            .scn-paper .sp-hr{border-top:1px dashed #777;margin:8px 0;}
+            .scn-paper .sp-row{display:flex;justify-content:space-between;gap:10px;}.scn-paper .sp-row span:last-child{white-space:nowrap;text-align:right;}
+            .scn-paper .sp-item{margin-bottom:5px;}.scn-paper .sp-item .sp-row{padding-left:10px;color:#444;}
+            .scn-paper .sp-t{font-weight:700;font-size:14px;}.scn-paper .sp-s{font-size:10px;color:#888;}`;
+            document.head.appendChild(st);
+        }
+        // Looks like the paper receipt: merchant + TIN on top, receipt no. and date, the lines as printed
+        // (name, then qty x price ... amount), then before-VAT / VAT / total. Empty parts are left out.
+        function paperCard(x) {
+            const row = (l, r, cls) => `<div class="sp-row ${cls || ''}"><span>${l}</span><span>${r}</span></div>`;
+            const lay = x.layout || {};
+            const items = (x.items || []).map(i => {
+                const p = i.unit_price, amt = i.amount != null ? i.amount : (p != null ? r2(num(i.qty) * num(i.unit_price)) : null);
+                return `<div class="sp-item"><div>${esc(i.name)}</div>${row(`${esc(i.qty)}${i.unit ? ' ' + esc(i.unit) : ''}${p != null ? ' x ' + money(p) : ''}`, amt == null ? '' : money(amt))}</div>`;
+            }).join('');
+            const date = x.receipt_date || String(x.created_at || '').slice(0, 10);
+            const lines = a => (a || []).map(t => `<div class="sp-c">${esc(t)}</div>`).join('');
+            return `<div class="scn-paper">
+                <div class="sp-c sp-b sp-m">${esc(x.merchant || 'Unknown merchant')}</div>
+                ${x.merchant_tin ? `<div class="sp-c">TIN: ${esc(x.merchant_tin)}</div>` : ''}
+                ${lines(lay.header)}
+                <div class="sp-hr"></div>
+                ${row(x.receipt_no ? 'No. ' + esc(x.receipt_no) : '', esc(date) + (lay.time ? ' ' + esc(lay.time) : ''))}
+                ${lay.title ? `<div class="sp-c sp-b" style="margin-top:4px;">${esc(lay.title)}</div>` : ''}
+                <div class="sp-hr"></div>
+                ${items || '<div class="sp-c sp-s">(no lines)</div>'}
+                <div class="sp-hr"></div>
+                ${x.before_vat != null ? row('Subtotal', money(x.before_vat)) : ''}
+                ${x.vat != null ? row('VAT', money(x.vat)) : ''}
+                ${x.total != null ? row('TOTAL', money(x.total), 'sp-t') : ''}
+                ${(lay.footer || []).length ? `<div class="sp-hr"></div>${lines(lay.footer)}` : ''}
+                <div class="sp-hr"></div>
+                <div class="sp-c sp-s">scanned copy</div>
+            </div>`;
+        }
         window.scnAfterLoad = async rows => {
             const tid = currentTenantId, w = $('scn-waiting'), rc = $('scn-receipts');
             try {
@@ -11916,9 +12036,7 @@
                 const b = $('scn-wbtn'); if (b) b.onclick = () => openMatch(waiting.map(r => ({ _rowId: r.id, desc: r.desc, qty: r.qty, unit: r.price })), null);
             } catch (e) { w.innerHTML = ''; }
             const r = await supabaseClient.from('scanned_receipts').select('*').eq('tenant_id', tid).order('created_at', { ascending: false }).limit(30);
-            rc.innerHTML = r.error ? '<span style="color:#c0392b;">Could not load receipts.</span>' : (r.data || []).length ? r.data.map(x => `<details style="border-bottom:1px solid var(--border,#ddd);padding:6px 0;"><summary>${esc(x.receipt_date || String(x.created_at).slice(0, 10))} · ${esc(x.merchant || 'Unknown merchant')} · No. ${esc(x.receipt_no || '-')} · Total ${x.total == null ? '-' : money(x.total)}</summary>
-                <table style="margin-top:6px;"><thead><tr><th>Item</th><th class="num">Qty</th><th>Unit</th><th class="num">Price</th><th class="num">Pcs/unit</th></tr></thead><tbody>${(x.items || []).map(i => `<tr><td>${esc(i.name)}</td><td class="num">${esc(i.qty)}</td><td>${esc(i.unit || '')}</td><td class="num">${i.unit_price == null ? '-' : money(i.unit_price)}</td><td class="num">${esc(i.pcs_per_unit)}</td></tr>`).join('')}</tbody></table>
-                <div style="font-size:12px;color:var(--text-light);">Before VAT ${x.before_vat == null ? '-' : money(x.before_vat)} · VAT ${x.vat == null ? '-' : money(x.vat)} · TIN ${esc(x.merchant_tin || '-')}</div></details>`).join('') : '<span style="color:var(--text-light);font-size:13px;">No receipts saved yet.</span>';
+            rc.innerHTML = r.error ? '<span style="color:#c0392b;">Could not load receipts.</span>' : (r.data || []).length ? '<div class="scn-papers">' + r.data.map(paperCard).join('') + '</div>' : '<span style="color:var(--text-light);font-size:13px;">No receipts saved yet.</span>';
         };
     })();
     </script>
