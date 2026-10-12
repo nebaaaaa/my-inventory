@@ -3414,6 +3414,7 @@
                 currentPlanPremium = false;
             }
             if (window.scnShowNav) window.scnShowNav();
+            setTimeout(() => { try { if (currentPlanPremium && window.scnEnsure) window.scnEnsure().catch(() => { }); } catch (e) { } }, 4000); // keep matches ready for offline selling
 
             currentTenantName = biz.business_name;
             currentBusinessType = biz.business_type || 'retail';
@@ -8737,7 +8738,7 @@
             pmGateRefresh();
         }
         async function pmRecordPrint(id, docType, sig) {
-            try { await supabaseClient.rpc('receipt_print_record', { p_tenant: currentTenantId, p_print_id: String(id), p_doc_type: docType, p_signature: sig }); }
+            try { if (window.scnRpcQ) await window.scnRpcQ('receipt_print_record', { p_tenant: currentTenantId, p_print_id: String(id), p_doc_type: docType, p_signature: sig }); else await supabaseClient.rpc('receipt_print_record', { p_tenant: currentTenantId, p_print_id: String(id), p_doc_type: docType, p_signature: sig }); }
             catch (e) { console.warn('Print record not saved:', e); }
         }
         // Owner: pending reprint requests shown at the top of the Sales page.
@@ -11744,6 +11745,35 @@
             if (!window.scnNameScore || !name.trim()) return [];
             return invList().map(x => ({ x, sc: window.scnNameScore(name, x.name) })).filter(z => z.sc >= 45).sort((a, b) => b.sc - a.sc).slice(0, 3);
         }
+        // ---- guess a new line's "pieces in 1 unit" from a similar kind of item already in stock (same unit) ----
+        // e.g. a sack of rice borrows the sack size of sugar; notebooks borrow from exercise books. AI helps when online; a small word list works offline.
+        const KINDS = [['rice', 'sugar', 'flour', 'salt', 'wheat', 'teff', 'pasta', 'macaroni', 'spaghetti', 'bean', 'lentil', 'maize', 'barley', 'oat', 'grain'], ['book', 'notebook', 'exercise', 'pen', 'pencil', 'paper', 'marker', 'eraser', 'ruler', 'envelope'], ['water', 'soda', 'juice', 'beer', 'wine', 'cola', 'drink', 'milk', 'tea', 'coffee'], ['oil', 'butter', 'ghee', 'margarine'], ['soap', 'detergent', 'shampoo', 'lotion', 'toothpaste', 'bleach'], ['cable', 'wire', 'pipe', 'rope', 'tape', 'hose'], ['cement', 'sand', 'gravel', 'brick', 'tile', 'paint']];
+        const kindOf = name => { const t = scnNameKey(name).split(' '); for (let g = 0; g < KINDS.length; g++) if (KINDS[g].some(w => t.some(x => x === w || x === w + 's'))) return g; return -1; };
+        async function guessPacks(d) {
+            const refs = rows.filter(r => (r.units || []).length);
+            const need = d.items.map((it, i) => ({ it, i })).filter(({ it }) => it.name.trim() && (it.unit || '').trim() && Math.max(1, num(it.pack) || 1) === 1 && !rows.some(r => r.name_key === scnNameKey(it.name)));
+            if (!refs.length || !need.length) return;
+            const hasUnit = (r, u) => (r.units || []).find(x => String(x.unit).trim().toLowerCase() === String(u).trim().toLowerCase());
+            const local = it => {
+                const c = refs.filter(r => hasUnit(r, it.unit)); if (!c.length) return null;
+                const g = kindOf(it.name); let best = null;
+                c.forEach(r => { let sc = window.scnNameScore ? window.scnNameScore(it.name, r.name) : 0; if (g >= 0 && kindOf(r.name) === g) sc += 40; if (!best || sc > best.sc) best = { r, sc }; });
+                return best && best.sc >= 40 ? best.r : null;
+            };
+            const ai = new Map();
+            if (navigator.onLine) {
+                try {
+                    const ac = new AbortController(), tm = setTimeout(() => ac.abort(), 8000);
+                    const r = await fetch('/api/guess-conversion', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ac.signal, body: JSON.stringify({ lines: need.map(({ it, i }) => ({ i, name: it.name, unit: it.unit })), refs: refs.map(r => ({ id: r.id, name: r.name, units: r.units })) }) });
+                    clearTimeout(tm);
+                    const j = await r.json(); if (r.ok) (j.matches || []).forEach(m => { const ref = refs.find(x => String(x.id) === String(m.ref_id)); if (ref) ai.set(m.i, ref); });
+                } catch (e) { }
+            }
+            need.forEach(({ it, i }) => {
+                const a = ai.get(i), r = (a && hasUnit(a, it.unit)) ? a : local(it); if (!r) return;
+                const u = hasUnit(r, it.unit); it.pack = num(u.base_qty) || 1; it.packFrom = r.name;
+            });
+        }
         async function prefillLinks(d) {
             try { if (window.scnEnsure) await window.scnEnsure(); } catch (e) { }
             d.items.forEach(it => {
@@ -11755,8 +11785,9 @@
         }
         const linkRow = (i, it) => {
             const sg = invSuggest(it.name).filter(z => !(it.links || []).some(L => L.comp === z.x.comp)), inv = invList().filter(x => !(it.links || []).some(L => L.comp === x.comp) && !sg.some(z => z.x.comp === x.comp));
-            if (!inv.length && !sg.length && !(it.links || []).length) return '';
-            return `<tr><td colspan="6" style="padding-top:0;">
+            const from = it.packFrom ? `<div style="font-size:11px;color:#a8a8a8;margin-bottom:3px;">like ${esc(it.packFrom)}</div>` : '';
+            if (!inv.length && !sg.length && !(it.links || []).length) return from ? `<tr><td colspan="6" style="padding-top:0;">${from}</td></tr>` : '';
+            return `<tr><td colspan="6" style="padding-top:0;">${from}
                 ${(it.links || []).map((L, j) => `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--text-light);margin-bottom:3px;">&rarr; <b style="color:inherit;">${esc(L.name)}</b> &middot; 1 = <input type="number" step="any" min="0" value="${esc(L.mult)}" oninput="scnLinkMult(${i},${j},this.value)" style="width:80px;min-width:0;padding:3px 6px;"> ${esc(baseUnitOf(it))} <button type="button" class="btn btn-danger btn-small" onclick="scnLinkDel(${i},${j})">&#10005;</button></div>`).join('')}
                 <select onchange="scnLinkAdd(${i},this.value)" style="max-width:100%;font-size:12px;"><option value="">&rarr; Inventory item…</option>
                   ${sg.map(z => `<option value="${esc(z.x.comp)}">${esc(z.x.name)}</option>`).join('')}${sg.length && inv.length ? '<option disabled>──────</option>' : ''}${inv.map(x => `<option value="${esc(x.comp)}">${esc(x.name)}</option>`).join('')}
@@ -11803,12 +11834,12 @@
                 const res = await fetch('/api/extract-receipt-items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: await toB64(await compress(f)) }) });
                 const data = await res.json().catch(() => null);
                 if (!res.ok) throw new Error((data && data.error) || 'Failed (' + res.status + ')');
-                draft = fromExtract(data); await prefillLinks(draft);
+                draft = fromExtract(data); try { if (window.scnEnsure) await window.scnEnsure(); } catch (e) { } await guessPacks(draft); await prefillLinks(draft);
             } catch (e) { draft = blank(); draft.error = 'Could not read this receipt automatically (' + e.message + '). Fill it in by hand.'; }
             review();
         };
         window.scnHead = (k, v) => { draft[k] = v; };
-        window.scnRow = (i, k, v) => { draft.items[i][k] = v; if (k === 'qty' || k === 'price') draft.items[i].amount = ''; }; // edited qty/price -> line amount is recalculated on save
+        window.scnRow = (i, k, v) => { draft.items[i][k] = v; if (k === 'pack') delete draft.items[i].packFrom; if (k === 'qty' || k === 'price') draft.items[i].amount = ''; }; // edited qty/price -> line amount is recalculated on save
         window.scnAdd = () => { draft.items.push({ name: '', qty: 1, unit: '', price: '', pack: 1, links: [] }); review(); };
         window.scnDel = i => { draft.items.splice(i, 1); if (!draft.items.length) draft.items = blank().items; review(); };
         window.scnCancel = () => { draft = null; close(); };
@@ -11936,34 +11967,96 @@
             return out.sort((a, b) => b.score - a.score).slice(0, 3);
         };
 
+        // ---------- offline support: matches, stock names and pending saves are kept on this device ----------
+        const store = {
+            get: (k, d) => { try { const v = JSON.parse(localStorage.getItem(k + currentTenantId)); return v == null ? d : v; } catch (e) { return d; } },
+            set: (k, v) => { try { localStorage.setItem(k + currentTenantId, JSON.stringify(v)); } catch (e) { } }
+        };
+        let fromCache = false;
+        const isNet = e => /fetch|network|timeout|load failed|offline/i.test(String((e && e.message) || e || ''));
+        // Runs a database function now; when offline it waits in a queue and is sent later.
+        async function rpcQ(name, args) {
+            if (navigator.onLine) {
+                try { const r = await supabaseClient.rpc(name, args); if (!r.error) return { data: r.data }; if (!isNet(r.error)) return { error: r.error }; } catch (e) { if (!isNet(e)) return { error: e }; }
+            }
+            const q = store.get('neba_scn_q_', []); q.push({ name, args, n: 0 }); store.set('neba_scn_q_', q);
+            return { queued: true };
+        }
+        let flushing = false;
+        async function flushQ() {
+            if (flushing || !navigator.onLine || !currentTenantId) return; flushing = true;
+            try {
+                let q = store.get('neba_scn_q_', []);
+                while (q.length) {
+                    const j = q[0]; let r;
+                    try { r = await supabaseClient.rpc(j.name, j.args); } catch (e) { r = { error: e }; }
+                    if (r.error && isNet(r.error)) break;
+                    if (r.error && ++j.n < 3) { q.push(q.shift()); store.set('neba_scn_q_', q); if (q.every(x => x.n >= 1) && q.length === 1) break; continue; }
+                    q.shift(); store.set('neba_scn_q_', q);
+                }
+            } finally { flushing = false; }
+        }
+        window.scnRpcQ = rpcQ; window.scnFlush = flushQ;
+        window.addEventListener('online', () => { flushQ(); });
+        setInterval(flushQ, 60000);
+        function saveCache() {
+            store.set('neba_scn_cache_', { items, aliases: [...aliasMap.values()], links: [].concat(...[...linkMap.values()]) });
+        }
+        function loadCache() {
+            const c = store.get('neba_scn_cache_', null); if (!c) return false;
+            items = c.items || []; aliasMap = new Map((c.aliases || []).map(x => [x.alias_key, x]));
+            linkMap = new Map(); (c.links || []).forEach(x => { const a = linkMap.get(x.inv_key) || []; a.push(x); linkMap.set(x.inv_key, a); });
+            return true;
+        }
         async function ensure() {
             const tid = currentTenantId;
-            if (currentIsOwner) {
-                const [a, b] = await Promise.all([
-                    supabaseClient.from('scanned_stock_items').select('*').eq('tenant_id', tid).order('name'),
-                    supabaseClient.from('scanned_stock_aliases').select('*').eq('tenant_id', tid)]);
-                if (a.error) throw a.error; if (b.error) throw b.error;
-                items = a.data || []; aliasMap = new Map((b.data || []).map(x => [x.alias_key, x]));
-                await loadLinks(tid);
-                return;
+            fromCache = false;
+            if (navigator.onLine) {
+                flushQ();
+                try {
+                    if (currentIsOwner) {
+                        const [a, b] = await Promise.all([
+                            supabaseClient.from('scanned_stock_items').select('*').eq('tenant_id', tid).order('name'),
+                            supabaseClient.from('scanned_stock_aliases').select('*').eq('tenant_id', tid)]);
+                        if (a.error) throw a.error; if (b.error) throw b.error;
+                        items = a.data || []; aliasMap = new Map((b.data || []).map(x => [x.alias_key, x]));
+                    } else {
+                        // Employees: names and pack sizes only (no quantity, no cost), so no price check for them.
+                        const r = await supabaseClient.rpc('scanned_match_data', { p_tenant: tid });
+                        if (r.error) throw r.error;
+                        const d = r.data || {};
+                        items = (d.items || []).map(x => ({ ...x, last_cost: null, qty: 0 }));
+                        aliasMap = new Map((d.aliases || []).map(x => [x.alias_key, x]));
+                    }
+                    await loadLinks(tid);
+                    saveCache();
+                    return;
+                } catch (e) { if (!isNet(e)) throw e; }
             }
-            // Employees: names and pack sizes only (no quantity, no cost), so no price check for them.
-            const r = await supabaseClient.rpc('scanned_match_data', { p_tenant: tid });
-            if (r.error) throw r.error;
-            const d = r.data || {};
-            items = (d.items || []).map(x => ({ ...x, last_cost: null, qty: 0 }));
-            aliasMap = new Map((d.aliases || []).map(x => [x.alias_key, x]));
-            await loadLinks(tid);
+            // offline (or the connection dropped): use what this device remembers
+            if (!loadCache()) throw new Error('offline');
+            fromCache = true;
         }
         // Links = "this inventory item is this scanned item" (many to many). Made when a receipt is scanned or a sale is matched.
         async function loadLinks(tid) {
-            linkMap = new Map();
+            const old = linkMap; linkMap = new Map();
             try {
                 const r = await supabaseClient.rpc('scanned_links_get', { p_tenant: tid });
                 if (r.error) throw r.error;
                 (r.data || []).forEach(x => { const a = linkMap.get(x.inv_key) || []; a.push(x); linkMap.set(x.inv_key, a); });
-            } catch (e) { console.warn('Links not loaded (run premium-and-sales-receipts.sql):', e); }
+            } catch (e) { console.warn('Links not loaded (run premium-and-sales-receipts.sql):', e); if (isNet(e)) linkMap = old; }
         }
+        // Names already matched for these sale lines (database + what this device matched while offline).
+        async function matchedNames(refs) {
+            const got = new Map();
+            try {
+                if (navigator.onLine && refs.length) { const led = await supabaseClient.rpc('scanned_matched_names', { p_tenant: currentTenantId, p_refs: refs }); if (!led.error) (led.data || []).forEach(x => got.set(x.sale_ref, x.printed_name)); }
+            } catch (e) { }
+            const local = store.get('neba_scn_done_', {});
+            refs.forEach(r => { if (!got.has(r) && local[r]) got.set(r, local[r]); });
+            return got;
+        }
+        const rememberDone = (ref, name) => { const m = store.get('neba_scn_done_', {}); m[ref] = name; const ks = Object.keys(m); if (ks.length > 800) ks.slice(0, ks.length - 800).forEach(k => delete m[k]); store.set('neba_scn_done_', m); };
         window.scnEnsure = ensure;
         window.scnNameScore = nameScore;
         window.scnLinksOf = itemId => { const out = []; linkMap.forEach(arr => arr.forEach(x => { if (String(x.item_id) === String(itemId)) out.push(x); })); return out; };
@@ -11979,7 +12072,7 @@
         }
         async function aiHelp(lines) {
             const weak = lines.map((l, i) => ({ l, i })).filter(x => !x.l.sug.length || x.l.sug[0].score < 75);
-            if (!weak.length || !items.length) return;
+            if (!weak.length || !items.length || !navigator.onLine) return;
             try {
                 const r = await fetch('/api/match-items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sales: weak.map(x => ({ i: x.i, name: x.l.desc, price: x.l.unit })), items: items.map(x => ({ id: x.id, name: x.name, cost: x.last_cost })) }) });
                 const d = await r.json(); if (!r.ok) return;
@@ -11998,7 +12091,8 @@
             const auto = lines.filter(l => { const a = autoPick(l); if (a) { l.sel = a; l.auto = true; } return !!a; });
             if (auto.length) { const r = await applyMatches(auto); if (r.failed) alert('Scanned stock could not be fully updated: ' + (r.failed.message || r.failed)); lines = lines.filter(l => !auto.includes(l)); }
             if (!lines.length) { shut(); if (window.scnReload && $('view-scanned').classList.contains('active')) window.scnReload(); return onDone && onDone(null); }
-            suggestFor(lines); await aiHelp(lines); pickDefaults(lines);
+            if (fromCache) lines.forEach(l => { l.sug = []; l.sel = { id: '' }; });
+            else { suggestFor(lines); await aiHelp(lines); pickDefaults(lines); }
             ctx = { lines, onDone, ui: null };
             drawMatch();
         }
@@ -12035,15 +12129,19 @@
                 const s = l.sel || { id: '' };
                 try {
                     const skip = s.id === '__skip', item = (!skip && s.id) ? items.find(x => x.id === s.id) : null;
-                    const r = await supabaseClient.rpc('scanned_apply_sale', {
+                    const r = await rpcQ('scanned_apply_sale', {
                         p_tenant: tid, p_sale_ref: String(l._rowId), p_desc: l.desc, p_desc_key: key(l.desc),
                         p_item_id: item ? item.id : null, p_qty: num(l.qty), p_mult: item ? (s.mult || 1) : 1,
                         p_unit_price: num(l.unit), p_sold_unit: s.unit || null, p_skip: skip });
                     if (r.error) throw r.error;
-                    if (!skip && r.data && r.data.name) done.push({ l, name: r.data.name });
+                    let nm = r.data && r.data.name;
+                    if (r.queued && item) { nm = item.name; item.qty = num(item.qty) - num(l.qty) * (s.mult || 1); saveCache(); }  // offline: stock is updated here now, in the database later
+                    if (!skip && nm) { done.push({ l, name: nm }); rememberDone(String(l._rowId), nm); }
                     // remember this match so the next sale of the same item is matched by itself
                     if (item && !l.auto && !(linkMap.get(key(l.desc)) || []).some(x => String(x.item_id) === String(item.id))) {
-                        supabaseClient.rpc('scanned_link_add', { p_tenant: tid, p_inv_key: key(l.desc), p_inv_name: String(l.desc).replace(/^\[[^\]]*\]\s*/, ''), p_item_id: String(item.id), p_mult: s.mult || 1 }).then(() => { }, () => { });
+                        const lk = { inv_key: key(l.desc), inv_name: String(l.desc).replace(/^\[[^\]]*\]\s*/, ''), item_id: String(item.id), mult: s.mult || 1 };
+                        (linkMap.get(lk.inv_key) || (linkMap.set(lk.inv_key, []), linkMap.get(lk.inv_key))).push(lk); saveCache();
+                        rpcQ('scanned_link_add', { p_tenant: tid, p_inv_key: lk.inv_key, p_inv_name: lk.inv_name, p_item_id: lk.item_id, p_mult: lk.mult });
                     }
                 } catch (e) { failed = failed || e; }
             }
@@ -12102,7 +12200,7 @@
                     let got = new Map();
                     try {
                         const vat = d.lines.filter(l => l._rowId);
-                        if (vat.length) { const led = await supabaseClient.rpc('scanned_matched_names', { p_tenant: currentTenantId, p_refs: vat.map(l => String(l._rowId)) }); if (!led.error) got = new Map((led.data || []).map(x => [x.sale_ref, x.printed_name])); }
+                        if (vat.length) got = await matchedNames(vat.map(l => String(l._rowId)));
                     } catch (e) { }
                     const names = d.lines.map(l => got.get(String(l._rowId)) || null);
                     box.innerHTML = '<div style="font-size:12px;color:var(--text-light);padding:8px 0;">The invoice copies the printed receipt (same buyer, item names and prices). To change something, change the receipt.</div>';
@@ -12112,9 +12210,7 @@
                 let got = new Map(), note = '';
                 try {
                     if (vat.length) {
-                        const led = await supabaseClient.rpc('scanned_matched_names', { p_tenant: currentTenantId, p_refs: vat.map(l => String(l._rowId)) });
-                        if (led.error) throw led.error;
-                        got = new Map((led.data || []).map(x => [x.sale_ref, x.printed_name]));
+                        got = await matchedNames(vat.map(l => String(l._rowId)));
                     }
                 } catch (e) { got = new Map(); }
                 const names = d.lines.map(l => got.get(String(l._rowId)) || null);
@@ -12124,7 +12220,8 @@
                     try {
                         await ensure();
                         todo = todo.filter(l => { const a = autoPick(l); if (!a) return true; l.sel = a; l.auto = true; auto.push(l); const k = d.lines.indexOf(l.line); const it = items.find(x => x.id === a.id); if (k >= 0 && it) names[k] = it.name; return false; });
-                        suggestFor(todo); await aiHelp(todo); pickDefaults(todo);
+                        if (fromCache) todo.forEach(l => { l.sug = []; l.sel = { id: '' }; }); // offline: no suggestions, the user picks or says no match
+                        else { suggestFor(todo); await aiHelp(todo); pickDefaults(todo); }
                     }
                     catch (e) { todo = []; note = 'Stock matching is unavailable right now.'; }
                 }
@@ -12358,7 +12455,7 @@
         window.scnSaveSalesReceipt = async (html, d, docType) => {
             if (!currentPlanPremium || !currentTenantId || docType === 'invoice') return; // only receipts are kept here, never invoices
             try {
-                const r = await supabaseClient.rpc('scanned_save_sales_receipt', { p_tenant: currentTenantId, p_doc_type: docType === 'invoice' ? 'invoice' : 'receipt', p_doc_number: String(d.docNumber || ''), p_sale_date: isoDay(d.date) || null, p_customer: d.counterpartyName || null, p_total: num(d.total), p_html: html,
+                const r = await window.scnRpcQ('scanned_save_sales_receipt', { p_tenant: currentTenantId, p_doc_type: docType === 'invoice' ? 'invoice' : 'receipt', p_doc_number: String(d.docNumber || ''), p_sale_date: isoDay(d.date) || null, p_customer: d.counterpartyName || null, p_total: num(d.total), p_html: html,
                     p_lines: (d.lines || []).map(l => { const row = (state.salesLog || []).find(x => String(x.id) === String(l._rowId)); return { p: l.desc, o: row ? row.desc : null }; }) });
                 if (r.error) throw r.error;
                 if (window.scnReload && $('view-scanned') && $('view-scanned').classList.contains('active')) window.scnReload();
