@@ -11712,19 +11712,59 @@
         }
         const toB64 = blob => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = () => no(new Error('Could not read image')); r.readAsDataURL(blob); });
 
-        const blank = () => ({ merchant: '', tin: '', no: '', date: '', before: '', vat: '', total: '', items: [{ name: '', qty: 1, unit: '', price: '', pack: 1 }], error: '' });
+        const blank = () => ({ merchant: '', tin: '', no: '', date: '', before: '', vat: '', total: '', items: [{ name: '', qty: 1, unit: '', price: '', pack: 1, links: [] }], error: '' });
         function fromExtract(d) {
             let date = '';
             try { if (d.date_year && d.date_month && d.date_day) date = d.date_calendar === 'EC' ? ethiopianToGregorianISO(d.date_year, d.date_month, d.date_day) : `${d.date_year}-${p2(d.date_month)}-${p2(d.date_day)}`; } catch (e) { }
             const items = (d.items || []).map(i => {
                 const m = String(i.pack_hint || '').match(/\d+/);
-                return { name: i.description || '', qty: i.quantity ?? 1, unit: i.measurement || '', price: i.unit_price ?? (i.quantity ? r2(num(i.amount) / i.quantity) : ''), pack: m ? Number(m[0]) : 1, amount: i.amount ?? '' };
+                return { name: i.description || '', qty: i.quantity ?? 1, unit: i.measurement || '', price: i.unit_price ?? (i.quantity ? r2(num(i.amount) / i.quantity) : ''), pack: m ? Number(m[0]) : 1, amount: i.amount ?? '', links: [] };
             });
             const ls = v => Array.isArray(v) ? v.map(x => String(x || '').trim()).filter(Boolean).slice(0, 14) : [];
             const layout = { title: d.doc_title ? String(d.doc_title).trim() : '', time: d.receipt_time ? String(d.receipt_time).trim() : '', header: ls(d.header_lines), footer: ls(d.footer_lines) };
             return { merchant: d.seller_name || '', tin: d.seller_tin || '', no: d.receipt_no || '', date, before: d.before_vat ?? '', vat: d.vat ?? '', total: d.total ?? '', items: items.length ? items : blank().items, layout, error: items.length ? '' : 'No items were found. Add them by hand below.' };
         }
 
+        // ---- match receipt lines to Inventory items (many to many; stock stays separate) ----
+        const invList = () => (state.inventory || []).map(i => ({ comp: `[${i.category}] ${i.desc}`, name: i.desc, item: i }));
+        const invCost = item => { const l = (item.lots || []).filter(x => num(x.cost) > 0); const pick = l.slice().reverse().find(x => num(x.qty) > 0) || l[l.length - 1]; return pick ? num(pick.cost) : 0; };
+        const baseUnitOf = it => (Math.max(1, num(it.pack) || 1) > 1 ? 'pcs' : ((it.unit || '').trim() || 'pcs'));
+        function niceMult(m) {
+            if (!isFinite(m) || m <= 0) return 1;
+            if (m >= 1) { const r = Math.round(m); return Math.abs(m - r) / r <= 0.15 ? r : r2(m); }
+            const inv = 1 / m, r = Math.round(inv);
+            return r >= 1 && Math.abs(inv - r) / r <= 0.15 ? Math.round(1e6 / r) / 1e6 : Math.round(m * 1e4) / 1e4;
+        }
+        // How many of this receipt line's pieces does ONE sold inventory unit use? Guessed from the unit costs.
+        function guessMult(it, inv) {
+            const baseCost = num(it.price) / Math.max(1, num(it.pack) || 1), c = invCost(inv.item);
+            return baseCost > 0 && c > 0 ? niceMult(c / baseCost) : 1;
+        }
+        function invSuggest(name) {
+            if (!window.scnNameScore || !name.trim()) return [];
+            return invList().map(x => ({ x, sc: window.scnNameScore(name, x.name) })).filter(z => z.sc >= 45).sort((a, b) => b.sc - a.sc).slice(0, 3);
+        }
+        async function prefillLinks(d) {
+            try { if (window.scnEnsure) await window.scnEnsure(); } catch (e) { }
+            d.items.forEach(it => {
+                const have = rows.find(r => r.name_key === scnNameKey(it.name)), old = have && window.scnLinksOf ? window.scnLinksOf(have.id) : [];
+                const inv = invList();
+                it.links = old.map(L => { const m = inv.find(x => scnNameKey(x.comp) === L.inv_key); return m ? { comp: m.comp, name: m.name, mult: num(L.mult) || 1 } : null; }).filter(Boolean);
+                if (!it.links.length) { const s = invSuggest(it.name)[0]; if (s && s.sc >= 75) it.links = [{ comp: s.x.comp, name: s.x.name, mult: guessMult(it, s.x) }]; }
+            });
+        }
+        const linkRow = (i, it) => {
+            const sg = invSuggest(it.name).filter(z => !(it.links || []).some(L => L.comp === z.x.comp)), inv = invList().filter(x => !(it.links || []).some(L => L.comp === x.comp) && !sg.some(z => z.x.comp === x.comp));
+            if (!inv.length && !sg.length && !(it.links || []).length) return '';
+            return `<tr><td colspan="6" style="padding-top:0;">
+                ${(it.links || []).map((L, j) => `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--text-light);margin-bottom:3px;">&rarr; <b style="color:inherit;">${esc(L.name)}</b> &middot; 1 = <input type="number" step="any" min="0" value="${esc(L.mult)}" oninput="scnLinkMult(${i},${j},this.value)" style="width:80px;min-width:0;padding:3px 6px;"> ${esc(baseUnitOf(it))} <button type="button" class="btn btn-danger btn-small" onclick="scnLinkDel(${i},${j})">&#10005;</button></div>`).join('')}
+                <select onchange="scnLinkAdd(${i},this.value)" style="max-width:100%;font-size:12px;"><option value="">&rarr; Inventory item…</option>
+                  ${sg.map(z => `<option value="${esc(z.x.comp)}">${esc(z.x.name)}</option>`).join('')}${sg.length && inv.length ? '<option disabled>──────</option>' : ''}${inv.map(x => `<option value="${esc(x.comp)}">${esc(x.name)}</option>`).join('')}
+                </select></td></tr>`;
+        };
+        window.scnLinkAdd = (i, comp) => { if (!comp) return; const it = draft.items[i], m = invList().find(x => x.comp === comp); if (!m) return; (it.links = it.links || []).push({ comp: m.comp, name: m.name, mult: guessMult(it, m) }); review(); };
+        window.scnLinkDel = (i, j) => { draft.items[i].links.splice(j, 1); review(); };
+        window.scnLinkMult = (i, j, v) => { draft.items[i].links[j].mult = v; };
         const open = html => { $('scn-modal').querySelector('h3').textContent = 'Review scanned receipt'; $('scn-modal-body').innerHTML = html; $('scn-modal').classList.add('active'); };
         const close = () => $('scn-modal').classList.remove('active');
 
@@ -11748,7 +11788,7 @@
                   <td><input type="text" value="${esc(it.unit)}" oninput="scnRow(${i},'unit',this.value)" placeholder="pk, kg…" style="width:80px;"></td>
                   <td><input type="number" step="any" value="${esc(it.price)}" oninput="scnRow(${i},'price',this.value)" style="width:100px;"></td>
                   <td><input type="number" step="any" min="1" value="${esc(it.pack)}" oninput="scnRow(${i},'pack',this.value)" style="width:80px;"></td>
-                  <td><button type="button" class="btn btn-danger btn-small" onclick="scnDel(${i})">✕</button></td></tr>${hint(i, it)}`).join('')}
+                  <td><button type="button" class="btn btn-danger btn-small" onclick="scnDel(${i})">✕</button></td></tr>${hint(i, it)}${linkRow(i, it)}`).join('')}
               </tbody></table></div>
               <div style="display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;margin-top:14px;">
                 <button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="scnAdd()">+ Add line</button>
@@ -11763,13 +11803,13 @@
                 const res = await fetch('/api/extract-receipt-items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: await toB64(await compress(f)) }) });
                 const data = await res.json().catch(() => null);
                 if (!res.ok) throw new Error((data && data.error) || 'Failed (' + res.status + ')');
-                draft = fromExtract(data);
+                draft = fromExtract(data); await prefillLinks(draft);
             } catch (e) { draft = blank(); draft.error = 'Could not read this receipt automatically (' + e.message + '). Fill it in by hand.'; }
             review();
         };
         window.scnHead = (k, v) => { draft[k] = v; };
         window.scnRow = (i, k, v) => { draft.items[i][k] = v; if (k === 'qty' || k === 'price') draft.items[i].amount = ''; }; // edited qty/price -> line amount is recalculated on save
-        window.scnAdd = () => { draft.items.push({ name: '', qty: 1, unit: '', price: '', pack: 1 }); review(); };
+        window.scnAdd = () => { draft.items.push({ name: '', qty: 1, unit: '', price: '', pack: 1, links: [] }); review(); };
         window.scnDel = i => { draft.items.splice(i, 1); if (!draft.items.length) draft.items = blank().items; review(); };
         window.scnCancel = () => { draft = null; close(); };
 
@@ -11784,7 +11824,7 @@
                 const recRow = {
                     tenant_id: tid, merchant: d.merchant || null, merchant_tin: d.tin || null, receipt_no: d.no || null, receipt_date: d.date || null,
                     before_vat: d.before === '' ? null : num(d.before), vat: d.vat === '' ? null : num(d.vat), total: d.total === '' ? null : num(d.total),
-                    items: items.map(i => ({ name: i.name.trim(), qty: num(i.qty), unit: i.unit || null, unit_price: i.price === '' ? null : num(i.price), pcs_per_unit: Math.max(1, num(i.pack) || 1), amount: (i.amount === '' || i.amount == null) ? (i.price === '' ? null : r2(num(i.qty) * num(i.price))) : num(i.amount) }))
+                    items: items.map(i => ({ name: i.name.trim(), qty: num(i.qty), unit: i.unit || null, unit_price: i.price === '' ? null : num(i.price), pcs_per_unit: Math.max(1, num(i.pack) || 1), matches: (i.links || []).map(L => L.name), amount: (i.amount === '' || i.amount == null) ? (i.price === '' ? null : r2(num(i.qty) * num(i.price))) : num(i.amount) }))
                 };
                 // layout = the extra printed lines (title, time, header/footer text) so the saved copy looks like the paper.
                 // If the column has not been added yet (migration-receipt-layout.sql), save without it.
@@ -11812,6 +11852,11 @@
                     if (res.error) throw res.error;
                     map.set(key, res.data);
                 }
+                // remember the inventory matches (never blocks saving)
+                try {
+                    const L = []; items.forEach(it => { const st = map.get(scnNameKey(it.name)); if (st) (it.links || []).forEach(x => L.push({ tenant_id: tid, inv_key: scnNameKey(x.comp), inv_name: x.name, item_id: String(st.id), mult: num(x.mult) || 1 })); });
+                    if (L.length) { const lr = await supabaseClient.from('scanned_links').upsert(L, { onConflict: 'tenant_id,inv_key,item_id' }); if (lr.error) throw lr.error; }
+                } catch (e) { console.warn('Inventory matches not saved (run premium-and-sales-receipts.sql):', e); }
                 draft = null; close(); await load();
             } catch (e) {
                 alert('Could not save: ' + (e.message || e) + '\n\nNothing was lost on your screen — fix it and press Confirm again. If the receipt was already saved, check Scanned Stock before retrying so items are not added twice.');
@@ -11853,7 +11898,7 @@
         const r2 = n => Math.round(n * 100) / 100;
         const money = n => num(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const key = s => window.scnNameKey(s);
-        let items = [], aliasMap = new Map(), ctx = null, busy = false;
+        let items = [], aliasMap = new Map(), linkMap = new Map(), ctx = null, busy = false;
 
         // ---------- matching rules ----------
         const SIZE = /(\d+(?:\.\d+)?)(kg|g|ml|l|cm|m|pcs|pc)\b/g;
@@ -11899,6 +11944,7 @@
                     supabaseClient.from('scanned_stock_aliases').select('*').eq('tenant_id', tid)]);
                 if (a.error) throw a.error; if (b.error) throw b.error;
                 items = a.data || []; aliasMap = new Map((b.data || []).map(x => [x.alias_key, x]));
+                await loadLinks(tid);
                 return;
             }
             // Employees: names and pack sizes only (no quantity, no cost), so no price check for them.
@@ -11907,6 +11953,29 @@
             const d = r.data || {};
             items = (d.items || []).map(x => ({ ...x, last_cost: null, qty: 0 }));
             aliasMap = new Map((d.aliases || []).map(x => [x.alias_key, x]));
+            await loadLinks(tid);
+        }
+        // Links = "this inventory item is this scanned item" (many to many). Made when a receipt is scanned or a sale is matched.
+        async function loadLinks(tid) {
+            linkMap = new Map();
+            try {
+                const r = await supabaseClient.rpc('scanned_links_get', { p_tenant: tid });
+                if (r.error) throw r.error;
+                (r.data || []).forEach(x => { const a = linkMap.get(x.inv_key) || []; a.push(x); linkMap.set(x.inv_key, a); });
+            } catch (e) { console.warn('Links not loaded (run premium-and-sales-receipts.sql):', e); }
+        }
+        window.scnEnsure = ensure;
+        window.scnNameScore = nameScore;
+        window.scnLinksOf = itemId => { const out = []; linkMap.forEach(arr => arr.forEach(x => { if (String(x.item_id) === String(itemId)) out.push(x); })); return out; };
+        // Already matched? Gives the stock choice for a sold line, or null when the user still has to match it.
+        function autoPick(l) {
+            const k = key(l.desc), c = [];
+            (linkMap.get(k) || []).forEach(x => { const it = items.find(y => String(y.id) === String(x.item_id)); if (it) c.push({ it, mult: num(x.mult) || 1, unit: null }); });
+            const al = aliasMap.get(k);
+            if (!c.length && al) { const it = items.find(y => y.id === al.item_id); if (it) { const o = unitOpts(it).find(o => o.unit === al.sold_unit) || unitOpts(it)[0]; c.push({ it, mult: o.mult, unit: o.unit }); } }
+            if (!c.length) return null;
+            const q = num(l.qty), best = c.find(x => num(x.it.qty) >= q * x.mult) || c.slice().sort((a, b) => num(b.it.qty) - num(a.it.qty))[0];
+            return { id: best.it.id, mult: best.mult, unit: best.unit };
         }
         async function aiHelp(lines) {
             const weak = lines.map((l, i) => ({ l, i })).filter(x => !x.l.sug.length || x.l.sug[0].score < 75);
@@ -11926,6 +11995,9 @@
             const m = $('scn-modal'); m.querySelector('h3').textContent = 'Match sold items to scanned stock';
             $('scn-modal-body').innerHTML = '<p>Checking scanned stock…</p>'; m.classList.add('active');
             try { await ensure(); } catch (e) { shut(); alert('Could not load scanned stock: ' + (e.message || e)); return onDone && onDone(null); }
+            const auto = lines.filter(l => { const a = autoPick(l); if (a) { l.sel = a; l.auto = true; } return !!a; });
+            if (auto.length) { const r = await applyMatches(auto); if (r.failed) alert('Scanned stock could not be fully updated: ' + (r.failed.message || r.failed)); lines = lines.filter(l => !auto.includes(l)); }
+            if (!lines.length) { shut(); if (window.scnReload && $('view-scanned').classList.contains('active')) window.scnReload(); return onDone && onDone(null); }
             suggestFor(lines); await aiHelp(lines); pickDefaults(lines);
             ctx = { lines, onDone, ui: null };
             drawMatch();
@@ -11938,8 +12010,7 @@
                       ${l.sug.map(s => `<option value="${s.item.id}" ${sel.id === s.item.id ? 'selected' : ''}>${esc(s.item.name)} — ${s.label}</option>`).join('')}
                       ${rest.length ? '<option disabled>— other scanned items —</option>' : ''}
                       ${rest.map(x => `<option value="${x.id}" ${sel.id === x.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}
-                      <option value="" ${sel.id === '' ? 'selected' : ''}>No match (new item, goes negative)</option>
-                      <option value="__skip" ${sel.id === '__skip' ? 'selected' : ''}>Skip (do not deduct)</option>
+                      <option value="" ${sel.id === '' ? 'selected' : ''}>No match</option>
                     </select>
                     ${cur && unitOpts(cur).length > 1 ? `<select onchange="scnUnit(${i},this.value)">${unitOpts(cur).map(o => `<option value="${esc(o.unit)}" ${sel.unit === o.unit ? 'selected' : ''}>sold as ${esc(o.unit)}${o.mult > 1 ? ' (' + o.mult + ' ' + esc(cur.base_unit) + ')' : ''}</option>`).join('')}</select>` : ''}
                   </div>
@@ -11970,6 +12041,10 @@
                         p_unit_price: num(l.unit), p_sold_unit: s.unit || null, p_skip: skip });
                     if (r.error) throw r.error;
                     if (!skip && r.data && r.data.name) done.push({ l, name: r.data.name });
+                    // remember this match so the next sale of the same item is matched by itself
+                    if (item && !l.auto && !(linkMap.get(key(l.desc)) || []).some(x => String(x.item_id) === String(item.id))) {
+                        supabaseClient.rpc('scanned_link_add', { p_tenant: tid, p_inv_key: key(l.desc), p_inv_name: String(l.desc).replace(/^\[[^\]]*\]\s*/, ''), p_item_id: String(item.id), p_mult: s.mult || 1 }).then(() => { }, () => { });
+                    }
                 } catch (e) { failed = failed || e; }
             }
             return { done, failed };
@@ -12044,11 +12119,16 @@
                 } catch (e) { got = new Map(); }
                 const names = d.lines.map(l => got.get(String(l._rowId)) || null);
                 let todo = vat.filter(l => !got.has(String(l._rowId))).map(l => ({ _rowId: l._rowId, desc: l.desc, qty: l.qty, unit: (l._realUnit != null ? l._realUnit : l.unit), line: l }));
+                const auto = [];
                 if (todo.length) {
-                    try { await ensure(); suggestFor(todo); await aiHelp(todo); pickDefaults(todo); }
+                    try {
+                        await ensure();
+                        todo = todo.filter(l => { const a = autoPick(l); if (!a) return true; l.sel = a; l.auto = true; auto.push(l); const k = d.lines.indexOf(l.line); const it = items.find(x => x.id === a.id); if (k >= 0 && it) names[k] = it.name; return false; });
+                        suggestFor(todo); await aiHelp(todo); pickDefaults(todo);
+                    }
                     catch (e) { todo = []; note = 'Stock matching is unavailable right now.'; }
                 }
-                const mine = { lines: todo, onDone: null, ui: { box, d, names, onChange, note,
+                const mine = { lines: todo, auto, onDone: null, ui: { box, d, names, onChange, note,
                     all: d.lines.map((dl, j) => ({ j, dl, ml: todo.find(x => x.line === dl) || null, real: (dl._realUnit != null ? dl._realUnit : dl.unit), val: String(dl.unit) })) } };
                 ctx = mine; drawLines();
                 return {
@@ -12056,7 +12136,7 @@
                     validate: () => priceVals(mine) !== false,
                     commit: async () => {
                         const out = mine.ui.names.slice(), pv = priceVals(mine);
-                        const { done, failed } = await applyMatches(mine.lines);
+                        const { done, failed } = await applyMatches(mine.lines.concat(mine.auto || []));
                         done.forEach(x => { const k = mine.ui.d.lines.indexOf(x.l.line); if (k >= 0) out[k] = x.name; });
                         if (failed) alert('Scanned stock could not be fully updated: ' + (failed.message || failed) + '\nThe receipt will still print. The unfinished lines stay in the waiting list.');
                         if (pv) savePrices(mine.ui.d, pv);
@@ -12144,7 +12224,7 @@
             .scn-paper .sp-hr{border-top:1px dashed #777;margin:8px 0;}
             .scn-paper .sp-row{display:flex;justify-content:space-between;gap:10px;}.scn-paper .sp-row span:last-child{white-space:nowrap;text-align:right;}
             .scn-paper .sp-item{margin-bottom:5px;}.scn-paper .sp-item .sp-row{padding-left:10px;color:#444;}
-            .scn-paper .sp-t{font-weight:700;font-size:14px;}.scn-paper .sp-s{font-size:10px;color:#888;}`;
+            .scn-paper .sp-mt{font-size:10px;color:#a8a8a8;padding-left:6px;}.scn-paper .sp-t{font-weight:700;font-size:14px;}.scn-paper .sp-s{font-size:10px;color:#888;}`;
             document.head.appendChild(st);
         }
         // Looks like the paper receipt: merchant + TIN on top, receipt no. and date, the lines as printed
@@ -12154,7 +12234,7 @@
             const lay = x.layout || {};
             const items = (x.items || []).map(i => {
                 const p = i.unit_price, amt = i.amount != null ? i.amount : (p != null ? r2(num(i.qty) * num(i.unit_price)) : null);
-                return `<div class="sp-item"><div>${esc(i.name)}</div>${row(`${esc(i.qty)}${i.unit ? ' ' + esc(i.unit) : ''}${p != null ? ' x ' + money(p) : ''}`, amt == null ? '' : money(amt))}</div>`;
+                return `<div class="sp-item"><div>${esc(i.name)}</div>${(i.matches || []).map(m => `<div class="sp-mt">&rarr; ${esc(m)}</div>`).join('')}${row(`${esc(i.qty)}${i.unit ? ' ' + esc(i.unit) : ''}${p != null ? ' x ' + money(p) : ''}`, amt == null ? '' : money(amt))}</div>`;
             }).join('');
             const date = x.receipt_date || String(x.created_at || '').slice(0, 10);
             const lines = a => (a || []).map(t => `<div class="sp-c">${esc(t)}</div>`).join('');
@@ -12195,7 +12275,7 @@
             // Purchase receipts (scanned copies) and sales receipts (as printed): load, then draw with the date filter.
             const pr = await supabaseClient.from('scanned_receipts').select('*').eq('tenant_id', tid).order('created_at', { ascending: false }).limit(500);
             purErr = !!pr.error; purRows = pr.data || [];
-            const sr = await supabaseClient.from('scanned_sales_receipts').select('id,created_at,doc_type,doc_number,sale_date,customer,total,html').eq('tenant_id', tid).order('created_at', { ascending: false }).limit(300);
+            const sr = await supabaseClient.from('scanned_sales_receipts').select('id,created_at,doc_type,doc_number,sale_date,customer,total,html,lines').eq('tenant_id', tid).order('created_at', { ascending: false }).limit(300);
             salErr = sr.error ? sr.error.message : ''; salRows = (sr.data || []).filter(x => x.doc_type !== 'invoice');
             window.scnRenderReceipts();
         };
@@ -12230,6 +12310,15 @@
                 const row = salRows.find(r => String(r.id) === fr.dataset.i), wrap = fr.parentElement, W = +wrap.dataset.w;
                 fr.style.width = W + 'px';
                 fr.onload = () => { try {
+                    // under each matched line: a small faded arrow + the item that was really sold
+                    const dd = fr.contentDocument, used = new Set();
+                    ((row && row.lines) || []).forEach(L => {
+                        if (!L || !L.o || L.o === L.p) return;
+                        const td = [...dd.querySelectorAll('td')].find(t => !used.has(t) && t.textContent.trim() === String(L.p).trim()); if (!td) return;
+                        used.add(td);
+                        const tr = td.parentElement, n = dd.createElement('tr'); n.innerHTML = '<td colspan="3" style="font-size:9px;color:#aaa;padding:0 0 3px 6px;"></td>';
+                        n.firstChild.textContent = '\u2192 ' + String(L.o).replace(/^\[[^\]]*\]\s*/, ''); tr.parentElement.insertBefore(n, tr.nextSibling);
+                    });
                     const h = fr.contentDocument.documentElement.scrollHeight, sc2 = Math.min(1, (wrap.clientWidth || W) / W) || 1;
                     fr.style.height = h + 'px'; fr.style.transform = `scale(${sc2})`; wrap.style.height = Math.round(h * sc2) + 'px';
                 } catch (e) { } };
@@ -12269,7 +12358,8 @@
         window.scnSaveSalesReceipt = async (html, d, docType) => {
             if (!currentPlanPremium || !currentTenantId || docType === 'invoice') return; // only receipts are kept here, never invoices
             try {
-                const r = await supabaseClient.rpc('scanned_save_sales_receipt', { p_tenant: currentTenantId, p_doc_type: docType === 'invoice' ? 'invoice' : 'receipt', p_doc_number: String(d.docNumber || ''), p_sale_date: isoDay(d.date) || null, p_customer: d.counterpartyName || null, p_total: num(d.total), p_html: html });
+                const r = await supabaseClient.rpc('scanned_save_sales_receipt', { p_tenant: currentTenantId, p_doc_type: docType === 'invoice' ? 'invoice' : 'receipt', p_doc_number: String(d.docNumber || ''), p_sale_date: isoDay(d.date) || null, p_customer: d.counterpartyName || null, p_total: num(d.total), p_html: html,
+                    p_lines: (d.lines || []).map(l => { const row = (state.salesLog || []).find(x => String(x.id) === String(l._rowId)); return { p: l.desc, o: row ? row.desc : null }; }) });
                 if (r.error) throw r.error;
                 if (window.scnReload && $('view-scanned') && $('view-scanned').classList.contains('active')) window.scnReload();
             } catch (e) { console.warn('Sales receipt copy not saved (run premium-and-sales-receipts.sql once):', e); }
