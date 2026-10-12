@@ -1197,9 +1197,10 @@
                 <div class="card">
                     <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; margin-bottom:12px;">
                         <div style="display:flex;gap:10px;align-items:center;"><button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="switchView('inventory')" title="Back to Inventory">&#8249; Inventory</button><h2 style="border:none; margin:0; padding:0;">Scanned Stock</h2></div>
-                        <div><input type="file" id="scn-file" accept="image/*" multiple style="display:none;" onchange="scnPickFile(this)"><button type="button" class="btn" onclick="document.getElementById('scn-file').click()">Scan purchase receipt</button></div>
+                        <div><input type="file" id="scn-file" accept="image/*" multiple style="display:none;" onchange="scnPickFile(this)"><button type="button" class="btn" onclick="document.getElementById('scn-file').click()">Scan purchase receipt</button> <button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="scnManual()" title="Type a purchase receipt in by hand (works offline)">Enter by hand</button></div>
                     </div>
                     <p style="font-size:12px; color:var(--text-light); margin:0 0 10px;">Separate from your main inventory. Only stock from scanned receipts is counted here (owners only).</p>
+                    <div id="scn-sync-note" style="display:none;font-size:12px;margin:0 0 10px;padding:8px 10px;border-radius:8px;background:rgba(255,193,7,.15);border:1px solid #e0a800;"></div>
                     <div style="display:flex;gap:8px;margin:0 0 12px;"><button type="button" class="btn btn-small" id="scn-tab-stock" onclick="scnTab('stock')">Stock</button><button type="button" class="btn btn-small" id="scn-tab-purchases" onclick="scnTab('purchases')" style="background:#4a4e63;opacity:.75;">Purchase receipts</button><button type="button" class="btn btn-small" id="scn-tab-sales" onclick="scnTab('sales')" style="background:#4a4e63;opacity:.75;">Sales receipts</button></div>
                     <div id="scn-pane-stock"><table>
                         <thead><tr><th>Item</th><th class="num">Quantity</th><th class="num">Last cost</th><th class="num">Value</th></tr></thead>
@@ -3300,6 +3301,9 @@
                     currentBranchId = lastIdentity.branchId || null;
                     accessibleBranches = lastIdentity.accessibleBranches || [];
                     syncWriteBranchId();
+                    // Offline start: Premium was not re-checked, use what this device saw last time online.
+                    try { currentPlanPremium = localStorage.getItem('neba_erp_premium_' + currentTenantId) === '1'; } catch (e) { }
+                    if (window.scnShowNav) window.scnShowNav();
                 }
                 const cached = loadCachedStateLocally();
                 if (cached) {
@@ -3407,11 +3411,13 @@
                     const pr = await supabaseClient.from('subscription_plans').select('*').eq('id', biz.subscription_plan_id).maybeSingle();
                     // Premium = plan marked is_premium, OR any plan whose name contains "premium".
                     currentPlanPremium = !!(pr.data && (pr.data.is_premium || /premium/i.test(pr.data.name || '')));
+                    try { localStorage.setItem('neba_erp_premium_' + currentTenantId, currentPlanPremium ? '1' : '0'); } catch (e) { }
                 } catch (e) { currentPlanPremium = false; }
             } else {
                 currentPlanMaxBranches = null;
                 currentPlanMaxEmployees = null;
                 currentPlanPremium = false;
+                try { localStorage.setItem('neba_erp_premium_' + currentTenantId, '0'); } catch (e) { }
             }
             if (window.scnShowNav) window.scnShowNav();
             setTimeout(() => { try { if (currentPlanPremium && window.scnEnsure) window.scnEnsure().catch(() => { }); } catch (e) { } }, 4000); // keep matches ready for offline selling
@@ -11593,11 +11599,29 @@
             $('scn-total').textContent = 'ETB ' + money(tot);
         }
         async function load() {
-            const { data, error } = await supabaseClient.from('scanned_stock_items').select('*').eq('tenant_id', currentTenantId).order('name');
-            if (error) { $('scn-body').innerHTML = '<tr><td colspan="4" style="color:#c0392b;">Could not load: ' + esc(error.message) + '</td></tr>'; return; }
+            if (navigator.onLine && window.scnFlush) { try { await window.scnFlush(); } catch (e) { } } // send anything saved while offline first
+            let data = null, error = null;
+            if (navigator.onLine) {
+                try { const r = await supabaseClient.from('scanned_stock_items').select('*').eq('tenant_id', currentTenantId).order('name'); data = r.data; error = r.error; } catch (e) { error = e; }
+            } else error = { message: 'offline' };
+            if (error) {
+                const net = !navigator.onLine || /fetch|network|timeout|load failed|offline/i.test(String((error && error.message) || error));
+                const c = net && window.scnCachedItems ? window.scnCachedItems() : null;
+                if (c) { // offline: show the copy kept on this device (it already includes changes made offline)
+                    rows = c; applyOrder(); render(); initDrag();
+                    if (window.scnSyncNote) window.scnSyncNote();
+                    if (window.scnAfterLoad) window.scnAfterLoad(rows, true);
+                    return;
+                }
+                $('scn-body').innerHTML = net ? '<tr><td colspan="4" style="text-align:center;color:var(--text-light);">You are offline and nothing is saved on this device yet. Open Scanned Stock once while online.</td></tr>' : '<tr><td colspan="4" style="color:#c0392b;">Could not load: ' + esc(error.message) + '</td></tr>';
+                if (window.scnSyncNote) window.scnSyncNote();
+                return;
+            }
             rows = data || [];
+            if (window.scnSetStockCache) rows = window.scnSetStockCache(rows) || rows; // keep a copy for offline use
             applyOrder(); render(); initDrag();
-            if (window.scnAfterLoad) window.scnAfterLoad(rows);
+            if (window.scnSyncNote) window.scnSyncNote();
+            if (window.scnAfterLoad) window.scnAfterLoad(rows, false);
         }
         async function saveOrder() {
             const ids = [...document.querySelectorAll('#scn-body tr[data-item-id]')].map(r => r.dataset.itemId);
@@ -11605,6 +11629,7 @@
             rows.forEach(r => { if (pos.has(r.id)) r.sort_order = pos.get(r.id); });
             applyOrder(); render();
             try { localStorage.setItem(localOrderKey(), JSON.stringify(ids)); } catch (e) { }
+            if (!navigator.onLine) return; // offline: the order stays on this device
             try {
                 const { error } = await supabaseClient.rpc('scanned_set_order', { p_tenant: currentTenantId, p_ids: ids });
                 if (error) throw error;
@@ -11846,6 +11871,10 @@
         }
         window.scnPickFile = async input => {
             const files = Array.from(input.files || []); input.value = ''; if (!files.length || reading || busy) return;
+            if (!navigator.onLine) { // reading a photo needs the internet: give a blank form per photo to type in
+                queue = files.map(() => { const d = blank(); d.error = 'No internet, so this receipt cannot be read automatically. Type it in from the paper receipt. It is saved on this device and sent when the internet is back.'; return { draft: d, ok: false }; });
+                qTotal = files.length; qIdx = 0; await showNext(); return;
+            }
             reading = true; queue = []; qTotal = files.length; qIdx = 0;
             try {
                 let next = 0, done = 0; const results = new Array(files.length);
@@ -11858,6 +11887,7 @@
             await showNext();
         };
         window.scnSkip = () => { draft = null; showNext(); };
+        window.scnManual = async () => { if (reading || busy) return; queue = [{ draft: blank(), ok: false }]; qTotal = 1; qIdx = 0; await showNext(); };
         window.scnHead = (k, v) => { draft[k] = v; };
         window.scnRow = (i, k, v) => { draft.items[i][k] = v; if (k === 'pack') delete draft.items[i].packFrom; if (k === 'qty' || k === 'price') draft.items[i].amount = ''; }; // edited qty/price -> line amount is recalculated on save
         window.scnAdd = () => { draft.items.push({ name: '', qty: 1, unit: '', price: '', pack: 1, links: [] }); review(); };
@@ -11874,43 +11904,25 @@
             busy = true; const btn = $('scn-confirm'); btn.disabled = true; btn.textContent = 'Saving…';
             try {
                 const tid = currentTenantId;
-                // 1) audit copy of the receipt (text only, no photo)
+                // audit copy of the receipt (text only, no photo)
                 const recRow = {
                     tenant_id: tid, merchant: d.merchant || null, merchant_tin: d.tin || null, receipt_no: d.no || null, receipt_date: d.date || null,
                     before_vat: d.before === '' ? null : num(d.before), vat: d.vat === '' ? null : num(d.vat), total: d.total === '' ? null : num(d.total),
                     items: items.map(i => ({ name: i.name.trim(), stock_name: stockName(i), qty: num(i.qty), unit: i.unit || null, unit_price: i.price === '' ? null : num(i.price), pcs_per_unit: Math.max(1, num(i.pack) || 1), matches: (i.links || []).map(L => L.name), amount: (i.amount === '' || i.amount == null) ? (i.price === '' ? null : r2(num(i.qty) * num(i.price))) : num(i.amount) }))
                 };
                 // layout = the extra printed lines (title, time, header/footer text) so the saved copy looks like the paper.
-                // If the column has not been added yet (migration-receipt-layout.sql), save without it.
                 const lay = d.layout && (d.layout.title || d.layout.time || (d.layout.header || []).length || (d.layout.footer || []).length) ? d.layout : null;
-                let rec = await supabaseClient.from('scanned_receipts').insert(lay ? { ...recRow, layout: lay } : recRow);
-                if (rec.error && lay) rec = await supabaseClient.from('scanned_receipts').insert(recRow);
-                if (rec.error) throw rec.error;
+                // Everything needed to save it, kept together so it can also wait on this device when there is no internet.
+                const pkg = {
+                    tid, recRow, lay, createdAt: new Date().toISOString(),
+                    items: items.map(it => {
+                        const pack = Math.max(1, num(it.pack) || 1), unit = (it.unit || '').trim(), nm = stockName(it);
+                        return { name: nm, key: scnNameKey(nm), unit, pack, base_unit: pack > 1 ? 'pcs' : (unit || 'pcs'), baseQty: num(it.qty) * pack, baseCost: it.price === '' ? null : r2(num(it.price) / pack),
+                            links: (it.links || []).map(x => ({ inv_key: scnNameKey(x.comp), inv_name: x.name, mult: num(x.mult) || 1 })) };
+                    })
+                };
+                await window.scnSavePurchase(pkg); // saves now, or keeps it on this device and sends it later
                 window.scnVatStamp = 0;
-                // 2) add to scanned stock (same cleaned name = same row)
-                const keys = [...new Set(items.map(i => scnNameKey(stockName(i))))];
-                const ex = await supabaseClient.from('scanned_stock_items').select('*').eq('tenant_id', tid).in('name_key', keys);
-                if (ex.error) throw ex.error;
-                const map = new Map((ex.data || []).map(e => [e.name_key, e]));
-                for (const it of items) {
-                    const key = scnNameKey(stockName(it)), pack = Math.max(1, num(it.pack) || 1), unit = (it.unit || '').trim();
-                    const baseQty = num(it.qty) * pack, baseCost = it.price === '' ? null : r2(num(it.price) / pack), cur = map.get(key);
-                    const units = cur ? [...(cur.units || [])] : [];
-                    if (pack > 1 && unit && !units.some(u => u.unit.toLowerCase() === unit.toLowerCase())) units.push({ unit, base_qty: pack });
-                    let res;
-                    if (cur) {
-                        res = await supabaseClient.from('scanned_stock_items').update({ qty: num(cur.qty) + baseQty, last_cost: baseCost ?? cur.last_cost, units, updated_at: new Date().toISOString() }).eq('id', cur.id).select().single();
-                    } else {
-                        res = await supabaseClient.from('scanned_stock_items').insert({ tenant_id: tid, name: stockName(it), name_key: key, base_unit: pack > 1 ? 'pcs' : (unit || 'pcs'), units, qty: baseQty, last_cost: baseCost }).select().single();
-                    }
-                    if (res.error) throw res.error;
-                    map.set(key, res.data);
-                }
-                // remember the inventory matches (never blocks saving)
-                try {
-                    const L = []; items.forEach(it => { const st = map.get(scnNameKey(stockName(it))); if (st) (it.links || []).forEach(x => L.push({ tenant_id: tid, inv_key: scnNameKey(x.comp), inv_name: x.name, item_id: String(st.id), mult: num(x.mult) || 1 })); });
-                    if (L.length) { const lr = await supabaseClient.from('scanned_links').upsert(L, { onConflict: 'tenant_id,inv_key,item_id' }); if (lr.error) throw lr.error; }
-                } catch (e) { console.warn('Inventory matches not saved (run premium-and-sales-receipts.sql):', e); }
                 draft = null; await load(); busy = false; await showNext();
             } catch (e) {
                 alert('Could not save: ' + (e.message || e) + '\n\nNothing was lost on your screen — fix it and press Confirm again. If the receipt was already saved, check Scanned Stock before retrying so items are not added twice.');
@@ -11998,29 +12010,141 @@
         let fromCache = false;
         const isNet = e => /fetch|network|timeout|load failed|offline/i.test(String((e && e.message) || e || ''));
         // Runs a database function now; when offline it waits in a queue and is sent later.
-        async function rpcQ(name, args) {
+        // meta (optional) travels with the job: itemKey = stock row made on this device, salLocal = local copy of a sales receipt.
+        async function rpcQ(name, args, meta) {
             if (navigator.onLine) {
                 try { const r = await supabaseClient.rpc(name, args); if (!r.error) return { data: r.data }; if (!isNet(r.error)) return { error: r.error }; } catch (e) { if (!isNet(e)) return { error: e }; }
             }
-            const q = store.get('neba_scn_q_', []); q.push({ name, args, n: 0 }); store.set('neba_scn_q_', q);
+            const q = store.get('neba_scn_q_', []); q.push({ name, args, n: 0, meta: meta || null }); store.set('neba_scn_q_', q);
             return { queued: true };
         }
         let flushing = false;
         async function flushQ() {
             if (flushing || !navigator.onLine || !currentTenantId) return; flushing = true;
+            let did = 0;
             try {
+                did += await flushPurchases(); // scanned purchase receipts first: sales jobs below may point at their stock rows
                 let q = store.get('neba_scn_q_', []);
                 while (q.length) {
-                    const j = q[0]; let r;
-                    try { r = await supabaseClient.rpc(j.name, j.args); } catch (e) { r = { error: e }; }
+                    const j = q[0]; let r; const a = j.args || {};
+                    if (typeof a.p_item_id === 'string' && a.p_item_id.indexOf('local-') === 0) {
+                        // this stock row was made on this device while offline: find its real id now
+                        let found = null, netFail = false;
+                        try { const rr = await supabaseClient.from('scanned_stock_items').select('id').eq('tenant_id', a.p_tenant).eq('name_key', (j.meta && j.meta.itemKey) || '').limit(1); if (rr.error) { if (isNet(rr.error)) netFail = true; } else found = (rr.data || [])[0]; } catch (e) { netFail = true; }
+                        if (netFail) break;
+                        if (found) a.p_item_id = String(found.id); else r = { error: { message: 'stock item not synced yet' } };
+                    }
+                    if (!r) { try { r = await supabaseClient.rpc(j.name, j.args); } catch (e) { r = { error: e }; } }
                     if (r.error && isNet(r.error)) break;
                     if (r.error && ++j.n < 3) { q.push(q.shift()); store.set('neba_scn_q_', q); if (q.every(x => x.n >= 1) && q.length === 1) break; continue; }
-                    q.shift(); store.set('neba_scn_q_', q);
+                    if (!r.error && j.meta && j.meta.salLocal) dropPendingSal(j.meta.salLocal);
+                    q.shift(); store.set('neba_scn_q_', q); did++;
                 }
             } finally { flushing = false; }
+            if (did) afterSync();
         }
+        // After something was sent: refresh the Scanned Stock page and the VAT box with the real data.
+        function afterSync() {
+            try { window.scnVatStamp = 0; if (window.scnVatEnsure) window.scnVatEnsure(true); } catch (e) { }
+            try { const v = $('view-scanned'); if (v && v.classList.contains('active') && window.scnReload) window.scnReload(); else syncNote(); } catch (e) { }
+        }
+
+        // ---------- scanned purchase receipts saved while offline ----------
+        const PPK = 'neba_scn_pp_', PSK = 'neba_scn_psal_';
+        const dropPendingSal = id => store.set(PSK, store.get(PSK, []).filter(x => x.id !== id));
+        // Saves one purchase receipt to the database. prog remembers what is already done, so a retry never adds anything twice.
+        async function doPurchase(pk, prog, persist) {
+            const tid = pk.tid, save = () => { try { persist && persist(); } catch (e) { } };
+            if (!prog.rec) {
+                let rec = await supabaseClient.from('scanned_receipts').insert(pk.lay ? { ...pk.recRow, layout: pk.lay } : pk.recRow);
+                if (rec.error && pk.lay && !isNet(rec.error)) rec = await supabaseClient.from('scanned_receipts').insert(pk.recRow); // layout column not added yet
+                if (rec.error) throw rec.error;
+                prog.rec = true; save();
+            }
+            prog.items = prog.items || [];
+            for (let i = 0; i < pk.items.length; i++) {
+                if (prog.items[i]) continue;
+                const it = pk.items[i];
+                const ex = await supabaseClient.from('scanned_stock_items').select('*').eq('tenant_id', tid).eq('name_key', it.key).limit(1);
+                if (ex.error) throw ex.error;
+                const cur = (ex.data || [])[0], units = cur ? [...(cur.units || [])] : [];
+                if (it.pack > 1 && it.unit && !units.some(u => String(u.unit).toLowerCase() === it.unit.toLowerCase())) units.push({ unit: it.unit, base_qty: it.pack });
+                const res = cur
+                    ? await supabaseClient.from('scanned_stock_items').update({ qty: num(cur.qty) + it.baseQty, last_cost: it.baseCost ?? cur.last_cost, units, updated_at: new Date().toISOString() }).eq('id', cur.id).select().single()
+                    : await supabaseClient.from('scanned_stock_items').insert({ tenant_id: tid, name: it.name, name_key: it.key, base_unit: it.base_unit, units, qty: it.baseQty, last_cost: it.baseCost }).select().single();
+                if (res.error) throw res.error;
+                prog.items[i] = String(res.data.id); save();
+            }
+            if (!prog.links) {
+                // remember the inventory matches (never blocks saving, except when the connection drops)
+                try {
+                    const L = []; pk.items.forEach((it, i) => it.links.forEach(x => L.push({ tenant_id: tid, inv_key: x.inv_key, inv_name: x.inv_name, item_id: String(prog.items[i]), mult: x.mult })));
+                    if (L.length) { const lr = await supabaseClient.from('scanned_links').upsert(L, { onConflict: 'tenant_id,inv_key,item_id' }); if (lr.error) throw lr.error; }
+                } catch (e) { if (isNet(e)) throw e; console.warn('Inventory matches not saved (run premium-and-sales-receipts.sql):', e); }
+                prog.links = true; save();
+            }
+        }
+        // Shows a waiting purchase receipt in the stock list right away (the same way offline sales already take stock off).
+        function applyLocal(pk, prog, noSave) {
+            if (!items.length) loadCache();
+            pk.items.forEach((it, i) => {
+                if (prog && prog.items && prog.items[i]) return; // this line already reached the database
+                let row = items.find(x => x.name_key === it.key);
+                if (row) {
+                    row.qty = num(row.qty) + it.baseQty; if (it.baseCost != null) row.last_cost = it.baseCost;
+                    if (it.pack > 1 && it.unit && !(row.units || []).some(u => String(u.unit).toLowerCase() === it.unit.toLowerCase())) row.units = [...(row.units || []), { unit: it.unit, base_qty: it.pack }];
+                } else {
+                    row = { id: 'local-' + it.key, tenant_id: pk.tid, name: it.name, name_key: it.key, base_unit: it.base_unit, units: (it.pack > 1 && it.unit) ? [{ unit: it.unit, base_qty: it.pack }] : [], qty: it.baseQty, last_cost: it.baseCost, created_at: pk.createdAt, _local: true };
+                    items.push(row);
+                }
+                it.links.forEach(x => { const a = linkMap.get(x.inv_key) || []; if (!a.some(y => String(y.item_id) === String(row.id))) { a.push({ inv_key: x.inv_key, inv_name: x.inv_name, item_id: String(row.id), mult: x.mult }); linkMap.set(x.inv_key, a); } });
+            });
+            if (!noSave) saveCache();
+        }
+        const mergePP = (mine, seen) => { const cur = store.get(PPK, []); return [...mine, ...cur.filter(x => !seen.some(y => y.uid === x.uid))]; };
+        async function flushPurchases() {
+            const q = store.get(PPK, []); if (!q.length) return 0;
+            const keep = []; let did = 0;
+            for (let i = 0; i < q.length; i++) {
+                const j = q[i];
+                try { await doPurchase(j.pk, j.prog, () => store.set(PPK, mergePP([...keep, ...q.slice(i)], q))); did++; }
+                catch (e) { j.err = String((e && e.message) || e); keep.push(j); if (isNet(e)) { keep.push(...q.slice(i + 1)); break; } }
+            }
+            store.set(PPK, mergePP(keep, q));
+            return did;
+        }
+        // Called by the Review window. Saves now; with no internet (or if it drops) keeps it on this device and sends it later.
+        window.scnSavePurchase = async pk => {
+            const prog = {};
+            if (navigator.onLine) {
+                try { await doPurchase(pk, prog); return { done: true }; } catch (e) { if (!isNet(e)) throw e; }
+            }
+            const uid = Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+            const q = store.get(PPK, []); q.push({ uid, pk, prog, err: '' }); store.set(PPK, q);
+            applyLocal(pk, prog);
+            // count it in the Estimated VAT straight away
+            try { const r = pk.recRow; if (r.total != null && window.scnVatReceipts) { window.scnVatReceipts.push({ id: 'local-' + uid, merchant: r.merchant, receiptNo: r.receipt_no, total: r.total, date: /^\d{4}-\d{2}-\d{2}$/.test(r.receipt_date || '') ? r.receipt_date : String(pk.createdAt).slice(0, 10) }); if (typeof refreshVatBox === 'function') refreshVatBox(); } } catch (e) { }
+            syncNote();
+            return { queued: true };
+        };
+        const pendingPur = () => store.get(PPK, []).filter(x => !(x.prog && x.prog.rec));
+        // The yellow note on the Scanned Stock page: offline, or things waiting to be sent.
+        function syncNote() {
+            const el = $('scn-sync-note'); if (!el) return;
+            const pp = store.get(PPK, []), q = store.get('neba_scn_q_', []), bad = pp.filter(x => x.err), parts = [];
+            if (!navigator.onLine) parts.push('You are offline. This page shows the copy saved on this device.');
+            if (pp.length) parts.push(pp.length + ' scanned receipt(s) saved on this device, waiting to be sent.');
+            if (q.length) parts.push(q.length + ' change(s) from printed sales waiting to be sent.');
+            if (bad.length && navigator.onLine) parts.push('A receipt could not be sent yet (' + bad[0].err + '). It will be tried again.');
+            el.style.display = parts.length ? '' : 'none'; el.textContent = parts.join(' ');
+        }
+        window.scnSyncNote = syncNote;
+        window.addEventListener('offline', syncNote);
+        // device copy of the stock list, for the Scanned Stock page when offline
+        window.scnCachedItems = () => { const c = store.get('neba_scn_cache_', null); return c && c.items ? c.items.map(x => ({ ...x })) : null; };
+        window.scnSetStockCache = rs => { items = rs.map(x => ({ ...x })); store.get(PPK, []).forEach(x => applyLocal(x.pk, x.prog, true)); saveCache(); return items.map(x => ({ ...x })); };
         window.scnRpcQ = rpcQ; window.scnFlush = flushQ;
-        window.addEventListener('online', () => { flushQ(); });
+        window.addEventListener('online', () => { syncNote(); flushQ(); });
         setInterval(flushQ, 60000);
         function saveCache() {
             store.set('neba_scn_cache_', { items, aliases: [...aliasMap.values()], links: [].concat(...[...linkMap.values()]) });
@@ -12052,6 +12176,7 @@
                         aliasMap = new Map((d.aliases || []).map(x => [x.alias_key, x]));
                     }
                     await loadLinks(tid);
+                    store.get(PPK, []).forEach(x => applyLocal(x.pk, x.prog, true)); // receipts still waiting to be sent
                     saveCache();
                     return;
                 } catch (e) { if (!isNet(e)) throw e; }
@@ -12155,7 +12280,7 @@
                     const r = await rpcQ('scanned_apply_sale', {
                         p_tenant: tid, p_sale_ref: String(l._rowId), p_desc: l.desc, p_desc_key: key(l.desc),
                         p_item_id: item ? item.id : null, p_qty: num(l.qty), p_mult: item ? (s.mult || 1) : 1,
-                        p_unit_price: num(l.unit), p_sold_unit: s.unit || null, p_skip: skip });
+                        p_unit_price: num(l.unit), p_sold_unit: s.unit || null, p_skip: skip }, item ? { itemKey: item.name_key } : null);
                     if (r.error) throw r.error;
                     let nm = r.data && r.data.name;
                     if (r.queued && item) { nm = item.name; item.qty = num(item.qty) - num(l.qty) * (s.mult || 1); saveCache(); }  // offline: stock is updated here now, in the database later
@@ -12164,7 +12289,7 @@
                     if (item && !l.auto && !(linkMap.get(key(l.desc)) || []).some(x => String(x.item_id) === String(item.id))) {
                         const lk = { inv_key: key(l.desc), inv_name: String(l.desc).replace(/^\[[^\]]*\]\s*/, ''), item_id: String(item.id), mult: s.mult || 1 };
                         (linkMap.get(lk.inv_key) || (linkMap.set(lk.inv_key, []), linkMap.get(lk.inv_key))).push(lk); saveCache();
-                        rpcQ('scanned_link_add', { p_tenant: tid, p_inv_key: lk.inv_key, p_inv_name: lk.inv_name, p_item_id: lk.item_id, p_mult: lk.mult });
+                        rpcQ('scanned_link_add', { p_tenant: tid, p_inv_key: lk.inv_key, p_inv_name: lk.inv_name, p_item_id: lk.item_id, p_mult: lk.mult }, { itemKey: item.name_key });
                     }
                 } catch (e) { failed = failed || e; }
             }
@@ -12309,6 +12434,7 @@
         }
         // ---------- scanned purchase receipts -> Estimated VAT on the dashboard (owners only) ----------
         let vatBusy = null;
+        const pendingVat = () => pendingPur().map(x => { const r = x.pk.recRow; return { id: 'local-' + x.uid, merchant: r.merchant, receiptNo: r.receipt_no, total: r.total, date: /^\d{4}-\d{2}-\d{2}$/.test(r.receipt_date || '') ? r.receipt_date : String(x.pk.createdAt).slice(0, 10) }; }).filter(r => r.total != null);
         window.scnVatReceipts = window.scnVatReceipts || [];
         window.scnVatEnsure = force => {
             if (typeof currentIsOwner === 'undefined' || !currentIsOwner || !currentPlanPremium) return Promise.resolve();
@@ -12324,10 +12450,14 @@
                         (r.data || []).forEach(x => out.push({ id: x.id, merchant: x.merchant, receiptNo: x.receipt_no, total: x.total == null ? null : parseFloat(x.total), date: /^\d{4}-\d{2}-\d{2}$/.test(x.receipt_date || '') ? x.receipt_date : String(x.created_at || '').slice(0, 10) }));
                         if ((r.data || []).length < 1000) break;
                     }
-                    window.scnVatReceipts = out;
+                    store.set('neba_scn_vat_', out);
+                    window.scnVatReceipts = out.concat(pendingVat());
                     try { const v = await supabaseClient.rpc('receipt_voided_list', { p_tenant: currentTenantId }); window.rcVoided = new Set(v.error ? [] : (v.data || []).map(String)); } catch (e) { window.rcVoided = new Set(); }
                     try { refreshVatBox(); } catch (e) { }
-                } catch (e) { console.warn('Scanned receipts for VAT not loaded:', e); }
+                } catch (e) {
+                    console.warn('Scanned receipts for VAT not loaded:', e);
+                    if (!(window.scnVatReceipts || []).length) { window.scnVatReceipts = store.get('neba_scn_vat_', []).concat(pendingVat()); try { refreshVatBox(); } catch (e2) { } } // offline: use the device copy
+                }
                 finally { window.scnVatStamp = Date.now(); vatBusy = null; }
             })();
             return vatBusy;
@@ -12358,7 +12488,7 @@
             }).join('');
             const date = x.receipt_date || String(x.created_at || '').slice(0, 10);
             const lines = a => (a || []).map(t => `<div class="sp-c">${esc(t)}</div>`).join('');
-            return `<div class="scn-paper"><button type="button" class="scn-del" title="Delete this receipt" onclick="scnDelPur('${esc(x.id)}')">&minus;</button>
+            return `<div class="scn-paper">${x._pending ? '<div class="sp-s" style="text-align:right;color:#b8860b;">waiting to be sent</div>' : `<button type="button" class="scn-del" title="Delete this receipt" onclick="scnDelPur('${esc(x.id)}')">&minus;</button>`}
                 <div class="sp-c sp-b sp-m">${esc(x.merchant || 'Unknown merchant')}</div>
                 ${x.merchant_tin ? `<div class="sp-c">TIN: ${esc(x.merchant_tin)}</div>` : ''}
                 ${lines(lay.header)}
@@ -12376,30 +12506,50 @@
                 <div class="sp-c sp-s">scanned copy</div>
             </div>`;
         }
-        window.scnAfterLoad = async rows => {
-            const tid = currentTenantId, w = $('scn-waiting'), rc = $('scn-receipts');
-            try {
-                const cutoff = rows.length ? rows.map(r => r.created_at).sort()[0].slice(0, 10) : null;
-                const cand = cutoff ? (state.salesLog || []).filter(r => r.vatIncluded && r.date >= cutoff).slice(-300) : [];
-                let waiting = [];
-                if (cand.length) {
-                    const led = await supabaseClient.from('scanned_stock_pending').select('sale_ref').eq('tenant_id', tid).in('sale_ref', cand.map(r => r.id));
-                    const had = new Set((led.data || []).map(x => x.sale_ref));
-                    waiting = cand.filter(r => !had.has(r.id));
-                }
-                w.innerHTML = waiting.length ? `<div style="background:rgba(255,193,7,.15);border:1px solid #e0a800;border-radius:8px;padding:10px;"><b>${waiting.length} VAT sale line(s) waiting</b> to be matched (printed receipts are matched automatically).
-                    <div style="font-size:12px;margin:6px 0;">${waiting.slice(-8).map(r => esc(r.date) + ' · ' + esc(r.desc) + ' × ' + esc(r.qty)).join('<br>')}</div>
-                    <button type="button" class="btn btn-small" id="scn-wbtn">Match now</button></div>` : '';
-                const b = $('scn-wbtn'); if (b) b.onclick = () => openMatch(waiting.map(r => ({ _rowId: r.id, desc: r.desc, qty: r.qty, unit: r.price })), null);
-            } catch (e) { w.innerHTML = ''; }
+        window.scnAfterLoad = async (rows, offline) => {
+            const tid = currentTenantId, w = $('scn-waiting'), online = navigator.onLine && !offline;
+            if (online) {
+                try {
+                    const cutoff = rows.length ? rows.map(r => r.created_at).filter(Boolean).sort()[0] : null;
+                    const cand = cutoff ? (state.salesLog || []).filter(r => r.vatIncluded && r.date >= cutoff.slice(0, 10)).slice(-300) : [];
+                    let waiting = [];
+                    if (cand.length) {
+                        const led = await supabaseClient.from('scanned_stock_pending').select('sale_ref').eq('tenant_id', tid).in('sale_ref', cand.map(r => r.id));
+                        if (led.error) throw led.error; // never treat a failed lookup as "nothing matched yet"
+                        const had = new Set((led.data || []).map(x => x.sale_ref));
+                        waiting = cand.filter(r => !had.has(r.id));
+                    }
+                    w.innerHTML = waiting.length ? `<div style="background:rgba(255,193,7,.15);border:1px solid #e0a800;border-radius:8px;padding:10px;"><b>${waiting.length} VAT sale line(s) waiting</b> to be matched (printed receipts are matched automatically).
+                        <div style="font-size:12px;margin:6px 0;">${waiting.slice(-8).map(r => esc(r.date) + ' · ' + esc(r.desc) + ' × ' + esc(r.qty)).join('<br>')}</div>
+                        <button type="button" class="btn btn-small" id="scn-wbtn">Match now</button></div>` : '';
+                    const b = $('scn-wbtn'); if (b) b.onclick = () => openMatch(waiting.map(r => ({ _rowId: r.id, desc: r.desc, qty: r.qty, unit: r.price })), null);
+                } catch (e) { w.innerHTML = ''; }
+            } else w.innerHTML = '';
             // Purchase receipts (scanned copies) and sales receipts (as printed): load, then draw with the date filter.
-            const pr = await supabaseClient.from('scanned_receipts').select('*').eq('tenant_id', tid).order('created_at', { ascending: false }).limit(500);
-            purErr = !!pr.error; purRows = pr.data || [];
-            const sr = await supabaseClient.from('scanned_sales_receipts').select('id,created_at,doc_type,doc_number,sale_date,customer,total,html,lines').eq('tenant_id', tid).order('created_at', { ascending: false }).limit(300);
-            salErr = sr.error ? sr.error.message : ''; salRows = (sr.data || []).filter(x => x.doc_type !== 'invoice');
+            // Offline (or if the connection drops) the copies kept on this device are shown.
+            let live = false;
+            if (online) {
+                const netFail = x => x.error && isNet(x.error);
+                let pr = { error: { message: 'offline' } }, sr = pr;
+                try {
+                    pr = await supabaseClient.from('scanned_receipts').select('*').eq('tenant_id', tid).order('created_at', { ascending: false }).limit(500);
+                    sr = await supabaseClient.from('scanned_sales_receipts').select('id,created_at,doc_type,doc_number,sale_date,customer,total,html,lines').eq('tenant_id', tid).order('created_at', { ascending: false }).limit(300);
+                } catch (e) { pr = sr = { error: e }; }
+                if (!netFail(pr) && !netFail(sr)) {
+                    live = true;
+                    purErr = !!pr.error; purRows = pr.data || [];
+                    salErr = sr.error ? sr.error.message : ''; salRows = (sr.data || []).filter(x => x.doc_type !== 'invoice');
+                    if (!pr.error && !sr.error) store.set('neba_scn_rc_', { pur: purRows.slice(0, 60), sal: salRows.slice(0, 40) }); // device copy (newest only, to stay small)
+                }
+            }
+            if (!live) { const c = store.get('neba_scn_rc_', null); purErr = false; salErr = ''; purRows = (c && c.pur) || []; salRows = (c && c.sal) || []; }
+            syncNote();
             window.scnRenderReceipts();
         };
         let purRows = [], salRows = [], purErr = false, salErr = '';
+        // Receipts saved on this device while offline are shown together with the ones from the database.
+        const allPur = () => [...pendingPur().map(x => { const r = x.pk.recRow; return { id: 'local-' + x.uid, merchant: r.merchant, merchant_tin: r.merchant_tin, receipt_no: r.receipt_no, receipt_date: r.receipt_date, before_vat: r.before_vat, vat: r.vat, total: r.total, items: r.items, layout: x.pk.lay, created_at: x.pk.createdAt, _pending: true }; }), ...purRows];
+        const allSal = () => [...store.get(PSK, []), ...salRows];
         if (!document.getElementById('scn-filter-css')) {
             const st = document.createElement('style'); st.id = 'scn-filter-css';
             st.textContent = `.scn-del{background:none;border:0;color:#d0021b;font-size:26px;font-weight:700;line-height:1;cursor:pointer;padding:0 6px;box-shadow:none;}.scn-paper .scn-del{position:absolute;top:2px;right:4px;z-index:2;}.scn-filter{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 12px;font-size:13px;}.scn-filter input{width:auto;}
@@ -12418,16 +12568,16 @@
         window.scnRenderReceipts = () => {
             const rc = $('scn-receipts'), sc = $('scn-sales-receipts'); if (!rc || !sc) return;
             const pf = val('scn-p-from'), pt = val('scn-p-to'), sf = val('scn-s-from'), st = val('scn-s-to');
-            const pl = purRows.filter(x => inRange(isoDay(x.receipt_date) || String(x.created_at || '').slice(0, 10), pf, pt));
-            rc.innerHTML = purErr ? '<span style="color:#c0392b;">Could not load receipts.</span>' : pl.length ? '<div class="scn-papers">' + pl.map(paperCard).join('') + '</div>' : '<span style="color:var(--text-light);font-size:13px;">' + (purRows.length ? 'No receipts in these dates.' : 'No receipts saved yet.') + '</span>';
-            const sl = salRows.filter(x => inRange(isoDay(x.sale_date) || String(x.created_at || '').slice(0, 10), sf, st));
+            const pl = allPur().filter(x => inRange(isoDay(x.receipt_date) || String(x.created_at || '').slice(0, 10), pf, pt));
+            rc.innerHTML = purErr ? '<span style="color:#c0392b;">Could not load receipts.</span>' : pl.length ? '<div class="scn-papers">' + pl.map(paperCard).join('') + '</div>' : '<span style="color:var(--text-light);font-size:13px;">' + (allPur().length ? 'No receipts in these dates.' : 'No receipts saved yet.') + '</span>';
+            const sl = allSal().filter(x => inRange(isoDay(x.sale_date) || String(x.created_at || '').slice(0, 10), sf, st));
             sc.innerHTML = salErr ? '<span style="color:#c0392b;">Could not load sales receipts. Run premium-and-sales-receipts.sql in Supabase (one time).</span>'
                 : sl.length ? '<div class="scn-sal-grid">' + sl.map(x => `<div class="scn-sal ${x.doc_type === 'invoice' ? 'inv' : ''}" style="${x.doc_type === 'invoice' ? 'max-width:620px;' : ''}">
-                    <div class="scn-sal-h"><span>${esc(fmtDate(isoDay(x.sale_date) || String(x.created_at || '').slice(0, 10)))}</span><span>Receipt ${esc(x.doc_number || '')}<button type="button" class="scn-del" title="Delete this receipt" onclick="scnDelSale('${esc(x.id)}')">&minus;</button></span></div>
+                    <div class="scn-sal-h"><span>${esc(fmtDate(isoDay(x.sale_date) || String(x.created_at || '').slice(0, 10)))}</span><span>Receipt ${esc(x.doc_number || '')}${x._pending ? ' <small style="color:#b8860b;">waiting to be sent</small>' : `<button type="button" class="scn-del" title="Delete this receipt" onclick="scnDelSale('${esc(x.id)}')">&minus;</button>`}</span></div>
                     <div class="scn-sal-w" data-w="${x.doc_type === 'invoice' ? 794 : 300}"><iframe data-i="${esc(x.id)}" scrolling="no" sandbox="allow-same-origin"></iframe></div></div>`).join('') + '</div>'
-                : '<span style="color:var(--text-light);font-size:13px;">' + (salRows.length ? 'No sales receipts in these dates.' : 'No printed sales receipts saved yet.') + '</span>';
+                : '<span style="color:var(--text-light);font-size:13px;">' + (allSal().length ? 'No sales receipts in these dates.' : 'No printed sales receipts saved yet.') + '</span>';
             sc.querySelectorAll('iframe[data-i]').forEach(fr => {
-                const row = salRows.find(r => String(r.id) === fr.dataset.i), wrap = fr.parentElement, W = +wrap.dataset.w;
+                const row = allSal().find(r => String(r.id) === fr.dataset.i), wrap = fr.parentElement, W = +wrap.dataset.w;
                 fr.style.width = W + 'px';
                 fr.onload = () => { try {
                     // under each matched line: a small faded arrow + the item that was really sold
@@ -12447,6 +12597,7 @@
         };
         // ---- delete (the red minus) ----
         window.scnDelPur = async id => {
+            if (!navigator.onLine) return alert('Connect to the internet to delete a receipt.');
             const row = purRows.find(r => String(r.id) === String(id)); if (!row) return;
             if (!confirm('Delete this purchase receipt?\n\nIts items are taken out of Scanned Stock and its VAT is removed from the Estimated VAT.')) return;
             const del = await supabaseClient.from('scanned_receipts').delete().eq('id', row.id).eq('tenant_id', currentTenantId);
@@ -12465,6 +12616,7 @@
             window.scnVatEnsure(true); if (window.scnReload) window.scnReload();
         };
         window.scnDelSale = async id => {
+            if (!navigator.onLine) return alert('Connect to the internet to delete a receipt.');
             const row = salRows.find(r => String(r.id) === String(id)); if (!row) return;
             if (!confirm('Delete this sales receipt?\n\nIt is voided: its VAT is removed from the Estimated VAT, and the sale can be printed again.')) return;
             const ids = [...new Set((state.salesLog || []).flatMap(r => [r.id, r.groupId]).filter(x => x && String(x).slice(-8) === String(row.doc_number)))];
@@ -12478,9 +12630,16 @@
         window.scnSaveSalesReceipt = async (html, d, docType) => {
             if (!currentPlanPremium || !currentTenantId || docType === 'invoice') return; // only receipts are kept here, never invoices
             try {
-                const r = await window.scnRpcQ('scanned_save_sales_receipt', { p_tenant: currentTenantId, p_doc_type: docType === 'invoice' ? 'invoice' : 'receipt', p_doc_number: String(d.docNumber || ''), p_sale_date: isoDay(d.date) || null, p_customer: d.counterpartyName || null, p_total: num(d.total), p_html: html,
-                    p_lines: (d.lines || []).map(l => { const row = (state.salesLog || []).find(x => String(x.id) === String(l._rowId)); return { p: l.desc, o: row ? row.desc : null }; }) });
+                const lid = 'local-sal-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+                const args = { p_tenant: currentTenantId, p_doc_type: docType === 'invoice' ? 'invoice' : 'receipt', p_doc_number: String(d.docNumber || ''), p_sale_date: isoDay(d.date) || null, p_customer: d.counterpartyName || null, p_total: num(d.total), p_html: html,
+                    p_lines: (d.lines || []).map(l => { const row = (state.salesLog || []).find(x => String(x.id) === String(l._rowId)); return { p: l.desc, o: row ? row.desc : null }; }) };
+                const r = await window.scnRpcQ('scanned_save_sales_receipt', args, { salLocal: lid });
                 if (r.error) throw r.error;
+                if (r.queued) { // offline: keep the printed copy here so it already shows under Sales receipts
+                    const ps = store.get(PSK, []).filter(x => String(x.doc_number) !== String(args.p_doc_number));
+                    ps.unshift({ id: lid, doc_type: args.p_doc_type, doc_number: args.p_doc_number, sale_date: args.p_sale_date, customer: args.p_customer, total: args.p_total, html: args.p_html, lines: args.p_lines, created_at: new Date().toISOString(), _pending: true });
+                    store.set(PSK, ps.slice(0, 40)); syncNote();
+                }
                 if (window.scnReload && $('view-scanned') && $('view-scanned').classList.contains('active')) window.scnReload();
             } catch (e) { console.warn('Sales receipt copy not saved (run premium-and-sales-receipts.sql once):', e); }
         };
