@@ -3402,8 +3402,9 @@
                 currentPlanMaxEmployees = planRow ? planRow.max_employees : null;
                 // Separate lookup so a missing is_premium column (SQL not run yet) never breaks the limits above.
                 try {
-                    const pr = await supabaseClient.from('subscription_plans').select('is_premium').eq('id', biz.subscription_plan_id).maybeSingle();
-                    currentPlanPremium = !!(pr.data && pr.data.is_premium);
+                    const pr = await supabaseClient.from('subscription_plans').select('*').eq('id', biz.subscription_plan_id).maybeSingle();
+                    // Premium = plan marked is_premium, OR any plan whose name contains "premium".
+                    currentPlanPremium = !!(pr.data && (pr.data.is_premium || /premium/i.test(pr.data.name || '')));
                 } catch (e) { currentPlanPremium = false; }
             } else {
                 currentPlanMaxBranches = null;

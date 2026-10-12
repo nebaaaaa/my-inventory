@@ -389,7 +389,7 @@
             <td>${p.max_branches ?? '&#8734;'}</td>
             <td>${p.max_employees ?? '&#8734;'}</td>
             <td>${p.price_etb}</td>
-            <td><button class="btn btn-small ${p.is_premium ? 'btn-success' : 'btn-outline'}" title="Premium plans get scanned receipts, stock matching and printed-price editing" onclick="togglePlanPremium('${p.id}', ${!p.is_premium})">${p.is_premium ? 'Premium ✓' : 'Standard'}</button></td>
+            <td><button class="btn btn-small ${p.is_premium ? 'btn-success' : 'btn-outline'}" title="Premium plans get scanned receipts, stock matching and printed-price editing" onclick="togglePlanPremium('${p.id}', ${!p.is_premium})">${(p.is_premium || /premium/i.test(p.name)) ? 'Premium ✓' : 'Standard'}</button></td>
             <td style="text-align:center;"><button class="btn btn-small ${p.is_active ? 'btn-outline' : 'btn-success'}" onclick="togglePlanActive('${p.id}', ${!p.is_active})">${p.is_active ? 'Deactivate' : 'Reactivate'}</button></td>
         </tr>`).join('');
     }
@@ -574,7 +574,7 @@
         document.getElementById('sub-modal-business-name').innerText = biz.businessName;
         document.getElementById('sub-plan-select').innerHTML = plans
             .filter(p => p.is_active || p.id === biz.subscriptionPlanId)
-            .map(p => `<option value="${p.id}" ${p.id === biz.subscriptionPlanId ? 'selected' : ''}>${escHtml(p.name)} — ETB ${p.price_etb}${p.is_active ? '' : ' (inactive)'}</option>`).join('');
+            .map(p => `<option value="${p.id}" ${p.id === biz.subscriptionPlanId ? 'selected' : ''}>${escHtml(p.name)}${(p.is_premium || /premium/i.test(p.name)) ? ' ★ Premium' : ''} — ETB ${p.price_etb}${p.is_active ? '' : ' (inactive)'}</option>`).join('');
         document.getElementById('sub-status-select').value = biz.subscriptionStatus;
         document.getElementById('sub-expiry-input').value = biz.subscriptionExpiresAt ? biz.subscriptionExpiresAt.split('T')[0] : '';
         document.getElementById('sub-notes-input').value = biz.adminNotes || '';
