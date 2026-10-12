@@ -5948,7 +5948,7 @@
             if (!years.includes(vs.year)) years.push(vs.year);
             years.sort((a,b) => b - a);
             const inPeriod = iso => { const p = periodOf(iso); return p.y === vs.year && !(vs.mode === 'month' && p.m !== vs.month); };
-            let matches = state.salesLog.filter(s => s.vatIncluded && shouldCountInCurrentTotals(s.branchId) && inPeriod(s.date)).sort((a,b) => new Date(b.date) - new Date(a.date));
+            let matches = state.salesLog.filter(s => s.vatIncluded && vatSaleActive(s) && shouldCountInCurrentTotals(s.branchId) && inPeriod(s.date)).sort((a,b) => new Date(b.date) - new Date(a.date));
             let pMatches = rAll.filter(r => inPeriod(r.date)).sort((a,b) => new Date(b.date) - new Date(a.date));
             const f2 = n => n.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2});
             let totalSum = matches.reduce((sum, s) => sum + saleVatBase(s), 0);
@@ -8204,6 +8204,8 @@
         // The amount a sale line shows on its printed receipt/invoice. If a "printed price" was
         // set for the line (Buyer Details window on Print) it is printed price x qty, otherwise the
         // real line total. Estimated VAT on the dashboard is worked out from THIS figure.
+        // A sale whose printed receipt was deleted (voided) no longer counts in the Estimated VAT.
+        function vatSaleActive(s) { const v = window.rcVoided; return !(v && (v.has(String(s.id)) || (s.groupId && v.has(String(s.groupId))))); }
         function saleVatBase(s) {
             return (s.printPrice != null && isFinite(s.printPrice)) ? Math.round(s.printPrice * s.qty * 100) / 100 : s.total;
         }
@@ -8225,7 +8227,7 @@
                 if (!map.has(k)) map.set(k, { y: p.y, m: p.m, out: 0, inn: 0, carryIn: 0, net: 0 });
                 return map.get(k);
             };
-            state.salesLog.forEach(s => { if (s.vatIncluded && shouldCountInCurrentTotals(s.branchId)) { const b = saleVatBase(s); slot(per(s.date)).out += b - b / 1.15; } });
+            state.salesLog.forEach(s => { if (s.vatIncluded && vatSaleActive(s) && shouldCountInCurrentTotals(s.branchId)) { const b = saleVatBase(s); slot(per(s.date)).out += b - b / 1.15; } });
             scannedVatReceipts().forEach(r => { slot(per(r.date)).inn += r.total - r.total / 1.15; });
             slot(per(todayISO()));
             const keys = [...map.keys()].sort((a, b) => a - b);
@@ -8623,7 +8625,10 @@
             buyerInfoMaps = buildBuyerInfoMaps();
             document.getElementById('buyer-info-tin').value = existing.tin;
             document.getElementById('buyer-info-name').value = existing.name;
-            document.getElementById('pm-title').textContent = docType === 'invoice' ? 'Print invoice' : 'Print receipt';
+            document.getElementById('pm-title').textContent = docType === 'invoice' ? 'Print invoice (follows the printed receipt)' : 'Print receipt';
+            // An invoice only copies the receipt: buyer details, item names and prices cannot be changed here.
+            const lockBuyer = kind === 'sale' && docType === 'invoice';
+            ['buyer-info-tin', 'buyer-info-name'].forEach(i => { const e = document.getElementById(i); if (e) e.disabled = lockBuyer; });
             const box = document.getElementById('pm-lines'), btn = document.getElementById('pm-print');
             box.innerHTML = ''; btn.disabled = false;
             document.getElementById('buyer-info-modal').classList.add('active');
@@ -8634,7 +8639,7 @@
                     my.hookBusy = true; btn.disabled = true;
                     box.innerHTML = '<div style="font-size:12px; color:var(--text-light); padding:8px 0;">Loading items…</div>';
                     try {
-                        const h = await window.scnPrintHook.prepare(base, box, pmPreviewSoon);
+                        const h = await window.scnPrintHook.prepare(base, box, pmPreviewSoon, docType);
                         if (pm === my) my.hook = h; else if (h && h.dispose) h.dispose();
                     } catch (e) { console.warn(e); if (pm === my) box.innerHTML = ''; }
                     if (pm === my) { my.hookBusy = false; btn.disabled = false; pmPreview(); }
@@ -8692,7 +8697,7 @@
         async function pmLoadRecord(my) {
             try {
                 const r = await supabaseClient.rpc('receipt_print_get', { p_tenant: currentTenantId, p_print_id: String(my.id), p_doc_type: my.docType });
-                my.rec = r.error ? null : (r.data || null);   // if the SQL isn't installed yet, printing stays unrestricted
+                my.rec = r.error ? null : ((r.data && !r.data.voided) ? r.data : null);   // if the SQL isn't installed yet, printing stays unrestricted
             } catch (e) { my.rec = null; }
             my.recLoaded = true;
             if (pm === my) pmGateRefresh();
@@ -11817,6 +11822,7 @@
         // Show the tab only to owners, and load data when it opens.
         window.scnTab = t => {
             if (t === 'receipts') t = 'purchases';
+            setTimeout(() => { if ((t === 'sales' || t === 'purchases') && window.scnRenderReceipts) window.scnRenderReceipts(); }, 0);
             ['stock', 'purchases', 'sales'].forEach(n => { const pane = $('scn-pane-' + n), b = $('scn-tab-' + n), on = n === t; if (pane) pane.style.display = on ? '' : 'none'; if (b) { b.style.background = on ? '' : '#4a4e63'; b.style.opacity = on ? '1' : '.75'; } });
         };
         window.scnReload = load; window.scnRefresh = review;
@@ -12014,8 +12020,19 @@
         }
         // Called by the Print window (main script). d = the document data for this sale.
         window.scnPrintHook = {
-            async prepare(d, box, onChange) {
+            async prepare(d, box, onChange, docType) {
                 if (!currentPlanPremium) { box.innerHTML = ''; return null; } // Premium only: no matching / printed-price editing
+                if (docType === 'invoice') {
+                    // Invoice = read-only copy of the receipt: use the item names and printed prices already saved by the receipt.
+                    let got = new Map();
+                    try {
+                        const vat = d.lines.filter(l => l._rowId);
+                        if (vat.length) { const led = await supabaseClient.rpc('scanned_matched_names', { p_tenant: currentTenantId, p_refs: vat.map(l => String(l._rowId)) }); if (!led.error) got = new Map((led.data || []).map(x => [x.sale_ref, x.printed_name])); }
+                    } catch (e) { }
+                    const names = d.lines.map(l => got.get(String(l._rowId)) || null);
+                    box.innerHTML = '<div style="font-size:12px;color:var(--text-light);padding:8px 0;">The invoice copies the printed receipt (same buyer, item names and prices). To change something, change the receipt.</div>';
+                    return { overrides: () => names.map(n => ({ desc: n, price: undefined })), validate: () => true, commit: async () => names, dispose: () => { } };
+                }
                 const vat = d.lines.filter(l => l._vat && l._rowId);
                 let got = new Map(), note = '';
                 try {
@@ -12108,6 +12125,7 @@
                         if ((r.data || []).length < 1000) break;
                     }
                     window.scnVatReceipts = out;
+                    try { const v = await supabaseClient.rpc('receipt_voided_list', { p_tenant: currentTenantId }); window.rcVoided = new Set(v.error ? [] : (v.data || []).map(String)); } catch (e) { window.rcVoided = new Set(); }
                     try { refreshVatBox(); } catch (e) { }
                 } catch (e) { console.warn('Scanned receipts for VAT not loaded:', e); }
                 finally { window.scnVatStamp = Date.now(); vatBusy = null; }
@@ -12140,7 +12158,7 @@
             }).join('');
             const date = x.receipt_date || String(x.created_at || '').slice(0, 10);
             const lines = a => (a || []).map(t => `<div class="sp-c">${esc(t)}</div>`).join('');
-            return `<div class="scn-paper">
+            return `<div class="scn-paper"><button type="button" class="scn-del" title="Delete this receipt" onclick="scnDelPur('${esc(x.id)}')">&minus;</button>
                 <div class="sp-c sp-b sp-m">${esc(x.merchant || 'Unknown merchant')}</div>
                 ${x.merchant_tin ? `<div class="sp-c">TIN: ${esc(x.merchant_tin)}</div>` : ''}
                 ${lines(lay.header)}
@@ -12178,13 +12196,13 @@
             const pr = await supabaseClient.from('scanned_receipts').select('*').eq('tenant_id', tid).order('created_at', { ascending: false }).limit(500);
             purErr = !!pr.error; purRows = pr.data || [];
             const sr = await supabaseClient.from('scanned_sales_receipts').select('id,created_at,doc_type,doc_number,sale_date,customer,total,html').eq('tenant_id', tid).order('created_at', { ascending: false }).limit(300);
-            salErr = sr.error ? sr.error.message : ''; salRows = sr.data || [];
+            salErr = sr.error ? sr.error.message : ''; salRows = (sr.data || []).filter(x => x.doc_type !== 'invoice');
             window.scnRenderReceipts();
         };
         let purRows = [], salRows = [], purErr = false, salErr = '';
         if (!document.getElementById('scn-filter-css')) {
             const st = document.createElement('style'); st.id = 'scn-filter-css';
-            st.textContent = `.scn-filter{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 12px;font-size:13px;}.scn-filter input{width:auto;}
+            st.textContent = `.scn-del{background:none;border:0;color:#d0021b;font-size:26px;font-weight:700;line-height:1;cursor:pointer;padding:0 6px;box-shadow:none;}.scn-paper .scn-del{position:absolute;top:2px;right:4px;z-index:2;}.scn-filter{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 12px;font-size:13px;}.scn-filter input{width:auto;}
             .scn-sal{background:#fffdf7;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.35);padding:8px;color:#222;font-size:12px;}
             .scn-sal .scn-sal-h{display:flex;justify-content:space-between;gap:8px;margin-bottom:6px;font-weight:600;}
             .scn-sal .scn-sal-w{width:100%;overflow:hidden;position:relative;}.scn-sal iframe{border:0;background:#fff;transform-origin:0 0;display:block;}
@@ -12205,23 +12223,51 @@
             const sl = salRows.filter(x => inRange(isoDay(x.sale_date) || String(x.created_at || '').slice(0, 10), sf, st));
             sc.innerHTML = salErr ? '<span style="color:#c0392b;">Could not load sales receipts. Run premium-and-sales-receipts.sql in Supabase (one time).</span>'
                 : sl.length ? '<div class="scn-sal-grid">' + sl.map(x => `<div class="scn-sal ${x.doc_type === 'invoice' ? 'inv' : ''}" style="${x.doc_type === 'invoice' ? 'max-width:620px;' : ''}">
-                    <div class="scn-sal-h"><span>${esc(fmtDate(isoDay(x.sale_date) || String(x.created_at || '').slice(0, 10)))}</span><span>${x.doc_type === 'invoice' ? 'Invoice' : 'Receipt'} ${esc(x.doc_number || '')}</span></div>
+                    <div class="scn-sal-h"><span>${esc(fmtDate(isoDay(x.sale_date) || String(x.created_at || '').slice(0, 10)))}</span><span>Receipt ${esc(x.doc_number || '')}<button type="button" class="scn-del" title="Delete this receipt" onclick="scnDelSale('${esc(x.id)}')">&minus;</button></span></div>
                     <div class="scn-sal-w" data-w="${x.doc_type === 'invoice' ? 794 : 300}"><iframe data-i="${esc(x.id)}" scrolling="no" sandbox="allow-same-origin"></iframe></div></div>`).join('') + '</div>'
                 : '<span style="color:var(--text-light);font-size:13px;">' + (salRows.length ? 'No sales receipts in these dates.' : 'No printed sales receipts saved yet.') + '</span>';
             sc.querySelectorAll('iframe[data-i]').forEach(fr => {
                 const row = salRows.find(r => String(r.id) === fr.dataset.i), wrap = fr.parentElement, W = +wrap.dataset.w;
                 fr.style.width = W + 'px';
                 fr.onload = () => { try {
-                    const h = fr.contentDocument.documentElement.scrollHeight, sc2 = Math.min(1, (wrap.clientWidth || W) / W);
+                    const h = fr.contentDocument.documentElement.scrollHeight, sc2 = Math.min(1, (wrap.clientWidth || W) / W) || 1;
                     fr.style.height = h + 'px'; fr.style.transform = `scale(${sc2})`; wrap.style.height = Math.round(h * sc2) + 'px';
                 } catch (e) { } };
                 fr.srcdoc = (row && row.html) || '';
             });
         };
+        // ---- delete (the red minus) ----
+        window.scnDelPur = async id => {
+            const row = purRows.find(r => String(r.id) === String(id)); if (!row) return;
+            if (!confirm('Delete this purchase receipt?\n\nIts items are taken out of Scanned Stock and its VAT is removed from the Estimated VAT.')) return;
+            const del = await supabaseClient.from('scanned_receipts').delete().eq('id', row.id).eq('tenant_id', currentTenantId);
+            if (del.error) return alert('Could not delete: ' + del.error.message);
+            try {
+                const items = row.items || [], keys = [...new Set(items.map(i => scnNameKey(i.name)))];
+                if (keys.length) {
+                    const ex = await supabaseClient.from('scanned_stock_items').select('*').eq('tenant_id', currentTenantId).in('name_key', keys);
+                    for (const cur of (ex.data || [])) {
+                        const back = items.filter(i => scnNameKey(i.name) === cur.name_key).reduce((a, i) => a + num(i.qty) * Math.max(1, num(i.pcs_per_unit) || 1), 0);
+                        await supabaseClient.from('scanned_stock_items').update({ qty: num(cur.qty) - back, updated_at: new Date().toISOString() }).eq('id', cur.id);
+                    }
+                }
+            } catch (e) { console.warn('Stock not fully taken back:', e); }
+            purRows = purRows.filter(r => r !== row); window.scnRenderReceipts();
+            window.scnVatEnsure(true); if (window.scnReload) window.scnReload();
+        };
+        window.scnDelSale = async id => {
+            const row = salRows.find(r => String(r.id) === String(id)); if (!row) return;
+            if (!confirm('Delete this sales receipt?\n\nIt is voided: its VAT is removed from the Estimated VAT, and the sale can be printed again.')) return;
+            const ids = [...new Set((state.salesLog || []).flatMap(r => [r.id, r.groupId]).filter(x => x && String(x).slice(-8) === String(row.doc_number)))];
+            const r = await supabaseClient.rpc('scanned_delete_sales_receipt', { p_tenant: currentTenantId, p_id: row.id, p_print_ids: ids.map(String) });
+            if (r.error) return alert('Could not delete: ' + r.error.message + '\n\nRun premium-and-sales-receipts.sql in Supabase (one time).');
+            salRows = salRows.filter(x => x !== row); window.scnRenderReceipts();
+            window.scnVatEnsure(true);
+        };
         // Called by the Print window after a sales receipt/invoice is printed (Premium only).
         // Saves the exact printed page; printing again the same document replaces the older copy.
         window.scnSaveSalesReceipt = async (html, d, docType) => {
-            if (!currentPlanPremium || !currentTenantId) return;
+            if (!currentPlanPremium || !currentTenantId || docType === 'invoice') return; // only receipts are kept here, never invoices
             try {
                 const r = await supabaseClient.rpc('scanned_save_sales_receipt', { p_tenant: currentTenantId, p_doc_type: docType === 'invoice' ? 'invoice' : 'receipt', p_doc_number: String(d.docNumber || ''), p_sale_date: isoDay(d.date) || null, p_customer: d.counterpartyName || null, p_total: num(d.total), p_html: html });
                 if (r.error) throw r.error;
