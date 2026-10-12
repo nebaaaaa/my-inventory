@@ -890,6 +890,7 @@
             </div>
 
             <div id="view-sales" class="view-panel">
+                <div id="rp-box" style="display:none;"></div>
                 <div id="sales-default-content">
                 <div class="card" id="sales-entry-card">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -1603,6 +1604,7 @@
                     <div class="form-group" style="margin-bottom:10px;"><label>Buyer's TIN <span style="font-weight:400; color:var(--text-light);">(optional)</span></label><input type="text" id="buyer-info-tin" list="buyer-tin-list" style="width:100%;" autocomplete="off" oninput="handleBuyerTinInput()"></div>
                     <div class="form-group" style="margin-bottom:10px;"><label>Customer Name / Trade Name <span style="font-weight:400; color:var(--text-light);">(optional)</span></label><input type="text" id="buyer-info-name" list="buyer-trade-name-list" style="width:100%;" autocomplete="off" oninput="handleBuyerNameInput()"></div>
                     <div id="pm-lines"></div>
+                    <div id="pm-gate" style="margin-top:10px; font-size:13px;"></div>
                 </div>
                 <div style="flex:1 1 300px; min-width:0;">
                     <div id="pm-preview-wrap" style="background:#e4e5ea; border-radius:8px; padding:10px; overflow:hidden;"><div id="pm-preview-sizer" style="overflow:hidden;"><iframe id="pm-preview" title="Preview" style="border:0; background:#fff; display:block; box-shadow:0 2px 8px rgba(0,0,0,.25);"></iframe></div></div>
@@ -7992,6 +7994,7 @@
             toggleSaleCartMode(false);
             const payNote = remaining <= 0.001 ? '' : ` (ETB ${amountPaidNow.toFixed(2)} paid now, ETB ${remaining.toFixed(2)} owed)`;
             addNotification('Multi-Item Sale Completed', `Posted revenue: ETB ${total.toFixed(2)}${payNote}`, `Sold ${newRows.length} items to ${cName}`);
+            if (includeVat) setTimeout(() => openBuyerInfoModal('sale', groupId, true, 'receipt'), 150); // VAT sale: open the print window straight away
         }
 
 
@@ -8077,6 +8080,7 @@
             syncTransactionalProductDropdownOptions(); renderSalesLogTable();
             const payNote = fullyPaid ? '' : ` (ETB ${amountPaidNow.toFixed(2)} paid now, ETB ${remaining.toFixed(2)} owed)`;
             addNotification('Sale Executed', `Posted revenue: ETB ${rev.toFixed(2)}${payNote}`, `Sold ${qty}x ${item.desc} to ${cName}${amountPaidNow > 0 ? ' via ' + chan : ''}`);
+            if (includeVat) setTimeout(() => openBuyerInfoModal('sale', id, false, 'receipt'), 150); // VAT sale: open the print window straight away
         }
 
         let recordPaymentContext = null; // { type: 'sale'|'purchase', id }
@@ -8595,6 +8599,7 @@
             const fr = document.getElementById('pm-preview'); if (!fr || !pm) return;
             let d = null; try { d = pmData(); } catch (e) { console.warn('Preview failed', e); }
             if (!d) return;
+            pmGateRefresh(d);
             const W = pm.docType === 'invoice' ? 794 : 300;
             fr.style.width = W + 'px';
             fr.onload = () => {
@@ -8610,8 +8615,9 @@
         function renderReceiptOrInvoice(d) { return pm && pm.docType === 'invoice' ? renderInvoiceHTML(d) : renderReceiptHTML(d); }
         async function openBuyerInfoModal(kind, id, isGroup, docType) {
             pendingPrintCtx = { kind, id, isGroup, docType };
-            pm = { kind, id, isGroup, docType, hook: null };
+            pm = { kind, id, isGroup, docType, hook: null, rec: null, recLoaded: kind !== 'sale', hookBusy: false, mode: 'print', sigNow: null };
             const my = pm;
+            if (kind === 'sale') pmLoadRecord(my);
             const existing = getExistingBuyerInfo(kind, id, isGroup);
             syncBuyerDatalists();
             buyerInfoMaps = buildBuyerInfoMaps();
@@ -8625,24 +8631,26 @@
             if (kind === 'sale' && window.scnPrintHook) {
                 const base = buildSalePrintData(id, isGroup);
                 if (base) {
-                    btn.disabled = true;
+                    my.hookBusy = true; btn.disabled = true;
                     box.innerHTML = '<div style="font-size:12px; color:var(--text-light); padding:8px 0;">Loading items…</div>';
                     try {
                         const h = await window.scnPrintHook.prepare(base, box, pmPreviewSoon);
                         if (pm === my) my.hook = h; else if (h && h.dispose) h.dispose();
                     } catch (e) { console.warn(e); if (pm === my) box.innerHTML = ''; }
-                    if (pm === my) { btn.disabled = false; pmPreview(); }
+                    if (pm === my) { my.hookBusy = false; btn.disabled = false; pmPreview(); }
                 }
             }
         }
         function closeBuyerInfoModal() {
             if (pm && pm.hook && pm.hook.dispose) { try { pm.hook.dispose(); } catch (e) { } }
             clearTimeout(pmTimer);
+            if (pm && pm.poll) clearInterval(pm.poll);
             document.getElementById('buyer-info-modal').classList.remove('active');
             pendingPrintCtx = null; pm = null;
         }
         async function confirmBuyerInfoAndPrint() {
             if (!pendingPrintCtx || !pm) return;
+            if (pm.mode === 'ask') return pmRequestReprint();
             const { kind, id, isGroup, docType } = pendingPrintCtx;
             const tin = document.getElementById('buyer-info-tin').value.trim();
             if (tin && !isValidTin(tin)) return alert("Buyer's TIN must be 10 to 12 digits.");
@@ -8663,8 +8671,90 @@
             const printedHtml = docType === 'invoice' ? renderInvoiceHTML(data) : renderReceiptHTML(data);
             // Premium: keep a copy of every printed sales document, exactly as printed.
             if (kind === 'sale' && window.scnSaveSalesReceipt) { try { window.scnSaveSalesReceipt(printedHtml, data, docType); } catch (e) { console.warn(e); } }
+            if (kind === 'sale') pmRecordPrint(id, docType, pmSigOf(data));
             printDocumentHTML(printedHtml);
         }
+
+        // ---- One print per receipt: a printed receipt can only be printed again after a real change
+        // (buyer TIN/name, an item name or a price). The earlier copy is then replaced (voided).
+        // Employees need the owner's approval unless their role has "Reprint a changed receipt without owner approval".
+        function pmSigOf(d) {
+            return JSON.stringify({ t: String(d.buyerTin || '').trim(), n: String(d.buyerTradeName || '').trim().toLowerCase(), l: (d.lines || []).map(l => [String(l.desc || '').trim(), Math.round((Number(l.unit) || 0) * 100) / 100]) });
+        }
+        function pmSigDiff(oldS, newS) {
+            let a, b; try { a = JSON.parse(oldS); b = JSON.parse(newS); } catch (e) { return 'Receipt changed'; }
+            const out = [];
+            if (a.t !== b.t) out.push(`Buyer TIN "${a.t || '-'}" -> "${b.t || '-'}"`);
+            if (a.n !== b.n) out.push(`Buyer name "${a.n || '-'}" -> "${b.n || '-'}"`);
+            (b.l || []).forEach((x, i) => { const y = (a.l || [])[i]; if (!y) return; if (y[0] !== x[0]) out.push(`Item "${y[0]}" -> "${x[0]}"`); if (y[1] !== x[1]) out.push(`${x[0]}: price ${y[1].toFixed(2)} -> ${x[1].toFixed(2)}`); });
+            return out.join('; ') || 'Receipt changed';
+        }
+        async function pmLoadRecord(my) {
+            try {
+                const r = await supabaseClient.rpc('receipt_print_get', { p_tenant: currentTenantId, p_print_id: String(my.id), p_doc_type: my.docType });
+                my.rec = r.error ? null : (r.data || null);   // if the SQL isn't installed yet, printing stays unrestricted
+            } catch (e) { my.rec = null; }
+            my.recLoaded = true;
+            if (pm === my) pmGateRefresh();
+        }
+        function pmGateRefresh(d) {
+            const btn = document.getElementById('pm-print'), note = document.getElementById('pm-gate');
+            if (!pm || !btn || !note) return;
+            if (pm.kind !== 'sale') { note.innerHTML = ''; return; }
+            if (!d) { try { d = pmData(); } catch (e) { } }
+            if (!d) return;
+            pm.sigNow = pmSigOf(d); pm.mode = 'print'; btn.textContent = 'Print';
+            const hold = pm.hookBusy, rec = pm.rec, msg = (c, t) => { note.innerHTML = `<div style="padding:8px 10px; border-radius:8px; background:${c};">${t}</div>`; };
+            if (!pm.recLoaded) { btn.disabled = true; note.innerHTML = ''; return; }
+            if (!rec) { note.innerHTML = ''; btn.disabled = hold; return; }
+            if (rec.signature === pm.sigNow) { btn.disabled = true; msg('rgba(192,57,43,.12)', '<b>Already printed.</b> To print it again, change the buyer TIN or name, an item name or a price.'); return; }
+            if (currentIsOwner || hasPerm('sales.reprint_receipt')) { btn.disabled = hold; msg('rgba(224,168,0,.18)', 'This receipt was printed before. Printing it again <b>voids the first one</b> and replaces it.'); return; }
+            const mine = rec.req_signature === pm.sigNow;
+            if (mine && rec.req_status === 'approved') { btn.disabled = hold; msg('rgba(39,174,96,.15)', '<b>Owner approved.</b> You can print it now. The first receipt will be voided.'); return; }
+            if (mine && rec.req_status === 'pending') { btn.disabled = true; msg('rgba(224,168,0,.18)', '<b>Waiting for the owner to approve…</b> This window updates by itself.'); pmStartPoll(); return; }
+            btn.textContent = 'Ask owner to approve'; pm.mode = 'ask'; btn.disabled = hold;
+            msg('rgba(224,168,0,.18)', (mine && rec.req_status === 'denied' ? '<b>The owner declined this change.</b> ' : '<b>This receipt was already printed.</b> ') + 'Printing it again voids the first one and needs the owner\'s approval.');
+        }
+        function pmStartPoll() {
+            if (!pm || pm.poll) return; const my = pm;
+            my.poll = setInterval(async () => { if (pm !== my) return clearInterval(my.poll); await pmLoadRecord(my); if (!my.rec || my.rec.req_status !== 'pending') { clearInterval(my.poll); my.poll = null; } }, 5000);
+        }
+        async function pmRequestReprint() {
+            const my = pm, btn = document.getElementById('pm-print'); if (!my || !my.rec) return;
+            btn.disabled = true;
+            const note = pmSigDiff(my.rec.signature, my.sigNow);
+            try {
+                const r = await supabaseClient.rpc('receipt_reprint_request', { p_tenant: currentTenantId, p_print_id: String(my.id), p_doc_type: my.docType, p_signature: my.sigNow, p_note: note });
+                if (r.error) throw r.error;
+                my.rec = { ...my.rec, req_status: 'pending', req_signature: my.sigNow };
+                addNotification('Reprint approval needed', `Receipt ${String(my.id).slice(-8)} was already printed. A changed copy is waiting for the owner's approval.`, note);
+            } catch (e) { alert('Could not send the request: ' + (e.message || e)); }
+            pmGateRefresh();
+        }
+        async function pmRecordPrint(id, docType, sig) {
+            try { await supabaseClient.rpc('receipt_print_record', { p_tenant: currentTenantId, p_print_id: String(id), p_doc_type: docType, p_signature: sig }); }
+            catch (e) { console.warn('Print record not saved:', e); }
+        }
+        // Owner: pending reprint requests shown at the top of the Sales page.
+        async function loadReprintRequests() {
+            const box = document.getElementById('rp-box'); if (!box || !currentIsOwner) return;
+            let rows = [];
+            try { const r = await supabaseClient.rpc('receipt_reprint_pending', { p_tenant: currentTenantId }); rows = r.error ? [] : (r.data || []); } catch (e) { }
+            if (!rows.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+            box.style.display = '';
+            box.innerHTML = `<div class="card" style="border:1px solid #e0a800;"><h2 style="margin-bottom:8px;">Receipt reprint requests</h2>` + rows.map(x => {
+                const sale = (state.salesLog || []).find(r => r.id === x.print_id || r.groupId === x.print_id);
+                return `<div style="padding:8px 0; border-top:1px solid var(--border);"><div><b>${escHtml(x.doc_type === 'invoice' ? 'Invoice' : 'Receipt')} ${escHtml(String(x.print_id).slice(-8))}</b>${sale ? ' · ' + escHtml(sale.customer) : ''} · asked by ${escHtml(x.req_by || 'employee')}</div>
+                    <div style="font-size:12px; color:var(--text-light); margin:4px 0;">${escHtml(x.req_note || '')}</div>
+                    <button class="btn btn-small btn-success" onclick="decideReprint('${escHtml(x.print_id)}','${escHtml(x.doc_type)}',true)">Approve</button> <button class="btn btn-small btn-danger" onclick="decideReprint('${escHtml(x.print_id)}','${escHtml(x.doc_type)}',false)">Decline</button></div>`;
+            }).join('') + '</div>';
+        }
+        async function decideReprint(printId, docType, ok) {
+            const r = await supabaseClient.rpc('receipt_reprint_decide', { p_tenant: currentTenantId, p_print_id: printId, p_doc_type: docType, p_approve: ok });
+            if (r.error) alert('Could not save: ' + r.error.message);
+            loadReprintRequests();
+        }
+        setInterval(() => { try { const v = document.getElementById('view-sales'); if (currentIsOwner && v && v.classList.contains('active')) loadReprintRequests(); } catch (e) { } }, 15000);
 
         // ---- Sale / Purchase adapters (bookings' own adapter lives in
         // verticals/appliance_rental.js and calls printReceiptFor/
@@ -10469,6 +10559,7 @@
             { key: 'sales', label: 'Sales', viewPerm: 'sales.view', actions: [
                 { key: 'sales.create', label: 'Record sales' },
                 { key: 'sales.void', label: 'Void / delete sales' },
+                { key: 'sales.reprint_receipt', label: 'Reprint a changed receipt without owner approval' },
                 { key: 'sales.mark_paid', label: 'Settle accounts receivable' },
                 { key: 'rentals.checkin', label: 'Check in / process rental returns', onlyFor: ['appliance_rental'] }
             ]},
@@ -11734,6 +11825,7 @@
         window.switchView = function (v) {
             if (v === 'scanned' && (!currentIsOwner || !currentPlanPremium)) return;
             baseSwitch(v);
+            if (v === 'sales' && typeof loadReprintRequests === 'function') loadReprintRequests();
             // Incognito dark look: only on the Scanned Stock page.
             document.documentElement.classList.toggle('scn-dark', v === 'scanned');
             let tc = document.querySelector('meta[name="theme-color"]');
