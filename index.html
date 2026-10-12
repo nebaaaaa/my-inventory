@@ -1197,7 +1197,7 @@
                 <div class="card">
                     <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; margin-bottom:12px;">
                         <div style="display:flex;gap:10px;align-items:center;"><button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="switchView('inventory')" title="Back to Inventory">&#8249; Inventory</button><h2 style="border:none; margin:0; padding:0;">Scanned Stock</h2></div>
-                        <div><input type="file" id="scn-file" accept="image/*" style="display:none;" onchange="scnPickFile(this)"><button type="button" class="btn" onclick="document.getElementById('scn-file').click()">Scan purchase receipt</button></div>
+                        <div><input type="file" id="scn-file" accept="image/*" multiple style="display:none;" onchange="scnPickFile(this)"><button type="button" class="btn" onclick="document.getElementById('scn-file').click()">Scan purchase receipt</button></div>
                     </div>
                     <p style="font-size:12px; color:var(--text-light); margin:0 0 10px;">Separate from your main inventory. Only stock from scanned receipts is counted here (owners only).</p>
                     <div style="display:flex;gap:8px;margin:0 0 12px;"><button type="button" class="btn btn-small" id="scn-tab-stock" onclick="scnTab('stock')">Stock</button><button type="button" class="btn btn-small" id="scn-tab-purchases" onclick="scnTab('purchases')" style="background:#4a4e63;opacity:.75;">Purchase receipts</button><button type="button" class="btn btn-small" id="scn-tab-sales" onclick="scnTab('sales')" style="background:#4a4e63;opacity:.75;">Sales receipts</button></div>
@@ -11570,6 +11570,7 @@
         // Cleaned name used for matching ("Sugar 1 KG" and "sugar 1kg" become the same key).
         window.scnNameKey = s => String(s || '').toLowerCase().replace(/(\d)\s+(kg|g|l|ml|pcs|pc|m|cm)\b/g, '$1$2').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
         let rows = [], draft = null, busy = false;
+        let queue = [], qTotal = 0, qIdx = 0, reading = false; // several receipts picked at once: the ones still waiting for review
 
         // Order of the rows (press-and-hold to rearrange). Saved in the database (sort_order) and on this device.
         let orderWarned = false;
@@ -11796,7 +11797,7 @@
         window.scnLinkAdd = (i, comp) => { if (!comp) return; const it = draft.items[i], m = invList().find(x => x.comp === comp); if (!m) return; (it.links = it.links || []).push({ comp: m.comp, name: m.name, mult: guessMult(it, m) }); review(); };
         window.scnLinkDel = (i, j) => { draft.items[i].links.splice(j, 1); review(); };
         window.scnLinkMult = (i, j, v) => { draft.items[i].links[j].mult = v; };
-        const open = html => { $('scn-modal').querySelector('h3').textContent = 'Review scanned receipt'; $('scn-modal-body').innerHTML = html; $('scn-modal').classList.add('active'); };
+        const open = html => { $('scn-modal').querySelector('h3').textContent = 'Review scanned receipt' + (qTotal > 1 && qIdx ? ` (${qIdx} of ${qTotal})` : ''); $('scn-modal-body').innerHTML = html; $('scn-modal').classList.add('active'); };
         const close = () => $('scn-modal').classList.remove('active');
 
         // New-scan suggestion: does this line look like something already in Scanned Stock?
@@ -11823,26 +11824,45 @@
               </tbody></table></div>
               <div style="display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;margin-top:14px;">
                 <button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="scnAdd()">+ Add line</button>
-                <div style="display:flex;gap:10px;"><button type="button" class="btn btn-danger" onclick="scnCancel()">Cancel</button><button type="button" class="btn" id="scn-confirm" onclick="scnSave()">Confirm &amp; add to stock</button></div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">${queue.length ? '<button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="scnSkip()">Skip this receipt</button>' : ''}<button type="button" class="btn btn-danger" onclick="scnCancel()">${queue.length ? 'Cancel all' : 'Cancel'}</button><button type="button" class="btn" id="scn-confirm" onclick="scnSave()">${queue.length ? 'Confirm &amp; next' : 'Confirm &amp; add to stock'}</button></div>
               </div>`);
         }
 
-        window.scnPickFile = async input => {
-            const f = input.files && input.files[0]; input.value = ''; if (!f) return;
-            open('<p>Reading the receipt… this can take a few seconds.</p>');
+        async function extractOne(f) {
             try {
                 const res = await fetch('/api/extract-receipt-items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: await toB64(await compress(f)) }) });
                 const data = await res.json().catch(() => null);
                 if (!res.ok) throw new Error((data && data.error) || 'Failed (' + res.status + ')');
-                draft = fromExtract(data); try { if (window.scnEnsure) await window.scnEnsure(); } catch (e) { } await guessPacks(draft); await prefillLinks(draft);
-            } catch (e) { draft = blank(); draft.error = 'Could not read this receipt automatically (' + e.message + '). Fill it in by hand.'; }
+                return { draft: fromExtract(data), ok: true };
+            } catch (e) { const d = blank(); d.error = 'Could not read this receipt automatically (' + e.message + '). Fill it in by hand.'; return { draft: d, ok: false }; }
+        }
+        // Show the next waiting receipt (or close when none are left). Matching to Inventory / Scanned Stock is done
+        // here, right before each review, so it sees the stock added by the receipts confirmed before it.
+        async function showNext() {
+            if (!queue.length) { draft = null; qTotal = 0; qIdx = 0; close(); return; }
+            const q = queue.shift(); draft = q.draft; qIdx++;
+            if (q.ok) { try { if (window.scnEnsure) await window.scnEnsure(); } catch (e) { } try { await guessPacks(draft); await prefillLinks(draft); } catch (e) { console.warn(e); } }
             review();
+        }
+        window.scnPickFile = async input => {
+            const files = Array.from(input.files || []); input.value = ''; if (!files.length || reading || busy) return;
+            reading = true; queue = []; qTotal = files.length; qIdx = 0;
+            try {
+                let next = 0, done = 0; const results = new Array(files.length);
+                const say = () => open(files.length > 1 ? `<p>Reading ${files.length} receipts… ${done} of ${files.length} done. This can take a few seconds each.</p>` : '<p>Reading the receipt… this can take a few seconds.</p>');
+                say();
+                const worker = async () => { while (next < files.length) { const k = next++; results[k] = await extractOne(files[k]); done++; say(); } };
+                await Promise.all(Array.from({ length: Math.min(3, files.length) }, worker)); // 3 at a time
+                queue = results;
+            } finally { reading = false; }
+            await showNext();
         };
+        window.scnSkip = () => { draft = null; showNext(); };
         window.scnHead = (k, v) => { draft[k] = v; };
         window.scnRow = (i, k, v) => { draft.items[i][k] = v; if (k === 'pack') delete draft.items[i].packFrom; if (k === 'qty' || k === 'price') draft.items[i].amount = ''; }; // edited qty/price -> line amount is recalculated on save
         window.scnAdd = () => { draft.items.push({ name: '', qty: 1, unit: '', price: '', pack: 1, links: [] }); review(); };
         window.scnDel = i => { draft.items.splice(i, 1); if (!draft.items.length) draft.items = blank().items; review(); };
-        window.scnCancel = () => { draft = null; close(); };
+        window.scnCancel = () => { draft = null; queue = []; qTotal = 0; qIdx = 0; close(); };
 
         window.scnSave = async () => {
             if (busy || !draft) return;
@@ -11891,10 +11911,10 @@
                     const L = []; items.forEach(it => { const st = map.get(scnNameKey(stockName(it))); if (st) (it.links || []).forEach(x => L.push({ tenant_id: tid, inv_key: scnNameKey(x.comp), inv_name: x.name, item_id: String(st.id), mult: num(x.mult) || 1 })); });
                     if (L.length) { const lr = await supabaseClient.from('scanned_links').upsert(L, { onConflict: 'tenant_id,inv_key,item_id' }); if (lr.error) throw lr.error; }
                 } catch (e) { console.warn('Inventory matches not saved (run premium-and-sales-receipts.sql):', e); }
-                draft = null; close(); await load();
+                draft = null; await load(); busy = false; await showNext();
             } catch (e) {
                 alert('Could not save: ' + (e.message || e) + '\n\nNothing was lost on your screen — fix it and press Confirm again. If the receipt was already saved, check Scanned Stock before retrying so items are not added twice.');
-                btn.disabled = false; btn.textContent = 'Confirm & add to stock';
+                btn.disabled = false; btn.innerHTML = queue.length ? 'Confirm &amp; next' : 'Confirm &amp; add to stock';
             } finally { busy = false; }
         };
 
