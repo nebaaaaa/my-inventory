@@ -11807,7 +11807,7 @@
         function review() {
             const d = draft, inp = 'style="width:100%;"';
             open(`${d.error ? `<p style="color:#c0392b;font-size:13px;">${esc(d.error)}</p>` : ''}
-              <p style="font-size:12px;color:var(--text-light);margin:0 0 10px;">Check every line against the paper receipt. Names are saved exactly as you leave them here.</p>
+              <p style="font-size:12px;color:var(--text-light);margin:0 0 10px;">Check every line against the paper receipt. Lines matched to an Inventory item (&rarr;) are stored in Scanned Stock under the Inventory item&#39;s name; other lines keep the name written here.</p>
               <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
                 ${[['merchant', 'Merchant', 'text'], ['tin', 'Merchant TIN', 'text'], ['no', 'Receipt No.', 'text'], ['date', 'Date', 'date'], ['before', 'Before VAT', 'number'], ['vat', 'VAT', 'number'], ['total', 'Total', 'number']]
                     .map(([k, l, t]) => `<div class="form-group" style="flex:1 1 140px;margin:0;"><label>${l}</label><input type="${t}" step="0.01" value="${esc(d[k])}" oninput="scnHead('${k}',this.value)" ${inp}></div>`).join('')}
@@ -11848,6 +11848,9 @@
             if (busy || !draft) return;
             const d = draft, items = d.items.filter(i => i.name.trim() && num(i.qty) !== 0);
             if (!items.length) return alert('Add at least one item with a name and quantity.');
+            // Name used in Scanned Stock: if the line is matched to an Inventory item, use that item's name
+            // (the first match); otherwise keep the name as written on the receipt.
+            const stockName = it => ((it.links && it.links[0] && String(it.links[0].name || '').trim()) || it.name.trim());
             busy = true; const btn = $('scn-confirm'); btn.disabled = true; btn.textContent = 'Saving…';
             try {
                 const tid = currentTenantId;
@@ -11855,7 +11858,7 @@
                 const recRow = {
                     tenant_id: tid, merchant: d.merchant || null, merchant_tin: d.tin || null, receipt_no: d.no || null, receipt_date: d.date || null,
                     before_vat: d.before === '' ? null : num(d.before), vat: d.vat === '' ? null : num(d.vat), total: d.total === '' ? null : num(d.total),
-                    items: items.map(i => ({ name: i.name.trim(), qty: num(i.qty), unit: i.unit || null, unit_price: i.price === '' ? null : num(i.price), pcs_per_unit: Math.max(1, num(i.pack) || 1), matches: (i.links || []).map(L => L.name), amount: (i.amount === '' || i.amount == null) ? (i.price === '' ? null : r2(num(i.qty) * num(i.price))) : num(i.amount) }))
+                    items: items.map(i => ({ name: i.name.trim(), stock_name: stockName(i), qty: num(i.qty), unit: i.unit || null, unit_price: i.price === '' ? null : num(i.price), pcs_per_unit: Math.max(1, num(i.pack) || 1), matches: (i.links || []).map(L => L.name), amount: (i.amount === '' || i.amount == null) ? (i.price === '' ? null : r2(num(i.qty) * num(i.price))) : num(i.amount) }))
                 };
                 // layout = the extra printed lines (title, time, header/footer text) so the saved copy looks like the paper.
                 // If the column has not been added yet (migration-receipt-layout.sql), save without it.
@@ -11865,12 +11868,12 @@
                 if (rec.error) throw rec.error;
                 window.scnVatStamp = 0;
                 // 2) add to scanned stock (same cleaned name = same row)
-                const keys = [...new Set(items.map(i => scnNameKey(i.name)))];
+                const keys = [...new Set(items.map(i => scnNameKey(stockName(i))))];
                 const ex = await supabaseClient.from('scanned_stock_items').select('*').eq('tenant_id', tid).in('name_key', keys);
                 if (ex.error) throw ex.error;
                 const map = new Map((ex.data || []).map(e => [e.name_key, e]));
                 for (const it of items) {
-                    const key = scnNameKey(it.name), pack = Math.max(1, num(it.pack) || 1), unit = (it.unit || '').trim();
+                    const key = scnNameKey(stockName(it)), pack = Math.max(1, num(it.pack) || 1), unit = (it.unit || '').trim();
                     const baseQty = num(it.qty) * pack, baseCost = it.price === '' ? null : r2(num(it.price) / pack), cur = map.get(key);
                     const units = cur ? [...(cur.units || [])] : [];
                     if (pack > 1 && unit && !units.some(u => u.unit.toLowerCase() === unit.toLowerCase())) units.push({ unit, base_qty: pack });
@@ -11878,14 +11881,14 @@
                     if (cur) {
                         res = await supabaseClient.from('scanned_stock_items').update({ qty: num(cur.qty) + baseQty, last_cost: baseCost ?? cur.last_cost, units, updated_at: new Date().toISOString() }).eq('id', cur.id).select().single();
                     } else {
-                        res = await supabaseClient.from('scanned_stock_items').insert({ tenant_id: tid, name: it.name.trim(), name_key: key, base_unit: pack > 1 ? 'pcs' : (unit || 'pcs'), units, qty: baseQty, last_cost: baseCost }).select().single();
+                        res = await supabaseClient.from('scanned_stock_items').insert({ tenant_id: tid, name: stockName(it), name_key: key, base_unit: pack > 1 ? 'pcs' : (unit || 'pcs'), units, qty: baseQty, last_cost: baseCost }).select().single();
                     }
                     if (res.error) throw res.error;
                     map.set(key, res.data);
                 }
                 // remember the inventory matches (never blocks saving)
                 try {
-                    const L = []; items.forEach(it => { const st = map.get(scnNameKey(it.name)); if (st) (it.links || []).forEach(x => L.push({ tenant_id: tid, inv_key: scnNameKey(x.comp), inv_name: x.name, item_id: String(st.id), mult: num(x.mult) || 1 })); });
+                    const L = []; items.forEach(it => { const st = map.get(scnNameKey(stockName(it))); if (st) (it.links || []).forEach(x => L.push({ tenant_id: tid, inv_key: scnNameKey(x.comp), inv_name: x.name, item_id: String(st.id), mult: num(x.mult) || 1 })); });
                     if (L.length) { const lr = await supabaseClient.from('scanned_links').upsert(L, { onConflict: 'tenant_id,inv_key,item_id' }); if (lr.error) throw lr.error; }
                 } catch (e) { console.warn('Inventory matches not saved (run premium-and-sales-receipts.sql):', e); }
                 draft = null; close(); await load();
@@ -12429,11 +12432,11 @@
             const del = await supabaseClient.from('scanned_receipts').delete().eq('id', row.id).eq('tenant_id', currentTenantId);
             if (del.error) return alert('Could not delete: ' + del.error.message);
             try {
-                const items = row.items || [], keys = [...new Set(items.map(i => scnNameKey(i.name)))];
+                const items = row.items || [], sKey = i => scnNameKey(i.stock_name || i.name), keys = [...new Set(items.map(sKey))];
                 if (keys.length) {
                     const ex = await supabaseClient.from('scanned_stock_items').select('*').eq('tenant_id', currentTenantId).in('name_key', keys);
                     for (const cur of (ex.data || [])) {
-                        const back = items.filter(i => scnNameKey(i.name) === cur.name_key).reduce((a, i) => a + num(i.qty) * Math.max(1, num(i.pcs_per_unit) || 1), 0);
+                        const back = items.filter(i => sKey(i) === cur.name_key).reduce((a, i) => a + num(i.qty) * Math.max(1, num(i.pcs_per_unit) || 1), 0);
                         await supabaseClient.from('scanned_stock_items').update({ qty: num(cur.qty) - back, updated_at: new Date().toISOString() }).eq('id', cur.id);
                     }
                 }
