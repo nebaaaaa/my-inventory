@@ -3978,6 +3978,7 @@
             populateBranchSwitcher();
             updateBranchColumnVisibility();
             subscribeToAccountantLinks();
+            if (window.scnLoginAlert) window.scnLoginAlert(); // owners: tell them about VAT sales that have not been printed
         }
 
         // Live-updates the Accountant Access card the instant a request is
@@ -12430,32 +12431,60 @@
             ctx = { lines, onDone, ui: null };
             drawMatch();
         }
-        // Options for one match dropdown. q = what the user typed in the search box ('' = show everything).
-        function optsHtml(l, q) {
-            const sel = l.sel, words = String(q || '').toLowerCase().split(/\s+/).filter(Boolean);
-            const ok = it => words.every(w => String(it.name).toLowerCase().includes(w)) || String(it.id) === String(sel.id);
-            const sg = l.sug.filter(sx => ok(sx.item));
-            const rest = items.filter(x => hasStock(x) && !l.sug.some(sx => sx.item.id === x.id) && ok(x));
-            const cur = items.find(x => String(x.id) === String(sel.id));
-            const extra = cur && !hasStock(cur) && !sg.some(sx => sx.item.id === cur.id) ? [cur] : []; // keep the chosen item visible even if its stock is now 0
-            return sg.map(sx => `<option value="${sx.item.id}" ${sel.id === sx.item.id ? 'selected' : ''}>${esc(sx.item.name)} — ${sx.label}</option>`).join('')
-                + extra.map(x => `<option value="${x.id}" selected>${esc(x.name)}</option>`).join('')
-                + (rest.length ? '<option disabled>— other scanned items —</option>' : '')
-                + rest.map(x => `<option value="${x.id}" ${sel.id === x.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')
-                + `<option value="" ${sel.id === '' ? 'selected' : ''}>No match</option>`;
+        // ---------- one-box stock picker ----------
+        // ONE text box holds the chosen stock item. It starts filled in (matched before / AI suggestion / best system match).
+        // Tap it to see the list, type to search, or erase the name and type another one.
+        if (!document.getElementById('scn-cb-css')) {
+            const st = document.createElement('style'); st.id = 'scn-cb-css';
+            st.textContent = `.scn-cl{max-height:210px;overflow-y:auto;border:1px solid var(--border,#ddd);border-radius:8px;background:var(--surface,#fff);color:var(--text,#222);-webkit-overflow-scrolling:touch;}
+            .scn-opt{display:flex;justify-content:space-between;gap:8px;align-items:baseline;padding:9px 10px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--border,#eee);}
+            .scn-opt:last-child{border-bottom:0;}.scn-opt:hover,.scn-opt:active{background:rgba(169,117,47,.14);}
+            .scn-opt.on{font-weight:700;}.scn-opt em{font-style:normal;font-size:11px;color:var(--text-light,#777);white-space:nowrap;}
+            .scn-opt-h{padding:6px 10px;font-size:11px;font-weight:700;color:var(--text-light,#777);background:rgba(128,128,128,.12);}`;
+            document.head.appendChild(st);
         }
-        // Typing in the search box narrows the list; when searching, the list opens as a short pick-list.
+        const selName = l => { const it = items.find(x => String(x.id) === String(l.sel.id)); return it ? it.name : ''; };
+        // Rows for the list: the suggestions first, then the other scanned items. q = what was typed ('' = everything).
+        function pickRows(l, q) {
+            const words = String(q || '').toLowerCase().split(/\s+/).filter(Boolean);
+            const ok = it => words.every(w => String(it.name).toLowerCase().includes(w));
+            const sg = l.sug.filter(sx => ok(sx.item)).map(sx => ({ id: sx.item.id, name: sx.item.name, label: sx.label }));
+            const rest = items.filter(x => hasStock(x) && !l.sug.some(sx => String(sx.item.id) === String(x.id)) && ok(x)).map(x => ({ id: x.id, name: x.name, label: '' }));
+            return { sg, rest };
+        }
         window.scnFind = (i, q) => {
-            const l = ctx.lines[i], el = document.getElementById('scn-sel-' + i); if (!el) return;
-            el.innerHTML = optsHtml(l, q);
-            el.size = String(q || '').trim() ? Math.min(6, Math.max(2, el.options.length)) : 1;
+            const l = ctx && ctx.lines[i], box = document.getElementById('scn-cl-' + i); if (!l || !box) return;
+            const { sg, rest } = pickRows(l, q), cur = String(l.sel.id), typed = String(q || '').trim();
+            const row = r => `<div class="scn-opt${String(r.id) === cur ? ' on' : ''}" data-id="${esc(r.id)}" onclick="scnPick(${i},this.dataset.id)"><span>${esc(r.name)}</span>${r.label ? `<em>${esc(r.label)}</em>` : ''}</div>`;
+            box.innerHTML = sg.map(row).join('')
+                + (sg.length && rest.length ? '<div class="scn-opt-h">Other scanned items</div>' : '')
+                + rest.map(row).join('')
+                + (typed && !sg.length && !rest.length ? `<div class="scn-opt-h">Nothing found for "${esc(typed)}"</div>` : '')
+                + `<div class="scn-opt${cur === '' ? ' on' : ''}" data-id="" onclick="scnPick(${i},'')"><span>No match</span></div>`;
+            box.style.display = 'block';
+        };
+        // Leaving the box: close the list, and show the real chosen name again (nothing changes unless an item was picked).
+        window.scnBlur = i => setTimeout(() => {
+            const el = document.getElementById('scn-cb-' + i), box = document.getElementById('scn-cl-' + i), l = ctx && ctx.lines[i];
+            if (box) box.style.display = 'none';
+            if (el && l && document.activeElement !== el) el.value = selName(l);
+        }, 200);
+        window.scnKey = (e, i) => {
+            if (e.key === 'Escape') { e.target.blur(); return; }
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            const l = ctx && ctx.lines[i], q = e.target.value.trim(); if (!l || !q) return;
+            const { sg, rest } = pickRows(l, q), f = sg[0] || rest[0]; if (f) window.scnPick(i, String(f.id));
         };
         function selHtml(l, i) {
-            const sel = l.sel, cur = items.find(x => x.id === sel.id), sg = l.sug.find(s => s.item.id === sel.id);
+            const sel = l.sel, cur = items.find(x => String(x.id) === String(sel.id)), sg = l.sug.find(s => String(s.item.id) === String(sel.id));
+            const note = cur ? (sg ? '&#10003; ' + esc(sg.label) : '') : 'No match yet. Type a name to search.';
             return `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
-                    <div style="flex:1 1 220px;display:flex;flex-direction:column;gap:4px;">
-                      <input type="search" placeholder="Search stock items…" oninput="scnFind(${i},this.value)" autocomplete="off" style="min-width:0;">
-                      <select id="scn-sel-${i}" onchange="scnPick(${i},this.value)">${optsHtml(l, '')}</select>
+                    <div style="flex:1 1 220px;display:flex;flex-direction:column;gap:3px;min-width:0;">
+                      <input type="text" id="scn-cb-${i}" value="${esc(cur ? cur.name : '')}" placeholder="Search stock items…" autocomplete="off" autocapitalize="off" spellcheck="false"
+                        onfocus="this.select();scnFind(${i},'')" oninput="scnFind(${i},this.value)" onblur="scnBlur(${i})" onkeydown="scnKey(event,${i})" style="min-width:0;">
+                      <div id="scn-cl-${i}" class="scn-cl" style="display:none;" onmousedown="event.preventDefault()"></div>
+                      <div style="font-size:11px;color:var(--text-light);">${note}</div>
                     </div>
                     ${cur && unitOpts(cur).length > 1 ? `<select onchange="scnUnit(${i},this.value)">${unitOpts(cur).map(o => `<option value="${esc(o.unit)}" ${sel.unit === o.unit ? 'selected' : ''}>sold as ${esc(o.unit)}${o.mult > 1 ? ' (' + o.mult + ' ' + esc(cur.base_unit) + ')' : ''}</option>`).join('')}</select>` : ''}
                   </div>
@@ -12714,25 +12743,65 @@
                 <div class="sp-c sp-s">scanned copy</div>
             </div>`;
         }
+        // VAT sale lines that have no printed receipt yet. Printing the receipt matches them to scanned stock and takes them off this list.
+        // cutoffIso = when scanning started (oldest scanned stock item). Not given = look it up.
+        async function unprintedVat(cutoffIso) {
+            if (cutoffIso === undefined) {
+                const r = await supabaseClient.from('scanned_stock_items').select('created_at').eq('tenant_id', currentTenantId).order('created_at', { ascending: true }).limit(1);
+                if (r.error) throw r.error;
+                cutoffIso = r.data && r.data[0] ? r.data[0].created_at : null;
+            }
+            if (!cutoffIso) return [];
+            const cand = (state.salesLog || []).filter(r => r.vatIncluded && r.date >= String(cutoffIso).slice(0, 10)).slice(-300);
+            if (!cand.length) return [];
+            const led = await supabaseClient.from('scanned_stock_pending').select('sale_ref').eq('tenant_id', currentTenantId).in('sale_ref', cand.map(r => r.id));
+            if (led.error) throw led.error; // never treat a failed lookup as "nothing waiting"
+            const had = new Set((led.data || []).map(x => x.sale_ref));
+            return cand.filter(r => !had.has(r.id));
+        }
+
+        // ---------- alert for owners at login: VAT sales that have not been printed ----------
+        if (!document.getElementById('scn-va-css')) {
+            const st = document.createElement('style'); st.id = 'scn-va-css';
+            st.textContent = `#scn-vat-alert{position:fixed;top:calc(64px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:3000;width:min(440px,92vw);box-sizing:border-box;display:flex;gap:10px;align-items:flex-start;background:#fff3cd;color:#3d2e00;border:1px solid #e0a800;border-radius:10px;padding:12px 12px 12px 14px;box-shadow:0 8px 24px rgba(0,0,0,.25);cursor:pointer;font-size:13px;line-height:1.4;}
+            #scn-vat-alert .scn-va-t{flex:1 1 auto;}#scn-vat-alert .scn-va-x{flex:0 0 auto;background:none;border:0;box-shadow:none;color:#3d2e00;font-size:22px;line-height:1;padding:0 4px;cursor:pointer;}`;
+            document.head.appendChild(st);
+        }
+        let vaBusy = false, vaDoneFor = null;
+        window.scnLoginAlert = async () => {
+            try {
+                if (vaBusy || typeof currentIsOwner === 'undefined' || !currentIsOwner || !currentPlanPremium || !navigator.onLine) return;
+                const who = currentTenantId + ':' + currentMemberId; if (vaDoneFor === who) return; // once per login
+                vaBusy = true;
+                const waiting = await unprintedVat(); vaDoneFor = who;
+                if (!waiting.length) return;
+                const n = new Set(waiting.map(r => r.groupId || r.id)).size;
+                const old = $('scn-vat-alert'); if (old) old.remove();
+                const el = document.createElement('div'); el.id = 'scn-vat-alert'; el.setAttribute('role', 'button'); el.tabIndex = 0;
+                el.innerHTML = `<div class="scn-va-t"><b>VAT sales waiting</b><br>You have ${n} sale${n === 1 ? '' : 's'} with VAT that ${n === 1 ? 'has' : 'have'} not been printed yet. Tap here to see ${n === 1 ? 'it' : 'them'}.</div><button type="button" class="scn-va-x" aria-label="Close">&times;</button>`;
+                const go = () => { el.remove(); window.scnScrollWaiting = true; window.switchView('scanned'); };
+                el.addEventListener('click', e => { if (e.target.closest('.scn-va-x')) { e.stopPropagation(); el.remove(); return; } go(); });
+                el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+                document.body.appendChild(el);
+            } catch (e) { console.warn('VAT waiting alert skipped:', e); }
+            finally { vaBusy = false; }
+        };
+
         window.scnAfterLoad = async (rows, offline) => {
             const tid = currentTenantId, w = $('scn-waiting'), online = navigator.onLine && !offline;
+            let hasWaiting = false;
             if (online) {
                 try {
-                    const cutoff = rows.length ? rows.map(r => r.created_at).filter(Boolean).sort()[0] : null;
-                    const cand = cutoff ? (state.salesLog || []).filter(r => r.vatIncluded && r.date >= cutoff.slice(0, 10)).slice(-300) : [];
-                    let waiting = [];
-                    if (cand.length) {
-                        const led = await supabaseClient.from('scanned_stock_pending').select('sale_ref').eq('tenant_id', tid).in('sale_ref', cand.map(r => r.id));
-                        if (led.error) throw led.error; // never treat a failed lookup as "nothing matched yet"
-                        const had = new Set((led.data || []).map(x => x.sale_ref));
-                        waiting = cand.filter(r => !had.has(r.id));
-                    }
-                    w.innerHTML = waiting.length ? `<div style="background:rgba(255,193,7,.15);border:1px solid #e0a800;border-radius:8px;padding:10px;"><b>${waiting.length} VAT sale line(s) waiting</b> to be matched (printed receipts are matched automatically).
-                        <div style="font-size:12px;margin:6px 0;">${waiting.slice(-8).map(r => esc(r.date) + ' · ' + esc(r.desc) + ' × ' + esc(r.qty)).join('<br>')}</div>
-                        <button type="button" class="btn btn-small" id="scn-wbtn">Match now</button></div>` : '';
-                    const b = $('scn-wbtn'); if (b) b.onclick = () => openMatch(waiting.map(r => ({ _rowId: r.id, desc: r.desc, qty: r.qty, unit: r.price })), null);
+                    const cutoff = rows.length ? (rows.map(r => r.created_at).filter(Boolean).sort()[0] || null) : null;
+                    const waiting = await unprintedVat(cutoff);
+                    hasWaiting = waiting.length > 0;
+                    w.innerHTML = waiting.length ? `<div style="background:rgba(255,193,7,.15);border:1px solid #e0a800;border-radius:8px;padding:10px;"><b>${waiting.length} VAT sale line(s) not printed yet</b>
+                        <div style="font-size:12px;margin:4px 0 8px;">These sales have VAT, but no receipt has been printed. When the receipt is printed, its items are matched to scanned stock and leave this list.</div>
+                        <div style="font-size:12px;max-height:240px;overflow-y:auto;">${waiting.map(r => esc(r.date) + ' · ' + esc(r.desc) + ' × ' + esc(r.qty)).join('<br>')}</div></div>` : '';
                 } catch (e) { w.innerHTML = ''; }
             } else w.innerHTML = '';
+            // Owner tapped the login alert: bring the waiting list into view.
+            if (window.scnScrollWaiting) { window.scnScrollWaiting = false; if (hasWaiting) setTimeout(() => { try { w.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) { } }, 50); }
             // Purchase receipts (scanned copies) and sales receipts (as printed): load, then draw with the date filter.
             // Offline (or if the connection drops) the copies kept on this device are shown.
             let live = false;
