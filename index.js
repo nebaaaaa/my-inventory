@@ -11,7 +11,7 @@
 // keep seeing the old app until the cache naturally expires.
 // =====================================================================
 
-const CACHE_NAME = 'meleya-shell-v18';
+const CACHE_NAME = 'meleya-shell-v19';
 
 const ASSETS_TO_CACHE = [
   './',

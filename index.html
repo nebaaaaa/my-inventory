@@ -3103,6 +3103,7 @@
         });
         window.addEventListener('online', () => {
             updateOfflineBanner();
+            try { if (currentPlanPremium && window.prlPrefetch) setTimeout(window.prlPrefetch, 4000); } catch (e) { }
             if (pendingCloudSync) writeChain = writeChain.then(() => drainQueueOnReconnect());
         });
         updateOfflineBanner(); // set correct state immediately on page load, even before login
@@ -3122,12 +3123,23 @@
         // RETRY HELPER — wraps any Supabase call with exponential backoff
         // (1s, 2s, 4s, 8s) so a flaky connection doesn't silently drop data.
         // ---------------------------------------------------------------
+        // What kind of failure is it? network = no connection; transient = server busy / session expired (try again later);
+        // duplicate = an earlier attempt already saved this row; permanent = the database refused it (retrying will never help).
+        function classifyWriteError(err, op) {
+            if (looksLikeNetworkError(err)) return 'network';
+            const code = String((err && err.code) || ''), st = Number(err && (err.status || err.statusCode)) || 0, msg = String((err && err.message) || '');
+            if (op && op.kind === 'insert' && code === '23505') return 'duplicate';
+            if (st === 408 || st === 425 || st === 429 || st >= 500 || ['40001', '40P01', '57014', '53300', '57P03', 'PGRST301', 'PGRST302'].includes(code) || /jwt.*expired|token.*expired/i.test(msg)) return 'transient';
+            return 'permanent';
+        }
         async function withRetry(fn, maxRetries = 4) {
             let delay = 1000;
             for (let attempt = 0; attempt <= maxRetries; attempt++) {
                 const result = await fn();
                 if (!result || !result.error) return result;
-                if (attempt === maxRetries) throw result.error;
+                const kind = classifyWriteError(result.error);
+                if (kind === 'permanent' || attempt === maxRetries) throw result.error; // never wait 15 seconds for something that cannot succeed
+                if (/jwt|expired/i.test(String(result.error.message || ''))) { try { await supabaseClient.auth.refreshSession(); } catch (e) { } }
                 await new Promise(r => setTimeout(r, delay));
                 delay *= 2;
             }
@@ -3280,6 +3292,7 @@
 
         async function onLoginSuccess(user, isNewSignup) {
             loadOfflineQueue();
+            loadFailedOps();
             document.getElementById('auth-overlay').style.display = 'none';
             setLanguage(currentLang);
             setCalendarPref(currentCalendarPref);
@@ -3421,6 +3434,7 @@
             }
             if (window.scnShowNav) window.scnShowNav();
             setTimeout(() => { try { if (currentPlanPremium && window.scnEnsure) window.scnEnsure().catch(() => { }); } catch (e) { } }, 4000); // keep matches ready for offline selling
+            setTimeout(() => { try { if (currentPlanPremium) prlPrefetch(); } catch (e) { } }, 9000); // learn which receipts are already printed, for offline use
 
             currentTenantName = biz.business_name;
             currentBusinessType = biz.business_type || 'retail';
@@ -3823,6 +3837,8 @@
         // LOAD DATA FROM SUPABASE (runs once per session, after login)
         // ---------------------------------------------------------------
         async function loadStateFromSupabase() {
+            // Changes made earlier (offline, or still waiting) must reach the cloud BEFORE we read it back, or they vanish from the screen.
+            try { await Promise.race([writeChain, new Promise(r => setTimeout(r, 15000))]); if (navigator.onLine && offlineOpQueue.length > 0) await drainOfflineQueueInline(); } catch (e) { }
             const tid = currentTenantId;
             const bid = currentBranchId;
             const viewingAll = bid === 'all';
@@ -3926,7 +3942,7 @@
                 const expired = state.trash.filter(t => (now - new Date(t.deletedAt).getTime()) >= thirtyDaysMs);
                 if (expired.length > 0) {
                     state.trash = state.trash.filter(t => (now - new Date(t.deletedAt).getTime()) < thirtyDaysMs);
-                    expired.forEach(t => queueWrite({ kind: 'delete', table: 'trash', id: t.id }));
+                    expired.forEach(t => { queueWrite({ kind: 'delete', table: 'trash', id: t.id }); if ((t.type === 'sale' || t.type === 'sale_group') && currentPlanPremium && window.scnSalePurged) { try { window.scnSalePurged(String(t.id)); } catch (e) { } } });
                 }
             }
 
@@ -4177,10 +4193,13 @@
         function setSyncIndicator(mode) {
             const ind = document.getElementById('cloud-sync-status');
             if (!ind) return;
+            if (mode === 'synced' && syncProblemCount() > 0) mode = 'failed'; // never show "Cloud Synced" while something is stuck
+            ind.style.cursor = ''; ind.onclick = null;
             if (mode === 'saving') { ind.style.color = '#C97A22'; ind.innerHTML = '<svg width="9" height="9" viewBox="0 0 24 24" style="vertical-align:1px;flex-shrink:0;"><circle cx="12" cy="12" r="10" fill="currentColor"></circle></svg> Saving to Cloud...'; }
             else if (mode === 'synced') { ind.style.color = '#3E9B78'; ind.innerHTML = '<svg width="9" height="9" viewBox="0 0 24 24" style="vertical-align:1px;flex-shrink:0;"><circle cx="12" cy="12" r="10" fill="currentColor"></circle></svg> Cloud Synced'; }
             else if (mode === 'offline') { ind.style.color = '#C97A22'; ind.innerHTML = '<svg width="9" height="9" viewBox="0 0 24 24" style="vertical-align:1px;flex-shrink:0;"><circle cx="12" cy="12" r="10" fill="currentColor"></circle></svg> Offline — saved on this device'; }
-            else if (mode === 'failed') { ind.style.color = '#B2564A'; ind.innerHTML = '<svg width="9" height="9" viewBox="0 0 24 24" style="vertical-align:1px;flex-shrink:0;"><circle cx="12" cy="12" r="10" fill="currentColor"></circle></svg> Save Failed'; }
+            else if (mode === 'retry') { ind.style.color = '#C97A22'; ind.innerHTML = '<svg width="9" height="9" viewBox="0 0 24 24" style="vertical-align:1px;flex-shrink:0;"><circle cx="12" cy="12" r="10" fill="currentColor"></circle></svg> Saved on this device, retrying…'; }
+            else if (mode === 'failed') { ind.style.color = '#B2564A'; ind.innerHTML = '<svg width="9" height="9" viewBox="0 0 24 24" style="vertical-align:1px;flex-shrink:0;"><circle cx="12" cy="12" r="10" fill="currentColor"></circle></svg> ' + (syncProblemCount() || '') + ' not saved. Tap to fix'; ind.style.cursor = 'pointer'; ind.onclick = openSyncProblems; }
         }
 
         async function performDbOp(op) {
@@ -4199,51 +4218,125 @@
             }
         }
 
+        // ---------- changes the cloud refused: kept, shown, never silently lost ----------
+        let failedOps = [], opSeq = Date.now();
+        const failedKey = () => 'neba_erp_failed_ops_' + currentTenantId;
+        function loadFailedOps() { try { failedOps = JSON.parse(localStorage.getItem(failedKey()) || '[]'); } catch (e) { failedOps = []; } updateSyncProblemBar(); }
+        function persistFailedOps() { try { localStorage.setItem(failedKey(), JSON.stringify(failedOps)); } catch (e) { } }
+        function syncProblemCount() { let n = failedOps.length; try { if (window.scnProblems) n += window.scnProblems().length; } catch (e) { } return n; }
+        const TABLE_LABELS = { sales_log: 'sale', purchase_log: 'purchase', expense_log: 'expense', inventory_items: 'inventory item', inventory_lots: 'stock lot', journal_entries: 'journal entry', trash: 'recycle-bin entry', notifications: 'notification', stock_transfers: 'stock transfer', cash_handovers: 'cash handover', rentals: 'rental booking' };
+        function describeOp(op) {
+            const lab = TABLE_LABELS[op.table] || op.table || '', row = op.row || {}, nm = row.desc || row.name || row.customer || row.supplier || row.title || '';
+            const verb = { insert: 'Add', update: 'Change', delete: 'Delete' }[op.kind];
+            const head = verb ? verb + ' ' + lab : ({ tenant_update: 'Change business settings', mark_all_notifications_read: 'Mark notifications as read', clear_notifications: 'Clear notifications' }[op.kind] || op.kind);
+            const amt = row.total != null ? ' · ' + row.total : '';
+            return head + (nm ? ': ' + nm : '') + amt + (row.date ? ' · ' + row.date : '');
+        }
+        function friendlyError(code, msg) {
+            if (code === '42501' || /row-level security|permission denied/i.test(msg)) return 'You do not have permission for this change.';
+            if (code === '23503') return 'It points to something that no longer exists (for example an item that was deleted).';
+            if (code === '23502') return 'A required value was missing.';
+            if (code === '22P02' || code === '22003' || code === '22007') return 'A value was in the wrong format.';
+            if (code === '42P01' || code === '42703' || code === 'PGRST202' || code === 'PGRST204') return 'The database is missing something this version needs (a SQL update has not been run).';
+            return msg;
+        }
+        function parkFailedOp(op, err, why) {
+            const msg = why || String((err && err.message) || err || 'Unknown error');
+            failedOps.push({ seq: op._seq || ++opSeq, op, error: friendlyError(String((err && err.code) || ''), msg), tech: msg, at: new Date().toISOString() });
+            persistFailedOps(); setSyncIndicator('failed'); updateSyncProblemBar();
+        }
+        // a change to a row whose creation failed cannot succeed either: park it too instead of silently doing nothing
+        const dependsOnParked = op => op.kind !== 'insert' && op.id && failedOps.some(f => f.op.kind === 'insert' && f.op.table === op.table && f.op.row && String(f.op.row.id) === String(op.id));
+        function updateSyncProblemBar() {
+            let bar = document.getElementById('sync-problem-bar'); const n = syncProblemCount();
+            if (!n) { if (bar) bar.style.display = 'none'; return; }
+            if (!bar) { bar = document.createElement('div'); bar.id = 'sync-problem-bar'; bar.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:99999;background:#B2564A;color:#fff;padding:8px 12px;font-size:13px;text-align:center;cursor:pointer;'; bar.onclick = openSyncProblems; document.body.appendChild(bar); }
+            bar.style.display = ''; bar.textContent = '⚠ ' + n + ' change' + (n > 1 ? 's' : '') + ' could not be saved to the cloud. Tap to review.';
+        }
+        function openSyncProblems() {
+            let o = document.getElementById('sync-problems-overlay');
+            if (!o) { o = document.createElement('div'); o.id = 'sync-problems-overlay'; o.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.5);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:20px 10px;'; document.body.appendChild(o); }
+            o.style.display = 'flex'; renderSyncProblems();
+        }
+        function renderSyncProblems() {
+            const o = document.getElementById('sync-problems-overlay'); if (!o || o.style.display === 'none') return;
+            let scn = []; try { scn = window.scnProblems ? window.scnProblems() : []; } catch (e) { }
+            const mains = failedOps.slice().sort((a, b) => a.seq - b.seq);
+            const item = (src, id, title, err, at) => `<div style="padding:10px 0;border-top:1px solid var(--border,#ddd);"><div><b>${escHtml(title)}</b></div>
+                <div style="font-size:12px;color:#B2564A;margin:3px 0;">${escHtml(err)}</div><div style="font-size:11px;color:var(--text-light,#777);">${escHtml(String(at || '').replace('T', ' ').slice(0, 16))}</div>
+                <div style="margin-top:6px;display:flex;gap:8px;"><button type="button" class="btn btn-small" onclick="syncProblemAction('${src}','${escHtml(String(id))}','retry')">Try again</button><button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="syncProblemAction('${src}','${escHtml(String(id))}','discard')">Discard</button></div></div>`;
+            o.innerHTML = `<div class="card" style="max-width:640px;width:100%;margin:0 auto;background:var(--surface,#fff);color:var(--text,#222);">
+                <h2 style="margin-bottom:6px;">Changes that could not be saved</h2>
+                <p style="font-size:12px;color:var(--text-light,#777);margin:0 0 8px;">These changes are kept on this device and are NOT in the cloud yet. Press <b>Try again</b> after fixing the reason, or <b>Discard</b> a change you no longer want.</p>
+                ${mains.length + scn.length ? '' : '<p>Nothing is waiting. All changes are saved.</p>'}
+                ${mains.map(f => item('m', f.seq, describeOp(f.op), f.error, f.at)).join('')}${scn.map(x => item('s', x.id, x.title, x.error, x.at)).join('')}
+                <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+                  <button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="syncProblemsCopy()">Copy details</button>
+                  ${mains.length + scn.length ? '<button type="button" class="btn btn-small" onclick="syncProblemsRetryAll()">Try all again</button>' : ''}
+                  <button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="document.getElementById(\'sync-problems-overlay\').style.display=\'none\'">Close</button></div></div>`;
+        }
+        window.refreshSyncProblems = () => { updateSyncProblemBar(); renderSyncProblems(); try { setSyncIndicator(navigator.onLine ? 'synced' : 'offline'); } catch (e) { } };
+        window.syncProblemAction = async (src, id, act) => {
+            if (src === 'm') {
+                const f = failedOps.find(x => String(x.seq) === String(id)); if (!f) return;
+                if (act === 'discard') { if (!confirm('Discard this change?\n\nIt will never be sent to the cloud, so your other devices will not get it.')) return; failedOps = failedOps.filter(x => x !== f); persistFailedOps(); }
+                else { failedOps = failedOps.filter(x => x !== f); persistFailedOps(); offlineOpQueue.unshift(f.op); persistOfflineQueue(); writeChain = writeChain.then(() => drainQueueOnReconnect()); }
+            } else {
+                const x = (window.scnProblems ? window.scnProblems() : []).find(y => String(y.id) === String(id)); if (!x) return;
+                if (act === 'discard') { if (!confirm('Discard this change?\n\nIt will never be sent to the cloud, so your other devices will not get it.')) return; await x.discard(); } else await x.retry();
+            }
+            window.refreshSyncProblems();
+        };
+        window.syncProblemsRetryAll = async () => {
+            const arr = failedOps.slice().sort((a, b) => a.seq - b.seq); failedOps = []; persistFailedOps();
+            if (arr.length) { offlineOpQueue.unshift(...arr.map(f => f.op)); persistOfflineQueue(); writeChain = writeChain.then(() => drainQueueOnReconnect()); }
+            try { for (const x of (window.scnProblems ? window.scnProblems() : [])) await x.retry(); } catch (e) { }
+            window.refreshSyncProblems();
+        };
+        window.syncProblemsCopy = () => { try { navigator.clipboard.writeText(JSON.stringify({ main: failedOps, scanned: (window.scnProblems ? window.scnProblems() : []).map(x => ({ title: x.title, error: x.error, at: x.at })) }, null, 2)); alert('Details copied.'); } catch (e) { alert('Could not copy.'); } };
+
+        // Run one change. 'ok' = saved (or was already saved), 'retry' = try again later (no connection / server busy), 'parked' = refused, kept in the problems list.
+        async function runOp(op) {
+            if (dependsOnParked(op)) { parkFailedOp(op, null, 'Waiting for an earlier change that could not be saved.'); return 'parked'; }
+            try { await performDbOp(op); return 'ok'; }
+            catch (err) {
+                const kind = classifyWriteError(err, op);
+                if (kind === 'duplicate') return 'ok';
+                if (kind === 'network' || kind === 'transient') return 'retry';
+                console.error('Cloud write refused:', err, op);
+                parkFailedOp(op, err); return 'parked';
+            }
+        }
+        // Sends everything waiting, in order. Returns true when the queue is empty. A refused change no longer blocks the ones behind it.
         async function drainOfflineQueueInline() {
             while (offlineOpQueue.length > 0) {
-                const next = offlineOpQueue[0];
-                await performDbOp(next);
+                const r = await runOp(offlineOpQueue[0]);
+                if (r === 'retry') return false;
                 offlineOpQueue.shift();
                 persistOfflineQueue();
             }
             pendingCloudSync = false;
+            return true;
         }
 
         function queueWrite(op) {
-            writeChain = writeChain.then(() => sendOrQueue(op));
+            if (op && !op._seq) op._seq = ++opSeq;
+            writeChain = writeChain.then(() => sendOrQueue(op)).catch(e => console.error('Write chain error:', e)); // one unexpected error must never stop all later saves
             return writeChain;
         }
 
         async function sendOrQueue(op) {
             cacheStateLocally(); // instant local safety copy of the latest state, regardless of connectivity
-
-            if (!navigator.onLine) {
-                offlineOpQueue.push(op);
-                persistOfflineQueue();
-                pendingCloudSync = true;
-                setSyncIndicator('offline');
-                updateOfflineBanner();
-                return;
-            }
-
+            const keep = () => { offlineOpQueue.push(op); persistOfflineQueue(); pendingCloudSync = true; setSyncIndicator(navigator.onLine ? 'retry' : 'offline'); updateOfflineBanner(); };
+            if (!navigator.onLine) { keep(); return; }
             setSyncIndicator('saving');
             activeWriteCount++;
             try {
-                if (offlineOpQueue.length > 0) await drainOfflineQueueInline(); // catch up on anything queued from an earlier offline spell first, in order
-                await performDbOp(op);
-                setSyncIndicator('synced');
+                if (offlineOpQueue.length > 0 && !(await drainOfflineQueueInline())) { keep(); return; } // earlier changes first, in order
+                const r = await runOp(op);
+                if (r === 'retry') keep(); else setSyncIndicator(r === 'ok' ? 'synced' : 'failed');
             } catch (err) {
-                console.error('Cloud write failed:', err);
-                if (looksLikeNetworkError(err)) {
-                    offlineOpQueue.push(op);
-                    persistOfflineQueue();
-                    pendingCloudSync = true;
-                    setSyncIndicator('offline');
-                    updateOfflineBanner();
-                } else {
-                    setSyncIndicator('failed');
-                    alert('We could not save your last change to the cloud. Please check your internet connection and try again.');
-                }
+                console.error('Cloud write error:', err); keep(); // never lose the change
             } finally {
                 activeWriteCount--;
             }
@@ -4264,14 +4357,17 @@
             if (offlineOpQueue.length === 0) { pendingCloudSync = false; return; }
             setSyncIndicator('saving');
             try {
-                await drainOfflineQueueInline();
-                setSyncIndicator('synced');
+                const ok = await drainOfflineQueueInline();
+                setSyncIndicator(ok ? 'synced' : (navigator.onLine ? 'retry' : 'offline'));
                 cacheStateLocally();
             } catch (err) {
                 console.error('Reconnect sync failed:', err);
-                setSyncIndicator(looksLikeNetworkError(err) ? 'offline' : 'failed');
+                setSyncIndicator(navigator.onLine ? 'retry' : 'offline');
             }
+            try { window.refreshSyncProblems && window.refreshSyncProblems(); } catch (e) { }
         }
+        // Do not wait for the next click or reconnect: if something is waiting, try again every 30 seconds.
+        setInterval(() => { if (navigator.onLine && offlineOpQueue.length > 0 && activeWriteCount === 0) writeChain = writeChain.then(() => drainQueueOnReconnect()).catch(() => { }); }, 30000);
 
         // ---------------------------------------------------------------
         // BULK REPLACE — used ONLY for the two cases where the entire
@@ -7612,6 +7708,7 @@
                 if (t.journal) { state.journal.push(t.journal); queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(t.journal) }); }
                 addNotification('Restored', `${t.data.rows.length}-item basket recovered.`);
             }
+            if ((t.type === 'sale' || t.type === 'sale_group') && currentPlanPremium && window.scnSaleRestored) { try { window.scnSaleRestored(String(t.id)); } catch (e) { } } // its printed receipt copy comes back too
             state.trash.splice(idx, 1);
             queueWrite({ kind: 'delete', table: 'trash', id: t.id });
             renderTrashTable();
@@ -8701,11 +8798,38 @@
             (b.l || []).forEach((x, i) => { const y = (a.l || [])[i]; if (!y) return; if (y[0] !== x[0]) out.push(`Item "${y[0]}" -> "${x[0]}"`); if (y[1] !== x[1]) out.push(`${x[0]}: price ${y[1].toFixed(2)} -> ${x[1].toFixed(2)}`); });
             return out.join('; ') || 'Receipt changed';
         }
-        async function pmLoadRecord(my) {
+        // Device copy of "has this been printed?" so the check also works offline: filled from the database whenever online,
+        // from every print made on this device, and in the background for recent VAT sales.
+        const prlKey = () => 'neba_erp_prlog_' + currentTenantId;
+        function prlGet() { try { return JSON.parse(localStorage.getItem(prlKey()) || '{}'); } catch (e) { return {}; } }
+        function prlSet(m) { const ks = Object.keys(m); if (ks.length > 1500) ks.sort((a, b) => (m[a].at || 0) - (m[b].at || 0)).slice(0, ks.length - 1500).forEach(k => delete m[k]); try { localStorage.setItem(prlKey(), JSON.stringify(m)); } catch (e) { } }
+        function prlPut(id, docType, rec) { const m = prlGet(); m[String(id) + '|' + docType] = { rec: rec || null, at: Date.now() }; prlSet(m); }
+        function prlFind(id, docType) { const e = prlGet()[String(id) + '|' + docType]; return e ? e.rec : null; }
+        let prlBusy = false;
+        async function prlPrefetch() {
+            if (prlBusy || !navigator.onLine || !currentPlanPremium || !currentTenantId) return; prlBusy = true;
             try {
-                const r = await supabaseClient.rpc('receipt_print_get', { p_tenant: currentTenantId, p_print_id: String(my.id), p_doc_type: my.docType });
-                my.rec = r.error ? null : ((r.data && !r.data.voided) ? r.data : null);   // if the SQL isn't installed yet, printing stays unrestricted
-            } catch (e) { my.rec = null; }
+                const m = prlGet(), now = Date.now(), ids = [];
+                (state.salesLog || []).filter(x => x.vatIncluded).slice(-120).reverse().forEach(x => { const id = String(x.groupId || x.id); if (!ids.includes(id)) ids.push(id); });
+                const todo = ids.filter(id => { const e = m[id + '|receipt']; return !e || now - e.at > (e.rec ? 24 : 6) * 3600000; }).slice(0, 40);
+                const got = {}; let i = 0;
+                const work = async () => { while (i < todo.length) { const id = todo[i++]; try { const r = await supabaseClient.rpc('receipt_print_get', { p_tenant: currentTenantId, p_print_id: id, p_doc_type: 'receipt' }); if (r.error) { if (looksLikeNetworkError(r.error)) return; continue; } got[id] = (r.data && !r.data.voided) ? r.data : null; } catch (e) { return; } } };
+                await Promise.all([work(), work(), work()]);
+                const m2 = prlGet(); Object.keys(got).forEach(id => { m2[id + '|receipt'] = { rec: got[id], at: Date.now() }; }); prlSet(m2);
+            } finally { prlBusy = false; }
+        }
+        window.prlPrefetch = prlPrefetch;
+        window.prlForget = ids => { const m = prlGet(); (ids || []).forEach(id => { m[String(id) + '|receipt'] = { rec: null, at: Date.now() }; }); prlSet(m); };
+        async function pmLoadRecord(my) {
+            let offline = !navigator.onLine;
+            if (!offline) {
+                try {
+                    const r = await supabaseClient.rpc('receipt_print_get', { p_tenant: currentTenantId, p_print_id: String(my.id), p_doc_type: my.docType });
+                    if (r.error) { if (looksLikeNetworkError(r.error)) offline = true; else my.rec = null; }   // if the SQL isn't installed yet, printing stays unrestricted
+                    else { my.rec = (r.data && !r.data.voided) ? r.data : null; prlPut(my.id, my.docType, my.rec); }
+                } catch (e) { offline = true; }
+            }
+            if (offline) { my.rec = prlFind(my.id, my.docType); my.recOffline = true; } else my.recOffline = false;
             my.recLoaded = true;
             if (pm === my) pmGateRefresh();
         }
@@ -8719,8 +8843,10 @@
             const hold = pm.hookBusy, rec = pm.rec, msg = (c, t) => { note.innerHTML = `<div style="padding:8px 10px; border-radius:8px; background:${c};">${t}</div>`; };
             if (!pm.recLoaded) { btn.disabled = true; note.innerHTML = ''; return; }
             if (!rec) { note.innerHTML = ''; btn.disabled = hold; return; }
-            if (rec.signature === pm.sigNow) { btn.disabled = true; msg('rgba(192,57,43,.12)', '<b>Already printed.</b> To print it again, change the buyer TIN or name, an item name or a price.'); return; }
-            if (currentIsOwner || hasPerm('sales.reprint_receipt')) { btn.disabled = hold; msg('rgba(224,168,0,.18)', 'This receipt was printed before. Printing it again <b>voids the first one</b> and replaces it.'); return; }
+            const offTag = pm.recOffline ? ' <i>(checked on this device)</i>' : '';
+            if (rec.signature === pm.sigNow) { btn.disabled = true; msg('rgba(192,57,43,.12)', '<b>Already printed.</b> To print it again, change the buyer TIN or name, an item name or a price.' + offTag); return; }
+            if (currentIsOwner || hasPerm('sales.reprint_receipt')) { btn.disabled = hold; msg('rgba(224,168,0,.18)', 'This receipt was printed before. Printing it again <b>voids the first one</b> and replaces it.' + offTag); return; }
+            if (!navigator.onLine) { btn.disabled = true; msg('rgba(224,168,0,.18)', '<b>This receipt was already printed.</b> Printing it again needs the owner\'s approval. Connect to the internet to ask.' + offTag); return; }
             const mine = rec.req_signature === pm.sigNow;
             if (mine && rec.req_status === 'approved') { btn.disabled = hold; msg('rgba(39,174,96,.15)', '<b>Owner approved.</b> You can print it now. The first receipt will be voided.'); return; }
             if (mine && rec.req_status === 'pending') { btn.disabled = true; msg('rgba(224,168,0,.18)', '<b>Waiting for the owner to approve…</b> This window updates by itself.'); pmStartPoll(); return; }
@@ -8746,6 +8872,7 @@
         async function pmRecordPrint(id, docType, sig) {
             try { if (window.scnRpcQ) await window.scnRpcQ('receipt_print_record', { p_tenant: currentTenantId, p_print_id: String(id), p_doc_type: docType, p_signature: sig }); else await supabaseClient.rpc('receipt_print_record', { p_tenant: currentTenantId, p_print_id: String(id), p_doc_type: docType, p_signature: sig }); }
             catch (e) { console.warn('Print record not saved:', e); }
+            try { prlPut(id, docType, { signature: sig }); if (window.scnRecomputeVoided) window.scnRecomputeVoided(); } catch (e) { } // this device now knows it was printed
         }
         // Owner: pending reprint requests shown at the top of the Sales page.
         async function loadReprintRequests() {
@@ -11937,7 +12064,7 @@
             ['stock', 'purchases', 'sales'].forEach(n => { const pane = $('scn-pane-' + n), b = $('scn-tab-' + n), on = n === t; if (pane) pane.style.display = on ? '' : 'none'; if (b) { b.style.background = on ? '' : '#4a4e63'; b.style.opacity = on ? '1' : '.75'; } });
         };
         window.scnReload = load; window.scnRefresh = review;
-        window.scnShowNav = () => { const n = $('nav-scanned'); if (n) n.style.display = (typeof currentIsOwner !== 'undefined' && currentIsOwner && currentPlanPremium) ? 'flex' : 'none'; };
+        window.scnShowNav = () => { const n = $('nav-scanned'); if (n) n.style.display = (typeof currentIsOwner !== 'undefined' && currentIsOwner && currentPlanPremium) ? 'flex' : 'none'; try { if (window.scnRecomputeVoided) window.scnRecomputeVoided(); } catch (e) { } };
         const baseSwitch = window.switchView;
         window.switchView = function (v) {
             if (v === 'scanned' && (!currentIsOwner || !currentPlanPremium)) return;
@@ -12019,6 +12146,9 @@
             return { queued: true };
         }
         let flushing = false;
+        const isTransient = e => { const c = String((e && e.code) || ''), st = Number(e && (e.status || e.statusCode)) || 0; return st === 408 || st === 429 || st >= 500 || ['40001', '40P01', '57014', '53300', '57P03', 'PGRST301', 'PGRST302'].includes(c) || /jwt.*expired|token.*expired/i.test(String((e && e.message) || '')); };
+        const QFK = 'neba_scn_qf_'; // jobs the database refused: kept and shown in "Changes that could not be saved", never dropped silently
+        const friendly = e => { const c = String((e && e.code) || ''), m = String((e && e.message) || e || ''); if (c === 'PGRST202' || c === '42883' || /could not find the function|does not exist/i.test(m)) return 'The database is missing something this version needs (a SQL update has not been run).'; if (c === '42501' || /row-level security|permission denied/i.test(m)) return 'You do not have permission for this change.'; return m; };
         async function flushQ() {
             if (flushing || !navigator.onLine || !currentTenantId) return; flushing = true;
             let did = 0;
@@ -12027,21 +12157,52 @@
                 let q = store.get('neba_scn_q_', []);
                 while (q.length) {
                     const j = q[0]; let r; const a = j.args || {};
-                    if (typeof a.p_item_id === 'string' && a.p_item_id.indexOf('local-') === 0) {
-                        // this stock row was made on this device while offline: find its real id now
+                    const needStock = typeof a.p_item_id === 'string' && a.p_item_id.indexOf('local-') === 0, needSal = typeof a.p_id === 'string' && a.p_id.indexOf('local-sal-') === 0;
+                    if (needStock || needSal) {
+                        // made on this device while offline: find its real id in the database now
                         let found = null, netFail = false;
-                        try { const rr = await supabaseClient.from('scanned_stock_items').select('id').eq('tenant_id', a.p_tenant).eq('name_key', (j.meta && j.meta.itemKey) || '').limit(1); if (rr.error) { if (isNet(rr.error)) netFail = true; } else found = (rr.data || [])[0]; } catch (e) { netFail = true; }
+                        try {
+                            const rr = needStock
+                                ? await supabaseClient.from('scanned_stock_items').select('id').eq('tenant_id', a.p_tenant).eq('name_key', (j.meta && j.meta.itemKey) || '').limit(1)
+                                : await supabaseClient.from('scanned_sales_receipts').select('id').eq('tenant_id', a.p_tenant).eq('doc_number', String((j.meta && j.meta.docNumber) || '')).order('created_at', { ascending: false }).limit(1);
+                            if (rr.error) { if (isNet(rr.error)) netFail = true; } else found = (rr.data || [])[0];
+                        } catch (e) { netFail = true; }
                         if (netFail) break;
-                        if (found) a.p_item_id = String(found.id); else r = { error: { message: 'stock item not synced yet' } };
+                        if (found) { if (needStock) a.p_item_id = String(found.id); else a.p_id = String(found.id); } else r = { error: { message: needStock ? 'The stock item is not saved in the cloud yet.' : 'The receipt copy is not saved in the cloud yet.' } };
                     }
                     if (!r) { try { r = await supabaseClient.rpc(j.name, j.args); } catch (e) { r = { error: e }; } }
-                    if (r.error && isNet(r.error)) break;
-                    if (r.error && ++j.n < 3) { q.push(q.shift()); store.set('neba_scn_q_', q); if (q.every(x => x.n >= 1) && q.length === 1) break; continue; }
-                    if (!r.error && j.meta && j.meta.salLocal) dropPendingSal(j.meta.salLocal);
+                    if (r.error && (isNet(r.error) || isTransient(r.error))) break;
+                    if (r.error && ++j.n < 3) { store.set('neba_scn_q_', q); break; } // keep the order (a delete must not slip behind a later reprint); tried again on the next round, parked after 3
+                    if (r.error) { const f = store.get(QFK, []); f.push({ j, error: friendly(r.error), at: new Date().toISOString() }); store.set(QFK, f); }
+                    else if (j.meta && j.meta.salLocal) dropPendingSal(j.meta.salLocal);
                     q.shift(); store.set('neba_scn_q_', q); did++;
                 }
             } finally { flushing = false; }
             if (did) afterSync();
+            try { window.refreshSyncProblems && window.refreshSyncProblems(); } catch (e) { }
+        }
+        const JOB_LABELS = { scanned_apply_sale: 'Taking stock off Scanned Stock for a sale', scanned_restore_sale: 'Putting stock back after a deleted sale', scanned_save_sales_receipt: 'Saving a printed sales receipt copy', scanned_delete_sales_receipt: 'Deleting a sales receipt copy', scanned_link_add: 'Remembering an inventory match', receipt_print_record: 'Recording that a receipt was printed', scanned_sale_deleted: 'Hiding the receipt copy of a deleted sale', scanned_sale_restored: 'Bringing back the receipt copy of a restored sale', scanned_sale_purged: 'Removing the receipt copy of a purged sale' };
+        // What the "Changes that could not be saved" window shows for Scanned Stock.
+        window.scnProblems = () => {
+            const out = [];
+            store.get(QFK, []).forEach(f => {
+                const a = f.j.args || {}, id = 'j' + f.at + f.j.name;
+                out.push({ id, title: (JOB_LABELS[f.j.name] || f.j.name) + (a.p_desc ? ': ' + a.p_desc : a.p_doc_number ? ': receipt ' + a.p_doc_number : ''), error: f.error, at: f.at,
+                    retry: async () => { const arr = store.get(QFK, []), k = arr.findIndex(x => x.at === f.at && x.j.name === f.j.name); if (k >= 0) { const [x] = arr.splice(k, 1); store.set(QFK, arr); x.j.n = 0; const q = store.get('neba_scn_q_', []); q.unshift(x.j); store.set('neba_scn_q_', q); } await flushQ(); },
+                    discard: async () => { store.set(QFK, store.get(QFK, []).filter(x => !(x.at === f.at && x.j.name === f.j.name))); if (f.j.meta && f.j.meta.salLocal) dropPendingSal(f.j.meta.salLocal); } });
+            });
+            store.get(PPK, []).filter(x => (x.n || 0) >= 3).forEach(x => {
+                const r = x.pk.recRow || {};
+                out.push({ id: 'p' + x.uid, title: 'Scanned purchase receipt: ' + (r.merchant || r.receipt_no || 'no name') + (r.total != null ? ' · ' + r.total : ''), error: friendly({ message: x.err }), at: x.pk.createdAt,
+                    retry: async () => { const q = store.get(PPK, []), e = q.find(y => y.uid === x.uid); if (e) { e.n = 0; e.err = ''; store.set(PPK, q); } await flushQ(); },
+                    discard: async () => { unapplyLocal(x.pk, x.prog); store.set(PPK, store.get(PPK, []).filter(y => y.uid !== x.uid)); const v = $('view-scanned'); if (window.scnReload && v && v.classList.contains('active')) window.scnReload(); } });
+            });
+            return out;
+        };
+        function unapplyLocal(pk, prog) {
+            if (!items.length) loadCache();
+            pk.items.forEach((it, i) => { if (prog && prog.items && prog.items[i]) return; const row = items.find(x => x.name_key === it.key); if (!row) return; row.qty = num(row.qty) - it.baseQty; if (row._local && num(row.qty) <= 0) items = items.filter(x => x !== row); });
+            saveCache();
         }
         // After something was sent: refresh the Scanned Stock page and the VAT box with the real data.
         function afterSync() {
@@ -12107,8 +12268,9 @@
             const keep = []; let did = 0;
             for (let i = 0; i < q.length; i++) {
                 const j = q[i];
+                if ((j.n || 0) >= 3) { keep.push(j); continue; } // refused 3 times: waits in the problems window until you press "Try again"
                 try { await doPurchase(j.pk, j.prog, () => store.set(PPK, mergePP([...keep, ...q.slice(i)], q))); did++; }
-                catch (e) { j.err = String((e && e.message) || e); keep.push(j); if (isNet(e)) { keep.push(...q.slice(i + 1)); break; } }
+                catch (e) { j.err = String((e && e.message) || e); keep.push(j); if (isNet(e) || isTransient(e)) { keep.push(...q.slice(i + 1)); break; } j.n = (j.n || 0) + 1; }
             }
             store.set(PPK, mergePP(keep, q));
             return did;
@@ -12204,6 +12366,17 @@
             refs.forEach(r => { if (!got.has(r) && local[r]) got.set(r, local[r]); });
             return got;
         }
+        const DEDK = 'neba_scn_ded_';
+        function recordDeduction(ref, item, base) { const m = store.get(DEDK, {}); m[ref] = { id: item.id, key: item.name_key, base }; const ks = Object.keys(m); if (ks.length > 800) ks.slice(0, ks.length - 800).forEach(k => delete m[k]); store.set(DEDK, m); }
+        // A sale was deleted: put its stock back here at once (if this device knows how much it took) and in the database (now or when online).
+        window.scnRestoreSale = async ref => {
+            const m = store.get(DEDK, {}), d = m[ref];
+            if (d) { if (!items.length) loadCache(); const it = items.find(x => String(x.id) === String(d.id)) || items.find(x => x.name_key === d.key); if (it) { it.qty = num(it.qty) + d.base; saveCache(); } delete m[ref]; store.set(DEDK, m); }
+            const dn = store.get('neba_scn_done_', {}); if (dn[ref]) { delete dn[ref]; store.set('neba_scn_done_', dn); }
+            const r = await rpcQ('scanned_restore_sale', { p_sale_ref: ref });
+            if (r && r.error) console.warn('Stock not put back:', r.error);
+            syncNote(); const v = $('view-scanned'); if (window.scnReload && v && v.classList.contains('active')) window.scnReload();
+        };
         const rememberDone = (ref, name) => { const m = store.get('neba_scn_done_', {}); m[ref] = name; const ks = Object.keys(m); if (ks.length > 800) ks.slice(0, ks.length - 800).forEach(k => delete m[k]); store.set('neba_scn_done_', m); };
         window.scnEnsure = ensure;
         window.scnNameScore = nameScore;
@@ -12283,7 +12456,7 @@
                         p_unit_price: num(l.unit), p_sold_unit: s.unit || null, p_skip: skip }, item ? { itemKey: item.name_key } : null);
                     if (r.error) throw r.error;
                     let nm = r.data && r.data.name;
-                    if (r.queued && item) { nm = item.name; item.qty = num(item.qty) - num(l.qty) * (s.mult || 1); saveCache(); }  // offline: stock is updated here now, in the database later
+                    if (item) { const base = num(l.qty) * (s.mult || 1); nm = nm || item.name; item.qty = num(item.qty) - base; saveCache(); recordDeduction(String(l._rowId), item, base); }  // stock is updated here now (and in the database, now or later)
                     if (!skip && nm) { done.push({ l, name: nm }); rememberDone(String(l._rowId), nm); }
                     // remember this match so the next sale of the same item is matched by itself
                     if (item && !l.auto && !(linkMap.get(key(l.desc)) || []).some(x => String(x.item_id) === String(item.id))) {
@@ -12452,11 +12625,13 @@
                     }
                     store.set('neba_scn_vat_', out);
                     window.scnVatReceipts = out.concat(pendingVat());
-                    try { const v = await supabaseClient.rpc('receipt_voided_list', { p_tenant: currentTenantId }); window.rcVoided = new Set(v.error ? [] : (v.data || []).map(String)); } catch (e) { window.rcVoided = new Set(); }
+                    try { const v = await supabaseClient.rpc('receipt_voided_list', { p_tenant: currentTenantId }); if (!(v.error && isNet(v.error))) store.set('neba_scn_voided_', v.error ? [] : (v.data || []).map(String)); } catch (e) { }
+                    recomputeVoided(); // device copy + deletes/prints still waiting to be sent
                     try { refreshVatBox(); } catch (e) { }
                 } catch (e) {
                     console.warn('Scanned receipts for VAT not loaded:', e);
-                    if (!(window.scnVatReceipts || []).length) { window.scnVatReceipts = store.get('neba_scn_vat_', []).concat(pendingVat()); try { refreshVatBox(); } catch (e2) { } } // offline: use the device copy
+                    if (!(window.scnVatReceipts || []).length) { window.scnVatReceipts = store.get('neba_scn_vat_', []).concat(pendingVat()); } // offline: use the device copy
+                    recomputeVoided();
                 }
                 finally { window.scnVatStamp = Date.now(); vatBusy = null; }
             })();
@@ -12488,7 +12663,7 @@
             }).join('');
             const date = x.receipt_date || String(x.created_at || '').slice(0, 10);
             const lines = a => (a || []).map(t => `<div class="sp-c">${esc(t)}</div>`).join('');
-            return `<div class="scn-paper">${x._pending ? '<div class="sp-s" style="text-align:right;color:#b8860b;">waiting to be sent</div>' : `<button type="button" class="scn-del" title="Delete this receipt" onclick="scnDelPur('${esc(x.id)}')">&minus;</button>`}
+            return `<div class="scn-paper">${x._pending ? '<div class="sp-s" style="text-align:right;color:#b8860b;">not synced yet</div>' : `<button type="button" class="scn-del" title="Delete this receipt" onclick="scnDelPur('${esc(x.id)}')">&minus;</button>`}
                 <div class="sp-c sp-b sp-m">${esc(x.merchant || 'Unknown merchant')}</div>
                 ${x.merchant_tin ? `<div class="sp-c">TIN: ${esc(x.merchant_tin)}</div>` : ''}
                 ${lines(lay.header)}
@@ -12533,7 +12708,9 @@
                 let pr = { error: { message: 'offline' } }, sr = pr;
                 try {
                     pr = await supabaseClient.from('scanned_receipts').select('*').eq('tenant_id', tid).order('created_at', { ascending: false }).limit(500);
-                    sr = await supabaseClient.from('scanned_sales_receipts').select('id,created_at,doc_type,doc_number,sale_date,customer,total,html,lines').eq('tenant_id', tid).order('created_at', { ascending: false }).limit(300);
+                    const SALCOLS = 'id,created_at,doc_type,doc_number,sale_date,customer,total,html,lines', sq = cols => supabaseClient.from('scanned_sales_receipts').select(cols).eq('tenant_id', tid).order('created_at', { ascending: false }).limit(300);
+                    sr = await sq(SALCOLS + ',sale_deleted_at,sale_deleted_by,sale_deleted_hidden');
+                    if (sr.error && !isNet(sr.error)) sr = await sq(SALCOLS); // offline-sales-receipts-trash.sql not run yet
                 } catch (e) { pr = sr = { error: e }; }
                 if (!netFail(pr) && !netFail(sr)) {
                     live = true;
@@ -12549,7 +12726,7 @@
         let purRows = [], salRows = [], purErr = false, salErr = '';
         // Receipts saved on this device while offline are shown together with the ones from the database.
         const allPur = () => [...pendingPur().map(x => { const r = x.pk.recRow; return { id: 'local-' + x.uid, merchant: r.merchant, merchant_tin: r.merchant_tin, receipt_no: r.receipt_no, receipt_date: r.receipt_date, before_vat: r.before_vat, vat: r.vat, total: r.total, items: r.items, layout: x.pk.lay, created_at: x.pk.createdAt, _pending: true }; }), ...purRows];
-        const allSal = () => [...store.get(PSK, []), ...salRows];
+        const allSal = () => [...store.get(PSK, []), ...salRows].filter(x => !x.sale_deleted_hidden); // copies of deleted sales stay hidden until the sale is restored
         if (!document.getElementById('scn-filter-css')) {
             const st = document.createElement('style'); st.id = 'scn-filter-css';
             st.textContent = `.scn-del{background:none;border:0;color:#d0021b;font-size:26px;font-weight:700;line-height:1;cursor:pointer;padding:0 6px;box-shadow:none;}.scn-paper .scn-del{position:absolute;top:2px;right:4px;z-index:2;}.scn-filter{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 12px;font-size:13px;}.scn-filter input{width:auto;}
@@ -12573,7 +12750,7 @@
             const sl = allSal().filter(x => inRange(isoDay(x.sale_date) || String(x.created_at || '').slice(0, 10), sf, st));
             sc.innerHTML = salErr ? '<span style="color:#c0392b;">Could not load sales receipts. Run premium-and-sales-receipts.sql in Supabase (one time).</span>'
                 : sl.length ? '<div class="scn-sal-grid">' + sl.map(x => `<div class="scn-sal ${x.doc_type === 'invoice' ? 'inv' : ''}" style="${x.doc_type === 'invoice' ? 'max-width:620px;' : ''}">
-                    <div class="scn-sal-h"><span>${esc(fmtDate(isoDay(x.sale_date) || String(x.created_at || '').slice(0, 10)))}</span><span>Receipt ${esc(x.doc_number || '')}${x._pending ? ' <small style="color:#b8860b;">waiting to be sent</small>' : `<button type="button" class="scn-del" title="Delete this receipt" onclick="scnDelSale('${esc(x.id)}')">&minus;</button>`}</span></div>
+                    <div class="scn-sal-h"><span>${esc(fmtDate(isoDay(x.sale_date) || String(x.created_at || '').slice(0, 10)))}</span><span>Receipt ${esc(x.doc_number || '')}${x.sale_deleted_by && !x.sale_deleted_hidden ? ` <small style="color:#c0392b;">sale deleted by ${esc(x.sale_deleted_by)}</small>` : ''}${x._pending ? ' <small style="color:#b8860b;">not synced yet</small>' : `<button type="button" class="scn-del" title="Delete this receipt" onclick="scnDelSale('${esc(x.id)}')">&minus;</button>`}</span></div>
                     <div class="scn-sal-w" data-w="${x.doc_type === 'invoice' ? 794 : 300}"><iframe data-i="${esc(x.id)}" scrolling="no" sandbox="allow-same-origin"></iframe></div></div>`).join('') + '</div>'
                 : '<span style="color:var(--text-light);font-size:13px;">' + (allSal().length ? 'No sales receipts in these dates.' : 'No printed sales receipts saved yet.') + '</span>';
             sc.querySelectorAll('iframe[data-i]').forEach(fr => {
@@ -12615,15 +12792,58 @@
             purRows = purRows.filter(r => r !== row); window.scnRenderReceipts();
             window.scnVatEnsure(true); if (window.scnReload) window.scnReload();
         };
+        function saveRcCache() { store.set('neba_scn_rc_', { pur: purRows.slice(0, 60), sal: salRows.slice(0, 40) }); }
+        // Estimated VAT must also be right offline: the voided list is kept on the device, then pending deletes/prints are replayed on top of it.
+        function recomputeVoided() {
+            const v = new Set((store.get('neba_scn_voided_', []) || []).map(String));
+            store.get('neba_scn_q_', []).forEach(j => { const a = j.args || {}; if (j.name === 'scanned_delete_sales_receipt') (a.p_print_ids || []).forEach(i => v.add(String(i))); else if (j.name === 'receipt_print_record' && a.p_doc_type === 'receipt') v.delete(String(a.p_print_id)); });
+            window.rcVoided = v; try { refreshVatBox(); } catch (e) { }
+        }
+        window.scnRecomputeVoided = recomputeVoided;
         window.scnDelSale = async id => {
-            if (!navigator.onLine) return alert('Connect to the internet to delete a receipt.');
-            const row = salRows.find(r => String(r.id) === String(id)); if (!row) return;
-            if (!confirm('Delete this sales receipt?\n\nIt is voided: its VAT is removed from the Estimated VAT, and the sale can be printed again.')) return;
-            const ids = [...new Set((state.salesLog || []).flatMap(r => [r.id, r.groupId]).filter(x => x && String(x).slice(-8) === String(row.doc_number)))];
-            const r = await supabaseClient.rpc('scanned_delete_sales_receipt', { p_tenant: currentTenantId, p_id: row.id, p_print_ids: ids.map(String) });
+            const row = allSal().find(r => String(r.id) === String(id)); if (!row) return;
+            const off = !navigator.onLine;
+            if (!confirm('Delete this sales receipt?\n\nIt is voided: its VAT is removed from the Estimated VAT, and the sale can be printed again.' + (off ? '\n\nYou are offline: this is kept on this device and sent when the internet is back.' : ''))) return;
+            const ids = [...new Set((state.salesLog || []).flatMap(r => [r.id, r.groupId]).filter(x => x && String(x).slice(-8) === String(row.doc_number)))].map(String);
+            const local = String(row.id).indexOf('local-') === 0;
+            const r = await rpcQ('scanned_delete_sales_receipt', { p_tenant: currentTenantId, p_id: row.id, p_print_ids: ids }, local ? { docNumber: String(row.doc_number) } : null);
             if (r.error) return alert('Could not delete: ' + r.error.message + '\n\nRun premium-and-sales-receipts.sql in Supabase (one time).');
-            salRows = salRows.filter(x => x !== row); window.scnRenderReceipts();
-            window.scnVatEnsure(true);
+            salRows = salRows.filter(x => x !== row); if (local) dropPendingSal(row.id);
+            try { window.prlForget && window.prlForget(ids); } catch (e) { } // this device now knows it can be printed again
+            if (!r.queued) { const vl = store.get('neba_scn_voided_', []); ids.forEach(i => { if (!vl.includes(i)) vl.push(i); }); store.set('neba_scn_voided_', vl); }
+            recomputeVoided(); saveRcCache(); syncNote(); window.scnRenderReceipts();
+            if (!r.queued) window.scnVatEnsure(true);
+        };
+        // ---- a sale was deleted / restored from the bin / purged from the bin: its printed receipt copy follows ----
+        // owner deleted it: the copy is hidden (comes back if the sale is restored). employee deleted it: the copy stays, marked for the owner.
+        function markSale(doc, patch) {
+            salRows.forEach(x => { if (String(x.doc_number) === doc) Object.assign(x, patch); });
+            const ps = store.get(PSK, []); let ch = false; ps.forEach(x => { if (String(x.doc_number) === doc) { Object.assign(x, patch); ch = true; } }); if (ch) store.set(PSK, ps);
+            saveRcCache(); try { window.scnRenderReceipts(); } catch (e) { }
+        }
+        window.scnSaleDeleted = async printId => {
+            if (!currentTenantId) return;
+            const doc = String(printId).slice(-8), hide = !!currentIsOwner, by = currentUsername || 'employee';
+            markSale(doc, { sale_deleted_at: new Date().toISOString(), sale_deleted_by: by, sale_deleted_hidden: hide });
+            const r = await rpcQ('scanned_sale_deleted', { p_tenant: currentTenantId, p_doc_number: doc, p_by: by, p_hide: hide });
+            if (r && r.error) console.warn('Receipt copy not marked (run offline-sales-receipts-trash.sql):', r.error);
+            syncNote();
+        };
+        window.scnSaleRestored = async printId => {
+            if (!currentTenantId) return;
+            const doc = String(printId).slice(-8);
+            markSale(doc, { sale_deleted_at: null, sale_deleted_by: null, sale_deleted_hidden: false });
+            const r = await rpcQ('scanned_sale_restored', { p_tenant: currentTenantId, p_doc_number: doc });
+            if (r && r.error) console.warn('Receipt copy not brought back (run offline-sales-receipts-trash.sql):', r.error);
+            syncNote();
+        };
+        window.scnSalePurged = async printId => {
+            if (!currentTenantId) return;
+            const doc = String(printId).slice(-8);
+            salRows = salRows.filter(x => !(String(x.doc_number) === doc && x.sale_deleted_hidden)); store.set(PSK, store.get(PSK, []).filter(x => !(String(x.doc_number) === doc && x.sale_deleted_hidden)));
+            saveRcCache();
+            const r = await rpcQ('scanned_sale_purged', { p_tenant: currentTenantId, p_doc_number: doc });
+            if (r && r.error) console.warn('Receipt copy not removed (run offline-sales-receipts-trash.sql):', r.error);
         };
         // Called by the Print window after a sales receipt/invoice is printed (Premium only).
         // Saves the exact printed page; printing again the same document replaces the older copy.
@@ -12648,19 +12868,21 @@
 
 
     <script>
-    // Scanned Stock part 3: deleting a sale puts its scanned stock back (runs for owners and employees).
+    // Scanned Stock part 3: deleting a sale puts its scanned stock back and hides (owner) or flags (employee) its printed receipt copy.
+    // Both work offline: the changes are kept on this device and sent when the internet is back. Runs for owners and employees.
     (function () {
         const oQ = window.queueWrite;
         window.queueWrite = function (op) {
-            if (op && op.kind === 'delete' && op.table === 'sales_log' && op.id) {
-                try {
-                    supabaseClient.rpc('scanned_restore_sale', { p_sale_ref: String(op.id) }).then(() => {
-                        const v = document.getElementById('view-scanned');
-                        if (window.scnReload && v && v.classList.contains('active')) window.scnReload();
-                    }, () => { });
-                } catch (e) { }
-            }
+            if (op && op.kind === 'delete' && op.table === 'sales_log' && op.id && currentPlanPremium && window.scnRestoreSale) { try { window.scnRestoreSale(String(op.id)); } catch (e) { } }
             return oQ.apply(this, arguments);
+        };
+        const oDel = window.deleteSale;
+        if (typeof oDel === 'function') window.deleteSale = async function (id) {
+            const sale = (state.salesLog || []).find(x => String(x.id) === String(id));
+            const printId = sale ? String(sale.groupId || sale.id) : String(id);
+            const res = await oDel.apply(this, arguments);
+            try { if (sale && !(state.salesLog || []).some(x => String(x.id) === String(id)) && currentPlanPremium && window.scnSaleDeleted) window.scnSaleDeleted(printId); } catch (e) { }
+            return res;
         };
     })();
     </script>
