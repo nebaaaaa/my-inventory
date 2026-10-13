@@ -11716,13 +11716,14 @@
         }
         function render() {
             let tot = 0;
-            $('scn-body').innerHTML = rows.length ? rows.map(r => {
+            const shown = rows.filter(r => Math.abs(num(r.qty)) >= 1e-9); // items with exactly 0 left are hidden (their saved matches stay in the database)
+            $('scn-body').innerHTML = shown.length ? shown.map(r => {
                 const v = num(r.qty) * num(r.last_cost); tot += v;
                 const packs = (r.units || []).map(u => `1 ${esc(u.unit)} = ${num(u.base_qty)} ${esc(r.base_unit)}`).join(', ');
                 return `<tr data-item-id="${esc(r.id)}"><td>${esc(r.name)}${packs ? `<div style="font-size:11px;color:var(--text-light);">${packs}</div>` : ''}</td>
                     <td class="num" style="${num(r.qty) < 0 ? 'color:#c0392b;font-weight:700;' : ''}">${money(r.qty)} ${esc(r.base_unit)}</td>
                     <td class="num">${r.last_cost == null ? '—' : money(r.last_cost)}</td><td class="num">${money(v)}</td></tr>`;
-            }).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text-light);">No scanned stock yet. Scan a purchase receipt to start.</td></tr>';
+            }).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text-light);">' + (rows.length ? 'Nothing in stock right now.' : 'No scanned stock yet. Scan a purchase receipt to start.') + '</td></tr>';
             $('scn-total').textContent = 'ETB ' + money(tot);
         }
         async function load() {
@@ -12118,9 +12119,10 @@
             return { adj, warn: adj <= -25, opt: best.o };
         }
         // Top 3 suggestions for a sale item name (price may be null for new-scan hints).
+        const hasStock = x => Math.abs(num(x.qty)) >= 1e-9; // zero-stock items are hidden and are not offered for matching
         window.scnSuggest = (name, price, list) => {
             const k = key(name), al = aliasMap.get(k), out = [];
-            (list || items).forEach(it => {
+            (list || items.filter(hasStock)).forEach(it => {
                 let sc, via = '', pc = priceCheck(price, it), opt = pc.opt;
                 if (al && al.item_id === it.id) { sc = 100; via = 'Remembered'; if (al.sold_unit) opt = unitOpts(it).find(o => o.unit === al.sold_unit) || opt; }
                 else { sc = nameScore(name, it.name) + (price ? pc.adj : 0); }
@@ -12393,49 +12395,68 @@
         // Already matched? Gives the stock choice for a sold line, or null when the user still has to match it.
         function autoPick(l) {
             const k = key(l.desc), c = [];
-            (linkMap.get(k) || []).forEach(x => { const it = items.find(y => String(y.id) === String(x.item_id)); if (it) c.push({ it, mult: num(x.mult) || 1, unit: null }); });
+            (linkMap.get(k) || []).forEach(x => { const it = items.find(y => String(y.id) === String(x.item_id)); if (it && hasStock(it)) c.push({ it, mult: num(x.mult) || 1, unit: null }); });
             const al = aliasMap.get(k);
-            if (!c.length && al) { const it = items.find(y => y.id === al.item_id); if (it) { const o = unitOpts(it).find(o => o.unit === al.sold_unit) || unitOpts(it)[0]; c.push({ it, mult: o.mult, unit: o.unit }); } }
+            if (!c.length && al) { const it = items.find(y => y.id === al.item_id); if (it && hasStock(it)) { const o = unitOpts(it).find(o => o.unit === al.sold_unit) || unitOpts(it)[0]; c.push({ it, mult: o.mult, unit: o.unit }); } }
             if (!c.length) return null;
             const q = num(l.qty), best = c.find(x => num(x.it.qty) >= q * x.mult) || c.slice().sort((a, b) => num(b.it.qty) - num(a.it.qty))[0];
             return { id: best.it.id, mult: best.mult, unit: best.unit };
         }
         async function aiHelp(lines) {
-            const weak = lines.map((l, i) => ({ l, i })).filter(x => !x.l.sug.length || x.l.sug[0].score < 75);
+            const weak = lines.map((l, i) => ({ l, i })).filter(x => !x.l.remembered && (!x.l.sug.length || x.l.sug[0].score < 75));
             if (!weak.length || !items.length || !navigator.onLine) return;
             try {
-                const r = await fetch('/api/match-items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sales: weak.map(x => ({ i: x.i, name: x.l.desc, price: x.l.unit })), items: items.map(x => ({ id: x.id, name: x.name, cost: x.last_cost })) }) });
+                const r = await fetch('/api/match-items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sales: weak.map(x => ({ i: x.i, name: x.l.desc, price: x.l.unit })), items: items.filter(hasStock).map(x => ({ id: x.id, name: x.name, cost: x.last_cost })) }) });
                 const d = await r.json(); if (!r.ok) return;
-                (d.matches || []).forEach(m => { const L = lines[m.i], it = items.find(x => x.id === m.item_id); if (L && it && !L.sug.some(s => s.item.id === it.id)) { const pc = priceCheck(L.unit, it); L.sug.unshift({ item: it, score: 60, label: 'AI suggestion', opt: pc.opt, warn: pc.warn }); } });
+                (d.matches || []).forEach(m => { const L = lines[m.i], it = items.find(x => x.id === m.item_id); if (L && it && hasStock(it) && !L.sug.some(s => s.item.id === it.id)) { const pc = priceCheck(L.unit, it); L.sug.unshift({ item: it, score: 60, label: 'AI suggestion', opt: pc.opt, warn: pc.warn }); } });
             } catch (e) { }
         }
 
         // ---------- stock matching helpers (used by the "Match now" window and by the Print window) ----------
         const shut = () => { $('scn-modal').classList.remove('active'); ctx = null; };
         const suggestFor = lines => lines.forEach(l => { l.sug = window.scnSuggest(l.desc, l.unit); });
-        const pickDefaults = lines => lines.forEach(l => { const t = l.sug[0]; l.sel = t ? { id: t.item.id, mult: t.opt.mult, unit: t.opt.unit } : { id: '' }; });
+        // A line matched before: pre-select that match (shown to the user, who can still change it).
+        const markRemembered = lines => lines.forEach(l => { const a = autoPick(l); if (a) { l.sel = a; l.remembered = true; } });
+        const showRemembered = lines => lines.forEach(l => { if (!l.remembered) return; const it = items.find(x => String(x.id) === String(l.sel.id)); if (!it) return; l.sug = l.sug.filter(s => String(s.item.id) !== String(it.id)); l.sug.unshift({ item: it, score: 100, label: 'Matched before', opt: { mult: l.sel.mult, unit: l.sel.unit }, warn: false }); });
+        const pickDefaults = lines => lines.forEach(l => { if (l.remembered) return; const t = l.sug[0]; l.sel = t ? { id: t.item.id, mult: t.opt.mult, unit: t.opt.unit } : { id: '' }; });
         async function openMatch(lines, onDone) {
             const m = $('scn-modal'); m.querySelector('h3').textContent = 'Match sold items to scanned stock';
             $('scn-modal-body').innerHTML = '<p>Checking scanned stock…</p>'; m.classList.add('active');
             try { await ensure(); } catch (e) { shut(); alert('Could not load scanned stock: ' + (e.message || e)); return onDone && onDone(null); }
-            const auto = lines.filter(l => { const a = autoPick(l); if (a) { l.sel = a; l.auto = true; } return !!a; });
-            if (auto.length) { const r = await applyMatches(auto); if (r.failed) alert('Scanned stock could not be fully updated: ' + (r.failed.message || r.failed)); lines = lines.filter(l => !auto.includes(l)); }
-            if (!lines.length) { shut(); if (window.scnReload && $('view-scanned').classList.contains('active')) window.scnReload(); return onDone && onDone(null); }
-            if (fromCache) lines.forEach(l => { l.sug = []; l.sel = { id: '' }; });
+            markRemembered(lines);
+            if (fromCache) lines.forEach(l => { l.sug = []; if (!l.remembered) l.sel = { id: '' }; });
             else { suggestFor(lines); await aiHelp(lines); pickDefaults(lines); }
+            showRemembered(lines);
             ctx = { lines, onDone, ui: null };
             drawMatch();
         }
+        // Options for one match dropdown. q = what the user typed in the search box ('' = show everything).
+        function optsHtml(l, q) {
+            const sel = l.sel, words = String(q || '').toLowerCase().split(/\s+/).filter(Boolean);
+            const ok = it => words.every(w => String(it.name).toLowerCase().includes(w)) || String(it.id) === String(sel.id);
+            const sg = l.sug.filter(sx => ok(sx.item));
+            const rest = items.filter(x => hasStock(x) && !l.sug.some(sx => sx.item.id === x.id) && ok(x));
+            const cur = items.find(x => String(x.id) === String(sel.id));
+            const extra = cur && !hasStock(cur) && !sg.some(sx => sx.item.id === cur.id) ? [cur] : []; // keep the chosen item visible even if its stock is now 0
+            return sg.map(sx => `<option value="${sx.item.id}" ${sel.id === sx.item.id ? 'selected' : ''}>${esc(sx.item.name)} — ${sx.label}</option>`).join('')
+                + extra.map(x => `<option value="${x.id}" selected>${esc(x.name)}</option>`).join('')
+                + (rest.length ? '<option disabled>— other scanned items —</option>' : '')
+                + rest.map(x => `<option value="${x.id}" ${sel.id === x.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')
+                + `<option value="" ${sel.id === '' ? 'selected' : ''}>No match</option>`;
+        }
+        // Typing in the search box narrows the list; when searching, the list opens as a short pick-list.
+        window.scnFind = (i, q) => {
+            const l = ctx.lines[i], el = document.getElementById('scn-sel-' + i); if (!el) return;
+            el.innerHTML = optsHtml(l, q);
+            el.size = String(q || '').trim() ? Math.min(6, Math.max(2, el.options.length)) : 1;
+        };
         function selHtml(l, i) {
             const sel = l.sel, cur = items.find(x => x.id === sel.id), sg = l.sug.find(s => s.item.id === sel.id);
-            const rest = items.filter(x => !l.sug.some(s => s.item.id === x.id));
             return `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
-                    <select onchange="scnPick(${i},this.value)" style="flex:1 1 220px;">
-                      ${l.sug.map(s => `<option value="${s.item.id}" ${sel.id === s.item.id ? 'selected' : ''}>${esc(s.item.name)} — ${s.label}</option>`).join('')}
-                      ${rest.length ? '<option disabled>— other scanned items —</option>' : ''}
-                      ${rest.map(x => `<option value="${x.id}" ${sel.id === x.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}
-                      <option value="" ${sel.id === '' ? 'selected' : ''}>No match</option>
-                    </select>
+                    <div style="flex:1 1 220px;display:flex;flex-direction:column;gap:4px;">
+                      <input type="search" placeholder="Search stock items…" oninput="scnFind(${i},this.value)" autocomplete="off" style="min-width:0;">
+                      <select id="scn-sel-${i}" onchange="scnPick(${i},this.value)">${optsHtml(l, '')}</select>
+                    </div>
                     ${cur && unitOpts(cur).length > 1 ? `<select onchange="scnUnit(${i},this.value)">${unitOpts(cur).map(o => `<option value="${esc(o.unit)}" ${sel.unit === o.unit ? 'selected' : ''}>sold as ${esc(o.unit)}${o.mult > 1 ? ' (' + o.mult + ' ' + esc(cur.base_unit) + ')' : ''}</option>`).join('')}</select>` : ''}
                   </div>
                   ${sg && sg.warn ? '<div style="color:#c0392b;font-size:12px;margin-top:4px;">Price looks very different from the cost. Check the unit or the match.</div>' : ''}`;
@@ -12470,9 +12491,9 @@
                     if (item) { const base = num(l.qty) * (s.mult || 1); nm = nm || item.name; item.qty = num(item.qty) - base; saveCache(); recordDeduction(String(l._rowId), item, base); }  // stock is updated here now (and in the database, now or later)
                     if (!skip && nm) { done.push({ l, name: nm }); rememberDone(String(l._rowId), nm); }
                     // remember this match so the next sale of the same item is matched by itself
-                    if (item && !l.auto && !(linkMap.get(key(l.desc)) || []).some(x => String(x.item_id) === String(item.id))) {
+                    if (item && !(linkMap.get(key(l.desc)) || []).some(x => String(x.item_id) === String(item.id))) {
                         const lk = { inv_key: key(l.desc), inv_name: String(l.desc).replace(/^\[[^\]]*\]\s*/, ''), item_id: String(item.id), mult: s.mult || 1 };
-                        (linkMap.get(lk.inv_key) || (linkMap.set(lk.inv_key, []), linkMap.get(lk.inv_key))).push(lk); saveCache();
+                        (linkMap.get(lk.inv_key) || (linkMap.set(lk.inv_key, []), linkMap.get(lk.inv_key)))[l.remembered ? 'unshift' : 'push'](lk); saveCache();
                         rpcQ('scanned_link_add', { p_tenant: tid, p_inv_key: lk.inv_key, p_inv_name: lk.inv_name, p_item_id: lk.item_id, p_mult: lk.mult }, { itemKey: item.name_key });
                     }
                 } catch (e) { failed = failed || e; }
@@ -12551,9 +12572,10 @@
                 if (todo.length) {
                     try {
                         await ensure();
-                        todo = todo.filter(l => { const a = autoPick(l); if (!a) return true; l.sel = a; l.auto = true; auto.push(l); const k = d.lines.indexOf(l.line); const it = items.find(x => x.id === a.id); if (k >= 0 && it) names[k] = it.name; return false; });
-                        if (fromCache) todo.forEach(l => { l.sug = []; l.sel = { id: '' }; }); // offline: no suggestions, the user picks or says no match
+                        markRemembered(todo); // lines matched before stay in the list with their old match pre-selected
+                        if (fromCache) todo.forEach(l => { l.sug = []; if (!l.remembered) l.sel = { id: '' }; }); // offline: no suggestions, the user picks or says no match
                         else { suggestFor(todo); await aiHelp(todo); pickDefaults(todo); }
+                        showRemembered(todo);
                     }
                     catch (e) { todo = []; note = 'Stock matching is unavailable right now.'; }
                 }
