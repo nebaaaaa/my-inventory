@@ -252,9 +252,16 @@
             input, select, textarea { width: 100%; min-width: 100%; font-size: 16px !important; }
             .filter-panel .form-group { margin-bottom: 12px; }
             #page-title { font-size: 16px; }
-            header { flex-wrap: wrap; }
-            .header-right { display: contents; }
-            #clock { order: 99; flex-basis: 100%; text-align: right; font-size: 12px !important; }
+            /* Header: the buttons stay in ONE row with fixed gaps. The page title shrinks (…) first; only the clock stacks (date above time). */
+            header { flex-wrap: nowrap; gap: 8px; }
+            .header-left { flex: 1 1 auto; min-width: 0; }
+            #page-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .header-right { flex: 0 0 auto; }
+            .header-right > * { flex-shrink: 0; }
+            #branch-switcher { width: auto !important; min-width: 0 !important; max-width: 84px; }
+            #clock { font-size: 10px !important; line-height: 1.25; text-align: right; }
+            #clock .clk-sep { display: none; }
+            #clock .clk-d, #clock .clk-t { display: block; white-space: nowrap; }
             .notif-panel { width: 90%; right: 5%; }
             .graph-btn { display: none; } /* Hide overlay buttons on mobile */
             /* Most tables (Journal, Team, Trash, statements, receipts...)
@@ -2706,19 +2713,26 @@
             setCalendarPref(currentCalendarPref === 'ethiopian' ? 'gregorian' : 'ethiopian');
         }
 
+        // Date and time are kept as two parts so a phone can show them stacked (date above time); on wide screens they sit on one line.
+        function renderClock() {
+            const c = document.getElementById('clock'); if (!c) return;
+            const now = new Date();
+            let date, time;
+            if (currentCalendarPref === 'ethiopian') {
+                const eth = gregorianToEthiopian(getLocalYMD(now));
+                date = `${eth.d} ${ethMonthName(eth.m)} ${eth.y}`;
+                time = now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            } else {
+                date = now.toLocaleDateString(); time = now.toLocaleTimeString();
+            }
+            const html = `<span class="clk-d">${date}</span><span class="clk-sep">, </span><span class="clk-t">${time}</span>`;
+            if (c.dataset.h !== html) { c.dataset.h = html; c.innerHTML = html; }
+        }
+
         function setCalendarPref(pref) {
             currentCalendarPref = pref;
             localStorage.setItem('neba_calendar_pref', pref);
-            const clockEl = document.getElementById('clock');
-            if (clockEl) {
-                const now = new Date();
-                if (pref === 'ethiopian') {
-                    const eth = gregorianToEthiopian(getLocalYMD(now));
-                    clockEl.innerText = `${eth.d} ${ethMonthName(eth.m)} ${eth.y}, ${now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
-                } else {
-                    clockEl.innerText = now.toLocaleString();
-                }
-            }
+            renderClock();
             const btn = document.getElementById('calendar-toggle-btn');
             if (btn) {
                 btn.innerText = pref === 'ethiopian' ? 'EC' : 'GC';
@@ -10963,18 +10977,7 @@
             loadTeamView();
         }
 
-        setInterval(() => {
-            const c = document.getElementById('clock');
-            if (!c) return;
-            const now = new Date();
-            if (currentCalendarPref === 'ethiopian') {
-                const eth = gregorianToEthiopian(getLocalYMD(now));
-                const time = now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                c.innerText = `${eth.d} ${ethMonthName(eth.m)} ${eth.y}, ${time}`;
-            } else {
-                c.innerText = now.toLocaleString();
-            }
-        }, 1000);
+        setInterval(renderClock, 1000);
 
         // ---------------------------------------------------------------
         // SESSION CHECK — if the browser already has a signed-in session
@@ -12037,7 +12040,7 @@
                 const recRow = {
                     tenant_id: tid, merchant: d.merchant || null, merchant_tin: d.tin || null, receipt_no: d.no || null, receipt_date: d.date || null,
                     before_vat: d.before === '' ? null : num(d.before), vat: d.vat === '' ? null : num(d.vat), total: d.total === '' ? null : num(d.total),
-                    items: items.map(i => ({ name: i.name.trim(), stock_name: stockName(i), qty: num(i.qty), unit: i.unit || null, unit_price: i.price === '' ? null : num(i.price), pcs_per_unit: Math.max(1, num(i.pack) || 1), matches: (i.links || []).map(L => L.name), amount: (i.amount === '' || i.amount == null) ? (i.price === '' ? null : r2(num(i.qty) * num(i.price))) : num(i.amount) }))
+                    items: items.map(i => ({ name: i.name.trim(), stock_name: stockName(i), qty: num(i.qty), unit: i.unit || null, unit_price: i.price === '' ? null : num(i.price), pcs_per_unit: Math.max(1, num(i.pack) || 1), matches: (i.links || []).map(L => L.name), match_cats: (i.links || []).map(L => { const m = /^\[([^\]]*)\]/.exec(String(L.comp || '')); return m ? m[1] : ''; }), amount: (i.amount === '' || i.amount == null) ? (i.price === '' ? null : r2(num(i.qty) * num(i.price))) : num(i.amount) }))
                 };
                 // layout = the extra printed lines (title, time, header/footer text) so the saved copy looks like the paper.
                 const lay = d.layout && (d.layout.title || d.layout.time || (d.layout.header || []).length || (d.layout.footer || []).length) ? d.layout : null;
@@ -12716,12 +12719,14 @@
         }
         // Looks like the paper receipt: merchant + TIN on top, receipt no. and date, the lines as printed
         // (name, then qty x price ... amount), then before-VAT / VAT / total. Empty parts are left out.
+        // Category of an Inventory item, found by name (used for receipts saved before the category was kept with them).
+        const catOf = name => { const k = key(name), it = (state.inventory || []).find(x => key(x.desc) === k); return it ? (it.category || '') : ''; };
         function paperCard(x) {
             const row = (l, r, cls) => `<div class="sp-row ${cls || ''}"><span>${l}</span><span>${r}</span></div>`;
             const lay = x.layout || {};
             const items = (x.items || []).map(i => {
                 const p = i.unit_price, amt = i.amount != null ? i.amount : (p != null ? r2(num(i.qty) * num(i.unit_price)) : null);
-                return `<div class="sp-item"><div>${esc(i.name)}</div>${(i.matches || []).map(m => `<div class="sp-mt">&rarr; ${esc(m)}</div>`).join('')}${row(`${esc(i.qty)}${i.unit ? ' ' + esc(i.unit) : ''}${p != null ? ' x ' + money(p) : ''}`, amt == null ? '' : money(amt))}</div>`;
+                return `<div class="sp-item"><div>${esc(i.name)}</div>${(i.matches || []).map((m, k) => { const c = (i.match_cats && i.match_cats[k]) || catOf(m); return `<div class="sp-mt">&rarr; ${esc(m)}${c ? ' &middot; ' + esc(c) : ''}</div>`; }).join('')}${row(`${esc(i.qty)}${i.unit ? ' ' + esc(i.unit) : ''}${p != null ? ' x ' + money(p) : ''}`, amt == null ? '' : money(amt))}</div>`;
             }).join('');
             const date = x.receipt_date || String(x.created_at || '').slice(0, 10);
             const lines = a => (a || []).map(t => `<div class="sp-c">${esc(t)}</div>`).join('');
@@ -12866,7 +12871,8 @@
                         const td = [...dd.querySelectorAll('td')].find(t => !used.has(t) && t.textContent.trim() === String(L.p).trim()); if (!td) return;
                         used.add(td);
                         const tr = td.parentElement, n = dd.createElement('tr'); n.innerHTML = '<td colspan="3" style="font-size:9px;color:#aaa;padding:0 0 3px 6px;"></td>';
-                        n.firstChild.textContent = '\u2192 ' + String(L.o).replace(/^\[[^\]]*\]\s*/, ''); tr.parentElement.insertBefore(n, tr.nextSibling);
+                        const mo = /^\[([^\]]*)\]\s*([\s\S]*)$/.exec(String(L.o)), nm = mo ? mo[2] : String(L.o), cat = mo ? mo[1] : catOf(nm);
+                        n.firstChild.textContent = '\u2192 ' + nm + (cat ? ' \u00b7 ' + cat : ''); tr.parentElement.insertBefore(n, tr.nextSibling);
                     });
                     const h = fr.contentDocument.documentElement.scrollHeight, sc2 = Math.min(1, (wrap.clientWidth || W) / W) || 1;
                     fr.style.height = h + 'px'; fr.style.transform = `scale(${sc2})`; wrap.style.height = Math.round(h * sc2) + 'px';
