@@ -12138,9 +12138,18 @@
         const isNet = e => /fetch|network|timeout|load failed|offline/i.test(String((e && e.message) || e || ''));
         // Runs a database function now; when offline it waits in a queue and is sent later.
         // meta (optional) travels with the job: itemKey = stock row made on this device, salLocal = local copy of a sales receipt.
+        const isAuth = e => { const c = String((e && e.code) || ''), m = String((e && e.message) || ''); return c === 'PGRST301' || c === 'PGRST302' || Number(e && e.status) === 401 || /jwt|token.*expired|not authenticated|not signed in|log ?in/i.test(m); };
         async function rpcQ(name, args, meta) {
             if (navigator.onLine) {
-                try { const r = await supabaseClient.rpc(name, args); if (!r.error) return { data: r.data }; if (!isNet(r.error)) return { error: r.error }; } catch (e) { if (!isNet(e)) return { error: e }; }
+                try {
+                    let r = await supabaseClient.rpc(name, args);
+                    if (r.error && isAuth(r.error)) { // login expired: refresh it and try once more
+                        try { await supabaseClient.auth.refreshSession(); } catch (e) { }
+                        r = await supabaseClient.rpc(name, args);
+                    }
+                    if (!r.error) return { data: r.data };
+                    if (!isNet(r.error) && !isAuth(r.error) && !isTransient(r.error)) return { error: r.error };
+                } catch (e) { if (!isNet(e)) return { error: e }; }
             }
             const q = store.get('neba_scn_q_', []); q.push({ name, args, n: 0, meta: meta || null }); store.set('neba_scn_q_', q);
             return { queued: true };
@@ -12447,6 +12456,8 @@
         async function applyMatches(lines) {
             const tid = currentTenantId, done = []; let failed = null;
             for (const l of lines) {
+                const doneMap = store.get('neba_scn_done_', {});
+                if (doneMap[String(l._rowId)]) { done.push({ l, name: doneMap[String(l._rowId)] }); continue; } // already applied: never deduct twice
                 const s = l.sel || { id: '' };
                 try {
                     const skip = s.id === '__skip', item = (!skip && s.id) ? items.find(x => x.id === s.id) : null;
