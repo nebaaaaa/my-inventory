@@ -14,7 +14,10 @@
          of the page waiting on them before it can draw anything. Both are
          still guaranteed to finish loading before any button can be
          clicked, so nothing about how they're used elsewhere changes. -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
+    <script>
+Number.prototype.money2 = function () { return this.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2"></script>
     <script src="business-types.config.js"></script>
@@ -1584,11 +1587,23 @@
             </div>
             <div class="form-group" style="width:100%;">
                 <label data-i18n="ui2.timeframe_limit">Timeframe Limit</label>
-                <select id="export-scope" style="width:100%;">
+                <select id="export-scope" style="width:100%;" onchange="updateExportScopeUI()">
                     <option value="all" data-i18n="ui2.all_time_archive">All-Time Archive</option>
                     <option value="7" data-i18n="ui2.last_7_days">Last 7 Days</option>
                     <option value="30" data-i18n="ui2.last_30_days">Last 30 Days</option>
+                    <option value="custom">Custom Range</option>
                 </select>
+            </div>
+            <div class="form-group" id="export-custom-box" style="width:100%; display:none;">
+                <label>Custom Range type</label>
+                <select id="export-custom-type" style="width:100%;" onchange="updateExportScopeUI()">
+                    <option value="single">Single date</option>
+                    <option value="range">Date range</option>
+                </select>
+                <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+                    <div style="flex:1 1 140px; min-width:0;"><label id="export-from-label" style="font-size:12px;">Date</label><input type="date" id="export-from" style="width:100%;"></div>
+                    <div style="flex:1 1 140px; min-width:0;" id="export-to-wrap"><label style="font-size:12px;">To</label><input type="date" id="export-to" style="width:100%;"></div>
+                </div>
             </div>
             <div class="form-group" style="width:100%;">
                 <label data-i18n="ui2.select_columns_to_include">Select Columns to Include</label>
@@ -4227,17 +4242,17 @@
                 tbody.innerHTML = initialInventoryCart.map((c, i) => {
                     let row = `<td>${escHtml(c.category)}</td><td>${escHtml(c.name)}</td><td class="num">${c.qty}</td>`;
                     if (isPharmacy) row += `<td class="num">${c.expiry || '—'}</td>`;
-                    row += `<td class="num">${c.cost.toFixed(2)}</td>`;
+                    row += `<td class="num">${c.cost.money2()}</td>`;
                     row += isRental
-                        ? `<td class="num">${c.dailyRate.toFixed(2)}</td><td class="num">${c.weeklyRate != null ? c.weeklyRate.toFixed(2) : '—'}</td><td class="num">${c.monthlyRate != null ? c.monthlyRate.toFixed(2) : '—'}</td>`
-                        : `<td class="num">${c.sellingPrice.toFixed(2)}</td>`;
-                    row += `<td class="num">${(c.qty * c.cost).toFixed(2)}</td>`;
+                        ? `<td class="num">${c.dailyRate.money2()}</td><td class="num">${c.weeklyRate != null ? c.weeklyRate.money2() : '—'}</td><td class="num">${c.monthlyRate != null ? c.monthlyRate.money2() : '—'}</td>`
+                        : `<td class="num">${c.sellingPrice.money2()}</td>`;
+                    row += `<td class="num">${(c.qty * c.cost).money2()}</td>`;
                     row += `<td style="text-align:center;"><button class="btn btn-danger btn-small" onclick="removeFromInitialInventoryCart(${i})">✕</button></td>`;
                     return `<tr>${row}</tr>`;
                 }).join('');
             }
             const total = initialInventoryCart.reduce((sum, c) => sum + c.qty * c.cost, 0);
-            document.getElementById('initial-inventory-cart-total').innerText = `ETB ${total.toFixed(2)}`;
+            document.getElementById('initial-inventory-cart-total').innerText = `ETB ${total.money2()}`;
         }
 
         async function skipInitialInventorySetup() {
@@ -4321,7 +4336,7 @@
             state.journal.push(capitalJournal);
             queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(capitalJournal) });
 
-            addNotification('Initial Inventory Set Up', `Added ${newRows.length} products worth ETB ${total.toFixed(2)} as opening stock, funded by owner capital.`);
+            addNotification('Initial Inventory Set Up', `Added ${newRows.length} products worth ETB ${total.money2()} as opening stock, funded by owner capital.`);
 
             initialInventoryCart = [];
             document.getElementById('initial-inventory-loading').style.display = 'none';
@@ -4995,7 +5010,7 @@
 
         // --- EXPORT HUB LOGIC ---
         const exportColsMap = {
-            inventory: ["Category", "Description", "Qty On Hand", "Selling Price", "Total Asset Value"],
+            inventory: ["Category", "Description", "Qty On Hand", "Cost Price", "Selling Price", "Total Asset Value"],
             sales: ["Date", "Customer Name", "Product Item", "Quantity", "Unit Price", "Total Amount", "Channel", "Paid Status", "Amount Owed"],
             purchase: ["Date", "Supplier Name", "Product Item", "Quantity", "Unit Cost", "Total Amount", "Channel", "Paid Status", "Amount Owed"],
             expenses: ["Date", "Expense Account", "Memo", "Charge (ETB)", "Channel"],
@@ -5004,7 +5019,15 @@
 
         function openExportHub() { 
             updateExportColumns(); 
+            updateExportScopeUI();
             document.getElementById('export-modal').style.display = "flex"; 
+        }
+        function updateExportScopeUI() {
+            const custom = document.getElementById('export-scope').value === 'custom';
+            document.getElementById('export-custom-box').style.display = custom ? '' : 'none';
+            const range = document.getElementById('export-custom-type').value === 'range';
+            document.getElementById('export-to-wrap').style.display = range ? '' : 'none';
+            document.getElementById('export-from-label').innerText = range ? 'From' : 'Date';
         }
         function closeExportHub() { document.getElementById('export-modal').style.display = "none"; }
 
@@ -5013,6 +5036,7 @@
             const container = document.getElementById('export-columns-container');
             container.innerHTML = '';
             exportColsMap[mod].forEach(col => {
+                if (mod === 'inventory' && (col === 'Cost Price' || col === 'Total Asset Value') && !hasPerm('inventory.view_cost')) return; // cost is hidden from staff without permission
                 container.innerHTML += `<label class="check-label" style="width:45%;"><input type="checkbox" value="${col}" checked>${col}</label>`;
             });
         }
@@ -5050,7 +5074,13 @@
                     else if (mod === 'journal') sourceData = state.journal;
 
                     // Filter Scope Timeframe
-                    if (scope !== 'all') {
+                    if (scope === 'custom') {
+                        const isRange = document.getElementById('export-custom-type').value === 'range';
+                        const from = document.getElementById('export-from').value, to = isRange ? document.getElementById('export-to').value : from;
+                        if (!from || (isRange && !to)) { alert(isRange ? "Please pick both a From and a To date." : "Please pick a date."); btn.innerText = "Download .xlsx"; btn.disabled = false; return; }
+                        if (from > to) { alert("The From date must be before the To date."); btn.innerText = "Download .xlsx"; btn.disabled = false; return; }
+                        sourceData = sourceData.filter(item => { const d = String(item.date || '').slice(0, 10); return d >= from && d <= to; });
+                    } else if (scope !== 'all') {
                         const daysAgo = parseInt(scope);
                         const cutoff = new Date();
                         cutoff.setDate(cutoff.getDate() - daysAgo);
@@ -5072,6 +5102,7 @@
                         rawFlatData = sourceData.map(i => ({
                             "Category": i.category, "Description": i.desc,
                             "Qty On Hand": i.lots.reduce((a,l)=>a+l.qty,0),
+                            "Cost Price": (() => { const q = i.lots.reduce((a,l)=>a+l.qty,0), v = i.lots.reduce((a,l)=>a+(l.qty*l.cost),0); return q > 0 ? Math.round(v / q * 100) / 100 : (i.lots.length ? i.lots[i.lots.length-1].cost : 0); })(),
                             "Selling Price": i.sellingPrice,
                             "Total Asset Value": i.lots.reduce((a,l)=>a+(l.qty*l.cost),0)
                         }));
@@ -5114,6 +5145,15 @@
 
                     // Build SheetJS 
                     const ws = XLSX.utils.json_to_sheet(filteredFlatData);
+                    // money columns show commas (e.g. 1,234.50); the cell value stays a real number
+                    const moneyCols = new Set(["Cost Price", "Selling Price", "Total Asset Value", "Unit Price", "Unit Cost", "Total Amount", "Amount Owed", "Charge (ETB)", "Debit", "Credit"]);
+                    const hdrs = [];
+                    for (let ci = 0; ; ci++) { const hc = ws[XLSX.utils.encode_cell({ r: 0, c: ci })]; if (!hc) break; hdrs.push(String(hc.v)); }
+                    hdrs.forEach((h, ci) => {
+                        if (!moneyCols.has(h)) return;
+                        for (let r = 1; r <= filteredFlatData.length; r++) { const c = ws[XLSX.utils.encode_cell({ r, c: ci })]; if (c && c.t === 'n') c.z = '#,##0.00'; }
+                    });
+                    ws['!cols'] = hdrs.map(h => ({ wch: Math.max(12, h.length + 2) }));
                     const wb = XLSX.utils.book_new();
                     XLSX.utils.book_append_sheet(wb, ws, "Report Data");
                     
@@ -6026,7 +6066,7 @@
                         labels: top10Rev.map(i => i.desc),
                         datasets: [{ label: t('chart.revenue'), data: top10Rev.map(i => i.rev), backgroundColor: ['#A9752F','#1F7A54','#6B5CA5','#B23A2E','#2E6E8E','#C97A22','#7A8B99','#8C6239','#4F7942','#9B5B6B'], borderWidth: 2, borderColor: '#fff' }]
                     },
-                    options: { maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: function(ctx){ let i = top10Rev[ctx.dataIndex]; return `${t('chart.revenue')}: ETB ${i.rev.toFixed(2)} | ${t('chart.profit')}: ETB ${i.profit.toFixed(2)}`; } } }, title: {display:true, text:t('chart.top10_proportion'), color:'#171B34', font:{size:16, weight:'600'}} } }
+                    options: { maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: function(ctx){ let i = top10Rev[ctx.dataIndex]; return `${t('chart.revenue')}: ETB ${i.rev.money2()} | ${t('chart.profit')}: ETB ${i.profit.money2()}`; } } }, title: {display:true, text:t('chart.top10_proportion'), color:'#171B34', font:{size:16, weight:'600'}} } }
                 });
             }
 
@@ -6040,7 +6080,7 @@
                         labels: bottom10Rev.map(i => i.desc),
                         datasets: [{ label: t('chart.revenue'), data: bottom10Rev.map(i => i.rev), backgroundColor: ['#B8AFA0','#C7C0B3','#D5D0C6','#E1DDD5','#EAE7E1','#C2BAAC','#D0C9BD','#DCD6CC','#E6E2DA','#F0EEE9'], borderWidth: 2, borderColor: '#fff' }]
                     },
-                    options: { maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: function(ctx){ let i = bottom10Rev[ctx.dataIndex]; return `${t('chart.revenue')}: ETB ${i.rev.toFixed(2)} | ${t('chart.profit')}: ETB ${i.profit.toFixed(2)}`; } } }, title: {display:true, text:t('chart.bottom10_proportion'), color:'#171B34', font:{size:16, weight:'600'}} } }
+                    options: { maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: function(ctx){ let i = bottom10Rev[ctx.dataIndex]; return `${t('chart.revenue')}: ETB ${i.rev.money2()} | ${t('chart.profit')}: ETB ${i.profit.money2()}`; } } }, title: {display:true, text:t('chart.bottom10_proportion'), color:'#171B34', font:{size:16, weight:'600'}} } }
                 });
             }
 
@@ -6355,7 +6395,7 @@
                         labels: tLabels,
                         datasets: [{ data: tLabels.map(l => typeStats[l].rev), backgroundColor: ['#A9752F', '#2E6E8E', '#1F7A54', '#B23A2E', '#6B5CA5'], borderWidth: 2, borderColor: '#fff' }]
                     },
-                    options: { maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: function(ctx){ let k = tLabels[ctx.dataIndex]; return `${t('chart.revenue')}: ETB ${typeStats[k].rev.toFixed(2)} | ${t('chart.profit')}: ETB ${typeStats[k].profit.toFixed(2)}`; } } }, title: {display:true, text:t('chart.revenue_by_type'), color:'#171B34', font:{size:16, weight:'600'}} } }
+                    options: { maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: function(ctx){ let k = tLabels[ctx.dataIndex]; return `${t('chart.revenue')}: ETB ${typeStats[k].rev.money2()} | ${t('chart.profit')}: ETB ${typeStats[k].profit.money2()}`; } } }, title: {display:true, text:t('chart.revenue_by_type'), color:'#171B34', font:{size:16, weight:'600'}} } }
                 });
             }
         }
@@ -6406,7 +6446,7 @@
                 let matches = state.salesLog.filter(s => verifyChronologicalOverlap(s.date, period)).sort((a,b) => new Date(b.date) - new Date(a.date));
                 if(matches.length === 0) html += `<tr><td colspan="6" style="text-align:center;">${t('drill.no_sales')}</td></tr>`;
                 matches.forEach(m => {
-                    html += `<tr><td>${fmtDate(m.date)}</td><td>${escHtml(m.customer)}</td><td>${escHtml(m.desc)}</td><td class="num">${m.qty}</td><td class="num">${m.price.toFixed(2)}</td><td class="num"><strong>${m.total.toFixed(2)}</strong></td></tr>`;
+                    html += `<tr><td>${fmtDate(m.date)}</td><td>${escHtml(m.customer)}</td><td>${escHtml(m.desc)}</td><td class="num">${m.qty}</td><td class="num">${m.price.money2()}</td><td class="num"><strong>${m.total.money2()}</strong></td></tr>`;
                 });
                 html += `</tbody></table>`;
                 // Rental Revenue (4020) posts separately from Sales (4010) --
@@ -6418,7 +6458,7 @@
                     html += `<br><div><strong>Rental Bookings (4020)</strong></div><table><thead><tr><th>${t('sale.date')}</th><th>${t('sale.customer_name')}</th><th>${t('sale.product_item')}</th><th class="num">${t('tr.quantity')}</th><th class="num">${t('sale.total')}</th></tr></thead><tbody>`;
                     rentalMatches.forEach(b => {
                         const item = state.inventory.find(i => i.id === b.itemId);
-                        html += `<tr><td>${fmtDate(b.date || b.startDate)}</td><td>${escHtml(b.customerName)}</td><td>${item ? `[${escHtml(item.category)}] ${escHtml(item.desc)}` : '—'}</td><td class="num">${b.qty}</td><td class="num"><strong>${b.amount.toFixed(2)}</strong></td></tr>`;
+                        html += `<tr><td>${fmtDate(b.date || b.startDate)}</td><td>${escHtml(b.customerName)}</td><td>${item ? `[${escHtml(item.category)}] ${escHtml(item.desc)}` : '—'}</td><td class="num">${b.qty}</td><td class="num"><strong>${b.amount.money2()}</strong></td></tr>`;
                     });
                     html += `</tbody></table>`;
                 }
@@ -6436,7 +6476,7 @@
                 });
                 cogsRows.sort((a,b) => new Date(b.date) - new Date(a.date));
                 cogsRows.forEach(row => {
-                    html += `<tr><td>${fmtDate(row.date)}</td><td><code>${row.id}</code></td><td>${escHtml(row.desc)}</td><td class="num">${row.dr.toFixed(2)}</td></tr>`;
+                    html += `<tr><td>${fmtDate(row.date)}</td><td><code>${row.id}</code></td><td>${escHtml(row.desc)}</td><td class="num">${row.dr.money2()}</td></tr>`;
                 });
                 html += `</tbody></table>`;
             }
@@ -6448,7 +6488,7 @@
                         j.lines.forEach(l => { if(l.account === '4010' || l.account === '4020') revSum += l.cr; if(l.account === '5010') cogsSum += l.dr; });
                     }
                 });
-                html += `<div style="font-size:14px; padding:10px; background:#ECEDF2; border-radius:4px;">${t('acct.total_revenue')}: <strong>ETB ${revSum.toFixed(2)}</strong><br>${t('acct.cogs')}: <strong>ETB (${cogsSum.toFixed(2)})</strong><br><hr style="margin:8px 0; border-color:#cfd1da;">${t('acct.gross_profit')}: <strong style="color:var(--success);">ETB ${(revSum - cogsSum).toFixed(2)}</strong></div>`;
+                html += `<div style="font-size:14px; padding:10px; background:#ECEDF2; border-radius:4px;">${t('acct.total_revenue')}: <strong>ETB ${revSum.money2()}</strong><br>${t('acct.cogs')}: <strong>ETB (${cogsSum.money2()})</strong><br><hr style="margin:8px 0; border-color:#cfd1da;">${t('acct.gross_profit')}: <strong style="color:var(--success);">ETB ${(revSum - cogsSum).money2()}</strong></div>`;
             }
             else if(metric === 'expenses') {
                 mTitle.innerText = t('drill.expenses_title');
@@ -6457,7 +6497,7 @@
                 if(matches.length === 0) html += `<tr><td colspan="4" style="text-align:center;">${t('drill.no_expenses')}</td></tr>`;
                 matches.forEach(m => {
                     let nameMeta = CHART_OF_ACCOUNTS_MAP.find(c => c.code === m.target);
-                    html += `<tr><td>${fmtDate(m.date)}</td><td>${escHtml(m.target)} - ${nameMeta?escHtml(nameMeta.name):''}</td><td>${escHtml(m.memo)}</td><td class="num"><strong>${m.amount.toFixed(2)}</strong></td></tr>`;
+                    html += `<tr><td>${fmtDate(m.date)}</td><td>${escHtml(m.target)} - ${nameMeta?escHtml(nameMeta.name):''}</td><td>${escHtml(m.memo)}</td><td class="num"><strong>${m.amount.money2()}</strong></td></tr>`;
                 });
                 html += `</tbody></table>`;
             }
@@ -6469,7 +6509,7 @@
                         j.lines.forEach(l => { if(l.account === '4010' || l.account === '4020') r += l.cr; if(l.account === '5010') c += l.dr; if(l.account.startsWith('6')) e += l.dr; });
                     }
                 });
-                html += `<div style="font-size:14px; padding:12px; background:#171B34; color:white; border-radius:4px; font-family:monospace;">[+] ${t('acct.total_revenue')}: ETB ${r.toFixed(2)}<br>[-] ${t('acct.cogs')}: ETB (${c.toFixed(2)})<br>[-] ${t('acct.total_expenses')}: ETB (${e.toFixed(2)})<br><hr style="margin:8px 0; border-color:rgba(255,255,255,0.2);">[=] ${t('acct.net_profit')}: ETB ${(r - c - e).toFixed(2)}</div>`;
+                html += `<div style="font-size:14px; padding:12px; background:#171B34; color:white; border-radius:4px; font-family:monospace;">[+] ${t('acct.total_revenue')}: ETB ${r.money2()}<br>[-] ${t('acct.cogs')}: ETB (${c.money2()})<br>[-] ${t('acct.total_expenses')}: ETB (${e.money2()})<br><hr style="margin:8px 0; border-color:rgba(255,255,255,0.2);">[=] ${t('acct.net_profit')}: ETB ${(r - c - e).money2()}</div>`;
             }
             mContent.innerHTML = html; document.getElementById('audit-modal').style.display = "flex";
         }
@@ -6546,12 +6586,12 @@
                 const rows = sales.map(s => {
                     const gp = s.total - s.cogs;
                     totalRev += s.total; totalCogs += s.cogs;
-                    return `<tr><td>${fmtDate(s.date)}</td><td>${escHtml(s.desc)}</td><td>${escHtml(s.customer) || '—'}</td><td class="num">${s.total.toFixed(2)}</td><td class="num">${s.cogs.toFixed(2)}</td><td class="num">${gp.toFixed(2)}</td></tr>`;
+                    return `<tr><td>${fmtDate(s.date)}</td><td>${escHtml(s.desc)}</td><td>${escHtml(s.customer) || '—'}</td><td class="num">${s.total.money2()}</td><td class="num">${s.cogs.money2()}</td><td class="num">${gp.money2()}</td></tr>`;
                 }).join('');
                 mContent.innerHTML = `<table>
                     <thead><tr><th>Date</th><th>Item</th><th>Customer</th><th class="num">Revenue</th><th class="num">COGS</th><th class="num">Gross Profit</th></tr></thead>
                     <tbody>${rows}</tbody>
-                    <tfoot><tr style="font-weight:700; border-top:2px solid var(--border);"><td colspan="3">Total</td><td class="num">${totalRev.toFixed(2)}</td><td class="num">${totalCogs.toFixed(2)}</td><td class="num">${(totalRev-totalCogs).toFixed(2)}</td></tr></tfoot>
+                    <tfoot><tr style="font-weight:700; border-top:2px solid var(--border);"><td colspan="3">Total</td><td class="num">${totalRev.money2()}</td><td class="num">${totalCogs.money2()}</td><td class="num">${(totalRev-totalCogs).money2()}</td></tr></tfoot>
                 </table>`;
             }
             document.getElementById('audit-modal').style.display = "flex";
@@ -6652,10 +6692,10 @@
             <table><thead><tr><th>${t('sale.date')}</th><th>${t('sale.customer_name')}</th><th>${t('sale.product_item')}</th><th class="num">${t('sale.total')}</th><th class="num">${t('dash.estimated_vat')}</th></tr></thead><tbody>`;
             if (matches.length === 0 && pMatches.length === 0) html += `<tr><td colspan="5" style="text-align:center;">${t('drill.no_sales')}</td></tr>`;
             matches.forEach(m => {
-                html += `<tr><td>${fmtDate(m.date)}</td><td>${escHtml(m.customer)}</td><td>${escHtml(m.desc)}</td><td class="num">${saleVatBase(m).toFixed(2)}${m.printPrice != null ? '*' : ''}</td><td class="num">${(saleVatBase(m) - saleVatBase(m) / 1.15).toFixed(2)}</td></tr>`;
+                html += `<tr><td>${fmtDate(m.date)}</td><td>${escHtml(m.customer)}</td><td>${escHtml(m.desc)}</td><td class="num">${saleVatBase(m).money2()}${m.printPrice != null ? '*' : ''}</td><td class="num">${(saleVatBase(m) - saleVatBase(m) / 1.15).money2()}</td></tr>`;
             });
             pMatches.forEach(r => {
-                html += `<tr><td>${fmtDate(r.date)}</td><td>${escHtml(r.merchant || 'Unknown merchant')}</td><td>Scanned purchase receipt${r.receiptNo ? ' No. ' + escHtml(r.receiptNo) : ''}</td><td class="num">${r.total.toFixed(2)}</td><td class="num">-${(r.total - r.total / 1.15).toFixed(2)}</td></tr>`;
+                html += `<tr><td>${fmtDate(r.date)}</td><td>${escHtml(r.merchant || 'Unknown merchant')}</td><td>Scanned purchase receipt${r.receiptNo ? ' No. ' + escHtml(r.receiptNo) : ''}</td><td class="num">${r.total.money2()}</td><td class="num">-${(r.total - r.total / 1.15).money2()}</td></tr>`;
             });
             html += `</tbody></table>`;
             if (matches.some(m => m.printPrice != null)) html += `<p style="font-size:11px;color:var(--text-light);margin-top:8px;">* Uses the edited printed price instead of the selling price.</p>`;
@@ -6699,7 +6739,7 @@
                 const toLine = j.lines.find(l => l.dr > 0);
                 const fromAcc = channelAccounts.find(c => c.code === fromLine?.account);
                 const toAcc = channelAccounts.find(c => c.code === toLine?.account);
-                return `<tr><td>${fmtDate(j.date)}</td><td>${fromAcc ? escHtml(fromAcc.name) : '—'} → ${toAcc ? escHtml(toAcc.name) : '—'}</td><td class="num">${(fromLine?.cr || 0).toFixed(2)}</td><td style="text-align:center;"><button class="btn btn-danger btn-small" onclick="deleteFundTransfer('${j.id}')">${t('common.delete')}</button></td></tr>`;
+                return `<tr><td>${fmtDate(j.date)}</td><td>${fromAcc ? escHtml(fromAcc.name) : '—'} → ${toAcc ? escHtml(toAcc.name) : '—'}</td><td class="num">${(fromLine?.cr || 0).money2()}</td><td style="text-align:center;"><button class="btn btn-danger btn-small" onclick="deleteFundTransfer('${j.id}')">${t('common.delete')}</button></td></tr>`;
             }).join('');
 
             mContent.innerHTML = `<table>
@@ -6734,7 +6774,7 @@
         function updateFundTransferAvailable() {
             const fromCode = document.getElementById('ft-from-channel').value;
             const available = (runAbsoluteAccountBalances()[fromCode]) || 0;
-            document.getElementById('ft-available-hint').innerText = `${t('ft.available')}: ETB ${available.toFixed(2)}`;
+            document.getElementById('ft-available-hint').innerText = `${t('ft.available')}: ETB ${available.money2()}`;
         }
         function closeFundTransferModal() { document.getElementById('fund-transfer-modal').style.display = 'none'; }
 
@@ -6753,7 +6793,7 @@
 
             const availableBalance = (runAbsoluteAccountBalances()[fromCode]) || 0;
             if (amount > availableBalance + 0.001) {
-                errBox.innerText = `${t('ft.insufficient')} ETB ${availableBalance.toFixed(2)}.`;
+                errBox.innerText = `${t('ft.insufficient')} ETB ${availableBalance.money2()}.`;
                 errBox.style.display = 'block';
                 return;
             }
@@ -6774,7 +6814,7 @@
             cacheStateLocally();
 
             closeFundTransferModal();
-            addNotification('Fund Transfer Recorded', `ETB ${amount.toFixed(2)} moved from ${fromName} to ${toName}.`);
+            addNotification('Fund Transfer Recorded', `ETB ${amount.money2()} moved from ${fromName} to ${toName}.`);
             launchLiquidVaultDrillDown();
             renderAnalyticalDashboards();
         }
@@ -6810,7 +6850,7 @@
                 item.lots.forEach(lot => {
                     if (lot.qty <= 0) return;
                     if (lastPrice === null || Math.abs(lot.cost - lastPrice) > 0.001) {
-                        activeStrings.push(lot.cost.toFixed(2));
+                        activeStrings.push(lot.cost.money2());
                         lastPrice = lot.cost;
                     }
                 });
@@ -6823,7 +6863,7 @@
 
                 let priceCell = hasPerm('inventory.adjust_price')
                     ? `<input type="number" step="0.01" style="min-width:100px; padding:4px; text-align:right;" value="${item.sellingPrice.toFixed(2)}" onchange="updateDirectSellingPrice(${index}, this.value)">`
-                    : item.sellingPrice.toFixed(2);
+                    : item.sellingPrice.money2();
 
                 // Only computed/shown for pharmacy tenants — same
                 // urgency thresholds as the dashboard's Expiring Soon
@@ -6852,7 +6892,7 @@
                     <td><strong>${escHtml(item.desc)}</strong>${item.history&&item.history.length>0?'<span class="audit-badge badge-edited">EDITED</span>':''}</td>
                     <td class="num">${tQ}</td><td class="num price-trace">${canSeeCost ? cL : '—'}</td>
                     <td class="num">${priceCell}</td>
-                    <td class="num"><strong>${canSeeCost ? tV.toFixed(2) : '—'}</strong></td>
+                    <td class="num"><strong>${canSeeCost ? tV.money2() : '—'}</strong></td>
                     ${expiryCell}
                     <td style="text-align: center;">${btns || '<span style="color:var(--text-light); font-size:12px;">—</span>'}</td>
                 </tr>`;
@@ -7215,12 +7255,12 @@
                 const holders = getCashHoldersForBranch(b.id);
                 const holderRows = holders.map(u => {
                     const amt = computeCashHeldByEmployee(u, b.id);
-                    return `<div style="font-size:12px; color:var(--text-light); padding-left:14px; margin-top:2px;">${escHtml(u)}: ETB ${amt.toFixed(2)}</div>`;
+                    return `<div style="font-size:12px; color:var(--text-light); padding-left:14px; margin-top:2px;">${escHtml(u)}: ETB ${amt.money2()}</div>`;
                 }).join('');
                 return `<div style="padding:12px 0; border-bottom:1px solid var(--border);">
                     <div style="display:flex; justify-content:space-between; align-items:baseline;">
                         <strong>${escHtml(b.name)}</strong>
-                        <strong style="color:var(--primary);">ETB ${branchTotal.toFixed(2)}</strong>
+                        <strong style="color:var(--primary);">ETB ${branchTotal.money2()}</strong>
                     </div>
                     ${holderRows || `<div style="font-size:12px; color:var(--text-light); padding-left:14px; margin-top:2px;">No cash activity recorded yet.</div>`}
                 </div>`;
@@ -7267,7 +7307,7 @@
                         <td>${fmtDateTime(h.submitted_at)}</td>
                         <td>${escHtml(h.submitted_by_username)}</td>
                         <td>${escHtml(branchNameById(h.branch_id))}</td>
-                        <td class="num">${Number(h.amount).toFixed(2)}</td>
+                        <td class="num">${Number(h.amount).money2()}</td>
                         <td class="truncate-cell" title="${escHtml(h.note) || ''}">${escHtml(h.note) || '—'}</td>
                         <td style="text-align:center;">
                             <button class="btn btn-success btn-small" onclick="decideCashHandover('${h.id}', true)">${t('misc.approve')}</button>
@@ -7284,7 +7324,7 @@
                         <td>${fmtDateTime(h.submitted_at)}</td>
                         <td>${escHtml(h.submitted_by_username)}</td>
                         <td>${escHtml(branchNameById(h.branch_id))}</td>
-                        <td class="num">${Number(h.amount).toFixed(2)}</td>
+                        <td class="num">${Number(h.amount).money2()}</td>
                         <td class="truncate-cell" title="${escHtml(h.note) || ''}">${escHtml(h.note) || '—'}</td>
                         <td>${h.status === 'approved' ? `<span style="color:var(--success);">${t('status.approved')}</span>` : h.status === 'rejected' ? `<span style="color:var(--danger);">${t('status.rejected')}</span>` : `<span style="color:var(--warning);">${t('status.pending')}</span>`}</td>
                         <td>${escHtml(h.decided_by_username || '—')}</td>
@@ -7308,7 +7348,7 @@
                 } else {
                     document.getElementById('cash-handover-branch-name').innerText = branchNameById(currentBranchId);
                     const held = computeCashHeldByEmployee(currentUsername, currentBranchId);
-                    document.getElementById('cash-handover-balance-amount').innerText = `ETB ${held.toFixed(2)}`;
+                    document.getElementById('cash-handover-balance-amount').innerText = `ETB ${held.money2()}`;
                     document.getElementById('cash-handover-form').querySelector('button').disabled = false;
                 }
                 // An employee can only delete their own STILL-PENDING
@@ -7318,7 +7358,7 @@
                 document.getElementById('cash-handover-my-history-body').innerHTML = mine.length
                     ? mine.map(h => `<tr>
                         <td>${fmtDateTime(h.submitted_at)}</td>
-                        <td class="num">${Number(h.amount).toFixed(2)}</td>
+                        <td class="num">${Number(h.amount).money2()}</td>
                         <td class="truncate-cell" title="${escHtml(h.note) || ''}">${escHtml(h.note) || '—'}</td>
                         <td>${h.status === 'approved' ? `<span style="color:var(--success);">${t('status.approved')}</span>` : h.status === 'rejected' ? `<span style="color:var(--danger);">${t('status.rejected')}</span>` : `<span style="color:var(--warning);">${t('status.pending')}</span>`}</td>
                         <td style="text-align:center;">${h.status === 'pending' ? `<button class="btn btn-danger btn-small" onclick="deleteCashHandover('${h.id}')">${t('common.delete')}</button>` : ''}</td>
@@ -7363,7 +7403,7 @@
             if (error) return alert('Could not submit handover: ' + error.message);
 
             document.getElementById('cash-handover-form').reset();
-            addNotification('Cash Handover Submitted', `ETB ${amount.toFixed(2)} submitted for approval at ${branchNameById(currentBranchId)}.`);
+            addNotification('Cash Handover Submitted', `ETB ${amount.money2()} submitted for approval at ${branchNameById(currentBranchId)}.`);
             renderCashHandoverView();
         }
 
@@ -7440,7 +7480,7 @@
                 [pj, cj].forEach(j => { state.journal.push(j); queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(j) }); });
                 n++; grand += total;
             }
-            addNotification('Product Added', `Added ${list.length} product(s) with stock worth ETB ${grand.toFixed(2)}.`);
+            addNotification('Product Added', `Added ${list.length} product(s) with stock worth ETB ${grand.money2()}.`);
             try { syncTransactionalProductDropdownOptions(); renderPurchaseLogTable(); } catch (e) {}
             return true;
         }
@@ -7817,7 +7857,7 @@
                         expiryText = l.expiry;
                     }
                     const writeOffBtn = canWriteOff ? `<td style="text-align:right;"><button class="btn btn-small btn-danger" onclick="writeOffExpiringLot(${idx}, '${l.id}')">Write Off</button></td>` : '';
-                    html += `<tr style="${rowBg}"><td>${escHtml(branchName)}</td><td>${expiryText}</td><td class="num">${l.qty}</td><td class="num">${l.cost.toFixed(2)}</td>${writeOffBtn}</tr>`;
+                    html += `<tr style="${rowBg}"><td>${escHtml(branchName)}</td><td>${expiryText}</td><td class="num">${l.qty}</td><td class="num">${l.cost.money2()}</td>${writeOffBtn}</tr>`;
                 });
                 html += `</tbody></table>`;
                 mContent.innerHTML = html;
@@ -7855,7 +7895,7 @@
                 statusText = days < 0 ? `expired ${Math.abs(days)} day(s) ago` : `expiring ${lot.expiry}`;
             }
             const lossAmount = qty * lot.cost;
-            if (!(await uiConfirm(`Write off ${qty} unit(s) of "${item.desc}" (batch ${statusText})?\n\nThey will be removed from your stock and counted as a loss of ETB ${lossAmount.toFixed(2)}. This cannot be undone.`, { danger: true, yes: 'Yes, write off', no: 'No' }))) return;
+            if (!(await uiConfirm(`Write off ${qty} unit(s) of "${item.desc}" (batch ${statusText})?\n\nThey will be removed from your stock and counted as a loss of ETB ${lossAmount.money2()}. This cannot be undone.`, { danger: true, yes: 'Yes, write off', no: 'No' }))) return;
 
             const beforeLots = item.lots.map(l => ({...l}));
             if (partial) {
@@ -7864,7 +7904,7 @@
                 item.lots = item.lots.filter(l => l.id !== lotId);
             }
             item.history = item.history || [];
-            item.history.push(`[${new Date().toLocaleString()}] Written off ${qty} unit(s) — batch ${statusText} — ETB ${lossAmount.toFixed(2)} loss recorded`);
+            item.history.push(`[${new Date().toLocaleString()}] Written off ${qty} unit(s) — batch ${statusText} — ETB ${lossAmount.money2()} loss recorded`);
 
             syncItemLots(item, beforeLots);
             queueWrite({ kind: 'update', table: 'inventory_items', id: item.id, patch: { history: item.history } });
@@ -8163,11 +8203,11 @@
                 let actualIndex = state.trash.length - 1 - i;
                 let info = "";
                 if (trashItem.type === 'inventory') info = `[${trashItem.data.category}] ${trashItem.data.desc}`;
-                else if (trashItem.type === 'sale') info = `Sale: ${trashItem.data.qty}x ${trashItem.data.desc} to ${trashItem.data.customer} for ETB ${trashItem.data.total.toFixed(2)} (${trashItem.data.channel})`;
-                else if (trashItem.type === 'purchase') info = `Purchase: ${trashItem.data.qty}x ${trashItem.data.desc} from ${trashItem.data.supplier} for ETB ${trashItem.data.total.toFixed(2)} (${trashItem.data.channel})`;
-                else if (trashItem.type === 'expense') info = `Expense: ETB ${trashItem.data.amount.toFixed(2)} for ${trashItem.data.memo} (${trashItem.data.source})`;
-                else if (trashItem.type === 'sale_group') { const rows = trashItem.data.rows; info = `Multi-Item Sale: ${rows.length} items to ${rows[0].customer} for ETB ${rows.reduce((s,r)=>s+r.total,0).toFixed(2)}`; }
-                else if (trashItem.type === 'purchase_group') { const rows = trashItem.data.rows; info = `Multi-Item Purchase: ${rows.length} items from ${rows[0].supplier} for ETB ${rows.reduce((s,r)=>s+r.total,0).toFixed(2)}`; }
+                else if (trashItem.type === 'sale') info = `Sale: ${trashItem.data.qty}x ${trashItem.data.desc} to ${trashItem.data.customer} for ETB ${trashItem.data.total.money2()} (${trashItem.data.channel})`;
+                else if (trashItem.type === 'purchase') info = `Purchase: ${trashItem.data.qty}x ${trashItem.data.desc} from ${trashItem.data.supplier} for ETB ${trashItem.data.total.money2()} (${trashItem.data.channel})`;
+                else if (trashItem.type === 'expense') info = `Expense: ETB ${trashItem.data.amount.money2()} for ${trashItem.data.memo} (${trashItem.data.source})`;
+                else if (trashItem.type === 'sale_group') { const rows = trashItem.data.rows; info = `Multi-Item Sale: ${rows.length} items to ${rows[0].customer} for ETB ${rows.reduce((s,r)=>s+r.total,0).money2()}`; }
+                else if (trashItem.type === 'purchase_group') { const rows = trashItem.data.rows; info = `Multi-Item Purchase: ${rows.length} items from ${rows[0].supplier} for ETB ${rows.reduce((s,r)=>s+r.total,0).money2()}`; }
 
                 tbody.innerHTML += `<tr>
                     <td>${fmtDateTime(trashItem.deletedAt)}</td><td style="text-transform:uppercase;">${trashItem.type}</td>
@@ -8545,13 +8585,13 @@
                 tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-light);">No items added yet.</td></tr>`;
             } else {
                 tbody.innerHTML = saleCart.map((c, i) => `<tr>
-                    <td><span style="color:var(--text-light); font-size:11px;">${escHtml(c.category)}</span><br>${escHtml(c.desc)}</td><td class="num">${c.qty}</td><td class="num">${c.price.toFixed(2)}</td>
-                    <td class="num">${(c.qty * c.price).toFixed(2)}</td>
+                    <td><span style="color:var(--text-light); font-size:11px;">${escHtml(c.category)}</span><br>${escHtml(c.desc)}</td><td class="num">${c.qty}</td><td class="num">${c.price.money2()}</td>
+                    <td class="num">${(c.qty * c.price).money2()}</td>
                     <td style="text-align:center;"><button class="btn btn-danger btn-small" onclick="removeFromSaleCart(${i})">✕</button></td>
                 </tr>`).join('');
             }
             const total = saleCart.reduce((sum, c) => sum + c.qty * c.price, 0);
-            document.getElementById('sale-cart-total').innerText = `ETB ${total.toFixed(2)}`;
+            document.getElementById('sale-cart-total').innerText = `ETB ${total.money2()}`;
             const amtField = document.getElementById('cart-sale-amount-paid');
             if (amtField.dataset.touched !== '1') amtField.value = total.toFixed(2);
             updateCartSaleChannelVisibility();
@@ -8581,7 +8621,7 @@
             let amountPaidNow = parseFloat(document.getElementById('cart-sale-amount-paid').value);
             if (isNaN(amountPaidNow)) amountPaidNow = 0;
             if (amountPaidNow < 0) return alert("Amount Paid Now can't be negative.");
-            if (amountPaidNow > total + 0.001) return alert(`Amount Paid Now can't be more than the basket total (ETB ${total.toFixed(2)}).`);
+            if (amountPaidNow > total + 0.001) return alert(`Amount Paid Now can't be more than the basket total (ETB ${total.money2()}).`);
             const remaining = Math.max(0, total - amountPaidNow);
             const chan = amountPaidNow > 0 ? document.getElementById('cart-sale-channel').value : 'Accounts receivable';
 
@@ -8653,8 +8693,8 @@
             document.getElementById('cart-sale-customer').value = '';
             syncTransactionalProductDropdownOptions(); renderSalesLogTable();
             toggleSaleCartMode(false);
-            const payNote = remaining <= 0.001 ? '' : ` (ETB ${amountPaidNow.toFixed(2)} paid now, ETB ${remaining.toFixed(2)} owed)`;
-            addNotification('Multi-Item Sale Completed', `Posted revenue: ETB ${total.toFixed(2)}${payNote}`, `Sold ${newRows.length} items to ${cName}`);
+            const payNote = remaining <= 0.001 ? '' : ` (ETB ${amountPaidNow.money2()} paid now, ETB ${remaining.money2()} owed)`;
+            addNotification('Multi-Item Sale Completed', `Posted revenue: ETB ${total.money2()}${payNote}`, `Sold ${newRows.length} items to ${cName}`);
             if (includeVat) setTimeout(() => openBuyerInfoModal('sale', groupId, true, 'receipt'), 150); // VAT sale: open the print window straight away
         }
 
@@ -8674,7 +8714,7 @@
             let amountPaidNow = parseFloat(document.getElementById('sale-amount-paid').value);
             if (isNaN(amountPaidNow)) amountPaidNow = 0;
             if (amountPaidNow < 0) return alert("Amount Paid Now can't be negative.");
-            if (amountPaidNow > rev + 0.001) return alert(`Amount Paid Now (ETB ${amountPaidNow.toFixed(2)}) can't be more than the total (ETB ${rev.toFixed(2)}).`);
+            if (amountPaidNow > rev + 0.001) return alert(`Amount Paid Now (ETB ${amountPaidNow.money2()}) can't be more than the total (ETB ${rev.money2()}).`);
             const remaining = Math.max(0, rev - amountPaidNow);
             // "channel" on the sale record represents where the amount paid
             // now went; if nothing was paid now, it's fully on credit — same
@@ -8739,8 +8779,8 @@
             e.target.reset(); document.getElementById('sale-amount-paid').dataset.touched = '';
             syncAllEthiopianDatePickers();
             syncTransactionalProductDropdownOptions(); renderSalesLogTable();
-            const payNote = fullyPaid ? '' : ` (ETB ${amountPaidNow.toFixed(2)} paid now, ETB ${remaining.toFixed(2)} owed)`;
-            addNotification('Sale Executed', `Posted revenue: ETB ${rev.toFixed(2)}${payNote}`, `Sold ${qty}x ${item.desc} to ${cName}${amountPaidNow > 0 ? ' via ' + chan : ''}`);
+            const payNote = fullyPaid ? '' : ` (ETB ${amountPaidNow.money2()} paid now, ETB ${remaining.money2()} owed)`;
+            addNotification('Sale Executed', `Posted revenue: ETB ${rev.money2()}${payNote}`, `Sold ${qty}x ${item.desc} to ${cName}${amountPaidNow > 0 ? ' via ' + chan : ''}`);
             if (includeVat) setTimeout(() => openBuyerInfoModal('sale', id, false, 'receipt'), 150); // VAT sale: open the print window straight away
         }
 
@@ -8773,7 +8813,7 @@
             const hideAmount = type === 'purchase' && !hasPerm('inventory.view_cost');
             document.getElementById('record-payment-subtitle').innerText = hideAmount
                 ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Amount owed is hidden for your role.'
-                : `Owed: ETB ${remaining.toFixed(2)} of ETB ${effectiveTotal.toFixed(2)} total`;
+                : `Owed: ETB ${remaining.money2()} of ETB ${effectiveTotal.money2()} total`;
             document.getElementById('record-payment-error').style.display = 'none';
             const amtInput = document.getElementById('record-payment-amount');
             amtInput.value = remaining.toFixed(2);
@@ -8800,7 +8840,7 @@
             const amount = parseFloat(document.getElementById('record-payment-amount').value);
             const channel = document.getElementById('record-payment-channel').value;
             if (isNaN(amount) || amount <= 0) { errEl.innerText = 'Enter a valid amount.'; errEl.style.display = 'block'; return; }
-            if (amount > remaining + 0.001) { errEl.innerText = `Can't be more than the ETB ${remaining.toFixed(2)} owed.`; errEl.style.display = 'block'; return; }
+            if (amount > remaining + 0.001) { errEl.innerText = `Can't be more than the ETB ${remaining.money2()} owed.`; errEl.style.display = 'block'; return; }
 
             const date = new Date().toISOString().split('T')[0];
             record.payments = record.payments || [];
@@ -8832,8 +8872,8 @@
             const stillOwed = record.total - record.amountPaid;
             addNotification(
                 type === 'sale' ? 'Payment Received' : 'Payment Sent',
-                `ETB ${amount.toFixed(2)} ${type === 'sale' ? 'received for' : 'paid toward'} ${id}`,
-                `Via ${channel}${fullyPaid ? ' — fully settled' : ' — ETB ' + stillOwed.toFixed(2) + ' still owed'}`
+                `ETB ${amount.money2()} ${type === 'sale' ? 'received for' : 'paid toward'} ${id}`,
+                `Via ${channel}${fullyPaid ? ' — fully settled' : ' — ETB ' + stillOwed.money2() + ' still owed'}`
             );
         }
 
@@ -8931,7 +8971,7 @@
         }
 
         function renderChannelBreakdownHtml(breakdown) {
-            return breakdown.map(b => `<small>${escHtml(b.channel)}: ${b.amount.toFixed(2)}</small>`).join('<br>');
+            return breakdown.map(b => `<small>${escHtml(b.channel)}: ${b.amount.money2()}</small>`).join('<br>');
         }
 
         // ---------------------------------------------------------------
@@ -9044,8 +9084,8 @@
             const itemRows = data.lines.map(l => {
                 const unit = (data.vatIncluded && l.unit != null) ? l.unit / 1.15 : l.unit;
                 const lineTotal = data.vatIncluded ? l.total / 1.15 : l.total;
-                return `<tr><td></td><td class="right">${l.qty} X</td><td class="right">*${unit != null ? unit.toFixed(2) : '—'}</td></tr>
-                        <tr><td>${escHtml(l.desc)}</td><td></td><td class="right">*${lineTotal.toFixed(2)}</td></tr>`;
+                return `<tr><td></td><td class="right">${l.qty} X</td><td class="right">*${unit != null ? unit.money2() : '—'}</td></tr>
+                        <tr><td>${escHtml(l.desc)}</td><td></td><td class="right">*${lineTotal.money2()}</td></tr>`;
             }).join('');
             const sharedStyle = `
                 @page { size: 80mm auto; margin: 0; }
@@ -9072,10 +9112,10 @@
                     <hr>
                     <table>
                         <tr class="small b"><td>Item</td><td class="right">Qty</td><td class="right">Total</td></tr>
-                        ${data.lines.map(l => `<tr><td>${escHtml(l.desc)}</td><td class="right">${l.qty}</td><td class="right">${l.total.toFixed(2)}</td></tr>`).join('')}
+                        ${data.lines.map(l => `<tr><td>${escHtml(l.desc)}</td><td class="right">${l.qty}</td><td class="right">${l.total.money2()}</td></tr>`).join('')}
                     </table>
                     <hr>
-                    <table><tr class="totrow"><td>TOTAL</td><td class="right" colspan="2">ETB ${data.total.toFixed(2)}</td></tr></table>
+                    <table><tr class="totrow"><td>TOTAL</td><td class="right" colspan="2">ETB ${data.total.money2()}</td></tr></table>
                     <hr>
                     <div class="center small">Ref: ${escHtml(data.docNumber)}</div>
                     <div class="center small" style="margin-top:6px;">Prepared by Meleya Software Solutions.</div>
@@ -9106,9 +9146,9 @@
                 </table>
                 <hr>
                 <table>
-                    ${data.vatIncluded ? `<tr><td colspan="2">TXBL1</td><td class="right">*${taxable.toFixed(2)}</td></tr><tr><td colspan="2">TAX1&nbsp;&nbsp;15.00%</td><td class="right">*${vatAmt.toFixed(2)}</td></tr>` : ''}
-                    <tr class="totrow"><td colspan="2">TOTAL</td><td class="right">*${data.total.toFixed(2)}</td></tr>
-                    <tr><td colspan="2"></td><td class="right">*${tendered.toFixed(2)}</td></tr>
+                    ${data.vatIncluded ? `<tr><td colspan="2">TXBL1</td><td class="right">*${taxable.money2()}</td></tr><tr><td colspan="2">TAX1&nbsp;&nbsp;15.00%</td><td class="right">*${vatAmt.money2()}</td></tr>` : ''}
+                    <tr class="totrow"><td colspan="2">TOTAL</td><td class="right">*${data.total.money2()}</td></tr>
+                    <tr><td colspan="2"></td><td class="right">*${tendered.money2()}</td></tr>
                 </table>
                 <div>ITEM # ${data.lines.length}</div>
                 <div class="center" style="margin-top:6px;">ET ${etSerial}</div>
@@ -9154,13 +9194,13 @@
                 <table>
                     <thead><tr><th>Description</th><th class="right">Qty</th><th class="right">Unit Price</th><th class="right">Total</th></tr></thead>
                     <tbody>
-                        ${data.lines.map(l => `<tr><td>${escHtml(l.desc)}</td><td class="right">${l.qty}</td><td class="right">${l.unit != null ? l.unit.toFixed(2) : '—'}</td><td class="right">${l.total.toFixed(2)}</td></tr>`).join('')}
+                        ${data.lines.map(l => `<tr><td>${escHtml(l.desc)}</td><td class="right">${l.qty}</td><td class="right">${l.unit != null ? l.unit.money2() : '—'}</td><td class="right">${l.total.money2()}</td></tr>`).join('')}
                     </tbody>
                 </table>
                 <table class="totals">
-                    ${data.vatIncluded ? `<tr><td class="lbl">TXBL1</td><td class="right">ETB ${taxable.toFixed(2)}</td></tr><tr><td class="lbl">TAX1 15.00%</td><td class="right">ETB ${vatAmt.toFixed(2)}</td></tr>` : ''}
-                    <tr class="grand"><td class="lbl">Total</td><td class="right">ETB ${data.total.toFixed(2)}</td></tr>
-                    <tr><td class="lbl">Paid</td><td class="right">ETB ${(data.amountPaid || 0).toFixed(2)}</td></tr>
+                    ${data.vatIncluded ? `<tr><td class="lbl">TXBL1</td><td class="right">ETB ${taxable.money2()}</td></tr><tr><td class="lbl">TAX1 15.00%</td><td class="right">ETB ${vatAmt.money2()}</td></tr>` : ''}
+                    <tr class="grand"><td class="lbl">Total</td><td class="right">ETB ${data.total.money2()}</td></tr>
+                    <tr><td class="lbl">Paid</td><td class="right">ETB ${(data.amountPaid || 0).money2()}</td></tr>
                 </table>
                 ${(data.extraNotes || []).length ? `<div class="notes">${data.extraNotes.map(escHtml).join('<br>')}</div>` : ''}
                 <div class="footer">Thank you for your business.</div>
@@ -9352,7 +9392,7 @@
             const out = [];
             if (a.t !== b.t) out.push(`Buyer TIN "${a.t || '-'}" -> "${b.t || '-'}"`);
             if (a.n !== b.n) out.push(`Buyer name "${a.n || '-'}" -> "${b.n || '-'}"`);
-            (b.l || []).forEach((x, i) => { const y = (a.l || [])[i]; if (!y) return; if (y[0] !== x[0]) out.push(`Item "${y[0]}" -> "${x[0]}"`); if (y[1] !== x[1]) out.push(`${x[0]}: price ${y[1].toFixed(2)} -> ${x[1].toFixed(2)}`); });
+            (b.l || []).forEach((x, i) => { const y = (a.l || [])[i]; if (!y) return; if (y[0] !== x[0]) out.push(`Item "${y[0]}" -> "${x[0]}"`); if (y[1] !== x[1]) out.push(`${x[0]}: price ${y[1].money2()} -> ${x[1].money2()}`); });
             return out.join('; ') || 'Receipt changed';
         }
         // Device copy of "has this been printed?" so the check also works offline: filled from the database whenever online,
@@ -9605,7 +9645,7 @@
                 if (remaining <= 0.001) {
                     statusStr += `<br><small style="color:var(--success)">[Paid in full]</small>`;
                 } else if ((s.amountPaid || 0) > 0) {
-                    statusStr += `<br><small style="color:var(--warning)">[Owes ETB ${remaining.toFixed(2)}]</small>`;
+                    statusStr += `<br><small style="color:var(--warning)">[Owes ETB ${remaining.money2()}]</small>`;
                 } else {
                     statusStr += `<br><small style="color:var(--danger)">[Pending]</small>`;
                 }
@@ -9616,15 +9656,15 @@
                 // VAT invoice -- so the buttons only appear when "Include
                 // VAT (15%)" was checked at Post Sale, not for every row.
                 let printBtns = s.vatIncluded ? `<button class="btn btn-small" style="background:var(--bg); color:var(--text); border:1px solid var(--border);" onclick="printSaleReceipt('${printId}', ${!!s.isGroup})" title="Print thermal receipt"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg> Receipt</button> <button class="btn btn-small" style="background:var(--bg); color:var(--text); border:1px solid var(--border);" onclick="printSaleInvoice('${printId}', ${!!s.isGroup})" title="Print full-page invoice"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg> Invoice</button>` : '';
-                const priceCell = s.price === null ? '—' : s.price.toFixed(2);
+                const priceCell = s.price === null ? '—' : s.price.money2();
                 const isExpanded = s.isGroup && expandedSaleGroups.has(s.groupId);
                 const descCell = s.isGroup
                     ? `<span style="cursor:pointer;" onclick="toggleSaleGroupExpand('${escHtml(s.groupId)}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="m5 11 4-7"></path><path d="m19 11-4-7"></path><path d="M2 11h20"></path><path d="m3.5 11 1.6 7.4a2 2 0 0 0 2 1.6h9.8a2 2 0 0 0 2-1.6l1.7-7.4"></path><path d="M4.5 15.5h15"></path></svg> ${isExpanded ? '▾' : '▸'} ${escHtml(s.desc)}</span>`
                     : `<span class="truncate-cell" title="${escHtml(s.desc)}">${escHtml(s.desc)}</span>`;
-                rows.push(`<tr><td>${fmtDate(s.date)}</td><td>${escHtml(s.customer)}${buyerInfoStackHTML(s)}</td><td class="truncate-cell">${descCell}</td><td class="num">${s.qty}</td><td class="num">${priceCell}</td><td class="num"><strong>${s.total.toFixed(2)}</strong>${s.vatIncluded ? `<br><small style="color:var(--text-light);">${t('sale.with_vat')}</small>` : ''}</td><td>${statusStr}<br><small style="color:var(--accent)">[${escHtml(s.type || 'Walk in')}]</small></td><td class="branch-col">${escHtml(branchNameById(s.branchId))}</td><td><small>${escHtml(getTransactionAuthor(s.id))}</small></td><td style="text-align:center; white-space:nowrap;">${payBtn}${voidBtn}${printBtns}</td></tr>`);
+                rows.push(`<tr><td>${fmtDate(s.date)}</td><td>${escHtml(s.customer)}${buyerInfoStackHTML(s)}</td><td class="truncate-cell">${descCell}</td><td class="num">${s.qty}</td><td class="num">${priceCell}</td><td class="num"><strong>${s.total.money2()}</strong>${s.vatIncluded ? `<br><small style="color:var(--text-light);">${t('sale.with_vat')}</small>` : ''}</td><td>${statusStr}<br><small style="color:var(--accent)">[${escHtml(s.type || 'Walk in')}]</small></td><td class="branch-col">${escHtml(branchNameById(s.branchId))}</td><td><small>${escHtml(getTransactionAuthor(s.id))}</small></td><td style="text-align:center; white-space:nowrap;">${payBtn}${voidBtn}${printBtns}</td></tr>`);
                 if (isExpanded) {
                     s.itemRows.forEach(r => {
-                        rows.push(`<tr style="background:var(--bg);"><td></td><td></td><td class="truncate-cell" style="padding-left:32px;" title="${escHtml(r.desc)}"><small>↳ ${escHtml(r.desc)}</small></td><td class="num"><small>${r.qty}</small></td><td class="num"><small>${r.price.toFixed(2)}</small></td><td class="num"><small>${r.total.toFixed(2)}</small></td><td colspan="4"></td></tr>`);
+                        rows.push(`<tr style="background:var(--bg);"><td></td><td></td><td class="truncate-cell" style="padding-left:32px;" title="${escHtml(r.desc)}"><small>↳ ${escHtml(r.desc)}</small></td><td class="num"><small>${r.qty}</small></td><td class="num"><small>${r.price.money2()}</small></td><td class="num"><small>${r.total.money2()}</small></td><td colspan="4"></td></tr>`);
                     });
                 }
             });
@@ -9639,7 +9679,7 @@
             const salesTotal = fCh
                 ? displayList.reduce((sum, s) => sum + s._breakdown.filter(b => b.channel === fCh).reduce((a,b) => a+b.amount, 0), 0)
                 : displayList.reduce((sum, s) => sum + s.total, 0);
-            document.getElementById('sale-log-total-display').innerText = `${t('misc.total_shown')}: ETB ${salesTotal.toFixed(2)} (${displayList.length})`;
+            document.getElementById('sale-log-total-display').innerText = `${t('misc.total_shown')}: ETB ${salesTotal.money2()} (${displayList.length})`;
         }
 
         // ---------------------------------------------------------------
@@ -9702,13 +9742,13 @@
                 tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-light);">No items added yet.</td></tr>`;
             } else {
                 tbody.innerHTML = purchaseCart.map((c, i) => `<tr>
-                    <td><span style="color:var(--text-light); font-size:11px;">${escHtml(c.category)}</span><br>${escHtml(c.desc)}</td><td class="num">${c.qty}</td><td class="num">${canSeeCost ? c.cost.toFixed(2) : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'}</td>
-                    <td class="num">${canSeeCost ? (c.qty * c.cost).toFixed(2) : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'}</td>
+                    <td><span style="color:var(--text-light); font-size:11px;">${escHtml(c.category)}</span><br>${escHtml(c.desc)}</td><td class="num">${c.qty}</td><td class="num">${canSeeCost ? c.cost.money2() : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'}</td>
+                    <td class="num">${canSeeCost ? (c.qty * c.cost).money2() : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'}</td>
                     <td style="text-align:center;"><button class="btn btn-danger btn-small" onclick="removeFromPurchaseCart(${i})">✕</button></td>
                 </tr>`).join('');
             }
             const total = purchaseCart.reduce((sum, c) => sum + c.qty * c.cost, 0);
-            document.getElementById('purchase-cart-total').innerText = canSeeCost ? `ETB ${total.toFixed(2)}` : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Hidden';
+            document.getElementById('purchase-cart-total').innerText = canSeeCost ? `ETB ${total.money2()}` : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Hidden';
             const amtField = document.getElementById('cart-pur-amount-paid');
             if (amtField.dataset.touched !== '1') amtField.value = total.toFixed(2);
             updateCartPurchaseChannelVisibility();
@@ -9738,7 +9778,7 @@
                 amountPaidNow = parseFloat(document.getElementById('cart-pur-amount-paid').value);
                 if (isNaN(amountPaidNow)) amountPaidNow = 0;
                 if (amountPaidNow < 0) return alert("Amount Paid Now can't be negative.");
-                if (amountPaidNow > total + 0.001) return alert(`Amount Paid Now can't be more than the basket total (ETB ${total.toFixed(2)}).`);
+                if (amountPaidNow > total + 0.001) return alert(`Amount Paid Now can't be more than the basket total (ETB ${total.money2()}).`);
             }
             const remaining = Math.max(0, total - amountPaidNow);
             const chan = amountPaidNow > 0 ? document.getElementById('cart-pur-channel').value : 'Accounts payable';
@@ -9790,8 +9830,8 @@
             document.getElementById('cart-pur-supplier').value = '';
             syncTransactionalProductDropdownOptions(); renderPurchaseLogTable();
             togglePurchaseCartMode(false);
-            const payNote = remaining <= 0.001 ? '' : ` (ETB ${amountPaidNow.toFixed(2)} paid now, ETB ${remaining.toFixed(2)} owed)`;
-            addNotification('Multi-Item Purchase Completed', `Added ${newRows.length} items for ETB ${total.toFixed(2)}${payNote}`, `From ${sup}`);
+            const payNote = remaining <= 0.001 ? '' : ` (ETB ${amountPaidNow.money2()} paid now, ETB ${remaining.money2()} owed)`;
+            addNotification('Multi-Item Purchase Completed', `Added ${newRows.length} items for ETB ${total.money2()}${payNote}`, `From ${sup}`);
         }
 
         async function handlePostPurchase(e) {
@@ -9827,7 +9867,7 @@
                 amountPaidNow = parseFloat(document.getElementById('pur-amount-paid').value);
                 if (isNaN(amountPaidNow)) amountPaidNow = 0;
                 if (amountPaidNow < 0) return alert("Amount Paid Now can't be negative.");
-                if (amountPaidNow > tot + 0.001) return alert(`Amount Paid Now (ETB ${amountPaidNow.toFixed(2)}) can't be more than the total (ETB ${tot.toFixed(2)}).`);
+                if (amountPaidNow > tot + 0.001) return alert(`Amount Paid Now (ETB ${amountPaidNow.money2()}) can't be more than the total (ETB ${tot.money2()}).`);
             }
             const remaining = Math.max(0, tot - amountPaidNow);
             const chan = amountPaidNow > 0 ? document.getElementById('pur-channel').value : 'Accounts payable';
@@ -9868,7 +9908,7 @@
             document.getElementById('pur-price').dataset.touched = '';
             syncAllEthiopianDatePickers();
             syncTransactionalProductDropdownOptions(); renderPurchaseLogTable();
-            addNotification('Stock Purchased', `Added ${qty} units of ${item.desc}`, `Total Cost: ETB ${tot.toFixed(2)}${amountPaidNow > 0 ? ' (ETB ' + amountPaidNow.toFixed(2) + ' paid now via ' + chan + (remaining > 0 ? ', ETB ' + remaining.toFixed(2) + ' owed)' : ')') : ' (fully on credit)'}`);
+            addNotification('Stock Purchased', `Added ${qty} units of ${item.desc}`, `Total Cost: ETB ${tot.money2()}${amountPaidNow > 0 ? ' (ETB ' + amountPaidNow.money2() + ' paid now via ' + chan + (remaining > 0 ? ', ETB ' + remaining.money2() + ' owed)' : ')') : ' (fully on credit)'}`);
         }
 
         let expandedPurchaseGroups = new Set();
@@ -9939,7 +9979,7 @@
                 } else if (!canSeeCost) {
                     statusStr += `<br><small style="color:var(--warning)">[Balance owed]</small>`;
                 } else if ((p.amountPaid || 0) > 0) {
-                    statusStr += `<br><small style="color:var(--warning)">[Owe ETB ${remaining.toFixed(2)}]</small>`;
+                    statusStr += `<br><small style="color:var(--warning)">[Owe ETB ${remaining.money2()}]</small>`;
                 } else {
                     statusStr += `<br><small style="color:var(--danger)">[Pending]</small>`;
                 }
@@ -9949,8 +9989,8 @@
                 // Purchases don't issue a receipt/invoice -- the shop is the
                 // buyer here, so there's no print button for this row.
                 let printBtns = '';
-                const costCell = !canSeeCost ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>' : (p.cost === null ? '—' : p.cost.toFixed(2));
-                const totalCell = canSeeCost ? p.total.toFixed(2) : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
+                const costCell = !canSeeCost ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>' : (p.cost === null ? '—' : p.cost.money2());
+                const totalCell = canSeeCost ? p.total.money2() : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
                 const isExpanded = p.isGroup && expandedPurchaseGroups.has(p.groupId);
                 const descCell = p.isGroup
                     ? `<span style="cursor:pointer;" onclick="togglePurchaseGroupExpand('${escHtml(p.groupId)}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="m5 11 4-7"></path><path d="m19 11-4-7"></path><path d="M2 11h20"></path><path d="m3.5 11 1.6 7.4a2 2 0 0 0 2 1.6h9.8a2 2 0 0 0 2-1.6l1.7-7.4"></path><path d="M4.5 15.5h15"></path></svg> ${isExpanded ? '▾' : '▸'} ${escHtml(p.desc)}</span>`
@@ -9958,7 +9998,7 @@
                 rows.push(`<tr><td>${fmtDate(p.date)}</td><td>${escHtml(p.supplier)}${buyerInfoStackHTML(p)}</td><td class="truncate-cell">${descCell}</td><td class="num">${p.qty}</td><td class="num">${costCell}</td><td class="num"><strong>${totalCell}</strong></td><td>${statusStr}</td><td class="branch-col">${escHtml(branchNameById(p.branchId))}</td><td><small>${escHtml(getTransactionAuthor(p.id))}</small></td><td style="text-align:center; white-space:nowrap;">${payBtn}${voidBtn}${printBtns}</td></tr>`);
                 if (isExpanded) {
                     p.itemRows.forEach(r => {
-                        rows.push(`<tr style="background:var(--bg);"><td></td><td></td><td class="truncate-cell" style="padding-left:32px;" title="${escHtml(r.desc)}"><small>↳ ${escHtml(r.desc)}</small></td><td class="num"><small>${r.qty}</small></td><td class="num"><small>${canSeeCost ? r.cost.toFixed(2) : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'}</small></td><td class="num"><small>${canSeeCost ? r.total.toFixed(2) : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'}</small></td><td colspan="4"></td></tr>`);
+                        rows.push(`<tr style="background:var(--bg);"><td></td><td></td><td class="truncate-cell" style="padding-left:32px;" title="${escHtml(r.desc)}"><small>↳ ${escHtml(r.desc)}</small></td><td class="num"><small>${r.qty}</small></td><td class="num"><small>${canSeeCost ? r.cost.money2() : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'}</small></td><td class="num"><small>${canSeeCost ? r.total.money2() : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'}</small></td><td colspan="4"></td></tr>`);
                     });
                 }
             });
@@ -9970,7 +10010,7 @@
                 const purTotal = fCh
                     ? displayList.reduce((sum, p) => sum + p._breakdown.filter(b => b.channel === fCh).reduce((a,b) => a+b.amount, 0), 0)
                     : displayList.reduce((sum, p) => sum + p.total, 0);
-                purTotalEl.innerText = `${t('misc.total_shown')}: ETB ${purTotal.toFixed(2)} (${displayList.length})`;
+                purTotalEl.innerText = `${t('misc.total_shown')}: ETB ${purTotal.money2()} (${displayList.length})`;
             } else {
                 purTotalEl.innerText = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> ${t('misc.total_shown')} (${displayList.length})`;
             }
@@ -10003,7 +10043,7 @@
 
             e.target.reset(); document.getElementById('exp-date').value = new Date().toISOString().split('T')[0]; syncAllEthiopianDatePickers(); renderExpenseLogTable();
             const scopeNote = isWholeBusiness ? ` — recorded as a Whole Business expense` : '';
-            addNotification('Expense Logged', `ETB ${amt.toFixed(2)} booked for ${memo}${scopeNote}`, `Source: ${src}`);
+            addNotification('Expense Logged', `ETB ${amt.money2()} booked for ${memo}${scopeNote}`, `Source: ${src}`);
         }
 
         function renderExpenseLogTable() {
@@ -10041,13 +10081,13 @@
             sortedExp.slice(0, expShown).forEach(ex => {
                 let m = CHART_OF_ACCOUNTS_MAP.find(c => c.code === ex.target);
                 let voidBtn = (hasPerm('expense.void') && !isBranchClosed(ex.branchId)) ? `<button class="btn btn-danger btn-small" onclick="deleteExpense('${ex.id}')">${t('common.delete')}</button>` : '';
-                rows.push(`<tr><td>${fmtDate(ex.date)}</td><td>${escHtml(ex.target)} - ${m?escHtml(m.name):''}</td><td>${escHtml(ex.memo)}</td><td class="num"><strong>${ex.amount.toFixed(2)}</strong></td><td>${escHtml(ex.source)}</td><td class="branch-col">${escHtml(branchNameById(ex.branchId))}</td><td><small>${escHtml(getTransactionAuthor(ex.id))}</small></td><td style="text-align:center;">${voidBtn}</td></tr>`);
+                rows.push(`<tr><td>${fmtDate(ex.date)}</td><td>${escHtml(ex.target)} - ${m?escHtml(m.name):''}</td><td>${escHtml(ex.memo)}</td><td class="num"><strong>${ex.amount.money2()}</strong></td><td>${escHtml(ex.source)}</td><td class="branch-col">${escHtml(branchNameById(ex.branchId))}</td><td><small>${escHtml(getTransactionAuthor(ex.id))}</small></td><td style="text-align:center;">${voidBtn}</td></tr>`);
             });
             if (sortedExp.length > expShown) rows.push(loadMoreRowHtml('expense', sortedExp.length - expShown, 8, 'renderExpenseLogTable'));
             tbody.innerHTML = rows.join('');
             updateBranchColumnVisibility();
             const expTotal = arr.reduce((sum, ex) => sum + ex.amount, 0);
-            document.getElementById('exp-log-total-display').innerText = `${t('misc.total_shown')}: ETB ${expTotal.toFixed(2)} (${arr.length})`;
+            document.getElementById('exp-log-total-display').innerText = `${t('misc.total_shown')}: ETB ${expTotal.money2()} (${arr.length})`;
         }
 
         function renderSystemCOAProfileLayouts() {
@@ -10142,7 +10182,7 @@
                 const deleteBtn = canDelete ? `<button class="btn btn-danger btn-small" onclick="deleteJournalVoucher('${entry.id}')">Delete</button>` : '';
                 entry.lines.forEach((l, i) => {
                     let m = CHART_OF_ACCOUNTS_MAP.find(a => a.code === l.account);
-                    rows.push(`<tr><td>${i===0?fmtDate(entry.date):''}</td><td>${i===0?`<strong>${entry.id}</strong><br><small>${escHtml(stripAuthorStamp(entry.desc))}</small>`:''}</td><td style="padding-left:${l.cr>0?'40px':'16px'}"><strong>${escHtml(l.account)}</strong> - ${m?escHtml(m.name):''}</td><td class="num text-success">${l.dr>0?l.dr.toFixed(2):'-'}</td><td class="num text-danger">${l.cr>0?l.cr.toFixed(2):'-'}</td><td class="branch-col">${i===0?escHtml(branchNameById(entry.branchId)):''}</td><td>${i===0?`<small>${escHtml(extractAuthor(entry.desc))}</small>`:''}</td><td style="text-align:center;">${i===0?deleteBtn:''}</td></tr>`);
+                    rows.push(`<tr><td>${i===0?fmtDate(entry.date):''}</td><td>${i===0?`<strong>${entry.id}</strong><br><small>${escHtml(stripAuthorStamp(entry.desc))}</small>`:''}</td><td style="padding-left:${l.cr>0?'40px':'16px'}"><strong>${escHtml(l.account)}</strong> - ${m?escHtml(m.name):''}</td><td class="num text-success">${l.dr>0?l.dr.money2():'-'}</td><td class="num text-danger">${l.cr>0?l.cr.money2():'-'}</td><td class="branch-col">${i===0?escHtml(branchNameById(entry.branchId)):''}</td><td>${i===0?`<small>${escHtml(extractAuthor(entry.desc))}</small>`:''}</td><td style="text-align:center;">${i===0?deleteBtn:''}</td></tr>`);
                 });
             });
             if (journalTruncated) rows.push(loadMoreRowHtml('journal', matchingEntries.length - journalShown, 8, 'renderHistoricalJournalsTable'));
@@ -10168,7 +10208,7 @@
                 en.lines.forEach(l => {
                     if (l.account === code) {
                         c++; let s = l.dr - l.cr; if(m.normal==="Credit") s = -s; bal += s;
-                        rows.push(`<tr><td>${fmtDate(en.date)}</td><td><strong>${en.id}</strong> - ${escHtml(en.desc)}</td><td class="num">${l.dr>0?l.dr.toFixed(2):'-'}</td><td class="num">${l.cr>0?l.cr.toFixed(2):'-'}</td><td class="num"><strong>${bal.toFixed(2)}</strong></td></tr>`);
+                        rows.push(`<tr><td>${fmtDate(en.date)}</td><td><strong>${en.id}</strong> - ${escHtml(en.desc)}</td><td class="num">${l.dr>0?l.dr.money2():'-'}</td><td class="num">${l.cr>0?l.cr.money2():'-'}</td><td class="num"><strong>${bal.money2()}</strong></td></tr>`);
                     }
                 });
             });
@@ -10185,20 +10225,20 @@
                 let d = 0, c = 0, s = `<h2>${t('acct.trial_balance_verification')}</h2><table><thead><tr><th>${t('acct.code')}</th><th>${t('team.name')}</th><th class="num">${t('acct.debit')}</th><th class="num">${t('acct.credit')}</th></tr></thead><tbody>`;
                 CHART_OF_ACCOUNTS_MAP.forEach(a => {
                     let b = bal[a.code] || 0; if(b===0) return;
-                    if (a.normal==="Debit") { s += `<tr><td><code>${escHtml(a.code)}</code></td><td>${escHtml(a.name)}</td><td class="num">${b.toFixed(2)}</td><td class="num">-</td></tr>`; d+=b; } 
-                    else { s += `<tr><td><code>${escHtml(a.code)}</code></td><td>${escHtml(a.name)}</td><td class="num">-</td><td class="num">${b.toFixed(2)}</td></tr>`; c+=b; }
+                    if (a.normal==="Debit") { s += `<tr><td><code>${escHtml(a.code)}</code></td><td>${escHtml(a.name)}</td><td class="num">${b.money2()}</td><td class="num">-</td></tr>`; d+=b; } 
+                    else { s += `<tr><td><code>${escHtml(a.code)}</code></td><td>${escHtml(a.name)}</td><td class="num">-</td><td class="num">${b.money2()}</td></tr>`; c+=b; }
                 });
-                out.innerHTML = s + `<tr class="total-row"><td>${t('acct.totals')}</td><td></td><td class="num">${d.toFixed(2)}</td><td class="num">${c.toFixed(2)}</td></tr></tbody></table>`;
+                out.innerHTML = s + `<tr class="total-row"><td>${t('acct.totals')}</td><td></td><td class="num">${d.money2()}</td><td class="num">${c.money2()}</td></tr></tbody></table>`;
             } else if (type === 'income') {
                 let salesR = bal["4010"]||0, rentalR = bal["4020"]||0, r = salesR + rentalR, cgs = bal["5010"]||0, gp = r - cgs;
                 let u = bal["6010"]||0, sal = bal["6020"]||0, tx = bal["6030"]||0, trn = bal["6040"]||0, pers = bal["6050"]||0, invWo = bal["6060"]||0, rentWo = bal["6070"]||0;
                 let ex = u+sal+tx+trn+pers+invWo+rentWo, net = gp - ex;
-                out.innerHTML = `<h2>${t('acct.income_statement_heading')}</h2><table><tr style="background:#ECEDF2;"><td colspan="2"><strong>${t('acct.revenues')}</strong></td></tr><tr><td style="padding-left:24px;">Sales (4010)</td><td class="num">${salesR.toFixed(2)}</td></tr><tr><td style="padding-left:24px;">Rental (4020)</td><td class="num">${rentalR.toFixed(2)}</td></tr><tr class="total-row"><td>${t('acct.total_revenue')}</td><td class="num">${r.toFixed(2)}</td></tr><tr style="background:#ECEDF2;"><td colspan="2"><strong>${t('acct.costs_section')}</strong></td></tr><tr><td style="padding-left:24px;">COGS (5010)</td><td class="num">(${cgs.toFixed(2)})</td></tr><tr class="total-row"><td>${t('acct.gross_profit')}</td><td class="num">${gp.toFixed(2)}</td></tr><tr style="background:#ECEDF2;"><td colspan="2"><strong>${t('acct.expenses_section')}</strong></td></tr><tr><td style="padding-left:24px;">Utility (6010)</td><td class="num">${u.toFixed(2)}</td></tr><tr><td style="padding-left:24px;">Salary (6020)</td><td class="num">${sal.toFixed(2)}</td></tr><tr><td style="padding-left:24px;">Taxes (6030)</td><td class="num">${tx.toFixed(2)}</td></tr><tr><td style="padding-left:24px;">Transport/Fuel (6040)</td><td class="num">${trn.toFixed(2)}</td></tr><tr><td style="padding-left:24px;">Personal Expenses (6050)</td><td class="num">${pers.toFixed(2)}</td></tr><tr><td style="padding-left:24px;">Inventory Write-off (6060)</td><td class="num">${invWo.toFixed(2)}</td></tr><tr><td style="padding-left:24px;">Rental Equipment Write-off (6070)</td><td class="num">${rentWo.toFixed(2)}</td></tr><tr class="total-row"><td>${t('acct.total_expenses')}</td><td class="num">(${ex.toFixed(2)})</td></tr><tr class="total-row" style="background:#EAF3EE;"><td>${t('acct.net_income')}</td><td class="num text-success">${net.toFixed(2)}</td></tr></table>`;
+                out.innerHTML = `<h2>${t('acct.income_statement_heading')}</h2><table><tr style="background:#ECEDF2;"><td colspan="2"><strong>${t('acct.revenues')}</strong></td></tr><tr><td style="padding-left:24px;">Sales (4010)</td><td class="num">${salesR.money2()}</td></tr><tr><td style="padding-left:24px;">Rental (4020)</td><td class="num">${rentalR.money2()}</td></tr><tr class="total-row"><td>${t('acct.total_revenue')}</td><td class="num">${r.money2()}</td></tr><tr style="background:#ECEDF2;"><td colspan="2"><strong>${t('acct.costs_section')}</strong></td></tr><tr><td style="padding-left:24px;">COGS (5010)</td><td class="num">(${cgs.money2()})</td></tr><tr class="total-row"><td>${t('acct.gross_profit')}</td><td class="num">${gp.money2()}</td></tr><tr style="background:#ECEDF2;"><td colspan="2"><strong>${t('acct.expenses_section')}</strong></td></tr><tr><td style="padding-left:24px;">Utility (6010)</td><td class="num">${u.money2()}</td></tr><tr><td style="padding-left:24px;">Salary (6020)</td><td class="num">${sal.money2()}</td></tr><tr><td style="padding-left:24px;">Taxes (6030)</td><td class="num">${tx.money2()}</td></tr><tr><td style="padding-left:24px;">Transport/Fuel (6040)</td><td class="num">${trn.money2()}</td></tr><tr><td style="padding-left:24px;">Personal Expenses (6050)</td><td class="num">${pers.money2()}</td></tr><tr><td style="padding-left:24px;">Inventory Write-off (6060)</td><td class="num">${invWo.money2()}</td></tr><tr><td style="padding-left:24px;">Rental Equipment Write-off (6070)</td><td class="num">${rentWo.money2()}</td></tr><tr class="total-row"><td>${t('acct.total_expenses')}</td><td class="num">(${ex.money2()})</td></tr><tr class="total-row" style="background:#EAF3EE;"><td>${t('acct.net_income')}</td><td class="num text-success">${net.money2()}</td></tr></table>`;
             } else if (type === 'balance') {
                 let csh = bal["1010"]||0, mb = bal["1020"]||0, ar = bal["1300"]||0, inv = state.inventory.reduce((acc, i)=>acc+i.lots.reduce((a,l)=>a+(l.qty*l.cost),0),0);
                 let ast = csh + mb + inv + ar, ap = bal["2010"]||0, eq = bal["3010"]||0;
                 let r = (bal["4010"]||0) + (bal["4020"]||0), cgs = bal["5010"]||0, ex = ["6010","6020","6030","6040","6050","6060","6070"].reduce((s,code) => s + (bal[code]||0), 0), ret = r - cgs - ex;
-                out.innerHTML = `<h2>${t('acct.balance_sheet_heading')}</h2><table><thead><tr style="background:var(--secondary); color:white;"><th colspan="2">${t('acct.assets')}</th></tr></thead><tbody><tr><td>Cash (1010)</td><td class="num">${csh.toFixed(2)}</td></tr><tr><td>Mobile banking (1020)</td><td class="num">${mb.toFixed(2)}</td></tr><tr><td>Inventory (1200)</td><td class="num">${inv.toFixed(2)}</td></tr><tr><td>Accounts receivable (1300)</td><td class="num">${ar.toFixed(2)}</td></tr><tr class="total-row" style="background:#e3e4ea;"><td>${t('acct.total_assets')}</td><td class="num">${ast.toFixed(2)}</td></tr><thead><tr style="background:var(--secondary); color:white;"><th colspan="2">${t('acct.liabilities_equity')}</th></tr></thead><tr><td>Accounts payable (2010)</td><td class="num">${ap.toFixed(2)}</td></tr><tr><td>Equity Capital (3010)</td><td class="num">${eq.toFixed(2)}</td></tr><tr><td>${t('acct.retained_earnings')}</td><td class="num">${ret.toFixed(2)}</td></tr><tr class="total-row" style="background:#e3e4ea;"><td>${t('acct.total_liabilities_equity')}</td><td class="num">${(ap+eq+ret).toFixed(2)}</td></tr></tbody></table>`;
+                out.innerHTML = `<h2>${t('acct.balance_sheet_heading')}</h2><table><thead><tr style="background:var(--secondary); color:white;"><th colspan="2">${t('acct.assets')}</th></tr></thead><tbody><tr><td>Cash (1010)</td><td class="num">${csh.money2()}</td></tr><tr><td>Mobile banking (1020)</td><td class="num">${mb.money2()}</td></tr><tr><td>Inventory (1200)</td><td class="num">${inv.money2()}</td></tr><tr><td>Accounts receivable (1300)</td><td class="num">${ar.money2()}</td></tr><tr class="total-row" style="background:#e3e4ea;"><td>${t('acct.total_assets')}</td><td class="num">${ast.money2()}</td></tr><thead><tr style="background:var(--secondary); color:white;"><th colspan="2">${t('acct.liabilities_equity')}</th></tr></thead><tr><td>Accounts payable (2010)</td><td class="num">${ap.money2()}</td></tr><tr><td>Equity Capital (3010)</td><td class="num">${eq.money2()}</td></tr><tr><td>${t('acct.retained_earnings')}</td><td class="num">${ret.money2()}</td></tr><tr class="total-row" style="background:#e3e4ea;"><td>${t('acct.total_liabilities_equity')}</td><td class="num">${(ap+eq+ret).money2()}</td></tr></tbody></table>`;
             }
         }
 
