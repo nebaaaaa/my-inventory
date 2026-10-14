@@ -388,8 +388,8 @@
 
     <!-- ===================== SIGN IN / SIGN UP SCREEN ===================== -->
     <div id="auth-overlay" style="position:fixed; inset:0; z-index:5000; display:flex; align-items:center; justify-content:center; padding:40px 16px; overflow-y:auto;">
-        <button id="lang-toggle-btn-auth" onclick="toggleLanguage()" title="Switch language" style="position:fixed; top:16px; right:64px; z-index:5001; font-size:12px; font-weight:700; min-width:44px; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:white; cursor:pointer;">አማ</button>
-        <button id="tour-help-btn-auth" onclick="restartNebaTour()" title="Show guide" style="position:fixed; top:16px; right:16px; z-index:5001; font-size:14px; font-weight:700; min-width:44px; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:white; cursor:pointer;">?</button>
+        <button id="lang-toggle-btn-auth" onclick="toggleLanguage()" title="Switch language" data-i18n-title="ui2.switch_language" style="position:fixed; top:16px; right:64px; z-index:5001; font-size:12px; font-weight:700; min-width:44px; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:white; cursor:pointer;">አማ</button>
+        <button id="tour-help-btn-auth" onclick="restartNebaTour()" title="Show guide" data-i18n-title="ui2.show_guide" style="position:fixed; top:16px; right:16px; z-index:5001; font-size:14px; font-weight:700; min-width:44px; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:white; cursor:pointer;">?</button>
         <div class="auth-brand-mark-fixed"><img src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220.32 4.14 63.48 55.16%22%3E%3Cpath d=%22M2.25 7.50 L1.62 9.75 L1.62 57.44 L2.00 57.94 L3.06 57.88 L12.38 51.81 L13.94 50.31 L13.88 27.81 L14.31 27.19 L30.69 41.81 L32.12 42.12 L34.12 41.88 L35.50 40.94 L48.31 29.12 L48.94 29.12 L49.31 50.38 L60.94 57.88 L62.25 57.75 L62.44 10.56 L61.88 7.69 L60.56 6.25 L58.38 5.44 L55.38 6.12 L35.06 21.88 L35.25 22.88 L41.69 26.69 L43.19 26.69 L59.25 16.06 L60.88 15.50 L58.94 17.94 L42.62 32.19 L9.12 6.38 L5.62 5.44 L3.50 6.19Z%22 fill=%22%23B67D10%22 fill-rule=%22evenodd%22 stroke=%22%23B67D10%22 stroke-width=%221.2%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E" alt="M" class="auth-m-logo"><span class="dark">ELEYA</span></div>
 
         <svg class="auth-bg-chart" viewBox="0 0 1200 400" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
@@ -407,12 +407,12 @@
                 <p style="font-size:13px; color:var(--text-light); margin-bottom:20px;" data-i18n="auth.signin_desc">Sign in to your shop.</p>
                 <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                     <label data-i18n="auth.email_or_username">Email or Username</label>
-                    <input type="text" id="signin-email" style="width:100%;" placeholder="you@example.com or your username">
+                    <input type="text" id="signin-email" style="width:100%;" placeholder="you@example.com or your username" data-i18n-placeholder="ui2.you_example_com_or_your_username">
                 </div>
                 <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                     <label data-i18n="auth.password">Password</label>
                     <div style="position:relative;">
-                        <input type="password" id="signin-password" style="width:100%; padding-right:40px;" placeholder="Your password">
+                        <input type="password" id="signin-password" style="width:100%; padding-right:40px;" placeholder="Your password" data-i18n-placeholder="ui2.your_password">
                         <button type="button" onclick="togglePasswordVisibility('signin-password', this)" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:16px; padding:4px;"><svg viewBox="0 0 576 512" width="18" height="18" style="display:block;"><path fill="#232849" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#ffffff"/><circle cx="288" cy="256" r="38" fill="#232849"/></svg></button>
                     </div>
                 </div>
@@ -426,7 +426,7 @@
                 <p style="font-size:13px; color:var(--text-light); margin-bottom:20px;" data-i18n="auth.signup_desc">Create a new shop account.</p>
                 <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                     <label data-i18n="auth.shop_name">Shop / Business Name</label>
-                    <input type="text" id="auth-business-name" style="width:100%;" placeholder="e.g. Kebede Electrical Supplies">
+                    <input type="text" id="auth-business-name" style="width:100%;" placeholder="e.g. Kebede Electrical Supplies" data-i18n-placeholder="ui2.e_g_kebede_electrical_supplies">
                 </div>
                 <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                     <label data-i18n="auth.phone">Phone Number</label>
@@ -439,7 +439,7 @@
                 </div>
                 <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                     <label data-i18n="auth.your_username">Your Username</label>
-                    <input type="text" id="auth-username" style="width:100%;" placeholder="e.g. kebede (used to log in later)" autocomplete="off">
+                    <input type="text" id="auth-username" style="width:100%;" placeholder="e.g. kebede (used to log in later)" data-i18n-placeholder="ui2.e_g_kebede_used_to_log_in_later" autocomplete="off">
                 </div>
                 <div id="auth-vat-registered-group" class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                     <label data-i18n="auth.vat_registered">Is your shop VAT registered?</label>
@@ -454,7 +454,7 @@
                     <div style="display:flex; gap:10px 14px; flex-wrap:wrap;">
                         <div class="form-group" style="margin-bottom:14px; flex:1 1 160px;"><label data-i18n="auth.vat_tin">TIN Number</label><input type="text" id="auth-vat-tin" style="width:100%;"></div>
                         <div class="form-group" style="margin-bottom:14px; flex:1 1 160px;"><label data-i18n="auth.vat_reg_no">VAT Registration No.</label><input type="text" id="auth-vat-reg-no" style="width:100%;"></div>
-                        <div class="form-group" style="margin-bottom:14px; flex:1 1 220px;"><label data-i18n="auth.owner_full_name">Owner's Full Name (with grandfather's name)</label><input type="text" id="auth-owner-full-name" style="width:100%;" placeholder="e.g. Dereje Eyasu Gebresilassie"></div>
+                        <div class="form-group" style="margin-bottom:14px; flex:1 1 220px;"><label data-i18n="auth.owner_full_name">Owner's Full Name (with grandfather's name)</label><input type="text" id="auth-owner-full-name" style="width:100%;" placeholder="e.g. Dereje Eyasu Gebresilassie" data-i18n-placeholder="ui2.e_g_dereje_eyasu_gebresilassie"></div>
                         <div class="form-group" style="margin-bottom:14px; flex:1 1 140px;"><label data-i18n="auth.vat_city">City</label><input type="text" id="auth-vat-city" style="width:100%;"></div>
                         <div class="form-group" style="margin-bottom:14px; flex:1 1 140px;"><label data-i18n="auth.vat_sub_city">Sub City</label><input type="text" id="auth-vat-sub-city" style="width:100%;"></div>
                         <div class="form-group" style="margin-bottom:14px; flex:1 1 140px;"><label data-i18n="auth.vat_kebele">Kebele</label><input type="text" id="auth-vat-kebele" style="width:100%;"></div>
@@ -469,14 +469,14 @@
                 <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                     <label data-i18n="auth.password">Password</label>
                     <div style="position:relative;">
-                        <input type="password" id="auth-password" style="width:100%; padding-right:40px;" placeholder="At least 6 characters">
+                        <input type="password" id="auth-password" style="width:100%; padding-right:40px;" placeholder="At least 6 characters" data-i18n-placeholder="ui2.at_least_6_characters">
                         <button type="button" onclick="togglePasswordVisibility('auth-password', this)" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:16px; padding:4px;"><svg viewBox="0 0 576 512" width="18" height="18" style="display:block;"><path fill="#232849" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#ffffff"/><circle cx="288" cy="256" r="38" fill="#232849"/></svg></button>
                     </div>
                 </div>
                 <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                     <label data-i18n="auth.confirm_password">Confirm Password</label>
                     <div style="position:relative;">
-                        <input type="password" id="auth-password-confirm" style="width:100%; padding-right:40px;" placeholder="Re-enter your password">
+                        <input type="password" id="auth-password-confirm" style="width:100%; padding-right:40px;" placeholder="Re-enter your password" data-i18n-placeholder="ui2.re_enter_your_password">
                         <button type="button" onclick="togglePasswordVisibility('auth-password-confirm', this)" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:16px; padding:4px;"><svg viewBox="0 0 576 512" width="18" height="18" style="display:block;"><path fill="#232849" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#ffffff"/><circle cx="288" cy="256" r="38" fill="#232849"/></svg></button>
                     </div>
                 </div>
@@ -484,10 +484,10 @@
                 <p style="text-align:center; font-size:13px; margin-top:16px; color:var(--text-light);"><span data-i18n="auth.already_have_account">Already have an account?</span> <a href="#" onclick="showAuthView('signin'); return false;" style="color:var(--primary); font-weight:600;" data-i18n="auth.sign_in_link">Sign in</a></p>
             </div>
 
-            <div id="auth-loading" style="display:none; text-align:center; margin-top:14px; font-size:12px; color:var(--text-light);">Working, please wait...</div>
+            <div id="auth-loading" style="display:none; text-align:center; margin-top:14px; font-size:12px; color:var(--text-light);" data-i18n="ui2.working_please_wait">Working, please wait...</div>
         </div>
 
-        <div class="auth-footer-note">&copy; 2026 MELEYA. All rights reserved.</div>
+        <div class="auth-footer-note" data-i18n="ui2.footer_rights">&copy; 2026 MELEYA. All rights reserved.</div>
     </div>
 
     <!-- ===================== SET NEW PASSWORD SCREEN (after clicking reset email link) ===================== -->
@@ -498,19 +498,19 @@
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                 <label data-i18n="auth.new_password">New Password</label>
                 <div style="position:relative;">
-                    <input type="password" id="reset-new-password" style="width:100%; padding-right:40px;" placeholder="At least 6 characters">
+                    <input type="password" id="reset-new-password" style="width:100%; padding-right:40px;" placeholder="At least 6 characters" data-i18n-placeholder="ui2.at_least_6_characters">
                     <button type="button" onclick="togglePasswordVisibility('reset-new-password', this)" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; padding:4px;"><svg viewBox="0 0 576 512" width="18" height="18" style="display:block;"><path fill="#232849" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#ffffff"/><circle cx="288" cy="256" r="38" fill="#232849"/></svg></button>
                 </div>
             </div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                 <label data-i18n="auth.confirm_new_password">Confirm New Password</label>
                 <div style="position:relative;">
-                    <input type="password" id="reset-new-password-confirm" style="width:100%; padding-right:40px;" placeholder="Re-enter your new password">
+                    <input type="password" id="reset-new-password-confirm" style="width:100%; padding-right:40px;" placeholder="Re-enter your new password" data-i18n-placeholder="ui2.re_enter_your_new_password">
                     <button type="button" onclick="togglePasswordVisibility('reset-new-password-confirm', this)" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; padding:4px;"><svg viewBox="0 0 576 512" width="18" height="18" style="display:block;"><path fill="#232849" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#ffffff"/><circle cx="288" cy="256" r="38" fill="#232849"/></svg></button>
                 </div>
             </div>
             <button class="btn btn-success" style="width:100%; margin-top:6px;" onclick="handleSetNewPassword()" data-i18n="auth.set_new_password">Set New Password</button>
-            <div id="reset-loading" style="display:none; text-align:center; margin-top:14px; font-size:12px; color:var(--text-light);">Working, please wait...</div>
+            <div id="reset-loading" style="display:none; text-align:center; margin-top:14px; font-size:12px; color:var(--text-light);" data-i18n="ui2.working_please_wait">Working, please wait...</div>
         </div>
     </div>
 
@@ -518,11 +518,11 @@
     <div id="business-setup-overlay" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:5000; align-items:center; justify-content:center; padding:40px 16px; overflow-y:auto;">
         <div class="modal-box" style="max-width:420px; width:100%;">
             <h2 style="color:var(--primary); margin-bottom:12px;" data-i18n="misc.one_last_step">One last step</h2>
-            <p style="font-size:13px; color:var(--text-light); margin-bottom:20px;">Your email is confirmed — let's finish setting up your shop.</p>
+            <p style="font-size:13px; color:var(--text-light); margin-bottom:20px;" data-i18n="ui2.your_email_is_confirmed_let_s_fini">Your email is confirmed — let's finish setting up your shop.</p>
             <div id="biz-setup-error" style="display:none; background:#F1DCD8; color:var(--danger); font-size:13px; padding:10px; border-radius:4px; margin-bottom:14px;"></div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                 <label data-i18n="auth.shop_name">Shop / Business Name</label>
-                <input type="text" id="biz-setup-name" style="width:100%;" placeholder="e.g. Kebede Electrical Supplies">
+                <input type="text" id="biz-setup-name" style="width:100%;" placeholder="e.g. Kebede Electrical Supplies" data-i18n-placeholder="ui2.e_g_kebede_electrical_supplies">
             </div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                 <label data-i18n="auth.phone">Phone Number</label>
@@ -530,18 +530,18 @@
             </div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                 <label data-i18n="auth.your_username">Your Username</label>
-                <input type="text" id="biz-setup-username" style="width:100%;" placeholder="e.g. kebede (used to log in later)" autocomplete="off">
+                <input type="text" id="biz-setup-username" style="width:100%;" placeholder="e.g. kebede (used to log in later)" data-i18n-placeholder="ui2.e_g_kebede_used_to_log_in_later" autocomplete="off">
             </div>
             <button class="btn btn-success" style="width:100%; margin-top:6px;" onclick="completeBusinessSetup()" data-i18n="auth.finish_setup">Finish Setup</button>
-            <div id="biz-setup-loading" style="display:none; text-align:center; margin-top:14px; font-size:12px; color:var(--text-light);">Setting up your shop...</div>
-            <div style="text-align:center; margin-top:16px;"><a href="#" onclick="event.preventDefault(); handleSignOut();" style="font-size:12px; color:var(--text-light);">Not you? Sign out</a></div>
+            <div id="biz-setup-loading" style="display:none; text-align:center; margin-top:14px; font-size:12px; color:var(--text-light);" data-i18n="ui2.setting_up_your_shop">Setting up your shop...</div>
+            <div style="text-align:center; margin-top:16px;"><a href="#" onclick="event.preventDefault(); handleSignOut();" style="font-size:12px; color:var(--text-light);" data-i18n="ui2.not_you_sign_out">Not you? Sign out</a></div>
         </div>
     </div>
 
     <!-- ===================== FIRST-TIME ONBOARDING SCREEN ===================== -->
     <div id="onboarding-overlay" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:5000; align-items:center; justify-content:center; padding:40px 16px; overflow-y:auto;">
         <div class="modal-box" style="max-width:480px; width:100%;">
-            <h2 style="color:var(--primary); margin-bottom:12px;">Welcome! Let's set up your shop.</h2>
+            <h2 style="color:var(--primary); margin-bottom:12px;" data-i18n="ui2.welcome_let_s_set_up_your_shop">Welcome! Let's set up your shop.</h2>
             <p style="font-size:13px; color:var(--text-light); margin-bottom:16px;">If you already have a MELEYA backup file (a <code>.json</code> file exported using the "Backup" button), upload it now to bring your existing data over. Otherwise, just start fresh with an empty shop.</p>
             <div class="form-group" style="display:block; width:100%; margin-bottom:16px;">
                 <label data-i18n="misc.upload_backup">Upload Backup File (optional)</label>
@@ -551,7 +551,7 @@
                 <button class="btn" style="flex:1;" onclick="finishOnboarding(true)" data-i18n="misc.import_file">Import This File</button>
                 <button class="btn" style="flex:1; background:#4a4e63;" onclick="showInitialInventorySetup()" data-i18n="misc.start_fresh">Start Fresh (Skip)</button>
             </div>
-            <div id="onboarding-loading" style="display:none; text-align:center; margin-top:14px; font-size:12px; color:var(--text-light);">Importing your data, please wait...</div>
+            <div id="onboarding-loading" style="display:none; text-align:center; margin-top:14px; font-size:12px; color:var(--text-light);" data-i18n="ui2.importing_your_data_please_wait">Importing your data, please wait...</div>
         </div>
     </div>
 
@@ -565,34 +565,34 @@
          supplier or a real cash outflow. See completeInitialInventorySetup(). -->
     <div id="initial-inventory-overlay" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:5000; align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto;">
         <div class="modal-box" style="max-width:980px; width:100%;">
-            <h2 style="color:var(--primary); margin-bottom:6px;">Set up your opening inventory</h2>
-            <p style="font-size:13px; color:var(--text-light); margin-bottom:16px;">Add everything you're stocking up with right now. Each item you add below gets listed in the basket -- once the list looks right, click "Complete Setup" and it'll all be registered at once, funded as owner capital.</p>
+            <h2 style="color:var(--primary); margin-bottom:6px;" data-i18n="ui2.set_up_your_opening_inventory">Set up your opening inventory</h2>
+            <p style="font-size:13px; color:var(--text-light); margin-bottom:16px;" data-i18n="ui2.add_everything_you_re_stocking_up">Add everything you're stocking up with right now. Each item you add below gets listed in the basket -- once the list looks right, click "Complete Setup" and it'll all be registered at once, funded as owner capital.</p>
             <div style="display:flex; gap:10px 14px; flex-wrap:wrap; align-items:flex-end; border-bottom:1px solid var(--border); padding-bottom:16px; margin-bottom:16px;">
-                <div class="form-group" style="margin-bottom:0; flex:1 1 110px;"><label>Category</label><input type="text" id="init-inv-category" list="category-list" placeholder="e.g., Cables" style="width:100%; min-width:100px;" autocomplete="off"></div>
-                <div class="form-group" style="margin-bottom:0; flex:1 1 150px;"><label>Product Name</label><input type="text" id="init-inv-name" placeholder="e.g., 2.5mm Twin Cable" style="width:100%; min-width:140px;" autocomplete="off"></div>
-                <div class="form-group" style="margin-bottom:0; flex:0 1 80px;"><label>Qty On Hand</label><input type="number" id="init-inv-qty" min="1" value="1" style="width:100%; min-width:70px;"></div>
-                <div class="form-group" style="margin-bottom:0; flex:0 1 100px;"><label>Cost (ETB)</label><input type="number" id="init-inv-cost" step="0.01" min="0.01" style="width:100%; min-width:90px;"></div>
-                <div class="form-group" style="margin-bottom:0; flex:0 1 130px;" id="init-inv-expiry-group"><label>Expiry Date</label><input type="date" id="init-inv-expiry" style="width:100%; min-width:120px;"></div>
-                <div class="form-group" style="margin-bottom:0; flex:0 1 110px;" id="init-inv-selling-price-group"><label>Selling Price (ETB)</label><input type="number" id="init-inv-selling-price" step="0.01" min="0" style="width:100%; min-width:100px;"></div>
-                <div class="form-group" style="margin-bottom:0; flex:0 1 100px;" id="init-inv-daily-rate-group"><label>Daily Rate (ETB)</label><input type="number" id="init-inv-daily-rate" step="0.01" min="0" style="width:100%; min-width:90px;"></div>
-                <div class="form-group" style="margin-bottom:0; flex:0 1 110px;" id="init-inv-weekly-rate-group"><label>Weekly Rate (ETB, optional)</label><input type="number" id="init-inv-weekly-rate" step="0.01" min="0" style="width:100%; min-width:100px;"></div>
-                <div class="form-group" style="margin-bottom:0; flex:0 1 110px;" id="init-inv-monthly-rate-group"><label>Monthly Rate (ETB, optional)</label><input type="number" id="init-inv-monthly-rate" step="0.01" min="0" style="width:100%; min-width:100px;"></div>
-                <button type="button" class="btn" style="flex:0 0 auto;" onclick="addToInitialInventoryCart()">+ Add</button>
+                <div class="form-group" style="margin-bottom:0; flex:1 1 110px;"><label data-i18n="inv.category">Category</label><input type="text" id="init-inv-category" list="category-list" placeholder="e.g., Cables" data-i18n-placeholder="ui2.e_g_cables" style="width:100%; min-width:100px;" autocomplete="off"></div>
+                <div class="form-group" style="margin-bottom:0; flex:1 1 150px;"><label data-i18n="inv.product_name">Product Name</label><input type="text" id="init-inv-name" placeholder="e.g., 2.5mm Twin Cable" data-i18n-placeholder="ui2.e_g_2_5mm_twin_cable" style="width:100%; min-width:140px;" autocomplete="off"></div>
+                <div class="form-group" style="margin-bottom:0; flex:0 1 80px;"><label data-i18n="inv.qty_on_hand">Qty On Hand</label><input type="number" id="init-inv-qty" min="1" value="1" style="width:100%; min-width:70px;"></div>
+                <div class="form-group" style="margin-bottom:0; flex:0 1 100px;"><label data-i18n="pur.cost">Cost (ETB)</label><input type="number" id="init-inv-cost" step="0.01" min="0.01" style="width:100%; min-width:90px;"></div>
+                <div class="form-group" style="margin-bottom:0; flex:0 1 130px;" id="init-inv-expiry-group"><label data-i18n="ui2.expiry_date">Expiry Date</label><input type="date" id="init-inv-expiry" style="width:100%; min-width:120px;"></div>
+                <div class="form-group" style="margin-bottom:0; flex:0 1 110px;" id="init-inv-selling-price-group"><label data-i18n="inv.selling_price">Selling Price (ETB)</label><input type="number" id="init-inv-selling-price" step="0.01" min="0" style="width:100%; min-width:100px;"></div>
+                <div class="form-group" style="margin-bottom:0; flex:0 1 100px;" id="init-inv-daily-rate-group"><label data-i18n="ui2.daily_rate_etb">Daily Rate (ETB)</label><input type="number" id="init-inv-daily-rate" step="0.01" min="0" style="width:100%; min-width:90px;"></div>
+                <div class="form-group" style="margin-bottom:0; flex:0 1 110px;" id="init-inv-weekly-rate-group"><label data-i18n="ui2.weekly_rate_etb_optional">Weekly Rate (ETB, optional)</label><input type="number" id="init-inv-weekly-rate" step="0.01" min="0" style="width:100%; min-width:100px;"></div>
+                <div class="form-group" style="margin-bottom:0; flex:0 1 110px;" id="init-inv-monthly-rate-group"><label data-i18n="ui2.monthly_rate_etb_optional">Monthly Rate (ETB, optional)</label><input type="number" id="init-inv-monthly-rate" step="0.01" min="0" style="width:100%; min-width:100px;"></div>
+                <button type="button" class="btn" style="flex:0 0 auto;" onclick="addToInitialInventoryCart()" data-i18n="rental.add_plus">+ Add</button>
             </div>
             <div style="overflow-x:auto;">
                 <table>
                     <thead id="initial-inventory-cart-table-head"></thead>
-                    <tbody id="initial-inventory-cart-table-body"><tr><td colspan="7" style="text-align:center; color:var(--text-light);">No items added yet.</td></tr></tbody>
+                    <tbody id="initial-inventory-cart-table-body"><tr><td colspan="7" style="text-align:center; color:var(--text-light);" data-i18n="sale.no_items_yet">No items added yet.</td></tr></tbody>
                 </table>
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; flex-wrap:wrap; gap:12px;">
-                <div style="font-size:15px; font-weight:700; color:var(--primary);">Opening Stock Value: <span id="initial-inventory-cart-total">ETB 0.00</span></div>
+                <div style="font-size:15px; font-weight:700; color:var(--primary);"><span data-i18n="ui2.opening_stock_value">Opening Stock Value:</span> <span id="initial-inventory-cart-total">ETB 0.00</span></div>
                 <div style="display:flex; gap:10px;">
-                    <button type="button" class="btn" style="background:#4a4e63;" onclick="skipInitialInventorySetup()">Skip / Add Products Later</button>
-                    <button type="button" class="btn" onclick="completeInitialInventorySetup()">Complete Setup</button>
+                    <button type="button" class="btn" style="background:#4a4e63;" onclick="skipInitialInventorySetup()" data-i18n="ui2.skip_add_products_later">Skip / Add Products Later</button>
+                    <button type="button" class="btn" onclick="completeInitialInventorySetup()" data-i18n="ui2.complete_setup">Complete Setup</button>
                 </div>
             </div>
-            <div id="initial-inventory-loading" style="display:none; text-align:center; margin-top:14px; font-size:12px; color:var(--text-light);">Registering your opening inventory, please wait...</div>
+            <div id="initial-inventory-loading" style="display:none; text-align:center; margin-top:14px; font-size:12px; color:var(--text-light);" data-i18n="ui2.registering_your_opening_inventory">Registering your opening inventory, please wait...</div>
         </div>
     </div>
 
@@ -600,7 +600,7 @@
     <div id="inactive-overlay" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:5000; align-items:center; justify-content:center; text-align:center; padding:24px;">
         <div>
             <h2 style="color:var(--primary);" data-i18n="auth.account_inactive">Account Inactive</h2>
-            <p style="margin-top:12px; color:var(--text-light); max-width:360px;">Your subscription is currently inactive. Please contact your provider to renew access.</p>
+            <p style="margin-top:12px; color:var(--text-light); max-width:360px;" data-i18n="ui2.your_subscription_is_currently_ina">Your subscription is currently inactive. Please contact your provider to renew access.</p>
             <button class="btn" style="margin-top:20px;" onclick="handleSignOut()" data-i18n="auth.sign_out">Sign Out</button>
         </div>
     </div>
@@ -634,13 +634,13 @@
         <div class="aside-footer">
             <button class="btn btn-excel" id="btn-export-hub" onclick="openExportHub()">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                Download Excel Report
+                <span data-i18n="ui2.download_excel_report">Download Excel Report</span>
             </button>
             <div class="footer-buttons">
-                <button class="btn" onclick="handleSignOut()" style="padding: 8px; font-size: 11px; flex:1; background:#A9752F; color:white;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> Sign Out</button>
-                <button class="btn btn-warning" id="btn-backup" onclick="exportBackupData()" style="padding: 8px; font-size: 11px; flex:1;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Backup</button>
-                <button class="btn" id="btn-restore" onclick="importBackupData()" style="padding: 8px; font-size: 11px; flex:1; background:#4a4e63;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg> Restore</button>
-                <button class="btn btn-danger" id="btn-factory-reset" onclick="factoryReset()" style="padding: 8px; font-size: 11px; flex:1; background:#B23A2E;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Reset</button>
+                <button class="btn" onclick="handleSignOut()" style="padding: 8px; font-size: 11px; flex:1; background:#A9752F; color:white;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> <span data-i18n="auth.sign_out">Sign Out</span></button>
+                <button class="btn btn-warning" id="btn-backup" onclick="export<span data-i18n="ui2.backup">Backup</span>Data()" style="padding: 8px; font-size: 11px; flex:1;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Backup</button>
+                <button class="btn" id="btn-restore" onclick="importBackupData()" style="padding: 8px; font-size: 11px; flex:1; background:#4a4e63;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg> <span data-i18n="ui2.restore">Restore</span></button>
+                <button class="btn btn-danger" id="btn-factory-reset" onclick="factory<span data-i18n="ui2.reset">Reset</span>()" style="padding: 8px; font-size: 11px; flex:1; background:#B23A2E;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Reset</button>
             </div>
             <div id="cloud-sync-status" class="sync-status"><svg width="9" height="9" viewBox="0 0 24 24" style="vertical-align:1px;flex-shrink:0;"><circle cx="12" cy="12" r="10" fill="currentColor"></circle></svg> Cloud Synced</div>
         </div>
@@ -654,14 +654,14 @@
                 <h1 id="page-title">Dashboard</h1>
             </div>
             <div class="header-right">
-                <button class="menu-toggle-btn" id="lang-toggle-btn" onclick="toggleLanguage()" title="Switch language" style="font-size:12px; font-weight:700; min-width:44px;">አማ</button>
-                <button class="menu-toggle-btn" id="neba-tour-help-btn" onclick="restartNebaTour()" title="Show guide">?</button>
-                <button class="menu-toggle-btn" id="calendar-toggle-btn" onclick="toggleCalendarPref()" title="Switch calendar" style="font-size:12px; font-weight:700; min-width:44px;">GC</button>
-                <select id="branch-switcher" onchange="switchActiveBranch(this.value)" style="display:none; min-width:auto; font-size:12px; padding:6px 10px; font-weight:600; color:var(--primary); border-color:var(--accent);" title="Which branch you're working in"></select>
-                <span id="offline-dot" title="You're offline — changes are saved on this device and will sync once reconnected" style="display:none; width:8px; height:8px; border-radius:50%; background:#C97A22; margin-right:4px;"></span>
+                <button class="menu-toggle-btn" id="lang-toggle-btn" onclick="toggleLanguage()" title="Switch language" data-i18n-title="ui2.switch_language" style="font-size:12px; font-weight:700; min-width:44px;">አማ</button>
+                <button class="menu-toggle-btn" id="neba-tour-help-btn" onclick="restartNebaTour()" title="Show guide" data-i18n-title="ui2.show_guide">?</button>
+                <button class="menu-toggle-btn" id="calendar-toggle-btn" onclick="toggleCalendarPref()" title="Switch calendar" data-i18n-title="ui2.switch_calendar" style="font-size:12px; font-weight:700; min-width:44px;">GC</button>
+                <select id="branch-switcher" onchange="switchActiveBranch(this.value)" style="display:none; min-width:auto; font-size:12px; padding:6px 10px; font-weight:600; color:var(--primary); border-color:var(--accent);" title="Which branch you're working in" data-i18n-title="ui2.which_branch_you_re_working_in"></select>
+                <span id="offline-dot" title="You're offline — changes are saved on this device and will sync once reconnected" data-i18n-title="ui2.you_re_offline_changes_are_saved_o" style="display:none; width:8px; height:8px; border-radius:50%; background:#C97A22; margin-right:4px;"></span>
                 <div id="clock" style="color: var(--text-light); font-weight: 500; font-size: 13px;"></div>
-                <button class="menu-toggle-btn" id="btn-trash" onclick="switchView('trash')" title="Trash"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
-                <button class="menu-toggle-btn" id="bell-btn" onclick="toggleNotifications(event)" title="Notifications">
+                <button class="menu-toggle-btn" id="btn-trash" onclick="switchView('trash')" title="Trash" data-i18n-title="trash.title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                <button class="menu-toggle-btn" id="bell-btn" onclick="toggleNotifications(event)" title="Notifications" data-i18n-title="ui2.notifications">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg> <span id="notif-badge">0</span>
                 </button>
             </div>
@@ -669,7 +669,7 @@
 
         <div class="notif-panel" id="notif-dropdown" onclick="event.stopPropagation()">
             <div style="padding:12px; border-bottom: 2px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
-                <strong>System Alerts</strong>
+                <strong data-i18n="ui2.system_alerts">System Alerts</strong>
                 <button class="btn-small btn" onclick="clearAllNotifications()" data-i18n="misc.clear_all">Clear All</button>
             </div>
             <div id="notif-list"></div>
@@ -709,7 +709,7 @@
                 <div class="card">
                     <h3 data-i18n="dash.liquid_positions">Liquid Capital Asset Positions</h3>
                     <p style="margin-top: 10px; font-size: 14px; color: var(--text-light);">
-                        <span onclick="launchLiquidVaultDrillDown()" style="cursor:pointer; text-decoration:underline dotted;" title="Click for a breakdown by channel" data-i18n="dash.liquid_vault">Money In (Cash and Banks)</span>: <strong id="dash-cash-sum" style="color: var(--primary);">ETB 0.00</strong> | 
+                        <span onclick="launchLiquidVaultDrillDown()" style="cursor:pointer; text-decoration:underline dotted;" title="Click for a breakdown by channel" data-i18n-title="ui2.click_for_a_breakdown_by_channel" data-i18n="dash.liquid_vault">Money In (Cash and Banks)</span>: <strong id="dash-cash-sum" style="color: var(--primary);">ETB 0.00</strong> | 
                         <span data-i18n="dash.inventory_assets">Inventory/Stock Value</span>: <strong id="dash-stock-sum" style="color: var(--primary);">ETB 0.00</strong>
                     </p>
                 </div>
@@ -788,20 +788,20 @@
 
             <div id="view-inventory" class="view-panel">
                 <div id="inventory-def-card" style="text-align:right; margin-bottom:12px;">
-                    <button type="button" class="btn" id="inv-bulk-btn" onclick="openBulkImport()">Add in bulk</button>
-                    <button type="button" class="btn" id="inv-open-add" onclick="openProductModal()" style="margin-left:8px;">+ Add Product</button>
+                    <button type="button" class="btn" id="inv-bulk-btn" onclick="openBulkImport()" data-i18n="ui2.add_in_bulk">Add in bulk</button>
+                    <button type="button" class="btn" id="inv-open-add" onclick="openProductModal()" style="margin-left:8px;" data-i18n="ui2.add_product">+ Add Product</button>
                 </div>
 
                 <div class="card" id="inventory-default-stocklist-card">
                     <h2 data-i18n="inv.stock_list">Stock List</h2>
                     <div class="filter-panel">
-                        <div class="form-group"><label data-i18n="inv.search_category">Search Category</label><input type="text" id="inv-filter-category" placeholder="Filter category..." oninput="renderPerpetualInventoryTable()"></div>
-                        <div class="form-group"><label data-i18n="inv.search_name">Search Name</label><input type="text" id="inv-filter-name" placeholder="Filter name..." oninput="renderPerpetualInventoryTable()"></div>
+                        <div class="form-group"><label data-i18n="inv.search_category">Search Category</label><input type="text" id="inv-filter-category" placeholder="Filter category..." data-i18n-placeholder="rental.filter_category_ph" oninput="renderPerpetualInventoryTable()"></div>
+                        <div class="form-group"><label data-i18n="inv.search_name">Search Name</label><input type="text" id="inv-filter-name" placeholder="Filter name..." data-i18n-placeholder="rental.filter_name_ph" oninput="renderPerpetualInventoryTable()"></div>
                     </div>
                     <div class="table-scroll">
                     <table>
                         <thead>
-                            <tr><th data-i18n="inv.category">Category</th><th data-i18n="inv.item_spec">Item Specification / Name</th><th class="num" data-i18n="inv.qty_on_hand">Qty On Hand</th><th class="num" data-i18n="inv.cost_layers">Cost Price (ETB)</th><th class="num" data-i18n="inv.selling_price">Selling Price (ETB)</th><th class="num" data-i18n="inv.total_asset">Total Asset (ETB)</th><th class="num pharm-col" id="inv-expiry-col-header" style="display:none;">Exp Date</th><th style="text-align: center;" data-i18n="inv.actions">Actions</th></tr>
+                            <tr><th data-i18n="inv.category">Category</th><th data-i18n="inv.item_spec">Item Specification / Name</th><th class="num" data-i18n="inv.qty_on_hand">Qty On Hand</th><th class="num" data-i18n="inv.cost_layers">Cost Price (ETB)</th><th class="num" data-i18n="inv.selling_price">Selling Price (ETB)</th><th class="num" data-i18n="inv.total_asset">Total Asset (ETB)</th><th class="num pharm-col" id="inv-expiry-col-header" style="display:none;" data-i18n="ui2.exp_date">Exp Date</th><th style="text-align: center;" data-i18n="inv.actions">Actions</th></tr>
                         </thead>
                         <tbody id="inventory-table-body"></tbody>
                     </table>
@@ -826,11 +826,11 @@
                         <div class="form-group"><label data-i18n="tr.to_branch">To Branch</label><select id="transfer-to-branch" required></select></div>
                         <div class="form-group">
                             <label data-i18n="sale.item">Item</label>
-                            <input type="text" id="transfer-item" list="transfer-item-list" placeholder="Type to filter..." style="min-width: 300px;" required autocomplete="off">
+                            <input type="text" id="transfer-item" list="transfer-item-list" placeholder="Type to filter..." data-i18n-placeholder="rental.type_to_filter_ph" style="min-width: 300px;" required autocomplete="off">
                             <datalist id="transfer-item-list"></datalist>
                         </div>
                         <div class="form-group"><label data-i18n="tr.quantity">Quantity</label><input type="number" id="transfer-qty" min="1" value="1" required></div>
-                        <div class="form-group"><label data-i18n="tr.notes_optional">Notes (Optional)</label><input type="text" id="transfer-notes" placeholder="e.g. Restocking low shelf"></div>
+                        <div class="form-group"><label data-i18n="tr.notes_optional">Notes (Optional)</label><input type="text" id="transfer-notes" placeholder="e.g. Restocking low shelf" data-i18n-placeholder="ui2.e_g_restocking_low_shelf"></div>
                         <div class="form-group" style="padding-top: 22px;"><button type="submit" class="btn" id="transfer-submit-btn" data-i18n="tr.transfer_stock">Transfer Stock</button></div>
                     </form>
                     <h2 style="margin-top:24px;" data-i18n="tr.history">Transfer History</h2>
@@ -843,7 +843,7 @@
                 </div>
                 <div class="card" id="stock-transfer-unavailable-card" style="display:none;">
                     <h2 data-i18n="tr.title">Transfer Stock Between Branches</h2>
-                    <p style="color:var(--text-light);">Stock transfers need more than one branch on your account and permission to transfer stock.</p>
+                    <p style="color:var(--text-light);" data-i18n="ui2.stock_transfers_need_more_than_one">Stock transfers need more than one branch on your account and permission to transfer stock.</p>
                 </div>
             </div>
 
@@ -860,7 +860,7 @@
                     </div>
                     <form id="cash-handover-form" onsubmit="submitCashHandover(event)">
                         <div class="form-group"><label data-i18n="ch.amount_handing_over">Amount Handing Over (ETB)</label><input type="number" id="cash-handover-amount" step="0.01" min="0.01" required></div>
-                        <div class="form-group"><label data-i18n="tr.notes_optional">Note (Optional)</label><input type="text" id="cash-handover-note" placeholder="e.g. End of day handover"></div>
+                        <div class="form-group"><label data-i18n="tr.notes_optional">Note (Optional)</label><input type="text" id="cash-handover-note" placeholder="e.g. End of day handover" data-i18n-placeholder="ui2.e_g_end_of_day_handover"></div>
                         <div class="form-group" style="padding-top:22px;"><button type="submit" class="btn" data-i18n="ch.submit">Submit Handover</button></div>
                     </form>
                     <p style="font-size:12px; color:var(--text-light); margin-top:-8px;" data-i18n="ch.pending_note">This won't reduce your balance above until the owner approves it.</p>
@@ -906,17 +906,17 @@
                     </div>
                     <form id="sales-form" onsubmit="handlePostSale(event)">
                         <div class="form-group"><label data-i18n="sale.date">Date</label><input type="date" id="sale-date" required></div>
-                        <div class="form-group"><label data-i18n="sale.customer_name">Customer Name</label><input type="text" id="sale-customer" list="customer-list" placeholder="Blank defaults to Walk-in" onfocus="syncCustomerList()"><datalist id="customer-list"></datalist></div>
+                        <div class="form-group"><label data-i18n="sale.customer_name">Customer Name</label><input type="text" id="sale-customer" list="customer-list" placeholder="Blank defaults to Walk-in" data-i18n-placeholder="ui2.blank_defaults_to_walk_in" onfocus="syncCustomerList()"><datalist id="customer-list"></datalist></div>
                         <div class="form-group">
                             <label data-i18n="sale.item">Item</label>
-                            <input type="text" id="sale-item" list="sale-item-list" onchange="autoPopulateSalePrice()" placeholder="Type to filter..." style="min-width: 300px;" required autocomplete="off">
+                            <input type="text" id="sale-item" list="sale-item-list" onchange="autoPopulateSalePrice()" placeholder="Type to filter..." data-i18n-placeholder="rental.type_to_filter_ph" style="min-width: 300px;" required autocomplete="off">
                             <datalist id="sale-item-list"></datalist>
                         </div>
                         <div class="form-group"><label data-i18n="tr.quantity">Quantity</label><input type="number" id="sale-qty" min="1" value="1" required oninput="syncSaleAmountPaidDefault()"></div>
                         <div class="form-group"><label data-i18n="sale.price">Price (ETB)</label><input type="number" id="sale-price" step="0.01" min="0.01" required oninput="syncSaleAmountPaidDefault()"></div>
                         <div class="form-group">
                             <label data-i18n="sale.amount_paid_now">Amount Paid Now (ETB)</label>
-                            <input type="number" id="sale-amount-paid" step="0.01" min="0" oninput="handleSaleAmountPaidInput()" title="Leave less than the total for a down payment (or blank/0 for fully on credit) — the rest is tracked as owed by the customer">
+                            <input type="number" id="sale-amount-paid" step="0.01" min="0" oninput="handleSaleAmountPaidInput()" title="Leave less than the total for a down payment (or blank/0 for fully on credit) — the rest is tracked as owed by the customer" data-i18n-title="ui2.leave_less_than_the_total_for_a_do">
                         </div>
                         <div class="form-group" id="sale-channel-group">
                             <label data-i18n="sale.channel">Channel</label>
@@ -945,7 +945,7 @@
                     </div>
                     <div class="filter-panel" style="margin-top:14px;">
                         <div class="form-group"><label data-i18n="sale.date">Date</label><input type="date" id="cart-sale-date" required></div>
-                        <div class="form-group"><label data-i18n="sale.customer_name">Customer Name</label><input type="text" id="cart-sale-customer" list="customer-list" placeholder="Blank defaults to Walk-in" onfocus="syncCustomerList()"></div>
+                        <div class="form-group"><label data-i18n="sale.customer_name">Customer Name</label><input type="text" id="cart-sale-customer" list="customer-list" placeholder="Blank defaults to Walk-in" data-i18n-placeholder="ui2.blank_defaults_to_walk_in" onfocus="syncCustomerList()"></div>
                         <div class="form-group">
                             <label data-i18n="sale.sale_type">Sale Type</label>
                             <select id="cart-sale-type">
@@ -959,7 +959,7 @@
                     <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; border-bottom:1px solid var(--border); padding-bottom:16px; margin-bottom:16px;">
                         <div class="form-group" style="margin-bottom:0;">
                             <label data-i18n="sale.item">Item</label>
-                            <input type="text" id="cart-sale-item" list="sale-item-list" onchange="autoPopulateCartSalePrice()" placeholder="Type to filter..." style="min-width: 260px;" autocomplete="off">
+                            <input type="text" id="cart-sale-item" list="sale-item-list" onchange="autoPopulateCartSalePrice()" placeholder="Type to filter..." data-i18n-placeholder="rental.type_to_filter_ph" style="min-width: 260px;" autocomplete="off">
                         </div>
                         <div class="form-group" style="margin-bottom:0;"><label data-i18n="tr.quantity">Quantity</label><input type="number" id="cart-sale-qty" min="1" value="1" style="min-width:90px;"></div>
                         <div class="form-group" style="margin-bottom:0;"><label data-i18n="sale.price">Price (ETB)</label><input type="number" id="cart-sale-price" step="0.01" min="0.01" style="min-width:110px;"></div>
@@ -996,8 +996,8 @@
                     <h2 data-i18n="sale.history">Sales History</h2>
                     <div class="filter-panel">
                         <div class="form-group"><label data-i18n="sale.filter_date">Filter Date</label><input type="date" id="sale-log-filter-date" onchange="renderSalesLogTable()"></div>
-                        <div class="form-group"><label data-i18n="sale.customer_filter">Customer</label><input type="text" id="sale-log-filter-customer" placeholder="Search..." oninput="renderSalesLogTable()"></div>
-                        <div class="form-group"><label data-i18n="sale.product">Product</label><input type="text" id="sale-log-filter-item" placeholder="Search..." oninput="renderSalesLogTable()"></div>
+                        <div class="form-group"><label data-i18n="sale.customer_filter">Customer</label><input type="text" id="sale-log-filter-customer" placeholder="Search..." data-i18n-placeholder="common.search_ph" oninput="renderSalesLogTable()"></div>
+                        <div class="form-group"><label data-i18n="sale.product">Product</label><input type="text" id="sale-log-filter-item" placeholder="Search..." data-i18n-placeholder="common.search_ph" oninput="renderSalesLogTable()"></div>
                         <div class="form-group"><label data-i18n="sale.channel">Channel</label><select id="sale-log-filter-channel" onchange="renderSalesLogTable()"><option value="" data-i18n="sale.all">-- All --</option><option value="Cash">Cash</option><option value="Mobile banking">Mobile banking</option><option value="Accounts receivable">Accounts receivable</option></select></div>
                         <div class="form-group"><label data-i18n="sale.sale_type">Sale Type</label><select id="sale-log-filter-type" onchange="renderSalesLogTable()"><option value="" data-i18n="sale.all">-- All --</option></select></div>
                         <div class="form-group" id="sale-log-filter-by-group" style="display:none;"><label data-i18n="tr.by">By</label><select id="sale-log-filter-author" onchange="renderSalesLogTable()"><option value="" data-i18n="sale.all">-- All --</option></select></div>
@@ -1008,7 +1008,7 @@
                     <div class="table-scroll">
                     <table>
                         <thead>
-                            <tr><th data-i18n="sale.date">Date</th><th data-i18n="sale.customer_name">Customer Name</th><th data-i18n="sale.product_item">Product Item</th><th class="num" data-i18n="tr.quantity">Quantity</th><th class="num" data-i18n="sale.unit_price">Unit Price</th><th class="num" data-i18n="sale.total">Total</th><th>Channel / Status / Type</th><th class="branch-col" data-i18n="sale.branch">Branch</th><th data-i18n="tr.by">By</th><th style="text-align:center;" data-i18n="sale.action">Action</th></tr>
+                            <tr><th data-i18n="sale.date">Date</th><th data-i18n="sale.customer_name">Customer Name</th><th data-i18n="sale.product_item">Product Item</th><th class="num" data-i18n="tr.quantity">Quantity</th><th class="num" data-i18n="sale.unit_price">Unit Price</th><th class="num" data-i18n="sale.total">Total</th><th data-i18n="rental.channel_status_type">Channel / Status / Type</th><th class="branch-col" data-i18n="sale.branch">Branch</th><th data-i18n="tr.by">By</th><th style="text-align:center;" data-i18n="sale.action">Action</th></tr>
                         </thead>
                         <tbody id="sales-log-table-body"></tbody>
                     </table>
@@ -1030,10 +1030,10 @@
                     </div>
                     <form id="purchase-form" onsubmit="handlePostPurchase(event)">
                         <div class="form-group"><label data-i18n="sale.date">Date</label><input type="date" id="pur-date" required></div>
-                        <div class="form-group"><label data-i18n="pur.supplier_name">Supplier Name</label><input type="text" id="pur-supplier" list="supplier-list" placeholder="e.g., Global Distributors" required onfocus="syncSupplierList()"><datalist id="supplier-list"></datalist></div>
+                        <div class="form-group"><label data-i18n="pur.supplier_name">Supplier Name</label><input type="text" id="pur-supplier" list="supplier-list" placeholder="e.g., Global Distributors" data-i18n-placeholder="ui2.e_g_global_distributors" required onfocus="syncSupplierList()"><datalist id="supplier-list"></datalist></div>
                         <div class="form-group">
                             <label data-i18n="sale.item">Item</label>
-                            <input type="text" id="pur-item" list="pur-item-list" placeholder="Type to filter..." style="min-width: 300px;" required autocomplete="off" oninput="handlePurchaseItemPicked()">
+                            <input type="text" id="pur-item" list="pur-item-list" placeholder="Type to filter..." data-i18n-placeholder="rental.type_to_filter_ph" style="min-width: 300px;" required autocomplete="off" oninput="handlePurchaseItemPicked()">
                             <datalist id="pur-item-list"></datalist>
                         </div>
                         <div class="form-group"><label data-i18n="tr.quantity">Quantity</label><input type="number" id="pur-qty" min="1" value="1" required oninput="syncPurchaseAmountPaidDefault()"></div>
@@ -1042,15 +1042,15 @@
                             <label data-i18n="pur.cost">Cost (ETB)</label>
                             <div id="pur-price-locked-text" style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:180px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div>
                         </div>
-                        <div class="form-group" id="pur-selling-price-group"><label data-i18n="misc.selling_price_optional">Selling Price (Optional)</label><input type="number" id="pur-selling-price" step="0.01" placeholder="Leave blank to skip"></div>
-                        <div class="form-group" id="pur-expiry-group" style="display:none;"><label>Expiry Date</label><input type="date" id="pur-expiry"></div>
+                        <div class="form-group" id="pur-selling-price-group"><label data-i18n="misc.selling_price_optional">Selling Price (Optional)</label><input type="number" id="pur-selling-price" step="0.01" placeholder="Leave blank to skip" data-i18n-placeholder="ui2.leave_blank_to_skip"></div>
+                        <div class="form-group" id="pur-expiry-group" style="display:none;"><label data-i18n="ui2.expiry_date">Expiry Date</label><input type="date" id="pur-expiry"></div>
                         <div class="form-group" id="pur-selling-price-locked-note" style="display:none;">
                             <label data-i18n="misc.selling_price">Selling Price</label>
-                            <div style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:180px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Not editable for your role</div>
+                            <div style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:180px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> <span data-i18n="ui2.not_editable_for_your_role">Not editable for your role</span></div>
                         </div>
                         <div class="form-group" id="pur-amount-paid-group">
                             <label data-i18n="sale.amount_paid_now">Amount Paid Now (ETB)</label>
-                            <input type="number" id="pur-amount-paid" step="0.01" min="0" oninput="handlePurchaseAmountPaidInput()" title="Leave less than the total for a down payment (or blank/0 for fully on credit) — the rest is tracked as owed to the supplier">
+                            <input type="number" id="pur-amount-paid" step="0.01" min="0" oninput="handlePurchaseAmountPaidInput()" title="Leave less than the total for a down payment (or blank/0 for fully on credit) — the rest is tracked as owed to the supplier" data-i18n-title="ui2.leave_less_than_the_total_for_a_do_2">
                         </div>
                         <div class="form-group" id="pur-amount-paid-locked-note" style="display:none;">
                             <label data-i18n="sale.amount_paid_now">Amount Paid Now (ETB)</label>
@@ -1071,12 +1071,12 @@
                     </div>
                     <div class="filter-panel" style="margin-top:14px;">
                         <div class="form-group"><label data-i18n="sale.date">Date</label><input type="date" id="cart-pur-date" required></div>
-                        <div class="form-group"><label data-i18n="pur.supplier_name">Supplier Name</label><input type="text" id="cart-pur-supplier" list="supplier-list" placeholder="e.g., Global Distributors" required onfocus="syncSupplierList()"></div>
+                        <div class="form-group"><label data-i18n="pur.supplier_name">Supplier Name</label><input type="text" id="cart-pur-supplier" list="supplier-list" placeholder="e.g., Global Distributors" data-i18n-placeholder="ui2.e_g_global_distributors" required onfocus="syncSupplierList()"></div>
                     </div>
                     <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; border-bottom:1px solid var(--border); padding-bottom:16px; margin-bottom:16px;">
                         <div class="form-group" style="margin-bottom:0;">
                             <label data-i18n="sale.item">Item</label>
-                            <input type="text" id="cart-pur-item" list="pur-item-list" placeholder="Type to filter..." style="min-width: 260px;" autocomplete="off" oninput="handleCartPurchaseItemPicked()">
+                            <input type="text" id="cart-pur-item" list="pur-item-list" placeholder="Type to filter..." data-i18n-placeholder="rental.type_to_filter_ph" style="min-width: 260px;" autocomplete="off" oninput="handleCartPurchaseItemPicked()">
                         </div>
                         <div class="form-group" style="margin-bottom:0;"><label data-i18n="tr.quantity">Quantity</label><input type="number" id="cart-pur-qty" min="1" value="1" style="min-width:90px;"></div>
                         <div class="form-group" style="margin-bottom:0;" id="cart-pur-price-group"><label data-i18n="pur.cost">Cost (ETB)</label><input type="number" id="cart-pur-price" step="0.01" min="0.01" style="min-width:110px;"></div>
@@ -1084,17 +1084,17 @@
                             <label data-i18n="pur.cost">Cost (ETB)</label>
                             <div id="cart-pur-price-locked-text" style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:110px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div>
                         </div>
-                        <div class="form-group" style="margin-bottom:0;" id="cart-pur-selling-price-group"><label data-i18n="misc.selling_price_optional">Selling Price (Optional)</label><input type="number" id="cart-pur-selling-price" step="0.01" placeholder="Skip to leave" style="min-width:130px;"></div>
-                        <div class="form-group" style="margin-bottom:0; display:none;" id="cart-pur-expiry-group"><label>Expiry Date</label><input type="date" id="cart-pur-expiry" style="min-width:140px;"></div>
+                        <div class="form-group" style="margin-bottom:0;" id="cart-pur-selling-price-group"><label data-i18n="misc.selling_price_optional">Selling Price (Optional)</label><input type="number" id="cart-pur-selling-price" step="0.01" placeholder="Skip to leave" data-i18n-placeholder="ui2.skip_to_leave" style="min-width:130px;"></div>
+                        <div class="form-group" style="margin-bottom:0; display:none;" id="cart-pur-expiry-group"><label data-i18n="ui2.expiry_date">Expiry Date</label><input type="date" id="cart-pur-expiry" style="min-width:140px;"></div>
                         <div class="form-group" style="margin-bottom:0; display:none;" id="cart-pur-selling-price-locked-note">
                             <label data-i18n="misc.selling_price">Selling Price</label>
-                            <div style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:130px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Not editable</div>
+                            <div style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:130px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> <span data-i18n="ui2.not_editable">Not editable</span></div>
                         </div>
                         <button type="button" class="btn" onclick="addToPurchaseCart()">+ <span data-i18n="sale.add_to_basket">Add to Basket</span></button>
                     </div>
                     <div style="overflow-x:auto;">
                         <table>
-                            <thead><tr><th data-i18n="sale.item">Item</th><th class="num" data-i18n="tr.quantity">Qty</th><th class="num">Cost</th><th class="num" data-i18n="sale.line_total">Line Total</th><th style="text-align:center;" data-i18n="sale.remove">Remove</th></tr></thead>
+                            <thead><tr><th data-i18n="sale.item">Item</th><th class="num" data-i18n="tr.quantity">Qty</th><th class="num" data-i18n="ui2.cost">Cost</th><th class="num" data-i18n="sale.line_total">Line Total</th><th style="text-align:center;" data-i18n="sale.remove">Remove</th></tr></thead>
                             <tbody id="purchase-cart-table-body"><tr><td colspan="5" style="text-align:center; color:var(--text-light);" data-i18n="sale.no_items_yet">No items added yet.</td></tr></tbody>
                         </table>
                     </div>
@@ -1124,8 +1124,8 @@
                     <h2 data-i18n="pur.history">Purchase History</h2>
                     <div class="filter-panel">
                         <div class="form-group"><label data-i18n="sale.filter_date">Filter Date</label><input type="date" id="pur-log-filter-date" onchange="renderPurchaseLogTable()"></div>
-                        <div class="form-group"><label data-i18n="pur.supplier">Supplier</label><input type="text" id="pur-log-filter-supplier" placeholder="Search..." oninput="renderPurchaseLogTable()"></div>
-                        <div class="form-group"><label data-i18n="sale.product">Product</label><input type="text" id="pur-log-filter-item" placeholder="Search..." oninput="renderPurchaseLogTable()"></div>
+                        <div class="form-group"><label data-i18n="pur.supplier">Supplier</label><input type="text" id="pur-log-filter-supplier" placeholder="Search..." data-i18n-placeholder="common.search_ph" oninput="renderPurchaseLogTable()"></div>
+                        <div class="form-group"><label data-i18n="sale.product">Product</label><input type="text" id="pur-log-filter-item" placeholder="Search..." data-i18n-placeholder="common.search_ph" oninput="renderPurchaseLogTable()"></div>
                         <div class="form-group"><label data-i18n="sale.channel">Channel</label><select id="pur-log-filter-channel" onchange="renderPurchaseLogTable()"><option value="" data-i18n="sale.all">-- All --</option><option value="Cash">Cash</option><option value="Mobile banking">Mobile banking</option><option value="Accounts payable">Accounts payable</option></select></div>
                         <div class="form-group" id="pur-log-filter-by-group" style="display:none;"><label data-i18n="tr.by">By</label><select id="pur-log-filter-author" onchange="renderPurchaseLogTable()"><option value="" data-i18n="sale.all">-- All --</option></select></div>
                     </div>
@@ -1135,7 +1135,7 @@
                     <div class="table-scroll">
                     <table>
                         <thead>
-                            <tr><th data-i18n="sale.date">Date</th><th data-i18n="pur.supplier_name">Supplier Name</th><th data-i18n="sale.product_item">Product Item</th><th class="num" data-i18n="tr.quantity">Quantity</th><th class="num" data-i18n="pur.unit_cost">Unit Cost</th><th class="num" data-i18n="sale.total">Total</th><th>Channel / Status</th><th class="branch-col" data-i18n="sale.branch">Branch</th><th data-i18n="tr.by">By</th><th style="text-align:center;" data-i18n="sale.action">Action</th></tr>
+                            <tr><th data-i18n="sale.date">Date</th><th data-i18n="pur.supplier_name">Supplier Name</th><th data-i18n="sale.product_item">Product Item</th><th class="num" data-i18n="tr.quantity">Quantity</th><th class="num" data-i18n="pur.unit_cost">Unit Cost</th><th class="num" data-i18n="sale.total">Total</th><th data-i18n="ui2.channel_status">Channel / Status</th><th class="branch-col" data-i18n="sale.branch">Branch</th><th data-i18n="tr.by">By</th><th style="text-align:center;" data-i18n="sale.action">Action</th></tr>
                         </thead>
                         <tbody id="purchase-log-table-body"></tbody>
                     </table>
@@ -1151,7 +1151,7 @@
                         <div class="form-group"><label data-i18n="exp.account">Account</label><select id="exp-target"></select></div>
                         <div class="form-group"><label data-i18n="exp.amount">Amount (ETB)</label><input type="number" id="exp-amount" step="0.01" min="0.01" required></div>
                         <div class="form-group"><label data-i18n="sale.channel">Channel</label><select id="exp-source" onchange="handleChannelSelectChange(this)" onfocus="this.dataset.prevValue=this.value"><option value="Cash">Cash</option><option value="Mobile banking">Mobile banking</option><option value="Accounts payable">Accounts payable</option></select></div>
-                        <div class="form-group"><label data-i18n="common.memo">Memo</label><input type="text" id="exp-memo" placeholder="e.g., May Bills" required></div>
+                        <div class="form-group"><label data-i18n="common.memo">Memo</label><input type="text" id="exp-memo" placeholder="e.g., May Bills" data-i18n-placeholder="ui2.e_g_may_bills" required></div>
                         <div class="form-group" style="padding-top: 22px;"><button type="submit" class="btn btn-danger" data-i18n="exp.book_expense">Book Expense</button></div>
                     </form>
                 </div>
@@ -1161,7 +1161,7 @@
                     <div class="filter-panel">
                         <div class="form-group"><label data-i18n="sale.filter_date">Filter Date</label><input type="date" id="exp-log-filter-date" onchange="renderExpenseLogTable()"></div>
                         <div class="form-group"><label data-i18n="exp.expense_account">Expense Account</label><select id="exp-log-filter-account" onchange="renderExpenseLogTable()"><option value="" data-i18n="sale.all">-- All --</option></select></div>
-                        <div class="form-group"><label data-i18n="exp.memo_context">Memo Context</label><input type="text" id="exp-log-filter-memo" placeholder="Search..." oninput="renderExpenseLogTable()"></div>
+                        <div class="form-group"><label data-i18n="exp.memo_context">Memo Context</label><input type="text" id="exp-log-filter-memo" placeholder="Search..." data-i18n-placeholder="common.search_ph" oninput="renderExpenseLogTable()"></div>
                         <div class="form-group"><label data-i18n="sale.channel">Channel</label><select id="exp-log-filter-channel" onchange="renderExpenseLogTable()"><option value="" data-i18n="sale.all">-- All --</option><option value="Cash">Cash</option><option value="Mobile banking">Mobile banking</option><option value="Accounts payable">Accounts payable</option></select></div>
                         <div class="form-group" id="exp-log-filter-by-group" style="display:none;"><label data-i18n="tr.by">By</label><select id="exp-log-filter-author" onchange="renderExpenseLogTable()"><option value="" data-i18n="sale.all">-- All --</option></select></div>
                     </div>
@@ -1203,23 +1203,23 @@
             <div id="view-scanned" class="view-panel">
                 <div class="card">
                     <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; margin-bottom:12px;">
-                        <div style="display:flex;gap:10px;align-items:center;"><button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="switchView('inventory')" title="Back to Inventory">&#8249; Inventory</button><h2 style="border:none; margin:0; padding:0;">Scanned Stock</h2></div>
-                        <div><input type="file" id="scn-file" accept="image/*" multiple style="display:none;" onchange="scnPickFile(this)"><button type="button" class="btn" onclick="document.getElementById('scn-file').click()">Scan purchase receipt</button> <button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="scnManual()" title="Type a purchase receipt in by hand (works offline)">Enter by hand</button></div>
+                        <div style="display:flex;gap:10px;align-items:center;"><button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="switchView('inventory')" title="Back to Inventory" data-i18n-title="ui2.back_to_inventory" data-i18n="ui2.inventory">&#8249; Inventory</button><h2 style="border:none; margin:0; padding:0;" data-i18n="ui2.scanned_stock">Scanned Stock</h2></div>
+                        <div><input type="file" id="scn-file" accept="image/*" multiple style="display:none;" onchange="scnPickFile(this)"><button type="button" class="btn" onclick="document.getElementById('scn-file').click()" data-i18n="ui2.scan_purchase_receipt">Scan purchase receipt</button> <button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="scnManual()" title="Type a purchase receipt in by hand (works offline)" data-i18n-title="ui2.type_a_purchase_receipt_in_by_hand" data-i18n="ui2.enter_by_hand">Enter by hand</button></div>
                     </div>
-                    <p style="font-size:12px; color:var(--text-light); margin:0 0 10px;">Separate from your main inventory. Only stock from scanned receipts is counted here (owners only).</p>
+                    <p style="font-size:12px; color:var(--text-light); margin:0 0 10px;" data-i18n="ui2.separate_from_your_main_inventory">Separate from your main inventory. Only stock from scanned receipts is counted here (owners only).</p>
                     <div id="scn-sync-note" style="display:none;font-size:12px;margin:0 0 10px;padding:8px 10px;border-radius:8px;background:rgba(255,193,7,.15);border:1px solid #e0a800;"></div>
-                    <div style="display:flex;gap:8px;margin:0 0 12px;"><button type="button" class="btn btn-small" id="scn-tab-stock" onclick="scnTab('stock')">Stock</button><button type="button" class="btn btn-small" id="scn-tab-purchases" onclick="scnTab('purchases')" style="background:#4a4e63;opacity:.75;">Purchase receipts</button><button type="button" class="btn btn-small" id="scn-tab-sales" onclick="scnTab('sales')" style="background:#4a4e63;opacity:.75;">Sales receipts</button></div>
+                    <div style="display:flex;gap:8px;margin:0 0 12px;"><button type="button" class="btn btn-small" id="scn-tab-stock" onclick="scnTab('stock')" data-i18n="ui2.stock">Stock</button><button type="button" class="btn btn-small" id="scn-tab-purchases" onclick="scnTab('purchases')" style="background:#4a4e63;opacity:.75;" data-i18n="ui2.purchase_receipts">Purchase receipts</button><button type="button" class="btn btn-small" id="scn-tab-sales" onclick="scnTab('sales')" style="background:#4a4e63;opacity:.75;" data-i18n="ui2.sales_receipts">Sales receipts</button></div>
                     <div id="scn-pane-stock"><table>
-                        <thead><tr><th>Item</th><th class="num">Quantity</th><th class="num">Last cost</th><th class="num">Value</th></tr></thead>
+                        <thead><tr><th data-i18n="sale.item">Item</th><th class="num" data-i18n="tr.quantity">Quantity</th><th class="num" data-i18n="ui2.last_cost">Last cost</th><th class="num" data-i18n="ui2.value">Value</th></tr></thead>
                         <tbody id="scn-body"></tbody>
                     </table>
-                    <div style="margin-top:12px; font-weight:700; color:var(--primary);">Scanned stock value: <span id="scn-total">ETB 0.00</span></div>
+                    <div style="margin-top:12px; font-weight:700; color:var(--primary);"><span data-i18n="ui2.scanned_stock_value">Scanned stock value:</span> <span id="scn-total">ETB 0.00</span></div>
                     <div id="scn-waiting" style="margin-top:14px;"></div></div>
-                    <div id="scn-pane-purchases" style="display:none;"><h3 style="margin:18px 0 8px;font-size:15px;">Purchase receipts (scanned copies)</h3>
-                        <div class="scn-filter"><label>From</label><input type="date" id="scn-p-from" onchange="scnRenderReceipts()" style="min-width:auto;"><label>To</label><input type="date" id="scn-p-to" onchange="scnRenderReceipts()" style="min-width:auto;"><button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="scnClearDates('p')">Clear</button></div>
+                    <div id="scn-pane-purchases" style="display:none;"><h3 style="margin:18px 0 8px;font-size:15px;" data-i18n="ui2.purchase_receipts_scanned_copies">Purchase receipts (scanned copies)</h3>
+                        <div class="scn-filter"><label data-i18n="tr.from">From</label><input type="date" id="scn-p-from" onchange="scnRenderReceipts()" style="min-width:auto;"><label data-i18n="tr.to">To</label><input type="date" id="scn-p-to" onchange="scnRenderReceipts()" style="min-width:auto;"><button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="scnClearDates('p')" data-i18n="common.clear">Clear</button></div>
                         <div id="scn-receipts"></div></div>
-                    <div id="scn-pane-sales" style="display:none;"><h3 style="margin:18px 0 8px;font-size:15px;">Sales receipts (as printed)</h3>
-                        <div class="scn-filter"><label>From</label><input type="date" id="scn-s-from" onchange="scnRenderReceipts()" style="min-width:auto;"><label>To</label><input type="date" id="scn-s-to" onchange="scnRenderReceipts()" style="min-width:auto;"><button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="scnClearDates('s')">Clear</button></div>
+                    <div id="scn-pane-sales" style="display:none;"><h3 style="margin:18px 0 8px;font-size:15px;" data-i18n="ui2.sales_receipts_as_printed">Sales receipts (as printed)</h3>
+                        <div class="scn-filter"><label data-i18n="tr.from">From</label><input type="date" id="scn-s-from" onchange="scnRenderReceipts()" style="min-width:auto;"><label data-i18n="tr.to">To</label><input type="date" id="scn-s-to" onchange="scnRenderReceipts()" style="min-width:auto;"><button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="scnClearDates('s')" data-i18n="common.clear">Clear</button></div>
                         <div id="scn-sales-receipts"></div></div>
                 </div>
             </div>
@@ -1293,15 +1293,15 @@
                             <div class="form-group" style="margin-bottom:14px; flex:1 1 220px;"><label data-i18n="auth.vat_address">Address</label><input type="text" id="settings-vat-address" style="width:100%;"></div>
                         </div>
                         <button type="button" class="btn" onclick="saveVatDetails()" data-i18n="team.save_vat_details">Save VAT Details</button>
-                        <span id="settings-vat-details-saved" style="display:none; color:var(--success); font-size:13px; margin-left:10px;">Saved ✓</span>
+                        <span id="settings-vat-details-saved" style="display:none; color:var(--success); font-size:13px; margin-left:10px;" data-i18n="ui2.saved">Saved ✓</span>
                     </div>
                 </div>
                 <div class="card" id="accountant-access-card" style="display:none;">
-                    <h2 style="border:none; margin-bottom:10px;">Accountant Access</h2>
-                    <p style="font-size:13px; color:var(--text-light); margin-bottom:12px;">Give your accountant read-only access to your inventory list. Search for them below, or approve a request they've already sent you.</p>
+                    <h2 style="border:none; margin-bottom:10px;" data-i18n="ui2.accountant_access">Accountant Access</h2>
+                    <p style="font-size:13px; color:var(--text-light); margin-bottom:12px;" data-i18n="ui2.give_your_accountant_read_only_acc">Give your accountant read-only access to your inventory list. Search for them below, or approve a request they've already sent you.</p>
                     <div style="display:flex; gap:8px; margin-bottom:6px;">
-                        <input type="text" id="accountant-search-input" placeholder="Search accountant by name or phone…" style="flex:1;" oninput="runAccountantSearch(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault(); submitAccountantSearch();}" onfocus="renderAccountantSearchHistory()">
-                        <button class="btn" style="padding:0 14px;" onclick="submitAccountantSearch()">Search</button>
+                        <input type="text" id="accountant-search-input" placeholder="Search accountant by name or phone…" data-i18n-placeholder="ui2.search_accountant_by_name_or_phone" style="flex:1;" oninput="runAccountantSearch(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault(); submitAccountantSearch();}" onfocus="renderAccountantSearchHistory()">
+                        <button class="btn" style="padding:0 14px;" onclick="submitAccountantSearch()" data-i18n="ui2.search">Search</button>
                     </div>
                     <div id="accountant-search-history"></div>
                     <div id="accountant-search-results" style="margin-bottom:6px;"></div>
@@ -1363,15 +1363,15 @@
             <div id="add-member-error" style="display:none; background:#F1DCD8; color:var(--danger); font-size:13px; padding:10px; border-radius:4px; margin-bottom:14px;"></div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                 <label data-i18n="team.display_name">Display Name</label>
-                <input type="text" id="member-display-name" style="width:100%;" placeholder="e.g. Mekdes Tesfaye">
+                <input type="text" id="member-display-name" style="width:100%;" placeholder="e.g. Mekdes Tesfaye" data-i18n-placeholder="ui2.e_g_mekdes_tesfaye">
             </div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                 <label data-i18n="team.username_hint">Username (they'll log in with this — no email needed)</label>
-                <input type="text" id="member-username" style="width:100%;" placeholder="e.g. mekdes" autocomplete="off">
+                <input type="text" id="member-username" style="width:100%;" placeholder="e.g. mekdes" data-i18n-placeholder="ui2.e_g_mekdes" autocomplete="off">
             </div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                 <label data-i18n="team.temp_password">Temporary Password</label>
-                <input type="text" id="member-password" style="width:100%;" placeholder="At least 6 characters">
+                <input type="text" id="member-password" style="width:100%;" placeholder="At least 6 characters" data-i18n-placeholder="ui2.at_least_6_characters">
             </div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                 <label data-i18n="team.role">Role</label>
@@ -1394,7 +1394,7 @@
             <div id="add-role-error" style="display:none; background:#F1DCD8; color:var(--danger); font-size:13px; padding:10px; border-radius:4px; margin-bottom:14px;"></div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                 <label data-i18n="team.role_name">Role Name</label>
-                <input type="text" id="new-role-label" style="width:100%;" placeholder="e.g. Senior Cashier">
+                <input type="text" id="new-role-label" style="width:100%;" placeholder="e.g. Senior Cashier" data-i18n-placeholder="ui2.e_g_senior_cashier">
             </div>
             <p style="font-size:12px; color:var(--text-light); margin-bottom:14px;" data-i18n="team.role_hint">You can set exactly what this role can do right after creating it, in the Roles &amp; Permissions list.</p>
             <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
@@ -1410,11 +1410,11 @@
             <div id="add-branch-error" style="display:none; background:#F1DCD8; color:var(--danger); font-size:13px; padding:10px; border-radius:4px; margin-bottom:14px;"></div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                 <label data-i18n="team.branch_name">Branch Name</label>
-                <input type="text" id="new-branch-name" style="width:100%;" placeholder="e.g. Bole Branch">
+                <input type="text" id="new-branch-name" style="width:100%;" placeholder="e.g. Bole Branch" data-i18n-placeholder="ui2.e_g_bole_branch">
             </div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                 <label data-i18n="team.address_optional">Address (optional)</label>
-                <input type="text" id="new-branch-address" style="width:100%;" placeholder="e.g. Bole Road, near Edna Mall">
+                <input type="text" id="new-branch-address" style="width:100%;" placeholder="e.g. Bole Road, near Edna Mall" data-i18n-placeholder="ui2.e_g_bole_road_near_edna_mall">
             </div>
             <p style="font-size:12px; color:var(--text-light); margin-bottom:14px;" data-i18n="team.branch_hint">The new branch starts with its own empty stock — the product catalog is shared, but quantities are tracked separately per branch. Assign team members to it from the Team Members list below.</p>
             <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
@@ -1447,7 +1447,7 @@
             </div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                 <label data-i18n="tr.notes_optional">Note (Optional)</label>
-                <input type="text" id="ft-note" style="width:100%;" placeholder="e.g. Weekly cash deposit">
+                <input type="text" id="ft-note" style="width:100%;" placeholder="e.g. Weekly cash deposit" data-i18n-placeholder="ui2.e_g_weekly_cash_deposit">
             </div>
             <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
                 <button class="btn btn-warning" onclick="closeFundTransferModal()" data-i18n="common.cancel">Cancel</button>
@@ -1496,14 +1496,14 @@
             <p id="record-payment-subtitle" style="font-size:13px; color:var(--text-light); margin-bottom:14px;"></p>
             <div id="record-payment-error" style="display:none; background:#F1DCD8; color:var(--danger); font-size:13px; padding:10px; border-radius:6px; margin-bottom:14px;"></div>
             <div class="form-group" id="record-payment-amount-group" style="display:block; width:100%; margin-bottom:14px;">
-                <label>Amount (ETB)</label>
+                <label data-i18n="exp.amount">Amount (ETB)</label>
                 <input type="number" id="record-payment-amount" step="0.01" min="0.01" style="width:100%;">
             </div>
             <div class="form-group" id="record-payment-amount-locked-note" style="display:none; width:100%; margin-bottom:14px; font-size:13px; color:var(--text-light);">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Amount is hidden for your role — this will record the full remaining balance as paid.
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> <span data-i18n="ui2.amount_is_hidden_for_your_role_thi">Amount is hidden for your role — this will record the full remaining balance as paid.</span>
             </div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                <label>Channel</label>
+                <label data-i18n="sale.channel">Channel</label>
                 <select id="record-payment-channel" style="width:100%;"></select>
             </div>
             <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
@@ -1520,13 +1520,13 @@
                 <input type="hidden" id="edit-index" value="">
                         <div class="form-group"><label data-i18n="inv.category">Category</label><input type="text" id="p-category" list="category-list" required autocomplete="off"><datalist id="category-list"></datalist></div>
                         <div class="form-group"><label data-i18n="inv.product_name">Product Name</label><input type="text" id="p-desc" required></div>
-                        <div class="form-group p-stock-group"><label>Quantity (optional)</label><input type="number" id="p-qty" min="1" step="1" inputmode="numeric" placeholder="Leave blank to add the product only" oninput="document.getElementById('p-cost').required = this.value.trim() !== ''"></div>
-                        <div class="form-group p-stock-group"><label>Cost Price (ETB per unit)</label><input type="number" id="p-cost" min="0.01" step="0.01" inputmode="decimal" placeholder="Required if you enter a quantity"></div>
-                        <div class="form-group p-sell-group"><label>Selling Price (optional)</label><input type="number" id="p-sell" min="0" step="0.01" inputmode="decimal" placeholder="Leave blank to set it later"></div>
-                        <div class="form-group p-stock-group"><label>Supplier Name (optional)</label><input type="text" id="p-supplier" list="supplier-list" autocomplete="off" placeholder="Leave blank if none"></div>
-                        <div class="form-group" id="p-daily-rate-group" style="display:none;"><label>Daily Rate (ETB)</label><input type="number" id="p-daily-rate" step="0.01" min="0"></div>
-                        <div class="form-group" id="p-weekly-rate-group" style="display:none;"><label>Weekly Rate (ETB, optional)</label><input type="number" id="p-weekly-rate" step="0.01" min="0"></div>
-                        <div class="form-group" id="p-monthly-rate-group" style="display:none;"><label>Monthly Rate (ETB, optional)</label><input type="number" id="p-monthly-rate" step="0.01" min="0"></div>
+                        <div class="form-group p-stock-group"><label data-i18n="ui2.quantity_optional">Quantity (optional)</label><input type="number" id="p-qty" min="1" step="1" inputmode="numeric" placeholder="Leave blank to add the product only" data-i18n-placeholder="ui2.leave_blank_to_add_the_product_onl" oninput="document.getElementById('p-cost').required = this.value.trim() !== ''"></div>
+                        <div class="form-group p-stock-group"><label data-i18n="ui2.cost_price_etb_per_unit">Cost Price (ETB per unit)</label><input type="number" id="p-cost" min="0.01" step="0.01" inputmode="decimal" placeholder="Required if you enter a quantity" data-i18n-placeholder="ui2.required_if_you_enter_a_quantity"></div>
+                        <div class="form-group p-sell-group"><label data-i18n="ui2.selling_price_optional">Selling Price (optional)</label><input type="number" id="p-sell" min="0" step="0.01" inputmode="decimal" placeholder="Leave blank to set it later" data-i18n-placeholder="ui2.leave_blank_to_set_it_later"></div>
+                        <div class="form-group p-stock-group"><label data-i18n="ui2.supplier_name_optional">Supplier Name (optional)</label><input type="text" id="p-supplier" list="supplier-list" autocomplete="off" placeholder="Leave blank if none" data-i18n-placeholder="ui2.leave_blank_if_none"></div>
+                        <div class="form-group" id="p-daily-rate-group" style="display:none;"><label data-i18n="ui2.daily_rate_etb">Daily Rate (ETB)</label><input type="number" id="p-daily-rate" step="0.01" min="0"></div>
+                        <div class="form-group" id="p-weekly-rate-group" style="display:none;"><label data-i18n="ui2.weekly_rate_etb_optional">Weekly Rate (ETB, optional)</label><input type="number" id="p-weekly-rate" step="0.01" min="0"></div>
+                        <div class="form-group" id="p-monthly-rate-group" style="display:none;"><label data-i18n="ui2.monthly_rate_etb_optional">Monthly Rate (ETB, optional)</label><input type="number" id="p-monthly-rate" step="0.01" min="0"></div>
                 <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:6px;">
                     <button type="button" class="btn btn-warning" id="inv-cancel" onclick="resetProductForm()" data-i18n="common.cancel">Cancel</button>
                     <button type="submit" class="btn" id="inv-btn">Add Product</button>
@@ -1568,36 +1568,36 @@
 
     <div id="export-modal" class="modal-overlay" onclick="closeExportHub()">
         <div class="modal-box" onclick="event.stopPropagation()" style="max-width: 500px;">
-            <h3 style="color:var(--primary); margin-bottom:12px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Advanced Excel Export Hub</h3>
-            <p style="font-size: 13px; color: var(--text-light); margin-bottom: 20px;">Download structured binary XLSX files directly from your offline base.</p>
+            <h3 style="color:var(--primary); margin-bottom:12px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> <span data-i18n="ui2.advanced_excel_export_hub">Advanced Excel Export Hub</span></h3>
+            <p style="font-size: 13px; color: var(--text-light); margin-bottom: 20px;" data-i18n="ui2.download_structured_binary_xlsx_fi">Download structured binary XLSX files directly from your offline base.</p>
             
             <div class="form-group" style="width:100%;">
-                <label>Target Data Module</label>
+                <label data-i18n="ui2.target_data_module">Target Data Module</label>
                 <select id="export-module" style="width:100%;" onchange="updateExportColumns()">
-                    <option value="inventory">Inventory Master List</option>
-                    <option value="sales">Sales Transactions Log</option>
-                    <option value="purchase">Purchase Procurements Log</option>
-                    <option value="expenses">Operating Expenses Log</option>
+                    <option value="inventory" data-i18n="ui2.inventory_master_list">Inventory Master List</option>
+                    <option value="sales" data-i18n="ui2.sales_transactions_log">Sales Transactions Log</option>
+                    <option value="purchase" data-i18n="ui2.purchase_procurements_log">Purchase Procurements Log</option>
+                    <option value="expenses" data-i18n="ui2.operating_expenses_log">Operating Expenses Log</option>
                     <option value="journal">General Journal Entries</option>
                 </select>
             </div>
             <div class="form-group" style="width:100%;">
-                <label>Timeframe Limit</label>
+                <label data-i18n="ui2.timeframe_limit">Timeframe Limit</label>
                 <select id="export-scope" style="width:100%;">
-                    <option value="all">All-Time Archive</option>
-                    <option value="7">Last 7 Days</option>
-                    <option value="30">Last 30 Days</option>
+                    <option value="all" data-i18n="ui2.all_time_archive">All-Time Archive</option>
+                    <option value="7" data-i18n="ui2.last_7_days">Last 7 Days</option>
+                    <option value="30" data-i18n="ui2.last_30_days">Last 30 Days</option>
                 </select>
             </div>
             <div class="form-group" style="width:100%;">
-                <label>Select Columns to Include</label>
+                <label data-i18n="ui2.select_columns_to_include">Select Columns to Include</label>
                 <div id="export-columns-container" style="display:flex; flex-wrap:wrap; gap:8px; max-height: 120px; overflow-y:auto; background:#F4F5F8; padding:12px; border:1px solid var(--border); border-radius:4px;">
                     </div>
             </div>
             
             <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end;">
                 <button class="btn btn-warning" onclick="closeExportHub()" data-i18n="common.cancel">Cancel</button>
-                <button class="btn btn-excel" id="export-trigger-btn" onclick="executeExcelExport()" style="width:auto;">Download .xlsx</button>
+                <button class="btn btn-excel" id="export-trigger-btn" onclick="executeExcelExport()" style="width:auto;" data-i18n="ui2.download_xlsx">Download .xlsx</button>
             </div>
         </div>
     </div>
@@ -1609,8 +1609,8 @@
             <h3 id="pm-title" style="color:var(--primary); margin-bottom:12px;">Print</h3>
             <div style="display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start;">
                 <div style="flex:1 1 340px; min-width:0;">
-                    <div class="form-group" style="margin-bottom:10px;"><label>Buyer's TIN <span style="font-weight:400; color:var(--text-light);">(optional)</span></label><input type="text" id="buyer-info-tin" list="buyer-tin-list" style="width:100%;" autocomplete="off" oninput="handleBuyerTinInput()"></div>
-                    <div class="form-group" style="margin-bottom:10px;"><label>Customer Name / Trade Name <span style="font-weight:400; color:var(--text-light);">(optional)</span></label><input type="text" id="buyer-info-name" list="buyer-trade-name-list" style="width:100%;" autocomplete="off" oninput="handleBuyerNameInput()"></div>
+                    <div class="form-group" style="margin-bottom:10px;"><label><span data-i18n="ui2.buyer_s_tin">Buyer's TIN</span> <span style="font-weight:400; color:var(--text-light);" data-i18n="ui2.optional">(optional)</span></label><input type="text" id="buyer-info-tin" list="buyer-tin-list" style="width:100%;" autocomplete="off" oninput="handleBuyerTinInput()"></div>
+                    <div class="form-group" style="margin-bottom:10px;"><label><span data-i18n="ui2.customer_name_trade_name">Customer Name / Trade Name</span> <span style="font-weight:400; color:var(--text-light);" data-i18n="ui2.optional">(optional)</span></label><input type="text" id="buyer-info-name" list="buyer-trade-name-list" style="width:100%;" autocomplete="off" oninput="handleBuyerNameInput()"></div>
                     <div id="pm-lines"></div>
                     <div id="pm-gate" style="margin-top:10px; font-size:13px;"></div>
                 </div>
@@ -1790,6 +1790,274 @@
                 return { text: raw, type: guessType(raw) };
             }
 
+            // ---- Amharic for pop-up messages, confirm boxes, toasts and bell notifications ----
+            // Every message is first rewritten in simple English (MSG_RULES above). When the app is in Amharic,
+            // the final English text is looked up here. Text that is not listed stays in English (nothing breaks).
+            // ['exact English', 'Amharic']  or  [/pattern/, 'Amharic with $1 $2']
+            const AM_MSG = [
+                // sign in, account, setup
+                ["TIN must have 10 to 12 numbers.", `ቲን ከ10 እስከ 12 ቁጥሮች ሊኖሩት ይገባል።`],
+                ["The buyer's TIN must have 10 to 12 numbers.", `የገዢው ቲን ከ10 እስከ 12 ቁጥሮች ሊኖሩት ይገባል።`],
+                ["We can't reach your shop. Please check your internet and try again.", `ሱቅዎን ማግኘት አልቻልንም። እባክዎ ኢንተርኔትዎን ያረጋግጡና እንደገና ይሞክሩ።`],
+                ["We couldn't finish setting up your shop. Please try again.", `ሱቅዎን ማዘጋጀት መጨረስ አልቻልንም። እባክዎ እንደገና ይሞክሩ።`],
+                ["We couldn't open your shop. Please sign in again.", `ሱቅዎን መክፈት አልቻልንም። እባክዎ እንደገና ይግቡ።`],
+                ["We couldn't send the email. Please check the email address and your internet, then try again.", `ኢሜይሉን መላክ አልቻልንም። እባክዎ የኢሜይል አድራሻውንና ኢንተርኔትዎን ያረጋግጡና እንደገና ይሞክሩ።`],
+                ["If this email has an account, we sent you a link to reset your password. Please check your inbox and spam folder.", `ይህ ኢሜይል መለያ ካለው፣ የይለፍ ቃልዎን ለመቀየር የሚያስችል ሊንክ ልከንልዎታል። እባክዎ የገቢ መልዕክት ሳጥንዎንና የስፓም ማህደርዎን ይመልከቱ።`],
+                [/^Password changed[.\s]+You are now signed in\.?$/, `የይለፍ ቃል ተቀይሯል። አሁን ገብተዋል።`],
+                [/^Password changed[.\s]+Please tell your team member the new password\. You will not be able to see it again\.?$/, `የይለፍ ቃል ተቀይሯል። እባክዎ አዲሱን የይለፍ ቃል ለቡድን አባልዎ ይንገሩ። ዳግም ማየት አይችሉም።`],
+                ["The password must have at least 6 letters or numbers.", `የይለፍ ቃሉ ቢያንስ 6 ፊደላት ወይም ቁጥሮች ሊኖሩት ይገባል።`],
+                ["We couldn't load your data. Please check your internet and refresh the page.", `መረጃዎን መጫን አልቻልንም። እባክዎ ኢንተርኔትዎን ያረጋግጡና ገጹን ያድሱ።`],
+                ["We couldn't save this online. Please check your internet and try again.", `ይህንን በኢንተርኔት ማስቀመጥ አልቻልንም። እባክዎ ኢንተርኔትዎን ያረጋግጡና እንደገና ይሞክሩ።`],
+                ["Please choose a file first, or tap \"Start Fresh\".", `እባክዎ መጀመሪያ ፋይል ይምረጡ፣ ወይም "አዲስ ጀምር" ይጫኑ።`],
+                ["We can't read this file. Please choose a MELEYA backup file (.json).", `ይህንን ፋይል ማንበብ አልቻልንም። እባክዎ የMELEYA ምትኬ ፋይል (.json) ይምረጡ።`],
+                ["This is not a MELEYA backup file. Please choose a .json backup file.", `ይህ የMELEYA ምትኬ ፋይል አይደለም። እባክዎ .json ምትኬ ፋይል ይምረጡ።`],
+                ["There is no internet connection. Please check it and try again.", `ኢንተርኔት የለም። እባክዎ ያረጋግጡና እንደገና ይሞክሩ።`],
+                ["You don't have permission to do this.", `ይህንን ለማድረግ ፈቃድ የለዎትም።`],
+                ["Wrong email, username or password.", `ኢሜይል፣ የተጠቃሚ ስም ወይም የይለፍ ቃል ትክክል አይደለም።`],
+                ["This email already has an account. Please sign in instead.", `ይህ ኢሜይል አስቀድሞ መለያ አለው። እባክዎ በምትኩ ይግቡ።`],
+                ["Your session ended. Please sign in again.", `ክፍለ ጊዜዎ አብቅቷል። እባክዎ እንደገና ይግቡ።`],
+                ["This already exists.", `ይህ አስቀድሞ አለ።`],
+                // opening inventory, products, sales, purchases
+                ["Please type a category.", `እባክዎ ምድብ ይጻፉ።`],
+                ["Please type the product name.", `እባክዎ የምርቱን ስም ይጻፉ።`],
+                ["Please type how many you have (1 or more).", `እባክዎ ስንት እንዳለዎት ይጻፉ (1 ወይም ከዚያ በላይ)።`],
+                ["Please type the cost (more than 0).", `እባክዎ የግዢ ዋጋውን ይጻፉ (ከ0 በላይ)።`],
+                ["Please type the daily price (more than 0).", `እባክዎ የቀን ዋጋውን ይጻፉ (ከ0 በላይ)።`],
+                ["Please type the daily price for this item.", `እባክዎ ለዚህ ዕቃ የቀን ዋጋውን ይጻፉ።`],
+                ["Please type the selling price.", `እባክዎ የመሸጫ ዋጋውን ይጻፉ።`],
+                [/^"(.+)" is already in your list under "(.+)"\. Remove it first if you want to change it\.$/, `"$1" አስቀድሞ በዝርዝርዎ ውስጥ በ"$2" ስር አለ። ለመቀየር ከፈለጉ መጀመሪያ ያስወግዱት።`],
+                [/^"(.+)" is already in the basket under "(.+)"\. Remove it first \(.\) if you need to correct it\.$/, `"$1" አስቀድሞ በቅርጫቱ ውስጥ በ"$2" ስር አለ። ማስተካከል ከፈለጉ መጀመሪያ ያስወግዱት (✕)።`],
+                ["Please add at least one product, or tap \"Skip / Add Products Later\".", `እባክዎ ቢያንስ አንድ ምርት ይጨምሩ፣ ወይም "ዝለል / ምርቶችን በኋላ ጨምር" ይጫኑ።`],
+                [/^"(.+)" is already in "(.+)"\. Please use a different name\.$/, `"$1" አስቀድሞ በ"$2" ውስጥ አለ። እባክዎ ሌላ ስም ይጠቀሙ።`],
+                ["This product already exists.", `ይህ ምርት አስቀድሞ አለ።`],
+                ["Rejection: Identical pairing already exists.", `ይህ ምድብና ስም አስቀድሞ አለ።`],
+                [/^Rejection: "(.+)" already exists inside "(.+)"\.$/, `"$1" አስቀድሞ በ"$2" ውስጥ አለ።`],
+                [/^(\d+) products added\.$/, `$1 ምርቶች ተጨምረዋል።`],
+                ["Please choose an item from the list.", `እባክዎ ከዝርዝሩ ዕቃ ይምረጡ።`],
+                ["Please type a quantity (1 or more).", `እባክዎ ብዛት ይጻፉ (1 ወይም ከዚያ በላይ)።`],
+                ["Please type a price (more than 0).", `እባክዎ ዋጋ ይጻፉ (ከ0 በላይ)።`],
+                ["Please type an amount (more than 0).", `እባክዎ መጠን ይጻፉ (ከ0 በላይ)።`],
+                ["Please type the supplier name.", `እባክዎ የአቅራቢውን ስም ይጻፉ።`],
+                ["Please add at least one item first.", `እባክዎ መጀመሪያ ቢያንስ አንድ ዕቃ ይጨምሩ።`],
+                ["The amount paid can't be less than 0.", `የተከፈለው መጠን ከ0 በታች ሊሆን አይችልም።`],
+                [/^The amount paid \(ETB ([\d.,]+)\) is more than the total \(ETB ([\d.,]+)\)\. Please check it\.$/, `የተከፈለው መጠን ($1 ብር) ከጠቅላላው ($2 ብር) በላይ ነው። እባክዎ ያረጋግጡ።`],
+                [/^The amount paid is more than the total \(ETB ([\d.,]+)\)\. Please check it\.$/, `የተከፈለው መጠን ከጠቅላላው ($1 ብር) በላይ ነው። እባክዎ ያረጋግጡ።`],
+                [/^Not enough "(.+)" in stock\. Only (.+) left\.$/, `"$1" በዕቃ ውስጥ በቂ አይደለም። የቀረው $2 ብቻ ነው።`],
+                [/^Not enough in stock\. Only (.+) left\.$/, `በዕቃ ውስጥ በቂ አይደለም። የቀረው $1 ብቻ ነው።`],
+                ["There is not enough stock right now to bring this sale back.", `ይህንን ሽያጭ ለመመለስ አሁን በቂ ዕቃ የለም።`],
+                [/^The sale date \((.+)\) is before "(.+)" was bought \((.+)\)\. Please change the sale date\.$/, `የሽያጩ ቀን ($1) "$2" ከተገዛበት ቀን ($3) በፊት ነው። እባክዎ የሽያጩን ቀን ይቀይሩ።`],
+                ["This item has no cost yet. Please ask someone who can see costs to record its first purchase.", `ይህ ዕቃ እስካሁን የግዢ ዋጋ የለውም። ዋጋዎችን ማየት የሚችል ሰው የመጀመሪያውን ግዢ እንዲመዘግብ ይጠይቁ።`],
+                ["Debit and Credit totals must be equal. Please check your numbers.", `የዴቢትና የክሬዲት ድምር እኩል መሆን አለበት። እባክዎ ቁጥሮችዎን ያረጋግጡ።`],
+                ["This entry was made automatically. To remove it, cancel the original sale, purchase, expense or payment.", `ይህ ግቤት በራስ-ሰር የተሰራ ነው። ለማስወገድ ዋናውን ሽያጭ፣ ግዢ፣ ወጪ ወይም ክፍያ ይሰርዙ።`],
+                // branches, transfers, handovers
+                [/^You are not allowed to (.+)\. Please ask the owner\.$/, `ይህንን ለማድረግ አይፈቀድልዎትም። እባክዎ ባለቤቱን ይጠይቁ።`],
+                ["Please choose one branch at the top of the screen first.", `እባክዎ መጀመሪያ በማያ ገጹ አናት ላይ አንድ ቅርንጫፍ ይምረጡ።`],
+                ["Please choose two different branches.", `እባክዎ ሁለት የተለያዩ ቅርንጫፎችን ይምረጡ።`],
+                ["The transfer did not work. Please check your internet and try again.", `ማዛወሩ አልሰራም። እባክዎ ኢንተርኔትዎን ያረጋግጡና እንደገና ይሞክሩ።`],
+                ["Transfer failed. Please check your connection and try again.", `ማዛወሩ አልተሳካም። እባክዎ ግንኙነትዎን ያረጋግጡና እንደገና ይሞክሩ።`],
+                ["Undo did not work. Please check your internet and try again.", `መመለሱ አልሰራም። እባክዎ ኢንተርኔትዎን ያረጋግጡና እንደገና ይሞክሩ።`],
+                ["We can't find this transfer. Please refresh the page and try again.", `ይህንን ማዛወር ማግኘት አልቻልንም። እባክዎ ገጹን ያድሱና እንደገና ይሞክሩ።`],
+                [/^The branch "(.+)" is closed\. Please open it again first, then undo this transfer\.$/, `ቅርንጫፍ "$1" ተዘግቷል። እባክዎ መጀመሪያ እንደገና ይክፈቱት፣ ከዚያ ይህንን ማዛወር ይመልሱ።`],
+                [/^The branch "(.+)" is closed\. Please open it again first\.$/, `ቅርንጫፍ "$1" ተዘግቷል። እባክዎ መጀመሪያ እንደገና ይክፈቱት።`],
+                [/^We couldn't check the stock of "(.+)"\. Please try again\.$/, `የ"$1" ዕቃ ማረጋገጥ አልቻልንም። እባክዎ እንደገና ይሞክሩ።`],
+                [/^The branch "(.+)" still has stock\. Please sell it or move it to another branch first, then close this branch\.$/, `ቅርንጫፍ "$1" አሁንም ዕቃ አለው። እባክዎ መጀመሪያ ይሽጡት ወይም ወደ ሌላ ቅርንጫፍ ያዛውሩት፣ ከዚያ ይህንን ቅርንጫፍ ይዝጉ።`],
+                [/^We couldn't close "(.+)"\. Please try again\.$/, `"$1"ን መዝጋት አልቻልንም። እባክዎ እንደገና ይሞክሩ።`],
+                [/^We couldn't open "(.+)" again\. Please try again\.$/, `"$1"ን እንደገና መክፈት አልቻልንም። እባክዎ እንደገና ይሞክሩ።`],
+                [/^Your plan allows only (.+?) (.+?)\. Please ask your provider to upgrade your plan first\.$/, `የእርስዎ ጥቅል የሚፈቅደው $1 $2 ብቻ ነው። እባክዎ መጀመሪያ አገልግሎት ሰጪዎን ጥቅልዎን እንዲያሻሽል ይጠይቁ።`],
+                ["You can only delete your own handover, and only while it is waiting for approval.", `መሰረዝ የሚችሉት የራስዎን ርክክብ ብቻ ነው፣ እሱም ማጽደቂያ እየጠበቀ ሳለ ብቻ።`],
+                ["Nothing was deleted. Your account may not be allowed to delete this. Please contact support.", `ምንም አልተሰረዘም። መለያዎ ይህንን እንዲሰርዝ አይፈቀድለት ይሆናል። እባክዎ ድጋፍ ያነጋግሩ።`],
+                ["We couldn't send the handover. Please try again.", `ርክክቡን መላክ አልቻልንም። እባክዎ እንደገና ይሞክሩ።`],
+                ["We couldn't update the handover. Please try again.", `ርክክቡን ማዘመን አልቻልንም። እባክዎ እንደገና ይሞክሩ።`],
+                ["We couldn't delete this. Please try again.", `ይህንን መሰረዝ አልቻልንም። እባክዎ እንደገና ይሞክሩ።`],
+                // delete, restore, backup
+                [/^You can't delete "(.+)" because it already has sales\. Deleting it would make your reports wrong\.$/, `"$1" ሽያጭ ስላለው መሰረዝ አይችሉም። ቢሰርዙት ሪፖርቶችዎ ስህተት ይሆናሉ።`],
+                ["You can't delete this purchase because some of its stock was already sold.", `የዚህ ግዢ ዕቃ በከፊል ስለተሸጠ ይህንን ግዢ መሰረዝ አይችሉም።`],
+                ["We couldn't check this stock because of a connection problem. Please try again.", `በግንኙነት ችግር ምክንያት ይህንን ዕቃ ማረጋገጥ አልቻልንም። እባክዎ እንደገና ይሞክሩ።`],
+                ["You can't delete this purchase because some of its stock was moved to another branch. Move it back first.", `የዚህ ግዢ ዕቃ በከፊል ወደ ሌላ ቅርንጫፍ ስለተዛወረ ይህንን ግዢ መሰረዝ አይችሉም። መጀመሪያ መልሰው ያዛውሩት።`],
+                ["You can't delete this purchase because some of its items were already sold.", `የዚህ ግዢ ዕቃዎች በከፊል ስለተሸጡ ይህንን ግዢ መሰረዝ አይችሉም።`],
+                ["You can't delete this purchase because some of its items were moved to another branch. Move them back first.", `የዚህ ግዢ ዕቃዎች በከፊል ወደ ሌላ ቅርንጫፍ ስለተዛወሩ ይህንን ግዢ መሰረዝ አይችሉም። መጀመሪያ መልሰው ያዛውሯቸው።`],
+                ["This product was deleted, so this can't be brought back.", `ይህ ምርት ስለተሰረዘ መመለስ አይቻልም።`],
+                [/^"(.+)" was deleted, so this can't be brought back\.$/, `"$1" ስለተሰረዘ ይህንን መመለስ አይቻልም።`],
+                [/^There is not enough "(.+)" in stock to bring this back\.$/, `ይህንን ለመመለስ የ"$1" ዕቃ በቂ አይደለም።`],
+                ["We couldn't make the backup. Please try again.", `ምትኬውን መስራት አልቻልንም። እባክዎ እንደገና ይሞክሩ።`],
+                [/^Your backup is restored\.?$/, `ምትኬዎ ተመልሷል።`],
+                ["We couldn't restore this backup. Please try again.", `ይህንን ምትኬ መመለስ አልቻልንም። እባክዎ እንደገና ይሞክሩ።`],
+                ["Please choose at least one column to download.", `እባክዎ ለማውረድ ቢያንስ አንድ አምድ ይምረጡ።`],
+                ["There is no data for these dates.", `ለእነዚህ ቀናት ምንም መረጃ የለም።`],
+                ["The download did not work. Please try again.", `ማውረዱ አልሰራም። እባክዎ እንደገና ይሞክሩ።`],
+                // team and roles
+                ["We couldn't change the password. Please try again.", `የይለፍ ቃሉን መቀየር አልቻልንም። እባክዎ እንደገና ይሞክሩ።`],
+                ["We couldn't remove this person. Please try again.", `ይህንን ሰው ማስወገድ አልቻልንም። እባክዎ እንደገና ይሞክሩ።`],
+                ["Please refresh the page and try again.", `እባክዎ ገጹን ያድሱና እንደገና ይሞክሩ።`],
+                ["We couldn't switch accounts. Please try again.", `መለያ መቀየር አልቻልንም። እባክዎ እንደገና ይሞክሩ።`],
+                ["We couldn't sign in as this person. Please try again.", `እንደዚህ ሰው መግባት አልቻልንም። እባክዎ እንደገና ይሞክሩ።`],
+                ["Please sign out, then sign in again as usual.", `እባክዎ ይውጡና እንደተለመደው እንደገና ይግቡ።`],
+                ["This link does not work anymore. Please ask for a new one.", `ይህ ሊንክ ከዚህ በኋላ አይሰራም። እባክዎ አዲስ ይጠይቁ።`],
+                ["We couldn't save the permissions. Please try again.", `ፈቃዶቹን ማስቀመጥ አልቻልንም። እባክዎ እንደገና ይሞክሩ።`],
+                ["The permissions could not be saved, so this role has NO permissions right now. Please try again, or contact support.", `ፈቃዶቹ ማስቀመጥ ስላልተቻለ ይህ ሚና አሁን ምንም ፈቃድ የለውም። እባክዎ እንደገና ይሞክሩ፣ ወይም ድጋፍ ያነጋግሩ።`],
+                [/^Permissions saved[.\s]+People with this role will see the change next time they open the app\.?$/, `ፈቃዶች ተቀምጠዋል። ይህ ሚና ያላቸው ሰዎች ለውጡን መተግበሪያውን በሚቀጥለው ጊዜ ሲከፍቱ ያያሉ።`],
+                [/^You can't delete the role "(.+)" because (\d+) team member\(s\) still use it\. Please move them to another role first\.$/, `"$1" የሚለውን ሚና መሰረዝ አይችሉም፣ ምክንያቱም $2 የቡድን አባል(ላት) አሁንም ይጠቀሙታል። እባክዎ መጀመሪያ ወደ ሌላ ሚና ያዛውሯቸው።`],
+                ["We couldn't delete this role. Please try again.", `ይህንን ሚና መሰረዝ አልቻልንም። እባክዎ እንደገና ይሞክሩ።`],
+                // short toasts shown after saving
+                ["Sale saved", `ሽያጩ ተቀምጧል`], ["Purchase saved", `ግዢው ተቀምጧል`], ["Expense saved", `ወጪው ተቀምጧል`],
+                [/^(Sale|Purchase|Expense) saved: ETB ([\d.,]+)(?:\s*ETB ([\d.,]+) is still not paid\.)?$/, ($0, k, a, o) => ({ Sale: 'ሽያጩ', Purchase: 'ግዢው', Expense: 'ወጪው' }[k]) + ` ተቀምጧል፦ ` + a + ` ብር` + (o ? `\n` + o + ` ብር አሁንም አልተከፈለም።` : ``)],
+                [/^Product added\.?$/, `ምርቱ ተጨምሯል።`], [/^Product updated\.?$/, `ምርቱ ተዘምኗል።`], [/^Your products are ready\.?$/, `ምርቶችዎ ዝግጁ ናቸው።`],
+                ["Sale voided (cancelled). The stock was put back.", `ሽያጩ ተሰርዟል። ዕቃው ተመልሷል።`],
+                ["Purchase voided (cancelled). The stock was taken out.", `ግዢው ተሰርዟል። ዕቃው ተቀንሷል።`],
+                ["Expense voided (cancelled).", `ወጪው ተሰርዟል።`],
+                [/^Stock moved\.?$/, `ዕቃው ተዛውሯል።`], [/^Stock move undone\.?$/, `የዕቃ ማዛወሩ ተመልሷል።`],
+                [/^Money transfer saved\.?$/, `የገንዘብ ዝውውሩ ተቀምጧል።`], ["Money transfer deleted.", `የገንዘብ ዝውውሩ ተሰርዟል።`],
+                [/^Journal entry saved\.?$/, `የጆርናል ግቤቱ ተቀምጧል።`], ["Journal entry deleted.", `የጆርናል ግቤቱ ተሰርዟል።`],
+                ["Product moved to Trash.", `ምርቱ ወደ ቆሻሻ መጣያ ተወስዷል።`], [/^Restored\.?$/, `ተመልሷል።`],
+                [/^Cash handover sent\.?$/, `የጥሬ ገንዘብ ርክክቡ ተልኳል።`], [/^New payment type added\.?$/, `አዲስ የክፍያ ዓይነት ተጨምሯል።`],
+                [/^Branch added\.?$/, `ቅርንጫፉ ተጨምሯል።`], ["Branch closed.", `ቅርንጫፉ ተዘግቷል።`], [/^Branch opened again\.?$/, `ቅርንጫፉ እንደገና ተከፍቷል።`],
+                [/^Team member added\.?$/, `የቡድን አባሉ ተጨምሯል።`], ["Team member removed.", `የቡድን አባሉ ተወግዷል።`], ["Role deleted.", `ሚናው ተሰርዟል።`],
+                ["Nothing was deleted. You did not type DELETE.", `ምንም አልተሰረዘም። DELETE አልጻፉም።`],
+                // confirm boxes and prompts: messages
+                [/^Discard this change\?\s*It will never be sent to the cloud, so your other devices will not get it\.$/, `ይህ ለውጥ ይጣል?\n\nወደ ክላውድ በፍጹም አይላክም፣ ስለዚህ ሌሎች መሣሪያዎችዎ አያገኙትም።`],
+                ["Type the email you used for your shop account.", `ለሱቅዎ መለያ የተጠቀሙበትን ኢሜይል ይጻፉ።`],
+                ["You are about to delete ALL data in this shop: products, sales, purchases, expenses and accounts.", `በዚህ ሱቅ ውስጥ ያለውን መረጃ ሁሉ ሊሰርዙ ነው፦ ምርቶች፣ ሽያጮች፣ ግዢዎች፣ ወጪዎችና ሂሳቦች።`],
+                ["This cannot be undone. Your data will be gone forever. Do you want to continue?", `ይህ መመለስ አይችልም። መረጃዎ ለዘለዓለም ይጠፋል። መቀጠል ይፈልጋሉ?`],
+                ["To confirm, type the word DELETE (in capital letters).", `ለማረጋገጥ DELETE የሚለውን ቃል (በትልልቅ ፊደላት) ይጻፉ።`],
+                ["Type a name for the new sale type. For example: Contractor, Online Order.", `ለአዲሱ የሽያጭ ዓይነት ስም ይጻፉ። ለምሳሌ፦ ተቋራጭ፣ የመስመር ላይ ትዕዛዝ።`],
+                ["Type a name for the new payment type. For example: Telebirr, CBE Birr.", `ለአዲሱ የክፍያ ዓይነት ስም ይጻፉ። ለምሳሌ፦ ቴሌብር፣ ሲቢኢ ብር።`],
+                ["Delete this money transfer? Your balances will go back to how they were before it.", `ይህ የገንዘብ ዝውውር ይሰረዝ? ቀሪ ሂሳቦችዎ ከዝውውሩ በፊት ወደነበሩበት ይመለሳሉ።`],
+                ["Delete this handover? Only the record is removed. Your accounts do not change.", `ይህ ርክክብ ይሰረዝ? የሚወገደው መዝገቡ ብቻ ነው። ሂሳቦችዎ አይለወጡም።`],
+                ["Did you receive this money? Tap \"Yes, received\" to approve it.", `ይህንን ገንዘብ ተቀብለዋል? ለማጽደቅ "አዎ፣ ተቀብያለሁ" ይጫኑ።`],
+                ["Reject this handover?", `ይህ ርክክብ ውድቅ ይሁን?`],
+                [/^Write off (.+) unit\(s\) of "(.+)" \(batch (.+)\)\?\s*They will be removed from your stock and counted as a loss of ETB ([\d.,]+)\. This cannot be undone\.$/, `የ"$2" $1 ክፍል(ሎች) (ክምችት $3) ይቀነሱ?\n\nከዕቃዎ ይወጣሉ፤ እንደ $4 ብር ኪሳራም ይቆጠራሉ። ይህ መመለስ አይችልም።`],
+                [/^Move \[(.+)\] (.+) to Trash\?\s*It will disappear from ALL branches, because products are shared by every branch\.$/, `[$1] $2 ወደ ቆሻሻ መጣያ ይወሰድ?\n\nምርቶች በሁሉም ቅርንጫፎች የሚጋሩ ስለሆኑ ከሁሉም ቅርንጫፎች ይጠፋል።`],
+                ["Void (cancel) this expense? Your accounts will go back to how they were before it.", `ይህ ወጪ ይሰረዝ? ሂሳቦችዎ ከወጪው በፊት ወደነበሩበት ይመለሳሉ።`],
+                ["Delete this journal entry? This cannot be undone. If it was wrong, add a corrected entry after.", `ይህ የጆርናል ግቤት ይሰረዝ? ይህ መመለስ አይችልም። ስህተት ከነበረ በኋላ የተስተካከለ ግቤት ይጨምሩ።`],
+                ["This backup was made while offline from one device's copy. It may be missing newer changes made on other devices, and restoring REPLACES everything. Restore anyway?", `ይህ ምትኬ ከመስመር ውጭ ሆኖ ከአንድ መሣሪያ ቅጂ የተሰራ ነው። በሌሎች መሣሪያዎች የተደረጉ አዳዲስ ለውጦች ላይኖሩት ይችላል፣ መመለሱም ሁሉንም ይተካል። ቢሆንም ይመለስ?`],
+                ["This will REPLACE ALL current data of this shop (every branch) with the data in the backup file. Do you want to continue?", `ይህ የዚህን ሱቅ (የሁሉም ቅርንጫፎች) አሁን ያለ መረጃ ሁሉ በምትኬ ፋይሉ መረጃ ይተካል። መቀጠል ይፈልጋሉ?`],
+                [/^Close the branch "(.+)"\?\s*You will not be able to make new sales, purchases or transfers there\. Its old records stay safe, and you can open it again any time\.$/, `ቅርንጫፍ "$1" ይዘጋ?\n\nበዚያ አዲስ ሽያጭ፣ ግዢ ወይም ዝውውር ማድረግ አይችሉም። የቀድሞ መዝገቦቹ ደህና ናቸው፣ በማንኛውም ጊዜ እንደገና መክፈት ይችላሉ።`],
+                ["Type a new temporary password for this team member (at least 6 letters or numbers).", `ለዚህ የቡድን አባል አዲስ ጊዜያዊ የይለፍ ቃል ይጻፉ (ቢያንስ 6 ፊደላት ወይም ቁጥሮች)።`],
+                [/^Remove (.+) from your team\? They will not be able to sign in anymore\.$/, `$1 ከቡድንዎ ይወገድ? ከዚህ በኋላ መግባት አይችሉም።`],
+                [/^Sign in as (.+)\? You will see exactly what they see, until you go back to your own account\.$/, `እንደ $1 ይግቡ? ወደ ራስዎ መለያ እስኪመለሱ ድረስ እነሱ የሚያዩትን በትክክል ያያሉ።`],
+                ["End this support session?", `ይህ የድጋፍ ክፍለ ጊዜ ይብቃ?`],
+                [/^Delete the role "(.+)"\? This cannot be undone\.$/, `ሚና "$1" ይሰረዝ? ይህ መመለስ አይችልም።`],
+                // dialog titles and buttons
+                ["Reset your password", `የይለፍ ቃልዎን ይቀይሩ`], ["Send link", `ሊንክ ላክ`], ["Delete everything?", `ሁሉም ይሰረዝ?`], ["Last check", `የመጨረሻ ማረጋገጫ`],
+                ["Continue", `ቀጥል`], ["No, keep my data", `አይ፣ መረጃዬ ይቆይ`], ["Yes, continue", `አዎ፣ ቀጥል`], ["Type DELETE", `DELETE ይጻፉ`],
+                ["Delete everything", `ሁሉንም ሰርዝ`], ["New sale type", `አዲስ የሽያጭ ዓይነት`], ["New payment type", `አዲስ የክፍያ ዓይነት`], ["Add", `ጨምር`],
+                ["Yes, delete", `አዎ፣ ሰርዝ`], ["No, keep it", `አይ፣ ይቆይ`], ["Yes, received", `አዎ፣ ተቀብያለሁ`], ["Yes, reject", `አዎ፣ ውድቅ አድርግ`], ["No", `አይ`],
+                ["Yes, undo it", `አዎ፣ መልስ`], ["Yes, void it", `አዎ፣ ሰርዝ`], ["Yes, move to Trash", `አዎ፣ ወደ ቆሻሻ መጣያ ውሰድ`], ["Yes, close it", `አዎ፣ ዝጋው`],
+                ["Yes, remove", `አዎ፣ አስወግድ`], ["Yes, sign in", `አዎ፣ ግባ`], ["Yes, end it", `አዎ፣ ጨርስ`], ["Yes, restore", `አዎ፣ መልስ`], ["Offline backup", `ከመስመር ውጭ ምትኬ`],
+                ["Restore this backup?", `ይህ ምትኬ ይመለስ?`], ["New password", `አዲስ የይለፍ ቃል`], ["Save password", `የይለፍ ቃል አስቀምጥ`], [/^Yes, write.*$/, `አዎ፣ ቀንስ`],
+                // bell notifications: titles
+                ["Initial Inventory Set Up", `የመክፈቻ ዕቃ ተዘጋጅቷል`], ["Accountant request received", `የሂሳብ ባለሙያ ጥያቄ ደርሷል`], ["Accountant request sent", `የሂሳብ ባለሙያ ጥያቄ ተልኳል`],
+                ["Accountant link approved", `የሂሳብ ባለሙያ ግንኙነት ተፈቅዷል`], ["Accountant link declined", `የሂሳብ ባለሙያ ግንኙነት ተከልክሏል`], ["Accountant access revoked", `የሂሳብ ባለሙያ መዳረሻ ተሰርዟል`],
+                ["Accountant request cancelled", `የሂሳብ ባለሙያ ጥያቄ ተሰርዟል`], ["Payment Channel Added", `የክፍያ መንገድ ተጨምሯል`], ["Fund Transfer Recorded", `የገንዘብ ዝውውር ተመዝግቧል`],
+                ["Fund Transfer Deleted", `የገንዘብ ዝውውር ተሰርዟል`], ["Stock Transferred", `ዕቃ ተዛውሯል`], ["Stock Transfer Undone", `የዕቃ ዝውውር ተመልሷል`], ["Cash Handover Submitted", `የጥሬ ገንዘብ ርክክብ ቀርቧል`],
+                ["Product Added", `ምርት ተጨምሯል`], ["Product Edited", `ምርት ተስተካክሏል`], ["Inventory Deleted", `ዕቃ ተሰርዟል`], ["Multi-Item Purchase Voided", `የብዙ ዕቃ ግዢ ተሰርዟል`], ["Purchase Voided", `ግዢ ተሰርዟል`],
+                ["Multi-Item Sale Voided", `የብዙ ዕቃ ሽያጭ ተሰርዟል`], ["Sale Voided", `ሽያጭ ተሰርዟል`], ["Expense Voided", `ወጪ ተሰርዟል`], ["Restored", `ተመልሷል`], ["Multi-Item Sale Completed", `የብዙ ዕቃ ሽያጭ ተጠናቋል`],
+                ["Sale Executed", `ሽያጭ ተፈጽሟል`], ["Multi-Item Purchase Completed", `የብዙ ዕቃ ግዢ ተጠናቋል`], ["Stock Purchased", `ዕቃ ተገዝቷል`], ["Expense Logged", `ወጪ ተመዝግቧል`], ["Journal Posted", `ጆርናል ተመዝግቧል`],
+                ["Journal Entry Deleted", `የጆርናል ግቤት ተሰርዟል`], ["Branch Closed", `ቅርንጫፍ ተዘግቷል`], ["Branch Reopened", `ቅርንጫፍ እንደገና ተከፍቷል`], ["Branch Added", `ቅርንጫፍ ተጨምሯል`], ["Employee Added", `ሠራተኛ ተጨምሯል`],
+                ["Team Member Removed", `የቡድን አባል ተወግዷል`], ["Role Deleted", `ሚና ተሰርዟል`],
+                // bell notifications: messages
+                [/^Added (\d+) products worth ETB ([\d.,]+) as opening stock, funded by owner capital\.?$/, `$1 ምርቶች በ$2 ብር ዋጋ እንደ መክፈቻ ዕቃ ተጨመሩ፤ በባለቤቱ ካፒታል የተሸፈኑ።`],
+                [/^(.+) requested read-only access to your inventory\.$/, `$1 የዕቃ ዝርዝርዎን ለማየት ፈቃድ ጠይቋል።`],
+                [/^You sent a link request to (.+)\.$/, `ለ$1 የግንኙነት ጥያቄ ልከዋል።`],
+                [/^You approved (.+)'s request\.$/, `የ$1ን ጥያቄ ተቀብለዋል።`], [/^(.+) approved your request\.$/, `$1 ጥያቄዎን ተቀብሏል።`],
+                [/^You declined (.+)'s request\.$/, `የ$1ን ጥያቄ አልተቀበሉም።`], [/^(.+) declined your request\.$/, `$1 ጥያቄዎን አልተቀበለም።`],
+                [/^Access for (.+) was revoked\.$/, `የ$1 መዳረሻ ተሰርዟል።`], [/^(.+) cancelled their request to you\.$/, `$1 ለእርስዎ የላኩትን ጥያቄ ሰርዘዋል።`],
+                [/^"(.+)" is now available wherever you record a channel\.$/, `"$1" አሁን የክፍያ መንገድ በሚመርጡበት ቦታ ሁሉ ይገኛል።`],
+                [/^ETB ([\d.,]+) moved from (.+) to (.+)\.$/, `$1 ብር ከ$2 ወደ $3 ተዛውሯል።`], [/^Voucher (.+) removed\.$/, `ቫውቸር $1 ተወግዷል።`],
+                [/^(\d+)x (.+) moved from (.+) to (.+)$/, `$1 x $2 ከ$3 ወደ $4 ተዛውሯል`], [/^(\d+)x (.+) moved back from (.+) to (.+)$/, `$1 x $2 ከ$3 ወደ $4 ተመልሷል`],
+                [/^ETB ([\d.,]+) submitted for approval at (.+)\.$/, `$1 ብር በ$2 ለማጽደቂያ ቀርቧል።`],
+                [/^Added (\d+) product\(s\) with stock worth ETB ([\d.,]+)\.$/, `$1 ምርት(ቶች) በ$2 ብር ዋጋ ዕቃ ጋር ተጨመሩ።`],
+                [/^Created new master item: (.+)$/, `አዲስ ምርት ተፈጥሯል፦ $1`], ["Item modified.", `ምርቱ ተስተካክሏል።`],
+                [/^(.+) moved to trash\.$/, `$1 ወደ ቆሻሻ መጣያ ተወስዷል።`],
+                [/^(\d+)-item basket from (.+) reversed and trashed\.$/, `ከ$2 የተገዛ የ$1 ዕቃ ቅርጫት ተሰርዞ ወደ ቆሻሻ መጣያ ተወስዷል።`],
+                [/^Inward log (.+) reversed and trashed\.$/, `የግዢ መዝገብ $1 ተሰርዞ ወደ ቆሻሻ መጣያ ተወስዷል።`],
+                [/^(\d+)-item basket for (.+) reversed and trashed\.$/, `ለ$2 የተሸጠ የ$1 ዕቃ ቅርጫት ተሰርዞ ወደ ቆሻሻ መጣያ ተወስዷል።`],
+                [/^Transaction (.+) reversed and trashed\.$/, `ግብይት $1 ተሰርዞ ወደ ቆሻሻ መጣያ ተወስዷል።`], [/^Ledger entry (.+) trashed\.$/, `የመዝገብ ግቤት $1 ወደ ቆሻሻ መጣያ ተወስዷል።`],
+                ["Item recovered from trash.", `ዕቃው ከቆሻሻ መጣያ ተመልሷል።`], ["Expense ledger recovered.", `የወጪ መዝገብ ተመልሷል።`], ["Purchase logic recovered.", `የግዢ መዝገብ ተመልሷል።`], ["Sale matrix recovered.", `የሽያጭ መዝገብ ተመልሷል።`],
+                [/^(\d+)-item basket recovered\.$/, `የ$1 ዕቃ ቅርጫት ተመልሷል።`],
+                [/^Posted revenue: ETB ([\d.,]+)(.*)$/, `የተመዘገበ ገቢ፦ $1 ብር$2`], [/^Added (\d+) items for ETB ([\d.,]+)(.*)$/, `$1 ዕቃዎች በ$2 ብር ተጨመሩ$3`],
+                [/^Added (.+) units of (.+)$/, `የ$2 $1 ክፍሎች ተጨመሩ`], [/^ETB ([\d.,]+) booked for (.+)$/, `$1 ብር ለ$2 ተመዝግቧል`], [/^Manual entry added(.*?)\.?$/, `በእጅ የተጻፈ ግቤት ተጨምሯል$1።`],
+                [/^"(.+)" is closed and hidden from active use\. Its history is unaffected\.$/, `"$1" ተዘግቷል፤ ከሥራ ዝርዝር ተደብቋል። የቀድሞ መዝገቡ አልተነካም።`],
+                [/^"(.+)" is available again\.$/, `"$1" እንደገና ክፍት ነው።`], [/^(.+) is now available to assign team members to\.$/, `$1 አሁን የቡድን አባላትን ለመመደብ ይገኛል።`],
+                [/^(.+) can now log in as "(.+)"\.$/, `$1 አሁን በ"$2" መግባት ይችላል።`], [/^(.+) no longer has access\.$/, `$1 ከዚህ በኋላ መዳረሻ የለውም።`], [/^"(.+)" has been removed\.$/, `"$1" ተወግዷል።`],
+                // ---- Scanned Stock page ----
+                ["Nothing in stock right now.", `አሁን በዕቃ ውስጥ ምንም የለም።`],
+                ["No scanned stock yet. Scan a purchase receipt to start.", `እስካሁን የተቃኘ ዕቃ የለም። ለመጀመር የግዢ ደረሰኝ ይቃኙ።`],
+                ["You are offline and nothing is saved on this device yet. Open Scanned Stock once while online.", `ከመስመር ውጭ ነዎት፣ በዚህ መሣሪያ ላይ እስካሁን ምንም አልተቀመጠም። የተቃኘ ዕቃ ገጹን አንድ ጊዜ በመስመር ላይ ሆነው ይክፈቱ።`],
+                [/^Could not load: (.+)$/, `መጫን አልተቻለም፦ $1`],
+                ["You are offline. This page shows the copy saved on this device.", `ከመስመር ውጭ ነዎት። ይህ ገጽ በዚህ መሣሪያ ላይ የተቀመጠውን ቅጂ ያሳያል።`],
+                [/^(\d+) scanned receipt\(s\) saved on this device, waiting to be sent\.$/, `$1 የተቃኙ ደረሰኞች በዚህ መሣሪያ ላይ ተቀምጠዋል፣ ለመላክ እየጠበቁ ናቸው።`],
+                [/^(\d+) change\(s\) from printed sales waiting to be sent\.$/, `ከታተሙ ሽያጮች የመጡ $1 ለውጦች ለመላክ እየጠበቁ ናቸው።`],
+                [/^A receipt could not be sent yet \((.+)\)\. It will be tried again\.$/, `አንድ ደረሰኝ እስካሁን መላክ አልተቻለም ($1)። እንደገና ይሞከራል።`],
+                ["Please try again.", `እባክዎ እንደገና ይሞክሩ።`],
+                [/^We couldn't (save|delete|load scanned stock)\. (.+)$/, ($0, v, r) => ({ 'save': `ማስቀመጥ`, 'delete': `መሰረዝ`, 'load scanned stock': `የተቃኘውን ዕቃ መጫን` }[v]) + ` አልቻልንም። ` + amMsg(r)],
+                ["Connect to the internet to delete a receipt.", `ደረሰኝ ለመሰረዝ ከኢንተርኔት ጋር ይገናኙ።`],
+                [/^Delete this sales receipt\?\s*It is voided: its VAT is removed from the Estimated VAT, and the sale can be printed again\.(?:\s*You are offline: this is kept on this device and sent when the internet is back\.)?$/, ($0) => `ይህ የሽያጭ ደረሰኝ ይሰረዝ?\n\nይሰረዛል፦ ቫቱ ከተገመተው ቫት ይወገዳል፣ ሽያጩም እንደገና ሊታተም ይችላል።` + (/offline/.test($0) ? `\n\nከመስመር ውጭ ነዎት፦ ይህ በዚህ መሣሪያ ላይ ይቀመጣል፣ ኢንተርኔት ሲመለስ ይላካል።` : ``)],
+                [/^Scanned stock could not be fully updated: (.+?)(?: The receipt will still print\. The unfinished lines stay in the waiting list\.)?$/, ($0, r) => `የተቃኘ ዕቃ ሙሉ በሙሉ ሊዘምን አልቻለም፦ ` + r + (/will still print/.test($0) ? `\nደረሰኙ አሁንም ይታተማል። ያልተጠናቀቁት መስመሮች በመጠበቂያ ዝርዝር ውስጥ ይቆያሉ።` : ``)],
+                // tabs, receipts lists
+                ["Could not load receipts.", `ደረሰኞችን መጫን አልተቻለም።`],
+                ["No receipts in these dates.", `በእነዚህ ቀናት ምንም ደረሰኝ የለም።`], ["No receipts saved yet.", `እስካሁን ምንም ደረሰኝ አልተቀመጠም።`],
+                [/^Could not load sales receipts\..*$/, `የሽያጭ ደረሰኞችን መጫን አልተቻለም። premium-and-sales-receipts.sql ን በSupabase ያሂዱ (አንድ ጊዜ)።`],
+                ["No sales receipts in these dates.", `በእነዚህ ቀናት ምንም የሽያጭ ደረሰኝ የለም።`], ["No printed sales receipts saved yet.", `እስካሁን ምንም የታተመ የሽያጭ ደረሰኝ አልተቀመጠም።`],
+                [/^Receipt (.*)$/, `ደረሰኝ $1`], [/^sale deleted by (.+)$/, `ሽያጩ በ$1 ተሰርዟል`], ["not synced yet", `ገና አልተመሳሰለም`], ["Delete this receipt", `ይህን ደረሰኝ ሰርዝ`],
+                // VAT waiting list and login alert
+                ["VAT sales waiting", `ቫት ያለባቸው ሽያጮች በመጠበቅ ላይ`],
+                [/^You have (\d+) sales? with VAT that (?:has|have) not been printed yet\. Tap here to see (?:it|them)\.$/, `ገና ያልታተሙ ቫት ያለባቸው $1 ሽያጭ(ዎች) አሉዎት። ለማየት እዚህ ይጫኑ።`],
+                [/^(\d+) VAT sale line\(s\) not printed yet$/, `$1 ገና ያልታተሙ የቫት ሽያጭ መስመሮች`],
+                ["These sales have VAT, but no receipt has been printed. When the receipt is printed, its items are matched to scanned stock and leave this list.", `እነዚህ ሽያጮች ቫት አላቸው፣ ግን ደረሰኝ አልታተመም። ደረሰኙ ሲታተም ዕቃዎቹ ከተቃኘ ዕቃ ጋር ይዛመዳሉ፣ ከዚህ ዝርዝርም ይወጣሉ።`],
+                // review scanned receipt window
+                [/^Review scanned receipt(?: \((\d+) of (\d+)\))?$/, ($0, a, b) => `የተቃኘ ደረሰኝ ክለሳ` + (a ? ` (` + a + ` ከ` + b + `)` : ``)],
+                ["Check every line against the paper receipt. Lines matched to an Inventory item (→) are stored in Scanned Stock under the Inventory item's name; other lines keep the name written here.", `እያንዳንዱን መስመር ከወረቀት ደረሰኙ ጋር ያረጋግጡ። ከዕቃ ዝርዝር ምርት ጋር የተገናኙ መስመሮች (→) በዚያ ምርት ስም በተቃኘ ዕቃ ውስጥ ይቀመጣሉ፤ ሌሎቹ እዚህ የተጻፈውን ስም ይይዛሉ።`],
+                ["Merchant", `ሻጭ`], ["Merchant TIN", `የሻጭ ቲን`], ["Receipt No.", `የደረሰኝ ቁጥር`], ["Date", `ቀን`], ["Before VAT", `ከቫት በፊት`], ["VAT", `ቫት`], ["Total", `ጠቅላላ`],
+                ["Item (as on receipt)", `ዕቃ (በደረሰኙ እንደተጻፈው)`], ["Qty", `ብዛት`], ["Unit", `መለኪያ`], ["Price / unit", `ዋጋ / በአንድ`], ["Pcs in 1 unit", `በ1 መለኪያ ውስጥ ያሉ ቁርጥራጮች`],
+                ["If 1 unit holds several pieces, e.g. 1 pk = 10 pcs, enter 10. Stock is saved in pieces.", `1 መለኪያ ብዙ ቁርጥራጮች ከያዘ፣ ለምሳሌ 1 ጥቅል = 10 ቁርጥራጭ፣ 10 ያስገቡ። ዕቃው በቁርጥራጭ ይቀመጣል።`],
+                ["pk, kg…", `ጥቅል፣ ኪ.ግ…`], ["→ Inventory item…", `→ የዕቃ ዝርዝር ምርት…`], [/^like (.+)$/, `እንደ $1`], ["Looks like", `ተመሳሳይ ይመስላል፦`], ["Use this name", `ይህን ስም ተጠቀም`],
+                ["+ Add line", `+ መስመር ጨምር`], ["Skip this receipt", `ይህን ደረሰኝ ዝለል`], ["Cancel all", `ሁሉንም ሰርዝ`], ["Cancel", `ሰርዝ`], ["Confirm", `አረጋግጥ`], ["Close", `ዝጋ`],
+                ["Confirm & next", `አረጋግጥና ቀጥል`], ["Confirm & add to stock", `አረጋግጥና ወደ ዕቃ ጨምር`], ["Saving…", `በማስቀመጥ ላይ…`],
+                ["Reading the receipt… this can take a few seconds.", `ደረሰኙን በማንበብ ላይ… ጥቂት ሰከንዶች ሊወስድ ይችላል።`],
+                [/^Reading (\d+) receipts… (\d+) of (\d+) done\. This can take a few seconds each\.$/, `$1 ደረሰኞችን በማንበብ ላይ… $2 ከ$3 ተጠናቋል። እያንዳንዳቸው ጥቂት ሰከንዶች ሊወስዱ ይችላሉ።`],
+                ["Add at least one item with a name and quantity.", `ቢያንስ ስምና ብዛት ያለው አንድ ዕቃ ይጨምሩ።`],
+                [/^Scanned purchase receipt: (.+)$/, `የተቃኘ የግዢ ደረሰኝ፦ $1`],
+                // matching window and print window
+                ["Match sold items to scanned stock", `የተሸጡ ዕቃዎችን ከተቃኘ ዕቃ ጋር አዛምድ`], ["Checking scanned stock…", `የተቃኘ ዕቃ በማረጋገጥ ላይ…`],
+                ["Other scanned items", `ሌሎች የተቃኙ ዕቃዎች`], [/^Nothing found for "(.+)"$/, `ለ"$1" ምንም አልተገኘም`], ["No match", `ተዛማጅ የለም`], ["No match yet. Type a name to search.", `እስካሁን ተዛማጅ የለም። ለመፈለግ ስም ይጻፉ።`],
+                ["Search stock items…", `የዕቃ ፍለጋ…`], [/^sold as (.+)$/, `የሚሸጠው በ$1`],
+                ["Price looks very different from the cost. Check the unit or the match.", `ዋጋው ከግዢ ዋጋው በጣም የተለየ ይመስላል። መለኪያውን ወይም ተዛማጁን ያረጋግጡ።`],
+                ["Items", `ዕቃዎች`], ["Printed price", `የታተመ ዋጋ`], [/^(.*?) · ✓ stock matched$/, `$1 · ✓ ዕቃ ተዛምዷል`],
+                ["The invoice copies the printed receipt (same buyer, item names and prices). To change something, change the receipt.", `የክፍያ መጠየቂያው የታተመውን ደረሰኝ ይገለብጣል (ተመሳሳይ ገዢ፣ የዕቃ ስሞችና ዋጋዎች)። የሆነ ነገር ለመቀየር ደረሰኙን ይቀይሩ።`],
+                ["Remembered", `ከዚህ በፊት የተዛመደ`], ["Matched before", `ከዚህ በፊት ተዛምዷል`], ["AI suggestion", `የAI ጥቆማ`], ["Strong match", `ጠንካራ ተዛማጅ`], ["Possible match", `ሊሆን የሚችል ተዛማጅ`],
+                [/^\((Remembered|Matched before|AI suggestion|Strong match|Possible match)\)$/, ($0, l) => `(` + AM_LBL[l] + `)`], [/^✓ (Remembered|Matched before|AI suggestion|Strong match|Possible match)$/, ($0, l) => `✓ ` + AM_LBL[l]],
+                ["Print", `አትም`], ["Print receipt", `ደረሰኝ አትም`], ["Print invoice (follows the printed receipt)", `የክፍያ መጠየቂያ አትም (የታተመውን ደረሰኝ ይከተላል)`], ["Ask owner to approve", `ባለቤቱ እንዲፈቅድ ጠይቅ`],
+                ["Already printed.", `አስቀድሞ ታትሟል።`], ["To print it again, change the buyer TIN or name, an item name or a price.", `እንደገና ለማተም የገዢውን ቲን ወይም ስም፣ የዕቃ ስም ወይም ዋጋ ይቀይሩ።`], ["(checked on this device)", `(በዚህ መሣሪያ ላይ ተረጋግጧል)`],
+                ["This receipt was printed before. Printing it again", `ይህ ደረሰኝ ከዚህ በፊት ታትሟል። እንደገና ማተም`], ["voids the first one", `የመጀመሪያውን ይሰርዛል`], ["and replaces it.", `በእሱም ይተካል።`],
+                ["This receipt was already printed.", `ይህ ደረሰኝ አስቀድሞ ታትሟል።`], ["Printing it again needs the owner's approval. Connect to the internet to ask.", `እንደገና ለማተም የባለቤቱ ፈቃድ ያስፈልጋል። ለመጠየቅ ከኢንተርኔት ጋር ይገናኙ።`],
+                ["Owner approved.", `ባለቤቱ ፈቅዷል።`], ["You can print it now. The first receipt will be voided.", `አሁን ማተም ይችላሉ። የመጀመሪያው ደረሰኝ ይሰረዛል።`],
+                ["Waiting for the owner to approve…", `የባለቤቱን ፈቃድ በመጠበቅ ላይ…`], ["This window updates by itself.", `ይህ መስኮት በራሱ ይዘምናል።`],
+                ["The owner declined this change.", `ባለቤቱ ይህንን ለውጥ አልተቀበለም።`], ["Printing it again voids the first one and needs the owner's approval.", `እንደገና ማተም የመጀመሪያውን ይሰርዛል፣ የባለቤቱም ፈቃድ ያስፈልገዋል።`]
+            ];
+            const AM_LBL = { 'Remembered': `ከዚህ በፊት የተዛመደ`, 'Matched before': `ከዚህ በፊት ተዛምዷል`, 'AI suggestion': `የAI ጥቆማ`, 'Strong match': `ጠንካራ ተዛማጅ`, 'Possible match': `ሊሆን የሚችል ተዛማጅ` };
+            const AM_EXACT = {};
+            const normMsg = s => String(s).replace(/[\u2018\u2019]/g, "'").replace(/\s+/g, ' ').trim();
+            AM_MSG.forEach(r => { if (typeof r[0] === 'string') AM_EXACT[normMsg(r[0])] = r[1]; });
+            function amMsg(text) {
+                try {
+                    if (typeof currentLang === 'undefined' || currentLang !== 'am' || text == null || text === '') return text;
+                    const n = normMsg(text);
+                    if (AM_EXACT[n]) return AM_EXACT[n];
+                    for (let i = 0; i < AM_MSG.length; i++) {
+                        const r = AM_MSG[i];
+                        if (typeof r[0] !== 'string' && r[0].test(n)) return n.replace(r[0], r[1]);
+                    }
+                } catch (e) { }
+                return text;
+            }
+            // Dialog: translate its title, message, buttons and example text.
+            function amDialog(o) {
+                o = Object.assign({}, o || {});
+                ['title', 'message', 'yes', 'no', 'placeholder'].forEach(k => { if (o[k]) o[k] = amMsg(o[k]); });
+                return o;
+            }
+
             // ---- Toast messages ----
             function host() {
                 let h = document.getElementById('mly-toasts');
@@ -1806,6 +2074,7 @@
                 type = type || 'info';
                 text = String(text);
                 if (type === 'success') text = text.replace(/\s*\u2713\s*/g, '. ').replace(/\.\s*\.\s*$/, '.').trim();
+                text = amMsg(text);
                 const h = host();
                 while (h.children.length >= 3) h.removeChild(h.firstChild);
                 const el = document.createElement('div');
@@ -1887,6 +2156,7 @@
 
             // ---- Yes/No and "type something" dialogs ----
             function openDialog(o) {
+                o = amDialog(o);
                 return new Promise(function (resolve) {
                     const prevFocus = document.activeElement;
                     const overlay = document.createElement('div'); overlay.className = 'mly-overlay';
@@ -2005,14 +2275,66 @@
                 toast: toast, alert: alertReplacement, noteToast: noteToast, showAfterReload: showAfterReload,
                 confirm: function (message, o) { return openDialog(Object.assign({ title: tr('ui.are_you_sure', 'Are you sure?'), message: message }, o || {})); },
                 prompt: function (message, o) { return openDialog(Object.assign({ message: message, prompt: true }, o || {})); },
-                guardSaving: guardSaving
+                guardSaving: guardSaving,
+                am: amMsg
             };
         })();
 
         window.alert = mlyUI.alert;
+        { const nativeConfirm = window.confirm.bind(window); window.confirm = m => nativeConfirm(mlyUI.am(m)); }
         window.uiConfirm = mlyUI.confirm;
         window.uiPrompt = mlyUI.prompt;
         window.showToast = mlyUI.toast;
+        // ---- Amharic for text that the Scanned Stock and print screens build while running ----
+        // Watches only these screens. The receipts themselves (the paper copies and the printed sales receipts) are never changed.
+        (function () {
+            const ROOTS = ['view-scanned', 'scn-modal', 'buyer-info-modal'];
+            const SKIP_TEXT = '.scn-paper, iframe, script, style, textarea';
+            const ATTRS = ['placeholder', 'title', 'aria-label'];
+            const isAm = () => { try { return currentLang === 'am'; } catch (e) { return false; } };
+            const tr = s => mlyUI.am(s);
+            function doText(n) {
+                const par = n.parentElement; if (!par || par.closest(SKIP_TEXT)) return;
+                const v = n.nodeValue;
+                if (n._am !== undefined && v === n._am) { if (!isAm()) { n.nodeValue = n._en; n._am = undefined; } return; }
+                if (!isAm()) return;
+                const core = v.trim(); if (!core || !/[A-Za-z]{2}/.test(core)) return;
+                const out = tr(core); if (out === core) return;
+                n._en = v; n._am = v.replace(core, () => out); n.nodeValue = n._am;
+            }
+            function doAttr(el) {
+                if (el.closest('iframe') || (el.closest('.scn-paper') && !el.matches('.scn-del'))) return;
+                const m = el._amAttr || (el._amAttr = {});
+                ATTRS.forEach(a => {
+                    if (!el.hasAttribute(a)) return;
+                    const v = el.getAttribute(a);
+                    if (m[a] && v === m[a].am) { if (!isAm()) { el.setAttribute(a, m[a].en); delete m[a]; } return; }
+                    if (!isAm() || !/[A-Za-z]{2}/.test(v) || el.hasAttribute('data-i18n-' + a)) return;
+                    const out = tr(v.trim()); if (out === v.trim()) return;
+                    m[a] = { en: v, am: out }; el.setAttribute(a, out);
+                });
+            }
+            function walk(root) {
+                if (root.nodeType === 3) { doText(root); return; }
+                if (root.nodeType !== 1) return;
+                const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+                let n; while ((n = tw.nextNode())) doText(n);
+                if (root.matches('[placeholder],[title],[aria-label]')) doAttr(root);
+                root.querySelectorAll('[placeholder],[title],[aria-label]').forEach(doAttr);
+            }
+            const mo = new MutationObserver(list => list.forEach(m => {
+                if (m.type === 'childList') m.addedNodes.forEach(walk);
+                else if (m.type === 'characterData') doText(m.target);
+                else if (m.type === 'attributes') doAttr(m.target);
+            }));
+            function start() {
+                ROOTS.forEach(id => { const r = document.getElementById(id); if (r) { mo.observe(r, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ATTRS }); walk(r); } });
+            }
+            window.amDomRefresh = () => ROOTS.forEach(id => { const r = document.getElementById(id); if (r) walk(r); });
+            window.amDomApply = walk;
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+        })();
+
         document.addEventListener('DOMContentLoaded', mlyUI.showAfterReload);
 
         // Buttons that save something show "Saving..." and can't be double-clicked
@@ -2358,7 +2680,116 @@
                 'rental.owed_of_total': 'Owed: ETB {a} of ETB {b} total', 'rental.save_payment': 'Save Payment',
                 'rental.err_enter_valid_amount': 'Enter a valid amount.', 'rental.err_amount_exceeds_owed': "Can't be more than the ETB {a} owed.",
                 'rental.status.reserved': 'Reserved', 'rental.status.out': 'Out', 'rental.status.overdue': 'Overdue', 'rental.status.returned': 'Returned',
-                'rental.remove': 'Remove'
+                'rental.remove': 'Remove',
+                "ui2.working_please_wait": "Working, please wait...",
+                "ui2.2026_meleya_all_rights_reserved": "© 2026 MELEYA. All rights reserved.",
+                "ui2.your_email_is_confirmed_let_s_fini": "Your email is confirmed — let's finish setting up your shop.",
+                "ui2.setting_up_your_shop": "Setting up your shop...",
+                "ui2.not_you_sign_out": "Not you? Sign out",
+                "ui2.welcome_let_s_set_up_your_shop": "Welcome! Let's set up your shop.",
+                "ui2.importing_your_data_please_wait": "Importing your data, please wait...",
+                "ui2.set_up_your_opening_inventory": "Set up your opening inventory",
+                "ui2.add_everything_you_re_stocking_up": "Add everything you're stocking up with right now. Each item you add below gets listed in the basket -- once the list looks right, click \"Complete Setup\" and it'll all be registered at once, funded as owner capital.",
+                "ui2.expiry_date": "Expiry Date",
+                "ui2.daily_rate_etb": "Daily Rate (ETB)",
+                "ui2.weekly_rate_etb_optional": "Weekly Rate (ETB, optional)",
+                "ui2.monthly_rate_etb_optional": "Monthly Rate (ETB, optional)",
+                "ui2.opening_stock_value": "Opening Stock Value:",
+                "ui2.skip_add_products_later": "Skip / Add Products Later",
+                "ui2.complete_setup": "Complete Setup",
+                "ui2.registering_your_opening_inventory": "Registering your opening inventory, please wait...",
+                "ui2.your_subscription_is_currently_ina": "Your subscription is currently inactive. Please contact your provider to renew access.",
+                "ui2.download_excel_report": "Download Excel Report",
+                "ui2.backup": "Backup",
+                "ui2.restore": "Restore",
+                "ui2.reset": "Reset",
+                "ui2.system_alerts": "System Alerts",
+                "ui2.add_in_bulk": "Add in bulk",
+                "ui2.add_product": "+ Add Product",
+                "ui2.exp_date": "Exp Date",
+                "ui2.stock_transfers_need_more_than_one": "Stock transfers need more than one branch on your account and permission to transfer stock.",
+                "ui2.not_editable_for_your_role": "Not editable for your role",
+                "ui2.not_editable": "Not editable",
+                "ui2.cost": "Cost",
+                "ui2.channel_status": "Channel / Status",
+                "ui2.saved": "Saved ✓",
+                "ui2.accountant_access": "Accountant Access",
+                "ui2.give_your_accountant_read_only_acc": "Give your accountant read-only access to your inventory list. Search for them below, or approve a request they've already sent you.",
+                "ui2.search": "Search",
+                "ui2.amount_is_hidden_for_your_role_thi": "Amount is hidden for your role — this will record the full remaining balance as paid.",
+                "ui2.quantity_optional": "Quantity (optional)",
+                "ui2.cost_price_etb_per_unit": "Cost Price (ETB per unit)",
+                "ui2.selling_price_optional": "Selling Price (optional)",
+                "ui2.supplier_name_optional": "Supplier Name (optional)",
+                "ui2.switch_language": "Switch language",
+                "ui2.show_guide": "Show guide",
+                "ui2.you_example_com_or_your_username": "you@example.com or your username",
+                "ui2.your_password": "Your password",
+                "ui2.e_g_kebede_electrical_supplies": "e.g. Kebede Electrical Supplies",
+                "ui2.e_g_kebede_used_to_log_in_later": "e.g. kebede (used to log in later)",
+                "ui2.e_g_dereje_eyasu_gebresilassie": "e.g. Dereje Eyasu Gebresilassie",
+                "ui2.at_least_6_characters": "At least 6 characters",
+                "ui2.re_enter_your_password": "Re-enter your password",
+                "ui2.re_enter_your_new_password": "Re-enter your new password",
+                "ui2.e_g_cables": "e.g., Cables",
+                "ui2.e_g_2_5mm_twin_cable": "e.g., 2.5mm Twin Cable",
+                "ui2.switch_calendar": "Switch calendar",
+                "ui2.which_branch_you_re_working_in": "Which branch you're working in",
+                "ui2.you_re_offline_changes_are_saved_o": "You're offline — changes are saved on this device and will sync once reconnected",
+                "ui2.notifications": "Notifications",
+                "ui2.click_for_a_breakdown_by_channel": "Click for a breakdown by channel",
+                "ui2.e_g_restocking_low_shelf": "e.g. Restocking low shelf",
+                "ui2.e_g_end_of_day_handover": "e.g. End of day handover",
+                "ui2.blank_defaults_to_walk_in": "Blank defaults to Walk-in",
+                "ui2.leave_less_than_the_total_for_a_do": "Leave less than the total for a down payment (or blank/0 for fully on credit) — the rest is tracked as owed by the customer",
+                "ui2.e_g_global_distributors": "e.g., Global Distributors",
+                "ui2.leave_blank_to_skip": "Leave blank to skip",
+                "ui2.leave_less_than_the_total_for_a_do_2": "Leave less than the total for a down payment (or blank/0 for fully on credit) — the rest is tracked as owed to the supplier",
+                "ui2.skip_to_leave": "Skip to leave",
+                "ui2.e_g_may_bills": "e.g., May Bills",
+                "ui2.search_accountant_by_name_or_phone": "Search accountant by name or phone…",
+                "ui2.e_g_mekdes_tesfaye": "e.g. Mekdes Tesfaye",
+                "ui2.e_g_mekdes": "e.g. mekdes",
+                "ui2.e_g_senior_cashier": "e.g. Senior Cashier",
+                "ui2.e_g_bole_branch": "e.g. Bole Branch",
+                "ui2.e_g_bole_road_near_edna_mall": "e.g. Bole Road, near Edna Mall",
+                "ui2.e_g_weekly_cash_deposit": "e.g. Weekly cash deposit",
+                "ui2.leave_blank_to_add_the_product_onl": "Leave blank to add the product only",
+                "ui2.required_if_you_enter_a_quantity": "Required if you enter a quantity",
+                "ui2.leave_blank_to_set_it_later": "Leave blank to set it later",
+                "ui2.leave_blank_if_none": "Leave blank if none",
+                "ui2.footer_rights": "© 2026 MELEYA. All rights reserved.",
+                "ui2.inventory": "‹ Inventory",
+                "ui2.scanned_stock": "Scanned Stock",
+                "ui2.scan_purchase_receipt": "Scan purchase receipt",
+                "ui2.enter_by_hand": "Enter by hand",
+                "ui2.separate_from_your_main_inventory": "Separate from your main inventory. Only stock from scanned receipts is counted here (owners only).",
+                "ui2.stock": "Stock",
+                "ui2.purchase_receipts": "Purchase receipts",
+                "ui2.sales_receipts": "Sales receipts",
+                "ui2.last_cost": "Last cost",
+                "ui2.value": "Value",
+                "ui2.scanned_stock_value": "Scanned stock value:",
+                "ui2.purchase_receipts_scanned_copies": "Purchase receipts (scanned copies)",
+                "ui2.sales_receipts_as_printed": "Sales receipts (as printed)",
+                "ui2.advanced_excel_export_hub": "Advanced Excel Export Hub",
+                "ui2.download_structured_binary_xlsx_fi": "Download structured binary XLSX files directly from your offline base.",
+                "ui2.target_data_module": "Target Data Module",
+                "ui2.inventory_master_list": "Inventory Master List",
+                "ui2.sales_transactions_log": "Sales Transactions Log",
+                "ui2.purchase_procurements_log": "Purchase Procurements Log",
+                "ui2.operating_expenses_log": "Operating Expenses Log",
+                "ui2.timeframe_limit": "Timeframe Limit",
+                "ui2.all_time_archive": "All-Time Archive",
+                "ui2.last_7_days": "Last 7 Days",
+                "ui2.last_30_days": "Last 30 Days",
+                "ui2.select_columns_to_include": "Select Columns to Include",
+                "ui2.download_xlsx": "Download .xlsx",
+                "ui2.buyer_s_tin": "Buyer's TIN",
+                "ui2.optional": "(optional)",
+                "ui2.customer_name_trade_name": "Customer Name / Trade Name",
+                "ui2.back_to_inventory": "Back to Inventory",
+                "ui2.type_a_purchase_receipt_in_by_hand": "Type a purchase receipt in by hand (works offline)",
             },
             am: {
                 'ui.ok': 'እሺ', 'ui.cancel': 'ይቅር', 'ui.yes': 'አዎ', 'ui.close': 'ዝጋ', 'ui.are_you_sure': 'እርግጠኛ ነዎት?', 'ui.saving': 'በማስቀመጥ ላይ…', 'ui.signing_in': 'በመግባት ላይ…', 'ui.creating': 'መለያ በመፍጠር ላይ…',
@@ -2616,7 +3047,116 @@
                 'rental.owed_of_total': 'የሚቀር፦ ETB {a} ከጠቅላላ ETB {b}', 'rental.save_payment': 'ክፍያ አስቀምጥ',
                 'rental.err_enter_valid_amount': 'ትክክለኛ መጠን ያስገቡ።', 'rental.err_amount_exceeds_owed': 'ከሚቀረው ETB {a} መብለጥ አይችልም።',
                 'rental.status.reserved': 'ተይዟል', 'rental.status.out': 'የወጣ', 'rental.status.overdue': 'ጊዜው ያለፈ', 'rental.status.returned': 'ተመልሷል',
-                'rental.remove': 'አስወግድ'
+                'rental.remove': 'አስወግድ',
+                "ui2.working_please_wait": "በመስራት ላይ፣ እባክዎ ይጠብቁ...",
+                "ui2.2026_meleya_all_rights_reserved": "© 2026 MELEYA። መብቱ በህግ የተጠበቀ ነው።",
+                "ui2.your_email_is_confirmed_let_s_fini": "ኢሜይልዎ ተረጋግጧል — የሱቅዎን ዝግጅት እንጨርስ።",
+                "ui2.setting_up_your_shop": "ሱቅዎን በማዘጋጀት ላይ...",
+                "ui2.not_you_sign_out": "እርስዎ አይደሉም? ውጣ",
+                "ui2.welcome_let_s_set_up_your_shop": "እንኳን ደህና መጡ! ሱቅዎን እናዘጋጅ።",
+                "ui2.importing_your_data_please_wait": "መረጃዎን በማስገባት ላይ፣ እባክዎ ይጠብቁ...",
+                "ui2.set_up_your_opening_inventory": "የመክፈቻ ዕቃዎን ያዘጋጁ",
+                "ui2.add_everything_you_re_stocking_up": "አሁን የሚያስቀምጡትን ዕቃ ሁሉ ይጨምሩ። ከታች የሚጨምሩት እያንዳንዱ ዕቃ በቅርጫቱ ውስጥ ይዘረዘራል። ዝርዝሩ ትክክል ሲሆን \"ማዘጋጀቱን ጨርስ\" ይጫኑ፤ ሁሉም በአንድ ጊዜ ይመዘገባል፣ በባለቤቱ ካፒታል ይሸፈናል።",
+                "ui2.expiry_date": "የሚያልፍበት ቀን",
+                "ui2.daily_rate_etb": "የቀን ክፍያ (ብር)",
+                "ui2.weekly_rate_etb_optional": "የሳምንት ክፍያ (ብር፣ አማራጭ)",
+                "ui2.monthly_rate_etb_optional": "የወር ክፍያ (ብር፣ አማራጭ)",
+                "ui2.opening_stock_value": "የመክፈቻ ዕቃ ዋጋ፦",
+                "ui2.skip_add_products_later": "ዝለል / ምርቶችን በኋላ ጨምር",
+                "ui2.complete_setup": "ማዘጋጀቱን ጨርስ",
+                "ui2.registering_your_opening_inventory": "የመክፈቻ ዕቃዎን በመመዝገብ ላይ፣ እባክዎ ይጠብቁ...",
+                "ui2.your_subscription_is_currently_ina": "የደንበኝነት ምዝገባዎ አሁን ንቁ አይደለም። ለማደስ እባክዎ አገልግሎት ሰጪዎን ያነጋግሩ።",
+                "ui2.download_excel_report": "የExcel ሪፖርት አውርድ",
+                "ui2.backup": "ምትኬ",
+                "ui2.restore": "መልስ",
+                "ui2.reset": "ዳግም አስጀምር",
+                "ui2.system_alerts": "የሥርዓት ማንቂያዎች",
+                "ui2.add_in_bulk": "በጅምላ ጨምር",
+                "ui2.add_product": "+ ምርት ጨምር",
+                "ui2.exp_date": "የሚያልፍበት ቀን",
+                "ui2.stock_transfers_need_more_than_one": "የዕቃ ዝውውር ለማድረግ በመለያዎ ላይ ከአንድ በላይ ቅርንጫፍ እና ዕቃ የማዛወር ፈቃድ ያስፈልግዎታል።",
+                "ui2.not_editable_for_your_role": "ለእርስዎ ሚና ሊስተካከል አይችልም",
+                "ui2.not_editable": "ሊስተካከል አይችልም",
+                "ui2.cost": "ወጪ",
+                "ui2.channel_status": "መንገድ / ሁኔታ",
+                "ui2.saved": "ተቀምጧል ✓",
+                "ui2.accountant_access": "የሂሳብ ባለሙያ መዳረሻ",
+                "ui2.give_your_accountant_read_only_acc": "ለሂሳብ ባለሙያዎ የዕቃ ዝርዝርዎን ለማየት ብቻ የሚያስችል ፈቃድ ይስጡ። ከታች ይፈልጉት፣ ወይም ቀደም ብሎ የላከልዎትን ጥያቄ ይቀበሉ።",
+                "ui2.search": "ፈልግ",
+                "ui2.amount_is_hidden_for_your_role_thi": "መጠኑ ለእርስዎ ሚና ተደብቋል — ቀሪውን ሙሉ ሒሳብ እንደተከፈለ ይመዘግባል።",
+                "ui2.quantity_optional": "ብዛት (አማራጭ)",
+                "ui2.cost_price_etb_per_unit": "የግዢ ዋጋ (ብር በአንድ)",
+                "ui2.selling_price_optional": "መሸጫ ዋጋ (አማራጭ)",
+                "ui2.supplier_name_optional": "የአቅራቢ ስም (አማራጭ)",
+                "ui2.switch_language": "ቋንቋ ቀይር",
+                "ui2.show_guide": "መመሪያውን አሳይ",
+                "ui2.you_example_com_or_your_username": "you@example.com ወይም የተጠቃሚ ስምዎ",
+                "ui2.your_password": "የይለፍ ቃልዎ",
+                "ui2.e_g_kebede_electrical_supplies": "ለምሳሌ ከበደ ኤሌክትሪክ ዕቃዎች",
+                "ui2.e_g_kebede_used_to_log_in_later": "ለምሳሌ kebede (ለመግባት ይጠቅማል)",
+                "ui2.e_g_dereje_eyasu_gebresilassie": "ለምሳሌ ደረጀ ኢያሱ ገብረሥላሴ",
+                "ui2.at_least_6_characters": "ቢያንስ 6 ፊደላት",
+                "ui2.re_enter_your_password": "የይለፍ ቃልዎን እንደገና ያስገቡ",
+                "ui2.re_enter_your_new_password": "አዲሱን የይለፍ ቃልዎን እንደገና ያስገቡ",
+                "ui2.e_g_cables": "ለምሳሌ ኬብሎች",
+                "ui2.e_g_2_5mm_twin_cable": "ለምሳሌ 2.5ሚሜ ድርብ ኬብል",
+                "ui2.switch_calendar": "ቀን መቁጠሪያ ቀይር",
+                "ui2.which_branch_you_re_working_in": "የሚሰሩበት ቅርንጫፍ",
+                "ui2.you_re_offline_changes_are_saved_o": "ከመስመር ውጭ ነዎት — ለውጦች በዚህ መሣሪያ ላይ ተቀምጠዋል፣ ግንኙነት ሲመለስ ይመሳሰላሉ",
+                "ui2.notifications": "ማሳወቂያዎች",
+                "ui2.click_for_a_breakdown_by_channel": "በክፍያ መንገድ ለማየት ይጫኑ",
+                "ui2.e_g_restocking_low_shelf": "ለምሳሌ ያለቀ መደርደሪያ መሙላት",
+                "ui2.e_g_end_of_day_handover": "ለምሳሌ የቀኑ መጨረሻ ርክክብ",
+                "ui2.blank_defaults_to_walk_in": "ባዶ ከሆነ ድንገተኛ ደንበኛ ይሆናል",
+                "ui2.leave_less_than_the_total_for_a_do": "ቅድመ ክፍያ ከሆነ ከጠቅላላው ያነሰ ያስገቡ (ሙሉ በሙሉ በዱቤ ከሆነ ባዶ ወይም 0 ይተዉ) — የቀረው ደንበኛው የሚበደረው ሆኖ ይመዘገባል",
+                "ui2.e_g_global_distributors": "ለምሳሌ ግሎባል አከፋፋዮች",
+                "ui2.leave_blank_to_skip": "ለመዝለል ባዶ ይተዉ",
+                "ui2.leave_less_than_the_total_for_a_do_2": "ቅድመ ክፍያ ከሆነ ከጠቅላላው ያነሰ ያስገቡ (ሙሉ በሙሉ በዱቤ ከሆነ ባዶ ወይም 0 ይተዉ) — የቀረው ለአቅራቢው የሚከፈል ዕዳ ሆኖ ይመዘገባል",
+                "ui2.skip_to_leave": "ባዶ ለመተው ይዝለሉ",
+                "ui2.e_g_may_bills": "ለምሳሌ የግንቦት ሂሳቦች",
+                "ui2.search_accountant_by_name_or_phone": "የሂሳብ ባለሙያ በስም ወይም በስልክ ይፈልጉ…",
+                "ui2.e_g_mekdes_tesfaye": "ለምሳሌ መቅደስ ተስፋዬ",
+                "ui2.e_g_mekdes": "ለምሳሌ mekdes",
+                "ui2.e_g_senior_cashier": "ለምሳሌ ከፍተኛ ገንዘብ ተቀባይ",
+                "ui2.e_g_bole_branch": "ለምሳሌ ቦሌ ቅርንጫፍ",
+                "ui2.e_g_bole_road_near_edna_mall": "ለምሳሌ ቦሌ መንገድ፣ ኤድና ሞል አጠገብ",
+                "ui2.e_g_weekly_cash_deposit": "ለምሳሌ የሳምንት ጥሬ ገንዘብ ማስቀመጫ",
+                "ui2.leave_blank_to_add_the_product_onl": "ምርቱን ብቻ ለመጨመር ባዶ ይተዉ",
+                "ui2.required_if_you_enter_a_quantity": "ብዛት ካስገቡ ያስፈልጋል",
+                "ui2.leave_blank_to_set_it_later": "በኋላ ለማስገባት ባዶ ይተዉ",
+                "ui2.leave_blank_if_none": "ከሌለ ባዶ ይተዉ",
+                "ui2.footer_rights": "© 2026 MELEYA። መብቱ በህግ የተጠበቀ ነው።",
+                "ui2.inventory": "‹ ዕቃ",
+                "ui2.scanned_stock": "የተቃኘ ዕቃ",
+                "ui2.scan_purchase_receipt": "የግዢ ደረሰኝ ቃኝ",
+                "ui2.enter_by_hand": "በእጅ ያስገቡ",
+                "ui2.separate_from_your_main_inventory": "ከዋናው ዕቃ ዝርዝርዎ የተለየ ነው። እዚህ የሚቆጠረው ከተቃኙ ደረሰኞች የመጣ ዕቃ ብቻ ነው (ለባለቤቶች ብቻ)።",
+                "ui2.stock": "ዕቃ ክምችት",
+                "ui2.purchase_receipts": "የግዢ ደረሰኞች",
+                "ui2.sales_receipts": "የሽያጭ ደረሰኞች",
+                "ui2.last_cost": "የመጨረሻ ዋጋ",
+                "ui2.value": "ዋጋ",
+                "ui2.scanned_stock_value": "የተቃኘ ዕቃ ዋጋ፦",
+                "ui2.purchase_receipts_scanned_copies": "የግዢ ደረሰኞች (የተቃኙ ቅጂዎች)",
+                "ui2.sales_receipts_as_printed": "የሽያጭ ደረሰኞች (እንደታተሙት)",
+                "ui2.advanced_excel_export_hub": "የExcel ሪፖርት ማውጫ",
+                "ui2.download_structured_binary_xlsx_fi": "ከመሣሪያዎ ላይ ያለውን መረጃ በቀጥታ የXLSX ፋይል አድርገው ያውርዱ።",
+                "ui2.target_data_module": "የሚወርደው መረጃ",
+                "ui2.inventory_master_list": "የዕቃ ዝርዝር",
+                "ui2.sales_transactions_log": "የሽያጭ መዝገብ",
+                "ui2.purchase_procurements_log": "የግዢ መዝገብ",
+                "ui2.operating_expenses_log": "የወጪ መዝገብ",
+                "ui2.timeframe_limit": "የጊዜ ገደብ",
+                "ui2.all_time_archive": "ሁሉም ጊዜ",
+                "ui2.last_7_days": "ያለፉት 7 ቀናት",
+                "ui2.last_30_days": "ያለፉት 30 ቀናት",
+                "ui2.select_columns_to_include": "የሚካተቱ አምዶችን ይምረጡ",
+                "ui2.download_xlsx": "አውርድ .xlsx",
+                "ui2.buyer_s_tin": "የገዢ ቲን",
+                "ui2.optional": "(አማራጭ)",
+                "ui2.customer_name_trade_name": "የደንበኛ ስም / የንግድ ስም",
+                "ui2.back_to_inventory": "ወደ ዕቃ ተመለስ",
+                "ui2.type_a_purchase_receipt_in_by_hand": "የግዢ ደረሰኝን በእጅ ይጻፉ (ከመስመር ውጭም ይሰራል)",
             }
         };
 
@@ -2683,6 +3223,7 @@
             document.documentElement.style.setProperty('--i18n-font', lang === 'am' ? "'Noto Sans Ethiopic', sans-serif" : 'inherit');
             document.body.style.fontFamily = lang === 'am' ? "'Noto Sans Ethiopic', var(--font-body, sans-serif)" : '';
             applyStaticTranslations();
+            if (window.amDomRefresh) window.amDomRefresh();
             const activePanel = document.querySelector('.view-panel.active');
             if (activePanel) {
                 const activeViewId = activePanel.id.replace('view-', '');
@@ -4592,8 +5133,8 @@
         // --- NOTIFICATION ENGINE ---
         function addNotification(title, msg, details = "") {
             try { mlyUI.noteToast(title, msg); } catch (e) { }
-            const stampedMsg = `${msg} (by ${currentUsername || 'unknown'})`;
-            const notif = { id: Date.now(), title, msg: stampedMsg, details, date: new Date().toLocaleString(), read: false };
+            const stampedMsg = currentLang === 'am' ? `${mlyUI.am(msg)} (በ${currentUsername || 'ያልታወቀ'})` : `${msg} (by ${currentUsername || 'unknown'})`;
+            const notif = { id: Date.now(), title: mlyUI.am(title), msg: stampedMsg, details, date: new Date().toLocaleString(), read: false };
             state.notifications.unshift(notif);
             queueWrite({ kind: 'insert', table: 'notifications', row: toDbNotification(notif) });
             updateNotifBadge(); renderNotifications();
@@ -12313,7 +12854,7 @@
             if (pp.length) parts.push(pp.length + ' scanned receipt(s) saved on this device, waiting to be sent.');
             if (q.length) parts.push(q.length + ' change(s) from printed sales waiting to be sent.');
             if (bad.length && navigator.onLine) parts.push('A receipt could not be sent yet (' + bad[0].err + '). It will be tried again.');
-            el.style.display = parts.length ? '' : 'none'; el.textContent = parts.join(' ');
+            el.style.display = parts.length ? '' : 'none'; el.textContent = parts.map(x => mlyUI.am(x)).join(' ');
         }
         window.scnSyncNote = syncNote;
         window.addEventListener('offline', syncNote);
@@ -12788,6 +13329,7 @@
                 el.addEventListener('click', e => { if (e.target.closest('.scn-va-x')) { e.stopPropagation(); el.remove(); return; } go(); });
                 el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
                 document.body.appendChild(el);
+                if (window.amDomApply) window.amDomApply(el);
             } catch (e) { console.warn('VAT waiting alert skipped:', e); }
             finally { vaBusy = false; }
         };
