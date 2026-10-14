@@ -37,7 +37,7 @@
     .badge { display: inline-block; padding: 3px 9px; border-radius: 100px; font-size: 11px; font-weight: 600; }
     .badge-trial { background: #EFE4D0; color: var(--accent); }
     .badge-active { background: #DCEFE5; color: var(--success); }
-    .badge-suspended { background: #F1DCD8; color: var(--danger); }
+    .badge-suspended, .badge-inactive { background: #F1DCD8; color: var(--danger); }
     .badge-cancelled { background: #E4E1D8; color: var(--text-light); }
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(23,27,52,0.55); z-index: 3000; align-items: center; justify-content: center; padding: 16px; }
     .modal-overlay.active { display: flex; }
@@ -143,8 +143,7 @@
             <select id="sub-status-select">
                 <option value="trial">Trial</option>
                 <option value="active">Active</option>
-                <option value="suspended">Suspended</option>
-                <option value="cancelled">Cancelled</option>
+                <option value="inactive">Inactive</option>
             </select>
         </div>
         <div class="form-group">
@@ -446,17 +445,17 @@
         const total = businesses.length;
         const active = businesses.filter(b => b.subscriptionStatus === 'active').length;
         const trial = businesses.filter(b => b.subscriptionStatus === 'trial').length;
-        const suspended = businesses.filter(b => b.subscriptionStatus === 'suspended').length;
+        const suspended = businesses.filter(b => ['inactive', 'suspended', 'cancelled'].includes(b.subscriptionStatus)).length;
         document.getElementById('platform-stats').innerHTML = `
             <div class="card stat-box"><div class="label">Total Businesses</div><div class="value">${total}</div></div>
             <div class="card stat-box"><div class="label">Active</div><div class="value" style="color:var(--success);">${active}</div></div>
             <div class="card stat-box"><div class="label">On Trial</div><div class="value" style="color:var(--accent);">${trial}</div></div>
-            <div class="card stat-box"><div class="label">Suspended</div><div class="value" style="color:var(--danger);">${suspended}</div></div>
+            <div class="card stat-box"><div class="label">Inactive</div><div class="value" style="color:var(--danger);">${suspended}</div></div>
         `;
     }
 
     function statusBadge(status) {
-        const labels = { trial: 'Trial', active: 'Active', suspended: 'Suspended', cancelled: 'Cancelled' };
+        const labels = { trial: 'Trial', active: 'Active', inactive: 'Inactive', suspended: 'Inactive', cancelled: 'Inactive' };
         return `<span class="badge badge-${escHtml(status)}">${escHtml(labels[status] || status)}</span>`;
     }
 
@@ -473,7 +472,7 @@
 
         tbody.innerHTML = filtered.map(b => {
             const expiresText = b.subscriptionExpiresAt ? new Date(b.subscriptionExpiresAt).toLocaleDateString() : '—';
-            const isPastDue = b.subscriptionExpiresAt && new Date(b.subscriptionExpiresAt) < new Date() && b.subscriptionStatus !== 'cancelled';
+            const isPastDue = b.subscriptionExpiresAt && new Date(b.subscriptionExpiresAt) < new Date() && ['trial', 'active'].includes(b.subscriptionStatus);
             return `<tr>
                 <td><strong class="truncate" title="${escHtml(b.businessName)}">${escHtml(b.businessName)}</strong><br><small style="color:var(--text-light);">${escHtml(b.phone) || '—'}</small></td>
                 <td class="truncate" title="${escHtml(b.ownerEmail) || ''}"><small>${escHtml(b.ownerUsername) || '—'}<br>${escHtml(b.ownerEmail) || ''}</small></td>
@@ -575,7 +574,7 @@
         document.getElementById('sub-plan-select').innerHTML = plans
             .filter(p => p.is_active || p.id === biz.subscriptionPlanId)
             .map(p => `<option value="${p.id}" ${p.id === biz.subscriptionPlanId ? 'selected' : ''}>${escHtml(p.name)}${(p.is_premium || /premium/i.test(p.name)) ? ' ★ Premium' : ''} — ETB ${p.price_etb}${p.is_active ? '' : ' (inactive)'}</option>`).join('');
-        document.getElementById('sub-status-select').value = biz.subscriptionStatus;
+        document.getElementById('sub-status-select').value = ['suspended', 'cancelled'].includes(biz.subscriptionStatus) ? 'inactive' : biz.subscriptionStatus;
         document.getElementById('sub-expiry-input').value = biz.subscriptionExpiresAt ? biz.subscriptionExpiresAt.split('T')[0] : '';
         document.getElementById('sub-notes-input').value = biz.adminNotes || '';
         document.getElementById('subscription-modal').classList.add('active');

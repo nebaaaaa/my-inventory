@@ -15,6 +15,41 @@
          still guaranteed to finish loading before any button can be
          clicked, so nothing about how they're used elsewhere changes. -->
     <script>
+// Money boxes: show commas while typing (1,234.50). Reading .value still gives the plain number ("1234.50"),
+// and setting .value formats it, so the rest of the app needs no changes.
+(function () {
+    var nat = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+    function fmt(v) {
+        v = String(v == null ? '' : v).replace(/[^0-9.]/g, '');
+        var d = v.indexOf('.');
+        if (d >= 0) v = v.slice(0, d + 1) + v.slice(d + 1).replace(/\./g, '');
+        var ip = d >= 0 ? v.slice(0, d) : v, fp = d >= 0 ? v.slice(d) : '';
+        return ip.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + fp;
+    }
+    function upgrade(el) {
+        if (el._money) return; el._money = 1;
+        Object.defineProperty(el, 'value', {
+            configurable: true,
+            get: function () { return nat.get.call(this).replace(/,/g, ''); },
+            set: function (v) { nat.set.call(this, fmt(v)); }
+        });
+        if (nat.get.call(el)) nat.set.call(el, fmt(nat.get.call(el)));
+    }
+    function scan(root) { if (root.querySelectorAll) { if (root.matches && root.matches('input[data-money]')) upgrade(root); root.querySelectorAll('input[data-money]').forEach(upgrade); } }
+    document.addEventListener('input', function (e) {
+        var el = e.target; if (!el || !el.matches || !el.matches('input[data-money]')) return;
+        upgrade(el);
+        var raw = nat.get.call(el), pos = el.selectionStart, digitsBefore = raw.slice(0, pos == null ? raw.length : pos).replace(/[^0-9.]/g, '').length;
+        var out = fmt(raw); if (out === raw) return;
+        nat.set.call(el, out);
+        var n = 0, np = 0; while (np < out.length && n < digitsBefore) { if (/[0-9.]/.test(out[np])) n++; np++; }
+        try { el.setSelectionRange(np, np); } catch (x) { }
+    }, true);
+    new MutationObserver(function (ms) { ms.forEach(function (m) { m.addedNodes.forEach(function (n) { if (n.nodeType === 1) scan(n); }); }); }).observe(document.documentElement, { childList: true, subtree: true });
+    document.addEventListener('DOMContentLoaded', function () { scan(document); });
+})();
+</script>
+<script>
 Number.prototype.money2 = function () { return this.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
@@ -863,7 +898,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                         <div id="cash-handover-balance-amount" style="font-size:32px; font-weight:700; color:var(--primary); margin-top:4px;">ETB 0.00</div>
                     </div>
                     <form id="cash-handover-form" onsubmit="submitCashHandover(event)">
-                        <div class="form-group"><label data-i18n="ch.amount_handing_over">Amount Handing Over (ETB)</label><input type="number" id="cash-handover-amount" step="0.01" min="0.01" required></div>
+                        <div class="form-group"><label data-i18n="ch.amount_handing_over">Amount Handing Over (ETB)</label><input type="text" inputmode="decimal" autocomplete="off" data-money="1" id="cash-handover-amount" step="0.01" min="0.01" required></div>
                         <div class="form-group"><label data-i18n="tr.notes_optional">Note (Optional)</label><input type="text" id="cash-handover-note" placeholder="e.g. End of day handover" data-i18n-placeholder="ui2.e_g_end_of_day_handover"></div>
                         <div class="form-group" style="padding-top:22px;"><button type="submit" class="btn" data-i18n="ch.submit">Submit Handover</button></div>
                     </form>
@@ -917,10 +952,10 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                             <datalist id="sale-item-list"></datalist>
                         </div>
                         <div class="form-group"><label data-i18n="tr.quantity">Quantity</label><input type="number" id="sale-qty" min="1" value="1" required oninput="syncSaleAmountPaidDefault()"></div>
-                        <div class="form-group"><label data-i18n="sale.price">Price (ETB)</label><input type="number" id="sale-price" step="0.01" min="0.01" required oninput="syncSaleAmountPaidDefault()"></div>
+                        <div class="form-group"><label data-i18n="sale.price">Price (ETB)</label><input type="text" inputmode="decimal" autocomplete="off" data-money="1" id="sale-price" step="0.01" min="0.01" required oninput="syncSaleAmountPaidDefault()"></div>
                         <div class="form-group">
                             <label data-i18n="sale.amount_paid_now">Amount Paid Now (ETB)</label>
-                            <input type="number" id="sale-amount-paid" step="0.01" min="0" oninput="handleSaleAmountPaidInput()" title="Leave less than the total for a down payment (or blank/0 for fully on credit) — the rest is tracked as owed by the customer" data-i18n-title="ui2.leave_less_than_the_total_for_a_do">
+                            <input type="text" inputmode="decimal" autocomplete="off" data-money="1" id="sale-amount-paid" step="0.01" min="0" oninput="handleSaleAmountPaidInput()" title="Leave less than the total for a down payment (or blank/0 for fully on credit) — the rest is tracked as owed by the customer" data-i18n-title="ui2.leave_less_than_the_total_for_a_do">
                         </div>
                         <div class="form-group" id="sale-channel-group">
                             <label data-i18n="sale.channel">Channel</label>
@@ -966,7 +1001,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                             <input type="text" id="cart-sale-item" list="sale-item-list" onchange="autoPopulateCartSalePrice()" placeholder="Type to filter..." data-i18n-placeholder="rental.type_to_filter_ph" style="min-width: 260px;" autocomplete="off">
                         </div>
                         <div class="form-group" style="margin-bottom:0;"><label data-i18n="tr.quantity">Quantity</label><input type="number" id="cart-sale-qty" min="1" value="1" style="min-width:90px;"></div>
-                        <div class="form-group" style="margin-bottom:0;"><label data-i18n="sale.price">Price (ETB)</label><input type="number" id="cart-sale-price" step="0.01" min="0.01" style="min-width:110px;"></div>
+                        <div class="form-group" style="margin-bottom:0;"><label data-i18n="sale.price">Price (ETB)</label><input type="text" inputmode="decimal" autocomplete="off" data-money="1" id="cart-sale-price" step="0.01" min="0.01" style="min-width:110px;"></div>
                         <button type="button" class="btn" onclick="addToSaleCart()">+ <span data-i18n="sale.add_to_basket">Add to Basket</span></button>
                     </div>
                     <div style="overflow-x:auto;">
@@ -985,7 +1020,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                             </div>
                             <div class="form-group" style="display:block; width:100%; margin-bottom:12px;">
                                 <label data-i18n="sale.amount_paid_now">Amount Paid Now (ETB)</label>
-                                <input type="number" id="cart-sale-amount-paid" step="0.01" min="0" style="width:100%;" oninput="handleCartSaleAmountPaidInput()">
+                                <input type="text" inputmode="decimal" autocomplete="off" data-money="1" id="cart-sale-amount-paid" step="0.01" min="0" style="width:100%;" oninput="handleCartSaleAmountPaidInput()">
                             </div>
                             <div class="form-group" id="cart-sale-channel-group" style="display:block; width:100%; margin-bottom:12px;">
                                 <label data-i18n="sale.channel">Channel</label>
@@ -1041,12 +1076,12 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                             <datalist id="pur-item-list"></datalist>
                         </div>
                         <div class="form-group"><label data-i18n="tr.quantity">Quantity</label><input type="number" id="pur-qty" min="1" value="1" required oninput="syncPurchaseAmountPaidDefault()"></div>
-                        <div class="form-group" id="pur-price-group"><label data-i18n="pur.cost">Cost (ETB)</label><input type="number" id="pur-price" step="0.01" min="0.01" required oninput="this.dataset.touched='1'; syncPurchaseAmountPaidDefault()"></div>
+                        <div class="form-group" id="pur-price-group"><label data-i18n="pur.cost">Cost (ETB)</label><input type="text" inputmode="decimal" autocomplete="off" data-money="1" id="pur-price" step="0.01" min="0.01" required oninput="this.dataset.touched='1'; syncPurchaseAmountPaidDefault()"></div>
                         <div class="form-group" id="pur-price-locked-note" style="display:none;">
                             <label data-i18n="pur.cost">Cost (ETB)</label>
                             <div id="pur-price-locked-text" style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:180px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div>
                         </div>
-                        <div class="form-group" id="pur-selling-price-group"><label data-i18n="misc.selling_price_optional">Selling Price (Optional)</label><input type="number" id="pur-selling-price" step="0.01" placeholder="Leave blank to skip" data-i18n-placeholder="ui2.leave_blank_to_skip"></div>
+                        <div class="form-group" id="pur-selling-price-group"><label data-i18n="misc.selling_price_optional">Selling Price (Optional)</label><input type="text" inputmode="decimal" autocomplete="off" data-money="1" id="pur-selling-price" step="0.01" placeholder="Leave blank to skip" data-i18n-placeholder="ui2.leave_blank_to_skip"></div>
                         <div class="form-group" id="pur-expiry-group" style="display:none;"><label data-i18n="ui2.expiry_date">Expiry Date</label><input type="date" id="pur-expiry"></div>
                         <div class="form-group" id="pur-selling-price-locked-note" style="display:none;">
                             <label data-i18n="misc.selling_price">Selling Price</label>
@@ -1054,7 +1089,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                         </div>
                         <div class="form-group" id="pur-amount-paid-group">
                             <label data-i18n="sale.amount_paid_now">Amount Paid Now (ETB)</label>
-                            <input type="number" id="pur-amount-paid" step="0.01" min="0" oninput="handlePurchaseAmountPaidInput()" title="Leave less than the total for a down payment (or blank/0 for fully on credit) — the rest is tracked as owed to the supplier" data-i18n-title="ui2.leave_less_than_the_total_for_a_do_2">
+                            <input type="text" inputmode="decimal" autocomplete="off" data-money="1" id="pur-amount-paid" step="0.01" min="0" oninput="handlePurchaseAmountPaidInput()" title="Leave less than the total for a down payment (or blank/0 for fully on credit) — the rest is tracked as owed to the supplier" data-i18n-title="ui2.leave_less_than_the_total_for_a_do_2">
                         </div>
                         <div class="form-group" id="pur-amount-paid-locked-note" style="display:none;">
                             <label data-i18n="sale.amount_paid_now">Amount Paid Now (ETB)</label>
@@ -1083,12 +1118,12 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                             <input type="text" id="cart-pur-item" list="pur-item-list" placeholder="Type to filter..." data-i18n-placeholder="rental.type_to_filter_ph" style="min-width: 260px;" autocomplete="off" oninput="handleCartPurchaseItemPicked()">
                         </div>
                         <div class="form-group" style="margin-bottom:0;"><label data-i18n="tr.quantity">Quantity</label><input type="number" id="cart-pur-qty" min="1" value="1" style="min-width:90px;"></div>
-                        <div class="form-group" style="margin-bottom:0;" id="cart-pur-price-group"><label data-i18n="pur.cost">Cost (ETB)</label><input type="number" id="cart-pur-price" step="0.01" min="0.01" style="min-width:110px;"></div>
+                        <div class="form-group" style="margin-bottom:0;" id="cart-pur-price-group"><label data-i18n="pur.cost">Cost (ETB)</label><input type="text" inputmode="decimal" autocomplete="off" data-money="1" id="cart-pur-price" step="0.01" min="0.01" style="min-width:110px;"></div>
                         <div class="form-group" style="margin-bottom:0; display:none;" id="cart-pur-price-locked-note">
                             <label data-i18n="pur.cost">Cost (ETB)</label>
                             <div id="cart-pur-price-locked-text" style="padding:9px 12px; font-size:13px; color:var(--text-light); background:var(--bg); border-radius:7px; border:1px solid var(--border); min-width:110px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div>
                         </div>
-                        <div class="form-group" style="margin-bottom:0;" id="cart-pur-selling-price-group"><label data-i18n="misc.selling_price_optional">Selling Price (Optional)</label><input type="number" id="cart-pur-selling-price" step="0.01" placeholder="Skip to leave" data-i18n-placeholder="ui2.skip_to_leave" style="min-width:130px;"></div>
+                        <div class="form-group" style="margin-bottom:0;" id="cart-pur-selling-price-group"><label data-i18n="misc.selling_price_optional">Selling Price (Optional)</label><input type="text" inputmode="decimal" autocomplete="off" data-money="1" id="cart-pur-selling-price" step="0.01" placeholder="Skip to leave" data-i18n-placeholder="ui2.skip_to_leave" style="min-width:130px;"></div>
                         <div class="form-group" style="margin-bottom:0; display:none;" id="cart-pur-expiry-group"><label data-i18n="ui2.expiry_date">Expiry Date</label><input type="date" id="cart-pur-expiry" style="min-width:140px;"></div>
                         <div class="form-group" style="margin-bottom:0; display:none;" id="cart-pur-selling-price-locked-note">
                             <label data-i18n="misc.selling_price">Selling Price</label>
@@ -1109,7 +1144,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                             </div>
                             <div class="form-group" id="cart-pur-amount-paid-group" style="display:block; width:100%; margin-bottom:12px;">
                                 <label data-i18n="sale.amount_paid_now">Amount Paid Now (ETB)</label>
-                                <input type="number" id="cart-pur-amount-paid" step="0.01" min="0" style="width:100%;" oninput="handleCartPurchaseAmountPaidInput()">
+                                <input type="text" inputmode="decimal" autocomplete="off" data-money="1" id="cart-pur-amount-paid" step="0.01" min="0" style="width:100%;" oninput="handleCartPurchaseAmountPaidInput()">
                             </div>
                             <div class="form-group" id="cart-pur-amount-paid-locked-note" style="display:none; width:100%; margin-bottom:12px;">
                                 <label data-i18n="sale.amount_paid_now">Amount Paid Now (ETB)</label>
@@ -1153,7 +1188,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                     <form id="expense-form" onsubmit="handlePostExpense(event)">
                         <div class="form-group"><label data-i18n="sale.date">Date</label><input type="date" id="exp-date" required></div>
                         <div class="form-group"><label data-i18n="exp.account">Account</label><select id="exp-target"></select></div>
-                        <div class="form-group"><label data-i18n="exp.amount">Amount (ETB)</label><input type="number" id="exp-amount" step="0.01" min="0.01" required></div>
+                        <div class="form-group"><label data-i18n="exp.amount">Amount (ETB)</label><input type="text" inputmode="decimal" autocomplete="off" data-money="1" id="exp-amount" step="0.01" min="0.01" required></div>
                         <div class="form-group"><label data-i18n="sale.channel">Channel</label><select id="exp-source" onchange="handleChannelSelectChange(this)" onfocus="this.dataset.prevValue=this.value"><option value="Cash">Cash</option><option value="Mobile banking">Mobile banking</option><option value="Accounts payable">Accounts payable</option></select></div>
                         <div class="form-group"><label data-i18n="common.memo">Memo</label><input type="text" id="exp-memo" placeholder="e.g., May Bills" data-i18n-placeholder="ui2.e_g_may_bills" required></div>
                         <div class="form-group" style="padding-top: 22px;"><button type="submit" class="btn btn-danger" data-i18n="exp.book_expense">Book Expense</button></div>
@@ -1235,9 +1270,9 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                         <div class="form-group"><label data-i18n="sale.date">Date</label><input type="date" id="jv-date" required></div>
                         <div class="form-group"><label data-i18n="common.memo">Memo</label><input type="text" id="jv-desc" required></div><br>
                         <div class="form-group"><label data-i18n="acct.debit_account">Debit Account</label><select id="jv-dr-acc" required></select></div>
-                        <div class="form-group"><label data-i18n="acct.debit_amount">Debit Amount</label><input type="number" id="jv-dr-amt" step="0.01" required></div><br>
+                        <div class="form-group"><label data-i18n="acct.debit_amount">Debit Amount</label><input type="text" inputmode="decimal" autocomplete="off" data-money="1" id="jv-dr-amt" step="0.01" required></div><br>
                         <div class="form-group"><label data-i18n="acct.credit_account">Credit Account</label><select id="jv-cr-acc" required></select></div>
-                        <div class="form-group"><label data-i18n="acct.credit_amount">Credit Amount</label><input type="number" id="jv-cr-amt" step="0.01" required></div>
+                        <div class="form-group"><label data-i18n="acct.credit_amount">Credit Amount</label><input type="text" inputmode="decimal" autocomplete="off" data-money="1" id="jv-cr-amt" step="0.01" required></div>
                         <div class="form-group" style="padding-top: 22px;"><button type="submit" class="btn" data-i18n="acct.commit_double_entry">Commit Double Entry</button></div>
                     </form>
                 </div>
@@ -1447,7 +1482,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             </div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                 <label data-i18n="ft.amount">Amount (ETB)</label>
-                <input type="number" id="ft-amount" step="0.01" min="0.01" style="width:100%;">
+                <input type="text" inputmode="decimal" autocomplete="off" data-money="1" id="ft-amount" style="width:100%;">
             </div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                 <label data-i18n="tr.notes_optional">Note (Optional)</label>
@@ -1501,7 +1536,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             <div id="record-payment-error" style="display:none; background:#F1DCD8; color:var(--danger); font-size:13px; padding:10px; border-radius:6px; margin-bottom:14px;"></div>
             <div class="form-group" id="record-payment-amount-group" style="display:block; width:100%; margin-bottom:14px;">
                 <label data-i18n="exp.amount">Amount (ETB)</label>
-                <input type="number" id="record-payment-amount" step="0.01" min="0.01" style="width:100%;">
+                <input type="text" inputmode="decimal" autocomplete="off" data-money="1" id="record-payment-amount" style="width:100%;">
             </div>
             <div class="form-group" id="record-payment-amount-locked-note" style="display:none; width:100%; margin-bottom:14px; font-size:13px; color:var(--text-light);">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> <span data-i18n="ui2.amount_is_hidden_for_your_role_thi">Amount is hidden for your role — this will record the full remaining balance as paid.</span>
@@ -1525,8 +1560,8 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                         <div class="form-group"><label data-i18n="inv.category">Category</label><input type="text" id="p-category" list="category-list" required autocomplete="off"><datalist id="category-list"></datalist></div>
                         <div class="form-group"><label data-i18n="inv.product_name">Product Name</label><input type="text" id="p-desc" required></div>
                         <div class="form-group p-stock-group"><label data-i18n="ui2.quantity_optional">Quantity (optional)</label><input type="number" id="p-qty" min="1" step="1" inputmode="numeric" placeholder="Leave blank to add the product only" data-i18n-placeholder="ui2.leave_blank_to_add_the_product_onl" oninput="document.getElementById('p-cost').required = this.value.trim() !== ''"></div>
-                        <div class="form-group p-stock-group"><label data-i18n="ui2.cost_price_etb_per_unit">Cost Price (ETB per unit)</label><input type="number" id="p-cost" min="0.01" step="0.01" inputmode="decimal" placeholder="Required if you enter a quantity" data-i18n-placeholder="ui2.required_if_you_enter_a_quantity"></div>
-                        <div class="form-group p-sell-group"><label data-i18n="ui2.selling_price_optional">Selling Price (optional)</label><input type="number" id="p-sell" min="0" step="0.01" inputmode="decimal" placeholder="Leave blank to set it later" data-i18n-placeholder="ui2.leave_blank_to_set_it_later"></div>
+                        <div class="form-group p-stock-group"><label data-i18n="ui2.cost_price_etb_per_unit">Cost Price (ETB per unit)</label><input type="text" inputmode="decimal" autocomplete="off" data-money="1" id="p-cost" min="0.01" step="0.01" inputmode="decimal" placeholder="Required if you enter a quantity" data-i18n-placeholder="ui2.required_if_you_enter_a_quantity"></div>
+                        <div class="form-group p-sell-group"><label data-i18n="ui2.selling_price_optional">Selling Price (optional)</label><input type="text" inputmode="decimal" autocomplete="off" data-money="1" id="p-sell" min="0" step="0.01" inputmode="decimal" placeholder="Leave blank to set it later" data-i18n-placeholder="ui2.leave_blank_to_set_it_later"></div>
                         <div class="form-group p-stock-group"><label data-i18n="ui2.supplier_name_optional">Supplier Name (optional)</label><input type="text" id="p-supplier" list="supplier-list" autocomplete="off" placeholder="Leave blank if none" data-i18n-placeholder="ui2.leave_blank_if_none"></div>
                         <div class="form-group" id="p-daily-rate-group" style="display:none;"><label data-i18n="ui2.daily_rate_etb">Daily Rate (ETB)</label><input type="number" id="p-daily-rate" step="0.01" min="0"></div>
                         <div class="form-group" id="p-weekly-rate-group" style="display:none;"><label data-i18n="ui2.weekly_rate_etb_optional">Weekly Rate (ETB, optional)</label><input type="number" id="p-weekly-rate" step="0.01" min="0"></div>
@@ -3977,7 +4012,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 alert('Could not load your shop account. Please try signing in again.');
                 return handleSignOut();
             }
-            if (biz.subscription_status === 'inactive') {
+            if (['inactive', 'suspended', 'cancelled'].includes(biz.subscription_status)) {
                 document.getElementById('inactive-overlay').style.display = 'flex';
                 return;
             }
@@ -4006,6 +4041,9 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             if (window.scnShowNav) window.scnShowNav();
             setTimeout(() => { try { if (currentPlanPremium && window.scnEnsure) window.scnEnsure().catch(() => { }); } catch (e) { } }, 4000); // keep matches ready for offline selling
             setTimeout(() => { try { if (currentPlanPremium) prlPrefetch(); } catch (e) { } }, 9000); // learn which receipts are already printed, for offline use
+
+            // Owners get a warning when the subscription is about to run out (or already has).
+            try { showSubscriptionWarning(biz); } catch (e) { }
 
             currentTenantName = biz.business_name;
             currentBusinessType = biz.business_type || 'retail';
@@ -5286,6 +5324,36 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             if (viewId === 'settings') loadSettingsView();
             if (viewId === 'statements') buildReports('trial');
             if (viewId === 'trash') renderTrashTable();
+        }
+
+        // ---- Subscription expiry warning (owners only, shown on each sign-in/load, can be closed) ----
+        let _subWarnShown = false;
+        function showSubscriptionWarning(biz) {
+            if (!currentIsOwner || !biz || _subWarnShown) return;
+            const key = Object.keys(biz).find(k => /^subscription_.*(expir|end)/i.test(k) && biz[k]);
+            if (!key) return;
+            const status = String(biz.subscription_status || '').toLowerCase();
+            if (status === 'cancelled' || status === 'inactive' || status === 'suspended') return;
+            const exp = new Date(biz[key]); if (isNaN(exp)) return;
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            const endDay = new Date(exp.getFullYear(), exp.getMonth(), exp.getDate());
+            const days = Math.round((endDay - today) / 86400000);
+            const WARN_DAYS = 7;
+            if (days > WARN_DAYS) return;
+            _subWarnShown = true;
+            const dateTxt = endDay.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+            const msg = days < 0 ? `Your subscription ended on ${dateTxt}. Please renew now to keep using the app.`
+                : days === 0 ? `Your subscription ends today (${dateTxt}). Please renew to keep using the app.`
+                : `Your subscription ends in ${days} day${days === 1 ? '' : 's'} (${dateTxt}). Please renew to avoid losing access.`;
+            const bar = document.createElement('div');
+            bar.id = 'sub-warning-bar';
+            bar.setAttribute('role', 'alert');
+            bar.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:4000;display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 14px;font-size:14px;font-weight:600;color:#fff;background:' + (days <= 2 ? '#B23A2E' : '#A9752F') + ';box-shadow:0 2px 8px rgba(0,0,0,.25);';
+            const span = document.createElement('span'); span.textContent = '\u26A0 ' + msg;
+            const x = document.createElement('button'); x.type = 'button'; x.textContent = '\u2715'; x.setAttribute('aria-label', 'Close');
+            x.style.cssText = 'background:transparent;border:0;color:#fff;font-size:18px;cursor:pointer;padding:0 4px;';
+            x.onclick = () => bar.remove();
+            bar.append(span, x); document.body.appendChild(bar);
         }
 
         async function factoryReset() {
