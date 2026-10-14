@@ -13392,12 +13392,19 @@
         window.scnClearDates = k => { ['from', 'to'].forEach(n => { const e = document.getElementById('scn-' + k + '-' + n); if (e) e.value = ''; }); if (window.syncAllEthiopianDatePickers) syncAllEthiopianDatePickers(); window.scnRenderReceipts(); };
         // Draws both receipt lists. The date boxes follow the calendar button at the top (Ethiopian or Gregorian);
         // they always hold the Gregorian date inside, so the comparison below is plain text comparison.
+        // newest receipt date first; same day -> newest saved first
+        const byDateDesc = (a, b, k) => {
+            const da = isoDay(a[k]) || String(a.created_at || '').slice(0, 10), db = isoDay(b[k]) || String(b.created_at || '').slice(0, 10);
+            if (da !== db) return da < db ? 1 : -1;
+            const ca = String(a.created_at || '9999'), cb = String(b.created_at || '9999');
+            return ca < cb ? 1 : ca > cb ? -1 : 0;
+        };
         window.scnRenderReceipts = () => {
             const rc = $('scn-receipts'), sc = $('scn-sales-receipts'); if (!rc || !sc) return;
             const pf = val('scn-p-from'), pt = val('scn-p-to'), sf = val('scn-s-from'), st = val('scn-s-to');
-            const pl = allPur().filter(x => inRange(isoDay(x.receipt_date) || String(x.created_at || '').slice(0, 10), pf, pt));
+            const pl = allPur().filter(x => inRange(isoDay(x.receipt_date) || String(x.created_at || '').slice(0, 10), pf, pt)).sort((a, b) => byDateDesc(a, b, 'receipt_date'));
             rc.innerHTML = purErr ? '<span style="color:#c0392b;">Could not load receipts.</span>' : pl.length ? '<div class="scn-papers">' + pl.map(paperCard).join('') + '</div>' : '<span style="color:var(--text-light);font-size:13px;">' + (allPur().length ? 'No receipts in these dates.' : 'No receipts saved yet.') + '</span>';
-            const sl = allSal().filter(x => inRange(isoDay(x.sale_date) || String(x.created_at || '').slice(0, 10), sf, st));
+            const sl = allSal().filter(x => inRange(isoDay(x.sale_date) || String(x.created_at || '').slice(0, 10), sf, st)).sort((a, b) => byDateDesc(a, b, 'sale_date'));
             sc.innerHTML = salErr ? '<span style="color:#c0392b;">Could not load sales receipts. Run premium-and-sales-receipts.sql in Supabase (one time).</span>'
                 : sl.length ? '<div class="scn-sal-grid">' + sl.map(x => `<div class="scn-sal ${x.doc_type === 'invoice' ? 'inv' : ''}" style="${x.doc_type === 'invoice' ? 'max-width:620px;' : ''}">
                     <div class="scn-sal-h"><span>${esc(fmtDate(isoDay(x.sale_date) || String(x.created_at || '').slice(0, 10)))}</span><span>Receipt ${esc(x.doc_number || '')}${x.sale_deleted_by && !x.sale_deleted_hidden ? ` <small style="color:#c0392b;">sale deleted by ${esc(x.sale_deleted_by)}</small>` : ''}${x._pending ? ' <small style="color:#b8860b;">not synced yet</small>' : `<button type="button" class="scn-del" title="Delete this receipt" onclick="scnDelSale('${esc(x.id)}')">&minus;</button>`}</span></div>
