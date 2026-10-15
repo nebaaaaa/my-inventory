@@ -1247,7 +1247,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                     </div>
                     <p style="font-size:12px; color:var(--text-light); margin:0 0 10px;" data-i18n="ui2.separate_from_your_main_inventory">Separate from your main inventory. Only stock from scanned receipts is counted here (owners only).</p>
                     <div id="scn-sync-note" style="display:none;font-size:12px;margin:0 0 10px;padding:8px 10px;border-radius:8px;background:rgba(255,193,7,.15);border:1px solid #e0a800;"></div>
-                    <div style="display:flex;gap:8px;margin:0 0 12px;"><button type="button" class="btn btn-small" id="scn-tab-stock" onclick="scnTab('stock')" data-i18n="ui2.stock">Stock</button><button type="button" class="btn btn-small" id="scn-tab-purchases" onclick="scnTab('purchases')" style="background:#4a4e63;opacity:.75;" data-i18n="ui2.purchase_receipts">Purchase receipts</button><button type="button" class="btn btn-small" id="scn-tab-sales" onclick="scnTab('sales')" style="background:#4a4e63;opacity:.75;" data-i18n="ui2.sales_receipts">Sales receipts</button></div>
+                    <div style="display:flex;gap:8px;margin:0 0 12px;"><button type="button" class="btn btn-small" id="scn-tab-stock" onclick="scnTab('stock')" data-i18n="ui2.stock">Stock</button><button type="button" class="btn btn-small" id="scn-tab-purchases" onclick="scnTab('purchases')" style="background:#4a4e63;opacity:.75;" data-i18n="ui2.purchase_receipts">Purchase receipts</button><button type="button" class="btn btn-small" id="scn-tab-sales" onclick="scnTab('sales')" style="background:#4a4e63;opacity:.75;" data-i18n="ui2.sales_receipts">Sales receipts</button><button type="button" class="btn btn-small" id="scn-tab-expenses" onclick="scnTab('expenses')" style="background:#4a4e63;opacity:.75;">Expense receipts</button></div>
                     <div id="scn-pane-stock"><table>
                         <thead><tr><th data-i18n="sale.item">Item</th><th class="num" data-i18n="tr.quantity">Quantity</th><th class="num" data-i18n="ui2.last_cost">Last cost</th><th class="num" data-i18n="ui2.value">Value</th></tr></thead>
                         <tbody id="scn-body"></tbody>
@@ -1260,6 +1260,12 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                     <div id="scn-pane-sales" style="display:none;"><h3 style="margin:18px 0 8px;font-size:15px;" data-i18n="ui2.sales_receipts_as_printed">Sales receipts (as printed)</h3>
                         <div class="scn-filter"><label data-i18n="tr.from">From</label><input type="date" id="scn-s-from" onchange="scnRenderReceipts()" style="min-width:auto;"><label data-i18n="tr.to">To</label><input type="date" id="scn-s-to" onchange="scnRenderReceipts()" style="min-width:auto;"><button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="scnClearDates('s')" data-i18n="common.clear">Clear</button></div>
                         <div id="scn-sales-receipts"></div></div>
+                    <div id="scn-pane-expenses" style="display:none;"><h3 style="margin:18px 0 8px;font-size:15px;">Expense receipts (scanned copies)</h3>
+                        <p style="font-size:12px; color:var(--text-light); margin:0 0 10px;">For receipts that are not products (fuel, electricity, rent and so on). One expense per receipt. These are kept here only and do not change your Expenses page.</p>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px;"><input type="file" id="sce-file" accept="image/*" multiple style="display:none;" onchange="scePick(this)"><button type="button" class="btn" onclick="document.getElementById('sce-file').click()">Scan expense receipt</button> <button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="sceManual()">Enter by hand</button></div>
+                        <div class="scn-filter"><label data-i18n="tr.from">From</label><input type="date" id="sce-from" onchange="sceRender()" style="min-width:auto;"><label data-i18n="tr.to">To</label><input type="date" id="sce-to" onchange="sceRender()" style="min-width:auto;"><button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="sceClear()" data-i18n="common.clear">Clear</button></div>
+                        <div id="sce-total" style="font-size:13px;font-weight:600;color:var(--primary);margin:8px 0;"></div>
+                        <div id="sce-list"></div></div>
                 </div>
             </div>
 
@@ -1571,6 +1577,13 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                     <button type="submit" class="btn" id="inv-btn">Add Product</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <div id="sce-modal" class="modal-overlay" style="z-index:3100;">
+        <div class="modal-box" style="max-width:760px; width:96%; max-height:92vh; overflow:auto;" onclick="event.stopPropagation()">
+            <h3 id="sce-modal-title" style="color:var(--primary); margin-top:0;">Review expense receipt</h3>
+            <div id="sce-modal-body"></div>
         </div>
     </div>
 
@@ -12736,6 +12749,226 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
     })();
     </script>
 
+
+    <script>
+// ============ SCANNED STOCK, part 3: expense receipts (owner + Premium). Fully separate from the Expenses page. ============
+(function () {
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const num = v => { const n = parseFloat(String(v ?? '').replace(/,/g, '')); return isFinite(n) ? n : 0; };
+    const r2 = n => Math.round(n * 100) / 100;
+    const money = n => num(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const p2 = n => String(n).padStart(2, '0');
+    const store = {
+        get: (k, d) => { try { const v = JSON.parse(localStorage.getItem(k + currentTenantId)); return v == null ? d : v; } catch (e) { return d; } },
+        set: (k, v) => { try { localStorage.setItem(k + currentTenantId, JSON.stringify(v)); } catch (e) { } }
+    };
+    const isNet = e => /fetch|network|timeout|load failed|offline/i.test(String((e && e.message) || e || ''));
+    const TABLE = 'scanned_expense_receipts';
+    let rows = [], loadErr = '', draft = null, busy = false, reading = false, queue = [], qTotal = 0, qIdx = 0;
+
+    // ---- photo -> base64 (same approach as the purchase scanner) ----
+    function loadImg(file) { return new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error('Could not open this image')); i.src = URL.createObjectURL(file); }); }
+    async function compress(file) {
+        const img = await loadImg(file); let max = 1600, q = 0.8, blob = null;
+        for (let a = 0; a < 5; a++) {
+            const s = Math.min(1, max / Math.max(img.width, img.height)), c = document.createElement('canvas');
+            c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+            blob = await new Promise(r => c.toBlob(r, 'image/jpeg', q));
+            if (blob.size <= 900 * 1024) break;
+            max = Math.round(max * 0.8); q = Math.max(0.5, q - 0.1);
+        }
+        URL.revokeObjectURL(img.src); return blob;
+    }
+    const toB64 = blob => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = () => no(new Error('Could not read image')); r.readAsDataURL(blob); });
+
+    // ---- which expense type? (remembered shop first, then simple word rules) ----
+    const accounts = () => (typeof CHART_OF_ACCOUNTS_MAP !== 'undefined' ? CHART_OF_ACCOUNTS_MAP : []).filter(a => a.main === 'Expenses' && !['5010', '6060', '6070'].includes(a.code));
+    const merchKey = s => String(s || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    const RULES = [
+        [/fuel|petrol|diesel|benzin|gasoline|oil libya|total ?energies|nile petroleum|taxi|transport|bus\b|parking|ride|ነዳጅ|ታክሲ/i, /transport|fuel|travel|vehicle/i],
+        [/electric|power|water|telecom|ethio ?tel|safaricom|internet|airtime|rent|stationer|office|repair|maintenance|spare|garage|clean|soap|security|insurance|ኤሌክትሪክ|ውሃ|ቴሌ|ኪራይ/i, /utilit|overhead|office|admin|general/i]
+    ];
+    function suggest(merchant, lines) {
+        const accs = accounts(), mem = store.get('neba_sce_map_', {})[merchKey(merchant)];
+        if (mem && accs.some(a => a.code === mem)) return mem;
+        const text = (merchant || '') + ' ' + (lines || []).map(l => l.name).join(' ');
+        for (const [rx, nameRx] of RULES) if (rx.test(text)) { const a = accs.find(x => nameRx.test(x.name)); if (a) return a.code; }
+        const g = accs.find(x => /utilit|overhead|general|other|misc/i.test(x.name)) || accs[0];
+        return g ? g.code : '';
+    }
+
+    // ---- reading a photo ----
+    const blank = () => ({ merchant: '', tin: '', no: '', date: '', before: '', vat: '', total: '', account: '', note: '', lines: [], error: '' });
+    function fromExtract(d) {
+        let date = '';
+        try { if (d.date_year && d.date_month && d.date_day) date = d.date_calendar === 'EC' ? ethiopianToGregorianISO(d.date_year, d.date_month, d.date_day) : `${d.date_year}-${p2(d.date_month)}-${p2(d.date_day)}`; } catch (e) { }
+        const lines = (d.items || []).map(i => ({ name: String(i.description || '').trim(), qty: i.quantity ?? '', amount: i.amount ?? '' })).filter(l => l.name);
+        const x = { ...blank(), merchant: d.seller_name || '', tin: d.seller_tin || '', no: d.receipt_no || '', date, before: d.before_vat ?? '', vat: d.vat ?? '', total: d.total ?? '', lines };
+        x.account = suggest(x.merchant, lines);
+        return x;
+    }
+    async function extractOne(f) {
+        try {
+            const res = await fetch('/api/extract-receipt-items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: await toB64(await compress(f)) }) });
+            const data = await res.json().catch(() => null);
+            if (!res.ok) throw new Error((data && data.error) || 'Failed (' + res.status + ')');
+            return fromExtract(data);
+        } catch (e) { const d = blank(); d.account = suggest('', []); d.error = 'Could not read this receipt automatically (' + e.message + '). Fill it in by hand.'; return d; }
+    }
+
+    // ---- review window ----
+    const openM = html => { $('sce-modal-title').textContent = 'Review expense receipt' + (qTotal > 1 && qIdx ? ` (${qIdx} of ${qTotal})` : ''); $('sce-modal-body').innerHTML = html; $('sce-modal').classList.add('active'); };
+    const closeM = () => $('sce-modal').classList.remove('active');
+    function review() {
+        const d = draft, accs = accounts(), inp = 'style="width:100%;"';
+        const f = (label, field) => `<div class="form-group" style="margin:0;"><label>${label}</label>${field}</div>`;
+        const mny = (k) => `<input type="text" inputmode="decimal" autocomplete="off" data-money="1" ${inp} value="${esc(d[k])}" oninput="sceHead('${k}',this.value)">`;
+        const lines = d.lines.length ? `<details style="margin-top:12px;font-size:12px;color:var(--text-light);"><summary>${d.lines.length} line(s) read from the receipt</summary>${d.lines.map(l => `<div>${esc(l.name)}${l.amount !== '' ? ' — ' + money(l.amount) : ''}</div>`).join('')}</details>` : '';
+        openM(`${d.error ? `<p style="color:#c0392b;font-size:13px;margin-top:0;">${esc(d.error)}</p>` : '<p style="font-size:12px;color:var(--text-light);margin-top:0;">Check the details against the paper receipt. This is only saved as a receipt copy here; it does not change your Expenses page.</p>'}
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">
+            ${f('Shop / seller', `<input type="text" ${inp} value="${esc(d.merchant)}" oninput="sceHead('merchant',this.value)" onchange="sceMerchantDone()">`)}
+            ${f('Date', `<input type="date" ${inp} value="${esc(d.date)}" onchange="sceHead('date',this.value)">`)}
+            ${f('Expense type', `<select ${inp} onchange="sceHead('account',this.value)">${accs.map(a => `<option value="${esc(a.code)}" ${a.code === d.account ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select>`)}
+            ${f('Receipt no.', `<input type="text" ${inp} value="${esc(d.no)}" oninput="sceHead('no',this.value)">`)}
+            ${f('Seller TIN', `<input type="text" ${inp} value="${esc(d.tin)}" oninput="sceHead('tin',this.value)">`)}
+            ${f('Before VAT', mny('before'))}
+            ${f('VAT', mny('vat'))}
+            ${f('Total (ETB)', mny('total'))}
+            ${f('Note (optional)', `<input type="text" ${inp} value="${esc(d.note)}" oninput="sceHead('note',this.value)">`)}
+          </div>${lines}
+          <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:16px;">
+            ${queue.length ? '<button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="sceSkip()">Skip this receipt</button>' : ''}
+            <button type="button" class="btn btn-danger btn-small" onclick="sceCancel()">${queue.length ? 'Cancel all' : 'Cancel'}</button>
+            <button type="button" class="btn" id="sce-confirm" onclick="sceSave()">${queue.length ? 'Save &amp; next' : 'Save receipt'}</button>
+          </div>`);
+    }
+    async function showNext() {
+        if (!queue.length) { draft = null; qTotal = 0; qIdx = 0; closeM(); return; }
+        draft = queue.shift(); qIdx++; review();
+    }
+    window.sceHead = (k, v) => { draft[k] = v; };
+    window.sceMerchantDone = () => { // a shop we have seen before: use the type chosen last time
+        const mem = store.get('neba_sce_map_', {})[merchKey(draft.merchant)];
+        if (mem && accounts().some(a => a.code === mem) && mem !== draft.account) { draft.account = mem; review(); }
+    };
+    window.sceSkip = () => { draft = null; showNext(); };
+    window.sceCancel = () => { draft = null; queue = []; qTotal = 0; qIdx = 0; closeM(); };
+    window.sceManual = async () => { if (reading || busy) return; const d = blank(); d.account = suggest('', []); queue = [d]; qTotal = 1; qIdx = 0; await showNext(); };
+    window.scePick = async input => {
+        const files = Array.from(input.files || []); input.value = ''; if (!files.length || reading || busy) return;
+        if (!navigator.onLine) {
+            queue = files.map(() => { const d = blank(); d.account = suggest('', []); d.error = 'No internet, so this receipt cannot be read automatically. Type it in from the paper receipt. It is saved on this device and sent when the internet is back.'; return d; });
+            qTotal = files.length; qIdx = 0; await showNext(); return;
+        }
+        reading = true; queue = []; qTotal = files.length; qIdx = 0;
+        try {
+            let next = 0, done = 0; const results = new Array(files.length);
+            const say = () => openM(files.length > 1 ? `<p>Reading ${files.length} receipts… ${done} of ${files.length} done.</p>` : '<p>Reading the receipt… this can take a few seconds.</p>');
+            say();
+            const worker = async () => { while (next < files.length) { const k = next++; results[k] = await extractOne(files[k]); done++; say(); } };
+            await Promise.all(Array.from({ length: Math.min(3, files.length) }, worker));
+            queue = results;
+        } finally { reading = false; }
+        await showNext();
+    };
+
+    // ---- saving (online now, or kept on this device and sent later) ----
+    const pendingRows = () => store.get('neba_sce_p_', []);
+    async function insertRow(row) { const r = await supabaseClient.from(TABLE).insert(row); if (r.error) throw r.error; }
+    async function flush() {
+        if (!navigator.onLine || !currentTenantId) return;
+        let p = pendingRows(); if (!p.length) return;
+        const keep = [];
+        for (const x of p) {
+            try { await insertRow(x.row); } catch (e) { x.err = String((e && e.message) || e); keep.push(x); if (isNet(e)) { keep.push(...p.slice(p.indexOf(x) + 1)); break; } }
+        }
+        store.set('neba_sce_p_', keep.filter((x, i, a) => a.indexOf(x) === i));
+    }
+    window.sceSave = async () => {
+        if (busy || !draft) return;
+        const d = draft;
+        let total = num(d.total); if (!total && d.before !== '') total = r2(num(d.before) + num(d.vat));
+        if (!(total > 0)) return alert('Enter the total amount of the receipt.');
+        const date = d.date || new Date().toISOString().slice(0, 10);
+        const dup = rows.concat(pendingRows().map(x => x.row)).find(r => d.no && String(r.receipt_no || '') === String(d.no) && merchKey(r.merchant) === merchKey(d.merchant) && r2(num(r.total)) === r2(total));
+        if (dup && !confirm('This looks like a receipt you already saved (same shop, receipt number and total).\n\nSave it again?')) return;
+        const acc = accounts().find(a => a.code === d.account);
+        const row = {
+            tenant_id: currentTenantId, merchant: d.merchant || null, merchant_tin: d.tin || null, receipt_no: d.no || null, receipt_date: date,
+            before_vat: d.before === '' ? null : num(d.before), vat: d.vat === '' ? null : num(d.vat), total,
+            account_code: acc ? acc.code : null, account_name: acc ? acc.name : null, note: d.note || null, lines: d.lines
+        };
+        busy = true; const btn = $('sce-confirm'); if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+        try {
+            try { await insertRow(row); }
+            catch (e) {
+                if (!isNet(e) && navigator.onLine) throw e;
+                const p = pendingRows(); p.push({ uid: 'p' + Date.now() + Math.random().toString(36).slice(2, 6), row, at: new Date().toISOString() }); store.set('neba_sce_p_', p);
+            }
+            if (d.merchant && acc) { const m = store.get('neba_sce_map_', {}); m[merchKey(d.merchant)] = acc.code; store.set('neba_sce_map_', m); }
+            draft = null; busy = false; await load(); await showNext();
+        } catch (e) {
+            alert('Could not save: ' + (e.message || e) + '\n\nNothing was lost on your screen. Fix it and press Save again.');
+            if (btn) { btn.disabled = false; btn.innerHTML = queue.length ? 'Save &amp; next' : 'Save receipt'; }
+        } finally { busy = false; }
+    };
+
+    // ---- the list ----
+    async function load() {
+        if (!currentTenantId) return;
+        try { await flush(); } catch (e) { }
+        if (navigator.onLine) {
+            const r = await supabaseClient.from(TABLE).select('*').eq('tenant_id', currentTenantId).order('receipt_date', { ascending: false }).order('created_at', { ascending: false }).limit(500);
+            if (r.error) { if (isNet(r.error)) { rows = store.get('neba_sce_rc_', []); loadErr = ''; } else { loadErr = /relation|does not exist|schema cache/i.test(r.error.message || '') ? 'Run scanned-expense-receipts.sql in Supabase (one time), then reload.' : 'Could not load expense receipts (' + r.error.message + ').'; rows = []; } }
+            else { rows = r.data || []; loadErr = ''; store.set('neba_sce_rc_', rows.slice(0, 80)); }
+        } else { rows = store.get('neba_sce_rc_', []); loadErr = ''; }
+        render();
+    }
+    const isoDay = x => /^\d{4}-\d{2}-\d{2}/.test(x || '') ? String(x).slice(0, 10) : '';
+    function render() {
+        const box = $('sce-list'); if (!box) return;
+        if (loadErr) { box.innerHTML = `<span style="color:#c0392b;font-size:13px;">${esc(loadErr)}</span>`; $('sce-total').textContent = ''; return; }
+        const from = $('sce-from').value, to = $('sce-to').value;
+        const pend = pendingRows().map(x => ({ ...x.row, id: x.uid, _pending: true, _err: x.err }));
+        const day = r => isoDay(r.receipt_date) || isoDay(r.created_at);
+        const list = pend.concat(rows).filter(r => (!from || day(r) >= from) && (!to || day(r) <= to))
+            .sort((a, b) => day(a) < day(b) ? 1 : day(a) > day(b) ? -1 : String(b.created_at || '9999') < String(a.created_at || '9999') ? -1 : 1);
+        $('sce-total').textContent = list.length ? `Total shown: ETB ${money(list.reduce((s, r) => s + num(r.total), 0))} (${list.length})` : '';
+        if (!list.length) { box.innerHTML = `<span style="color:var(--text-light);font-size:13px;">${rows.length || pend.length ? 'No expense receipts in these dates.' : 'No expense receipts saved yet.'}</span>`; return; }
+        box.innerHTML = `<div class="table-scroll"><table><thead><tr><th>Date</th><th>Shop</th><th>Receipt no.</th><th>Expense type</th><th class="num">VAT</th><th class="num">Total (ETB)</th><th></th></tr></thead><tbody>${list.map(r => {
+            const lines = Array.isArray(r.lines) ? r.lines : [];
+            return `<tr><td>${esc(typeof fmtDate === 'function' ? fmtDate(day(r)) : day(r))}</td>
+              <td>${esc(r.merchant || '—')}${r.note ? `<br><small style="color:var(--text-light);">${esc(r.note)}</small>` : ''}${lines.length ? `<details style="font-size:12px;color:var(--text-light);"><summary>${lines.length} line(s)</summary>${lines.map(l => `<div>${esc(l.name)}${l.amount !== '' && l.amount != null ? ' — ' + money(l.amount) : ''}</div>`).join('')}</details>` : ''}${r._pending ? `<br><small style="color:#b8860b;">not synced yet${r._err ? ' — ' + esc(r._err) : ''}</small>` : ''}</td>
+              <td>${esc(r.receipt_no || '')}</td><td>${esc(r.account_name || '')}</td><td class="num">${r.vat == null ? '—' : money(r.vat)}</td><td class="num"><strong>${money(r.total)}</strong></td>
+              <td style="text-align:center;"><button type="button" class="btn btn-danger btn-small" onclick="sceDel('${esc(r.id)}')">Delete</button></td></tr>`;
+        }).join('')}</tbody></table></div>`;
+    }
+    window.sceRender = render;
+    window.sceClear = () => { $('sce-from').value = ''; $('sce-to').value = ''; render(); };
+    window.sceDel = async id => {
+        const p = pendingRows(), k = p.findIndex(x => x.uid === id);
+        if (k >= 0) { if (!confirm('Delete this receipt copy?')) return; p.splice(k, 1); store.set('neba_sce_p_', p); return render(); }
+        if (!navigator.onLine) return alert('Connect to the internet to delete a receipt.');
+        if (!confirm('Delete this expense receipt copy?\n\nThis does not change your Expenses page.')) return;
+        const r = await supabaseClient.from(TABLE).delete().eq('id', id).eq('tenant_id', currentTenantId);
+        if (r.error) return alert('Could not delete: ' + r.error.message);
+        rows = rows.filter(x => String(x.id) !== String(id)); store.set('neba_sce_rc_', rows.slice(0, 80)); render();
+    };
+
+    // ---- the third tab ----
+    const baseTab = window.scnTab;
+    window.scnTab = t => {
+        baseTab(t);
+        const on = t === 'expenses', pane = $('scn-pane-expenses'), b = $('scn-tab-expenses');
+        if (pane) pane.style.display = on ? '' : 'none';
+        if (b) { b.style.background = on ? '' : '#4a4e63'; b.style.opacity = on ? '1' : '.75'; }
+        if (on) load();
+    };
+    window.addEventListener('online', () => { try { if (typeof currentIsOwner !== 'undefined' && currentIsOwner && currentPlanPremium) load(); } catch (e) { } });
+})();
+</script>
 
     <script>
     // ============ SCANNED STOCK, part 2: selling, matching on Print, waiting list, audit list ============
