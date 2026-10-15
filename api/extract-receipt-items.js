@@ -7,35 +7,53 @@
 // the GEMINI_API_KEY environment variable and never reaches the browser.
 //
 // Frontend calls:  POST /api/extract-receipt-items   body: { image: "<base64 jpeg, no data: prefix>" }
-// Returns:         { seller_name, seller_tin, receipt_no, date_*, is_vat, doc_title, receipt_time, header_lines, footer_lines,
+// Returns:         { layout (A/B/C), buyer_tin, fs_no, mrc, voucher_no, date_raw, date_ambiguous, warnings, seller_name, seller_tin, receipt_no, date_*, is_vat, doc_title, receipt_time, header_lines, footer_lines,
 //                    before_vat, vat, total, items: [ ... every line ... ], missing_fields }
 
 export const config = { maxDuration: 30 };
 
-const ITEMS_PROMPT = `You are reading a photo of an Ethiopian PURCHASE document (the shop bought goods from a supplier). It is ONE of two layouts — figure out which first:
+const ITEMS_PROMPT = `You are reading a photo of an Ethiopian PURCHASE document (the shop bought goods from a supplier). It is ONE of three layouts - figure out which first and put the letter in "layout":
 
-LAYOUT A — fiscal cash register receipt (thin thermal paper):
+LAYOUT A - fiscal cash register receipt (thin thermal paper):
 - The SELLER'S TIN is near the top as "TIN: XXXXXXXXXX", followed by the seller's business name. "Buyer's TIN" further down is the buyer, never the seller.
 - Receipt number: "FS No. XXXXXXXX". Date: DD/MM/YYYY, Gregorian, day first.
 - Items are either one line each ("DESCRIPTION  QTY  PRICE  AMOUNT") or two lines each ("QTY x PRICE =" then "DESCRIPTION  *AMOUNT").
 - Taxable subtotal = "TXBL1". VAT = "TAX1"/"TAX 1" (15%). Grand total = "TOTAL".
 
-LAYOUT B — manual yellow "Sales Invoice" (hand-filled carbon copy):
+LAYOUT B - manual yellow "Sales Invoice" (hand-filled carbon copy):
 - Seller = the pre-printed "Supplier" block (top-left). Buyer = the hand-filled "Customer" block. Never swap them.
 - Invoice number is the pre-printed (often red) serial near "No.".
 - The date is handwritten and is almost always ETHIOPIAN calendar, day/month/2-digit-year (e.g. "28/10/17" = day 28, month 10, year 2017). Then date_calendar = "EC" and date_year = full 4-digit year.
+
+LAYOUT C - ERP "Cash Sales Voucher" / "Cash Sales Attachment" (computer-printed A4 or half-A4 sheet, usually with a big grey diagonal watermark word such as "Attachment" across the page; it is the itemised copy that goes with a thermal fiscal receipt):
+- SELLER = the business name printed as the big heading at the top (sometimes also repeated inside a small box on the right). The seller's TIN is printed as "TIN: XXXXXXXXXX" near that heading. A "VAT: XXXXXXXXXX" next to it is the seller's VAT registration number.
+- The box headed "To" / "Bill to" / "Customer" is the BUYER. Its "TIN No" / "TIN" is buyer_tin. Never swap seller and buyer.
+- "FS No." (fiscal receipt number) and "MRC No." (machine code, like TDB0016030 or FGB0005691) are printed in that box. "Voucher No" / "Ref." is the supplier's own internal number (voucher_no).
+- The item table has columns like SN, Code / Item Id / ID, Description, Qty, Unit, Unit Amount / Price, Total. The Description cell can sit on a slightly different row from its numbers (the numbers may appear staggered lower); pair each description with its numbers by row ORDER. The Code (for example "Ele000000008" or "IT-00494-") is NOT the description. If the description is very short (for example "10W"), copy it exactly as printed anyway.
+- Item prices and line totals on this layout are BEFORE VAT. "Sub Total" = before_vat, "VAT(15%)" = vat, "Grand Total" = total. A number printed in the middle of the Sub Total / VAT row (the VAT base) is not an extra total - ignore it.
+- The date is Gregorian, often with a time: "07-10-2026 11:42 AM" or "4/7/2026 16:00:35". Different suppliers print day-first or month-first, so copy it exactly as printed into "date_raw" and give your best day/month reading. A "Prepared on ..." date or a printed stamp elsewhere on the page can help you decide the order.
+- Ignore the watermark letters; read the text underneath them. Ignore "Prepared by", signatures, stamps and "INVALID WITHOUT FISCAL OR REFUND RECEIPT ATTACHED" as items.
+
+FADED OR HARD-TO-READ PHOTOS: thermal paper fades, photos blur, and watermarks cover text. Read every character you reasonably can, including very pale ones. Then use arithmetic to check yourself: quantity x unit price = line amount; the line amounts add up to the subtotal; subtotal x 15% = VAT; subtotal + VAT = total. If one digit is unreadable, use these relationships to repair it. If you still cannot read a value with confidence, return null for it and never invent it.
 
 TASK: extract EVERY line item on the document. Do not skip, merge, or summarise lines. Do not include subtotal, VAT, total, discount, or payment lines as items.
 
 Return ONLY raw JSON, no markdown fences, no commentary:
 {
+  "layout": "A" or "B" or "C",
   "seller_name": string or null,
   "seller_tin": string or null,
+  "buyer_tin": string or null,
+  "vat_reg_no": string or null,
   "receipt_no": string or null,
+  "fs_no": string or null,
+  "mrc": string or null,
+  "voucher_no": string or null,
   "date_calendar": "GC" or "EC",
   "date_year": number or null,
   "date_month": number or null,
   "date_day": number or null,
+  "date_raw": string or null,
   "is_vat": boolean,
   "doc_title": string or null,
   "receipt_time": string or null,
@@ -61,13 +79,14 @@ Rules for each item:
 - "description": copy the item text exactly as printed/written. Do not translate, correct, or expand it.
 - "quantity" and "unit_price": as printed. If only the line amount is printed, leave the missing one null (do not guess).
 - "amount": the line total as printed.
-- "measurement": only a unit that is actually printed next to the item (PCS, KG, M, L, BOX, PK...). Otherwise null — never guess.
+- "measurement": only a unit that is actually printed next to the item (PCS, KG, M, MT, L, BOX, PK...). Otherwise null - never guess.
 - "pack_hint": only if the description itself states a pack size, for example "12PCS/BOX", "carton of 24", "1x10". Copy that text; otherwise null.
 - "before_vat", "vat", "total" are always the receipt-wide totals, never per-item figures.
-- "doc_title": the banner/title line printed on the document, copied exactly (for example "CASH INVOICE" or "Sales Invoice"). Otherwise null.
-- "receipt_time": the time printed next to the date (HH:MM). Otherwise null.
+- "receipt_no": for layout A use the FS No.; for layout B the invoice serial; for layout C use the FS No. if one is printed, otherwise the Voucher No.
+- "doc_title": the banner/title line printed on the document, copied exactly (for example "CASH INVOICE", "Sales Invoice", "Cash Sales Attachment"). Otherwise null.
+- "receipt_time": the time printed next to the date (HH:MM, 24-hour; if AM/PM is printed, convert it). Otherwise null.
 - "header_lines": every OTHER text line printed at the top, in order, copied exactly (address, phone, VAT registration number, branch, etc.). Do not repeat the seller name, the TIN line, the receipt number, the date or the title. Use [] if none.
-- "footer_lines": every text line printed BELOW the totals, in order, copied exactly (payment method, item count, fiscal/ET device number, cashier, thank-you note, etc.). Do not repeat any totals. Use [] if none.
+- "footer_lines": every text line printed BELOW the totals, in order, copied exactly (payment method, amount in words, item count, fiscal/ET device number, cashier, thank-you note, etc.). Do not repeat any totals. Use [] if none.
 - "missing_fields": only from this set, and only if you could not confidently read it: "Seller name", "Seller TIN", "Items", "Total".`;
 
 const VAT_RATE = 0.15;
@@ -136,6 +155,53 @@ function cleanItems(rawItems) {
 function cleanLines(v) {
     if (!Array.isArray(v)) return [];
     return v.map((x) => String(x == null ? '' : x).trim().slice(0, 90)).filter(Boolean).slice(0, 14);
+}
+
+
+// ---- Date reading for the printed ERP attachments (layout C) ----
+// Different suppliers' systems print 07-10-2026 (day first) or 4/7/2026 (month
+// first). When both numbers are 12 or less we cannot know which is meant, so we
+// keep the day-first reading, flag it, and hand back the swapped reading so the
+// screen can offer a one-click switch.
+function fixDate(parsed) {
+    parsed.date_ambiguous = false;
+    parsed.date_alt_day = null;
+    parsed.date_alt_month = null;
+    if (parsed.date_calendar !== 'GC' || parsed.layout !== 'C') return parsed;
+    const m = String(parsed.date_raw || '').match(/(\d{1,2})\s*[\/\-.]\s*(\d{1,2})\s*[\/\-.]\s*(\d{4})/);
+    if (!m) return parsed;
+    const a = Number(m[1]), b = Number(m[2]), y = Number(m[3]);
+    parsed.date_year = y;
+    if (a > 12 && b <= 12) { parsed.date_day = a; parsed.date_month = b; }
+    else if (b > 12 && a <= 12) { parsed.date_day = b; parsed.date_month = a; }
+    else if (a === b) { parsed.date_day = a; parsed.date_month = b; }
+    else if (a <= 12 && b <= 12) {
+        parsed.date_day = a; parsed.date_month = b; // day-first by default
+        parsed.date_ambiguous = true;
+        parsed.date_alt_day = b; parsed.date_alt_month = a;
+    }
+    return parsed;
+}
+
+// Quick arithmetic check. If the numbers do not agree the photo was probably
+// misread (faded digits are the usual reason), so we tell the user to check.
+function mathWarnings(parsed) {
+    const w = [];
+    const items = parsed.items || [];
+    const sum = items.reduce((s, i) => s + (i.amount || 0), 0);
+    const base = (parsed.before_vat !== null && parsed.before_vat !== undefined) ? parsed.before_vat : parsed.total;
+    if (items.length && base !== null && base !== undefined && items.every((i) => i.amount !== null) && Math.abs(sum - base) > 1) {
+        w.push('The item amounts add up to ' + round2(sum).toLocaleString('en-US') + ' but the receipt subtotal is ' + round2(base).toLocaleString('en-US') + '. A digit may be misread or a line missing - check every line against the paper.');
+    }
+    if (parsed.is_vat && parsed.before_vat !== null && parsed.vat !== null && parsed.total !== null && Math.abs(parsed.before_vat + parsed.vat - parsed.total) > 1) {
+        w.push('Before VAT + VAT does not equal the total. One of the three amounts may be misread.');
+    }
+    items.forEach((i) => {
+        if (i.quantity && i.unit_price && i.amount && Math.abs(i.quantity * i.unit_price - i.amount) > Math.max(1, i.amount * 0.005)) {
+            w.push('"' + i.description.slice(0, 30) + '": quantity x price does not match the line amount.');
+        }
+    });
+    return w.slice(0, 5);
 }
 
 // Tried in order. 429/503 (busy) -> try the next model.
@@ -219,6 +285,10 @@ export default async function handler(req, res) {
         let parsed = JSON.parse(cleaned);
         parsed = fillMissingVatFields(parsed);
         parsed.date_calendar = parsed.date_calendar === 'EC' ? 'EC' : 'GC';
+        parsed.layout = ['A', 'B', 'C'].includes(parsed.layout) ? parsed.layout : 'A';
+        // The attachment's own voucher number is internal; the FS No. is what ties it to the fiscal receipt.
+        if (parsed.layout === 'C' && parsed.fs_no) parsed.receipt_no = String(parsed.fs_no).trim();
+        parsed = fixDate(parsed);
         parsed.items = cleanItems(parsed.items);
         parsed.header_lines = cleanLines(parsed.header_lines);
         parsed.footer_lines = cleanLines(parsed.footer_lines);
@@ -226,6 +296,10 @@ export default async function handler(req, res) {
         parsed.receipt_time = /^\d{1,2}[:.]\d{2}/.test(String(parsed.receipt_time || '').trim()) ? String(parsed.receipt_time).trim().slice(0, 10) : null;
         parsed.missing_fields = Array.isArray(parsed.missing_fields) ? parsed.missing_fields : [];
         if (!parsed.items.length && !parsed.missing_fields.includes('Items')) parsed.missing_fields.push('Items');
+        parsed.before_vat = toNumOrNull(parsed.before_vat);
+        parsed.vat = toNumOrNull(parsed.vat);
+        parsed.total = toNumOrNull(parsed.total);
+        parsed.warnings = mathWarnings(parsed);
         res.status(200).json(parsed);
     } catch (e) {
         res.status(502).json({ error: 'Model returned non-JSON output that could not be parsed.' });

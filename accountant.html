@@ -1435,7 +1435,25 @@ This field is  mandatory.",Total value,vat,value after vat`;
     }
     // Shrink large phone photos before upload — faster, and keeps well within
     // Gemini's inline-image size limits.
-    async function compressImageForAi(file) {
+    // Faded thermal paper has low contrast. Stretch the photo's brightness so
+    // pale ink becomes readable. "force" is the stronger second attempt that is
+    // used automatically when the first read comes back weak.
+    function enhanceForOcr(canvas, force) {
+        try {
+            const ctx = canvas.getContext('2d'), w = canvas.width, h = canvas.height;
+            const img = ctx.getImageData(0, 0, w, h), d = img.data, hist = new Uint32Array(256);
+            for (let i = 0; i < d.length; i += 4) hist[((d[i] * 299 + d[i + 1] * 587 + d[i + 2] * 114) / 1000) | 0]++;
+            const n = w * h, at = (f) => { let a = 0; for (let v = 0; v < 256; v++) { a += hist[v]; if (a >= n * f) return v; } return 255; };
+            const lo = at(force ? 0.02 : 0.01), hi = at(force ? 0.9 : 0.95);
+            if (!force && hi - lo >= 150) return; // normal contrast: leave the photo alone
+            if (hi - lo < 20) return;
+            const gamma = force ? 1.7 : 1.15, span = hi - lo, lut = new Uint8ClampedArray(256);
+            for (let v = 0; v < 256; v++) lut[v] = 255 * Math.pow(Math.min(1, Math.max(0, (v - lo) / span)), gamma);
+            for (let i = 0; i < d.length; i += 4) { d[i] = lut[d[i]]; d[i + 1] = lut[d[i + 1]]; d[i + 2] = lut[d[i + 2]]; }
+            ctx.putImageData(img, 0, 0);
+        } catch (e) { /* if the browser cannot process the photo, send it as it is */ }
+    }
+    async function compressImageForAi(file, force) {
         const img = await loadImage(file);
         let maxDim = 1600, quality = 0.8;
         let blob = null;
@@ -1445,6 +1463,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
             canvas.width = Math.round(img.width * scale);
             canvas.height = Math.round(img.height * scale);
             canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            enhanceForOcr(canvas, force);
             blob = await canvasToJpegBlob(canvas, quality);
             if (blob.size <= 900 * 1024) break;
             maxDim = Math.round(maxDim * 0.8);
@@ -1466,21 +1485,33 @@ This field is  mandatory.",Total value,vat,value after vat`;
     // the browser. This function just sends the compressed image to our own
     // endpoint and returns whatever it hands back.
     async function runGeminiExtraction(file, onStatus) {
-        onStatus && onStatus('Preparing photo…');
-        const blob = await compressImageForAi(file);
-        const base64 = await blobToBase64(blob);
-        // blobToBase64 returns a data: URL — strip the prefix, the server expects raw base64.
-        const base64Data = base64.includes(',') ? base64.split(',')[1] : base64;
+        const post = async (force) => {
+            onStatus && onStatus(force ? 'Trying again with a clearer image…' : 'Preparing photo…');
+            const blob = await compressImageForAi(file, force);
+            const base64 = await blobToBase64(blob);
+            // blobToBase64 returns a data: URL — strip the prefix, the server expects raw base64.
+            const base64Data = base64.includes(',') ? base64.split(',')[1] : base64;
 
-        onStatus && onStatus('Reading the receipt…');
-        const res = await fetch('/api/extract-receipt', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image: base64Data }),
-        });
-        const data = await res.json().catch(() => null);
-        if (!res.ok) {
-            throw new Error((data && data.error) || `Receipt extraction failed (${res.status})`);
+            onStatus && onStatus(force ? 'Reading the receipt again…' : 'Reading the receipt…');
+            const res = await fetch('/api/extract-receipt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: base64Data }),
+            });
+            const data = await res.json().catch(() => null);
+            if (!res.ok) {
+                throw new Error((data && data.error) || `Receipt extraction failed (${res.status})`);
+            }
+            return data;
+        };
+        // A read is "weak" when the total is missing, the seller is unreadable, or the
+        // numbers do not add up (the usual sign of a faded photo). Try once more with a
+        // stronger contrast boost and keep whichever read is better.
+        const weak = (d) => d.total == null || (!d.seller_tin && !d.seller_name) || (d.warnings || []).length > 0;
+        const score = (d) => (d.total != null ? 3 : 0) + (d.seller_tin ? 2 : 0) + (d.seller_name ? 1 : 0) + (d.before_vat != null ? 1 : 0) + (d.description ? 1 : 0) - (d.warnings || []).length * 2;
+        let data = await post(false);
+        if (weak(data)) {
+            try { const d2 = await post(true); if (score(d2) > score(data)) data = d2; } catch (e) { /* keep the first read */ }
         }
         return data;
     }
@@ -2211,6 +2242,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
                 receiptNo: ex.receipt_no || '', isVat: !!ex.is_vat, beforeVat: ex.before_vat ?? '', vat: ex.vat ?? '', total: ex.total ?? '',
                 description: ex.description || '', measurement: ex.measurement || '', quantity: ex.quantity ?? '', unitPrice: ex.unit_price ?? '',
                 missing: ex.missing_fields || [], tinMismatch: match.mismatch,
+                dateRaw: ex.date_raw || '', dateAlt: !!ex.date_ambiguous, warns: Array.isArray(ex.warnings) ? ex.warnings.map(String).slice(0, 5) : [],
             };
             addFlow.step = 'review';
         } catch (e) {
@@ -2228,7 +2260,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
         // If extraction failed or there's no date to save with, pause here and
         // let the person fix this one by hand before the batch continues.
         const isBatch = addFlow.queueTotal > 1;
-        if (isBatch && !addFlow.error && addFlow.form.date) {
+        if (isBatch && !addFlow.error && addFlow.form.date && !addFlow.form.dateAlt && !(addFlow.form.warns || []).length) {
             await saveReceiptForm(false);
         }
     }
@@ -2273,6 +2305,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
                     ${addFlow.preview ? `<img src="${addFlow.preview}" class="receipt-preview-img" style="width:130px; border-radius:4px; border:1px solid var(--paper-line); align-self:flex-start;">` : ''}
                     <div style="flex:1; min-width:0;">
                         ${addFlow.error ? `<div class="notice notice-warn">${icon('alert-triangle', 14)} ${esc(addFlow.error)}</div>` : ''}
+                        ${renderScanNotes(addFlow.form)}
                         <div style="display:flex; gap:16px; margin-bottom:14px; flex-wrap:wrap;">
                             <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="entry-type" style="width:auto;" ${f.type === 'payment' ? 'checked' : ''} onchange="addFlow.form.type='payment'"> Purchase (payment out)</label>
                             <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="entry-type" style="width:auto;" ${f.type === 'receipt' ? 'checked' : ''} onchange="addFlow.form.type='receipt'"> Sale (receipt in)</label>
@@ -2330,8 +2363,24 @@ This field is  mandatory.",Total value,vat,value after vat`;
                 </div>
             </div>`;
     }
+    // Yellow notes above the review form: numbers that do not add up (often a faded
+    // photo) and dates that could be read as day/month or month/day.
+    function renderScanNotes(f) {
+        let h = (f.warns || []).map((w) => `<div class="notice notice-warn">${icon('alert-triangle', 14)} ${esc(w)}</div>`).join('');
+        if (f.dateAlt && f.ecDay && f.ecMonth && f.calendar === 'GC') {
+            h += `<div class="notice notice-warn">${icon('alert-triangle', 14)}<div>The date is printed as <strong>${esc(f.dateRaw)}</strong>, so it could be day ${esc(f.ecDay)} / month ${esc(f.ecMonth)} or day ${esc(f.ecMonth)} / month ${esc(f.ecDay)}. Check the paper.
+                <div><button type="button" class="btn btn-ghost" style="margin-top:6px; padding:4px 10px; font-size:12px;" onclick="swapScanDate()">Switch to day ${esc(f.ecMonth)} / month ${esc(f.ecDay)}</button></div></div></div>`;
+        }
+        return h;
+    }
+    function swapScanDate() {
+        const f = addFlow.form;
+        const t = f.ecDay; f.ecDay = f.ecMonth; f.ecMonth = t;
+        recomputeDatePreview();
+        render();
+    }
     function setDateCalendar(cal) { addFlow.form.calendar = cal; recomputeDatePreview(); }
-    function setDatePart(part, v) { addFlow.form[part] = v; recomputeDatePreview(); }
+    function setDatePart(part, v) { addFlow.form[part] = v; if (part === 'ecMonth' || part === 'ecDay') addFlow.form.dateAlt = false; recomputeDatePreview(); }
     function recomputeDatePreview() {
         const f = addFlow.form;
         const y = Number(f.ecYear), m = Number(f.ecMonth), d = Number(f.ecDay);

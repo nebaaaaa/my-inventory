@@ -9110,6 +9110,63 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         //     extraNotes: ['Deposit held: ETB 500 (Cash)', ...]           // optional
         //   }
         // ---------------------------------------------------------------
+        // ---------------------------------------------------------------
+        // SCAN HELPERS shared by the purchase-receipt scanner and the
+        // expense-receipt scanner: faded-photo enhancement, one automatic
+        // retry when a read comes back weak, and the warning notes.
+        // ---------------------------------------------------------------
+        // Faded thermal paper has low contrast. Stretch the photo's brightness
+        // so the pale ink becomes readable. "force" is the stronger second try.
+        window.ocrEnhance = function (canvas, force) {
+            try {
+                const ctx = canvas.getContext('2d'), w = canvas.width, h = canvas.height;
+                const img = ctx.getImageData(0, 0, w, h), d = img.data, hist = new Uint32Array(256);
+                for (let i = 0; i < d.length; i += 4) hist[((d[i] * 299 + d[i + 1] * 587 + d[i + 2] * 114) / 1000) | 0]++;
+                const n = w * h, at = f => { let a = 0; for (let v = 0; v < 256; v++) { a += hist[v]; if (a >= n * f) return v; } return 255; };
+                const lo = at(force ? 0.02 : 0.01), hi = at(force ? 0.9 : 0.95);
+                if (!force && hi - lo >= 150) return; // normal contrast: leave the photo alone
+                if (hi - lo < 20) return;
+                const gamma = force ? 1.7 : 1.15, span = hi - lo, lut = new Uint8ClampedArray(256);
+                for (let v = 0; v < 256; v++) lut[v] = 255 * Math.pow(Math.min(1, Math.max(0, (v - lo) / span)), gamma);
+                for (let i = 0; i < d.length; i += 4) { d[i] = lut[d[i]]; d[i + 1] = lut[d[i + 1]]; d[i + 2] = lut[d[i + 2]]; }
+                ctx.putImageData(img, 0, 0);
+            } catch (e) { /* if the browser cannot process the photo, send it as it is */ }
+        };
+        window.ocrWeak = d => !((d && d.items) || []).length || d.total == null || ((d && d.warnings) || []).length > 0;
+        window.ocrScore = d => ((d && d.items) || []).length * 3 + (d && d.total != null ? 2 : 0) + (d && d.seller_tin ? 1 : 0) - ((d && d.warnings) || []).length * 2;
+        // Read one photo. If the first read looks weak (no items, no total, or the numbers do not add up),
+        // try once more with stronger enhancement and keep whichever read is better.
+        window.ocrReadWith = async function (file, compress, toB64) {
+            const post = async force => {
+                const res = await fetch('/api/extract-receipt-items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: await toB64(await compress(file, force)) }) });
+                const data = await res.json().catch(() => null);
+                if (!res.ok) throw new Error((data && data.error) || 'Failed (' + res.status + ')');
+                return data;
+            };
+            let data = await post(false);
+            if (window.ocrWeak(data)) { try { const d2 = await post(true); if (window.ocrScore(d2) > window.ocrScore(data)) data = d2; } catch (e) { } }
+            return data;
+        };
+        // Yellow warning lines at the top of a review window: misread numbers, or a date that could be read two ways.
+        window.ocrNotes = function (d, swapFn) {
+            const e = x => String(x == null ? '' : x).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+            const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const nice = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ''); return m ? (Number(m[3]) + ' ' + MON[Number(m[2]) - 1] + ' ' + m[1]) : (iso || ''); };
+            let h = ((d && d.warns) || []).map(w => '<p style="color:#b9770e;font-size:13px;margin:0 0 8px;">&#9888; ' + e(w) + '</p>').join('');
+            if (d && d.dateAlt) h += '<p style="color:#b9770e;font-size:13px;margin:0 0 8px;">&#9888; The date is printed as <b>' + e(d.dateRaw) + '</b>, which could be <b>' + nice(d.date) + '</b> or <b>' + nice(d.dateAlt) + '</b>. Check the paper. <button type="button" class="btn btn-small" onclick="' + swapFn + '()">Use ' + nice(d.dateAlt) + ' instead</button></p>';
+            return h;
+        };
+        // 147319.6 -> "One Hundred Forty Seven Thousand Three Hundred Nineteen Birr and Sixty Cents Only"
+        function amountInWordsEN(amount) {
+            const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+            const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+            const under1000 = n => { let t = ''; if (n >= 100) { t += ones[Math.floor(n / 100)] + ' Hundred'; n %= 100; if (n) t += ' '; } if (n >= 20) { t += tens[Math.floor(n / 10)]; if (n % 10) t += ' ' + ones[n % 10]; } else if (n > 0) t += ones[n]; return t; };
+            const all = Math.round(Math.abs(Number(amount) || 0) * 100);
+            let birr = Math.floor(all / 100); const cents = all % 100, parts = [];
+            [[1e9, 'Billion'], [1e6, 'Million'], [1e3, 'Thousand']].forEach(([v, name]) => { if (birr >= v) { parts.push(under1000(Math.floor(birr / v)) + ' ' + name); birr %= v; } });
+            if (birr > 0 || !parts.length) parts.push(birr > 0 ? under1000(birr) : 'Zero');
+            return parts.join(' ') + ' Birr' + (cents ? ' and ' + under1000(cents) + ' Cents' : '') + ' Only';
+        }
         function branchAddressById(id) {
             return (id && allBranchesById[id] && allBranchesById[id].address) || '';
         }
@@ -9272,56 +9329,120 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 <div class="center small" style="margin-top:6px;">Prepared by Meleya Software Solutions.</div>
             ${'</bo' + 'dy></html>'}`;
         }
+        // The full-page invoice is the "Cash Sales Attachment": the itemised A4 sheet that goes with the thermal
+        // fiscal receipt (same layout Ethiopian suppliers hand out). Item prices and line totals print BEFORE VAT,
+        // exactly like the receipt; Sub Total, VAT(15%) and Grand Total sit under the table.
         function renderInvoiceHTML(data) {
-            const balance = Math.max(0, data.total - (data.amountPaid || 0));
             const headerLines = docHeaderLines(data);
-            const taxable = data.vatIncluded ? data.total / 1.15 : null;
-            const vatAmt = data.vatIncluded ? data.total - taxable : 0;
-            return `<!doctype html><html><head><meta charset="utf-8"><title>${escHtml(data.docLabel)}</title><style>
-                @page { size: A4; margin: 18mm; }
+            const isSale = data.counterpartyLabel === 'Customer';
+            const isPurchase = data.counterpartyLabel === 'Supplier';
+            const title = data.docLabel === 'INVOICE' ? (isPurchase ? 'Purchase Attachment' : 'Cash Sales Attachment') : (data.docLabel || 'Cash Sales Attachment');
+            const attachment = /attachment/i.test(title);
+            const vatOn = !!data.vatIncluded;
+            const taxable = vatOn ? data.total / 1.15 : null;
+            const vatAmt = vatOn ? data.total - taxable : 0;
+            const balance = Math.max(0, data.total - (data.amountPaid || 0));
+            const now = new Date();
+            const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            const dateStr = fmtDateGregorian(data.date);
+            const showUom = data.lines.some(l => l.uom);
+            const pre = v => (vatOn && v != null) ? v / 1.15 : v;
+            const payLabel = (data.channelBreakdown || []).filter(c => c && c.channel && c.amount > 0).map(c => `${escHtml(c.channel)} (${Number(c.amount).money2()})`).join(', ');
+            const blankLine = '<span class="blank">&nbsp;</span>';
+            const rows = data.lines.map((l, i) => `<tr>
+                        <td class="c">${i + 1}</td>
+                        <td>${escHtml(l.desc)}</td>
+                        <td class="r">${l.qty}</td>
+                        ${showUom ? `<td class="c">${escHtml(l.uom || '')}</td>` : ''}
+                        <td class="r">${l.unit != null ? pre(l.unit).money2() : '—'}</td>
+                        <td class="r">${pre(l.total).money2()}</td></tr>`).join('');
+            return `<!doctype html><html><head><meta charset="utf-8"><title>${escHtml(title)}</title><style>
+                @page { size: A4; margin: 14mm; }
                 * { box-sizing: border-box; }
-                body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #111; }
-                .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #333; padding-bottom: 14px; margin-bottom: 18px; }
-                .biz-name { font-size: 20px; font-weight: 700; }
-                .doc-title { font-size: 20px; font-weight: 700; text-align: right; }
-                table { width: 100%; border-collapse: collapse; margin-top: 14px; }
-                th, td { border: 1px solid #ccc; padding: 7px 9px; font-size: 12px; text-align: left; }
-                th { background: #f2f2f2; }
-                .right { text-align: right; }
-                .totals { width: 300px; margin-left: auto; margin-top: 10px; }
-                .totals td { border: none; padding: 4px 9px; }
-                .totals .lbl { font-weight: 600; }
-                .totals .grand td { border-top: 2px solid #333; font-weight: 700; font-size: 14px; }
-                .notes { margin-top: 18px; font-size: 12px; color: #333; }
-                .footer { margin-top: 40px; font-size: 11px; color: #666; }
+                body { font-family: Arial, Helvetica, sans-serif; font-size: 12.5px; color: #111; margin: 0; position: relative; }
+                .wm { position: fixed; top: 42%; left: 50%; transform: translate(-50%, -50%) rotate(-33deg); font-size: 150px; font-weight: 700; color: rgba(0,0,0,.07); letter-spacing: 4px; z-index: 0; pointer-events: none; white-space: nowrap; }
+                .page { position: relative; z-index: 1; }
+                .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 10px; }
+                .biz { font-size: 21px; font-weight: 700; text-transform: uppercase; line-height: 1.15; }
+                .biz-sub { font-size: 11.5px; margin-top: 3px; line-height: 1.45; }
+                .doc-title { font-size: 19px; font-weight: 700; text-align: right; white-space: nowrap; }
+                .boxes { display: flex; gap: 12px; margin-top: 8px; }
+                .box { border: 1px solid #333; padding: 7px 10px; flex: 1; }
+                .box.right { flex: 0 0 38%; }
+                .kv { display: flex; gap: 8px; padding: 2px 0; }
+                .kv .k { flex: 0 0 74px; color: #333; }
+                .kv .v { flex: 1; font-weight: 600; word-break: break-word; }
+                .blank { display: inline-block; min-width: 110px; border-bottom: 1px solid #555; }
+                table.items { width: 100%; border-collapse: collapse; margin-top: 12px; }
+                table.items th, table.items td { border: 1px solid #333; padding: 6px 8px; font-size: 12px; text-align: left; vertical-align: top; }
+                table.items th { background: #eee; font-weight: 700; }
+                .r { text-align: right !important; }
+                .c { text-align: center !important; width: 38px; }
+                .lower { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; margin-top: 12px; }
+                .words { flex: 1; font-size: 12px; line-height: 1.5; }
+                .words .pm { margin-bottom: 8px; }
+                .words .aw { background: #e6e6e6; padding: 5px 8px; font-style: italic; }
+                table.tot { width: 290px; border-collapse: collapse; }
+                table.tot td { border: 1px solid #333; padding: 5px 9px; font-size: 12.5px; }
+                table.tot td.l { font-weight: 700; }
+                table.tot td.n { text-align: right; }
+                table.tot tr.grand td { font-weight: 700; font-size: 13.5px; background: #f2f2f2; }
+                .notes { margin-top: 12px; font-size: 12px; color: #333; }
+                .ops { margin-top: 26px; font-size: 12px; line-height: 1.8; }
+                .ops b { font-size: 13px; }
+                .sig { display: flex; gap: 40px; margin-top: 18px; font-size: 12px; }
+                .sig span.line { display: inline-block; width: 170px; border-bottom: 1px solid #555; }
+                .invalid { margin-top: 30px; text-align: center; font-size: 13px; font-weight: 700; letter-spacing: .3px; }
+                .foot { margin-top: 8px; border-top: 1px solid #999; padding-top: 4px; font-size: 10.5px; color: #666; display: flex; justify-content: space-between; }
             </style></head><body>
-                <div class="header">
-                    <div>
-                        <div class="biz-name">${escHtml(currentTenantName || 'Your Shop')}</div>
-                        ${headerLines.map(l => `<div>${escHtml(l)}</div>`).join('')}
+                ${attachment ? '<div class="wm">Attachment</div>' : ''}
+                <div class="page">
+                    <div class="top">
+                        <div>
+                            <div class="biz">${escHtml(currentTenantName || 'Your Shop')}</div>
+                            <div class="biz-sub">${headerLines.map(l => escHtml(l)).join('<br>')}</div>
+                        </div>
+                        <div class="doc-title">${escHtml(title)}</div>
                     </div>
-                    <div>
-                        <div class="doc-title">${escHtml(data.docLabel)}</div>
-                        <div style="text-align:right;">Ref: ${escHtml(data.docNumber)}</div>
-                        <div style="text-align:right;">Date: ${fmtDateGregorian(data.date)}</div>
+                    <div class="boxes">
+                        <div class="box">
+                            <div class="kv"><span class="k">${isPurchase ? 'From' : 'To'}</span><span class="v">${escHtml(data.counterpartyName || '—')}</span></div>
+                            <div class="kv"><span class="k">TIN No</span><span class="v">${data.buyerTin ? escHtml(data.buyerTin) : blankLine}</span></div>
+                            ${data.buyerTradeName ? `<div class="kv"><span class="k">Trade name</span><span class="v">${escHtml(data.buyerTradeName)}</span></div>` : ''}
+                            ${data.counterpartyPhone ? `<div class="kv"><span class="k">Tel</span><span class="v">${escHtml(data.counterpartyPhone)}</span></div>` : ''}
+                            ${vatOn ? `<div class="kv"><span class="k">FS No.</span><span class="v">${data.fsNo ? escHtml(data.fsNo) : blankLine}</span></div>
+                            <div class="kv"><span class="k">MRC No.</span><span class="v">${data.etSerial ? escHtml(data.etSerial) : blankLine}</span></div>` : ''}
+                        </div>
+                        <div class="box right">
+                            <div class="kv"><span class="k">Voucher No</span><span class="v">${escHtml(data.docNumber)}</span></div>
+                            <div class="kv"><span class="k">Date</span><span class="v">${dateStr} ${timeStr}</span></div>
+                        </div>
                     </div>
+                    <table class="items">
+                        <thead><tr><th class="c">SN</th><th>Description</th><th class="r">Qty</th>${showUom ? '<th class="c">Unit</th>' : ''}<th class="r">Unit Amount</th><th class="r">Total</th></tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                    <div class="lower">
+                        <div class="words">
+                            <div class="pm"><b>Payment Method:</b> ${payLabel || (data.amountPaid > 0 ? 'Paid' : 'Credit')}</div>
+                            <div class="aw">${escHtml(amountInWordsEN(data.total))}</div>
+                        </div>
+                        <table class="tot">
+                            ${vatOn ? `<tr><td class="l">Sub Total</td><td class="n">${taxable.money2()}</td></tr><tr><td class="l">VAT(15%)</td><td class="n">${vatAmt.money2()}</td></tr>` : ''}
+                            <tr class="grand"><td class="l">Grand Total</td><td class="n">${data.total.money2()}</td></tr>
+                            ${(data.amountPaid || 0) > 0 && balance > 0.005 ? `<tr><td class="l">Paid</td><td class="n">${(data.amountPaid || 0).money2()}</td></tr><tr><td class="l">Balance</td><td class="n">${balance.money2()}</td></tr>` : ''}
+                        </table>
+                    </div>
+                    ${(data.extraNotes || []).length ? `<div class="notes">${data.extraNotes.map(escHtml).join('<br>')}</div>` : ''}
+                    <div class="ops">
+                        <b>Voucher Operators</b><br>
+                        1) Prepared By ${escHtml(data.operator || '—')} On ${dateStr}<br>
+                        2) Void ${blankLine}
+                    </div>
+                    <div class="sig"><div>Received by: Name <span class="line"></span></div><div>Signature <span class="line"></span></div></div>
+                    ${vatOn ? '<div class="invalid">INVALID WITHOUT FISCAL OR REFUND RECEIPT ATTACHED</div>' : ''}
+                    <div class="foot"><span>Prepared by Meleya Software Solutions.</span><span>Page 1</span></div>
                 </div>
-                ${data.buyerTin ? `<div>Buyer's TIN: ${escHtml(data.buyerTin)}</div>` : ''}
-                <div style="margin-bottom:10px;"><strong>${escHtml(data.counterpartyLabel)}:</strong> ${escHtml(data.counterpartyName || '—')}${data.counterpartyPhone ? ` &middot; ${escHtml(data.counterpartyPhone)}` : ''}${data.buyerTradeName ? ` &middot; Trade Name: ${escHtml(data.buyerTradeName)}` : ''}</div>
-                <table>
-                    <thead><tr><th>Description</th><th class="right">Qty</th><th class="right">Unit Price</th><th class="right">Total</th></tr></thead>
-                    <tbody>
-                        ${data.lines.map(l => `<tr><td>${escHtml(l.desc)}</td><td class="right">${l.qty}</td><td class="right">${l.unit != null ? l.unit.money2() : '—'}</td><td class="right">${l.total.money2()}</td></tr>`).join('')}
-                    </tbody>
-                </table>
-                <table class="totals">
-                    ${data.vatIncluded ? `<tr><td class="lbl">TXBL1</td><td class="right">ETB ${taxable.money2()}</td></tr><tr><td class="lbl">TAX1 15.00%</td><td class="right">ETB ${vatAmt.money2()}</td></tr>` : ''}
-                    <tr class="grand"><td class="lbl">Total</td><td class="right">ETB ${data.total.money2()}</td></tr>
-                    <tr><td class="lbl">Paid</td><td class="right">ETB ${(data.amountPaid || 0).money2()}</td></tr>
-                </table>
-                ${(data.extraNotes || []).length ? `<div class="notes">${data.extraNotes.map(escHtml).join('<br>')}</div>` : ''}
-                <div class="footer">Thank you for your business.</div>
-                <div class="footer" style="margin-top:4px;">Prepared by Meleya Software Solutions.</div>
             ${'</bo' + 'dy></html>'}`;
         }
         function printReceiptFor(data) { if (data) printDocumentHTML(renderReceiptHTML(data)); }
@@ -12568,12 +12689,12 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
 
         // ---- photo -> base64 (same approach as the accountant app) ----
         function loadImg(file) { return new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error('Could not open this image')); i.src = URL.createObjectURL(file); }); }
-        async function compress(file) {
+        async function compress(file, force) {
             const img = await loadImg(file); let max = 1600, q = 0.8, blob = null;
             for (let a = 0; a < 5; a++) {
                 const s = Math.min(1, max / Math.max(img.width, img.height)), c = document.createElement('canvas');
                 c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
-                c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+                c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); if (window.ocrEnhance) window.ocrEnhance(c, force);
                 blob = await new Promise(r => c.toBlob(r, 'image/jpeg', q));
                 if (blob.size <= 900 * 1024) break;
                 max = Math.round(max * 0.8); q = Math.max(0.5, q - 0.1);
@@ -12592,7 +12713,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             });
             const ls = v => Array.isArray(v) ? v.map(x => String(x || '').trim()).filter(Boolean).slice(0, 14) : [];
             const layout = { title: d.doc_title ? String(d.doc_title).trim() : '', time: d.receipt_time ? String(d.receipt_time).trim() : '', header: ls(d.header_lines), footer: ls(d.footer_lines) };
-            return { merchant: d.seller_name || '', tin: d.seller_tin || '', no: d.receipt_no || '', date, before: d.before_vat ?? '', vat: d.vat ?? '', total: d.total ?? '', items: items.length ? items : blank().items, layout, error: items.length ? '' : 'No items were found. Add them by hand below.' };
+            return { merchant: d.seller_name || '', tin: d.seller_tin || '', no: d.receipt_no || '', date, before: d.before_vat ?? '', vat: d.vat ?? '', total: d.total ?? '', items: items.length ? items : blank().items, layout, dateRaw: d.date_raw || '', dateAlt: (d.date_ambiguous && d.date_alt_day && d.date_alt_month && d.date_year) ? `${d.date_year}-${p2(d.date_alt_month)}-${p2(d.date_alt_day)}` : '', warns: Array.isArray(d.warnings) ? d.warnings.map(w => String(w)).slice(0, 5) : [], error: items.length ? '' : 'No items were found. Add them by hand below.' };
         }
 
         // ---- match receipt lines to Inventory items (many to many; stock stays separate) ----
@@ -12675,7 +12796,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         };
         function review() {
             const d = draft, inp = 'style="width:100%;"';
-            open(`${d.error ? `<p style="color:#c0392b;font-size:13px;">${esc(d.error)}</p>` : ''}
+            open(`${d.error ? `<p style="color:#c0392b;font-size:13px;">${esc(d.error)}</p>` : ''}${window.ocrNotes(d, 'scnDateSwap')}
               <p style="font-size:12px;color:var(--text-light);margin:0 0 10px;">Check every line against the paper receipt. Lines matched to an Inventory item (&rarr;) are stored in Scanned Stock under the Inventory item&#39;s name; other lines keep the name written here.</p>
               <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
                 ${[['merchant', 'Merchant', 'text'], ['tin', 'Merchant TIN', 'text'], ['no', 'Receipt No.', 'text'], ['date', 'Date', 'date'], ['before', 'Before VAT', 'number'], ['vat', 'VAT', 'number'], ['total', 'Total', 'number']]
@@ -12698,9 +12819,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
 
         async function extractOne(f) {
             try {
-                const res = await fetch('/api/extract-receipt-items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: await toB64(await compress(f)) }) });
-                const data = await res.json().catch(() => null);
-                if (!res.ok) throw new Error((data && data.error) || 'Failed (' + res.status + ')');
+                const data = await window.ocrReadWith(f, compress, toB64);
                 return { draft: fromExtract(data), ok: true };
             } catch (e) { const d = blank(); d.error = 'Could not read this receipt automatically (' + e.message + '). Fill it in by hand.'; return { draft: d, ok: false }; }
         }
@@ -12731,7 +12850,8 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         };
         window.scnSkip = () => { draft = null; showNext(); };
         window.scnManual = async () => { if (reading || busy) return; queue = [{ draft: blank(), ok: false }]; qTotal = 1; qIdx = 0; await showNext(); };
-        window.scnHead = (k, v) => { draft[k] = v; };
+        window.scnHead = (k, v) => { draft[k] = v; if (k === 'date') draft.dateAlt = ''; };
+        window.scnDateSwap = () => { if (!draft || !draft.dateAlt) return; const t = draft.date; draft.date = draft.dateAlt; draft.dateAlt = t; review(); };
         window.scnRow = (i, k, v) => { draft.items[i][k] = v; if (k === 'pack') delete draft.items[i].packFrom; if (k === 'qty' || k === 'price') draft.items[i].amount = ''; }; // edited qty/price -> line amount is recalculated on save
         window.scnAdd = () => { draft.items.push({ name: '', qty: 1, unit: '', price: '', pack: 1, links: [] }); review(); };
         window.scnDel = i => { draft.items.splice(i, 1); if (!draft.items.length) draft.items = blank().items; review(); };
@@ -12817,12 +12937,12 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
 
     // ---- photo -> base64 (same approach as the purchase scanner) ----
     function loadImg(file) { return new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error('Could not open this image')); i.src = URL.createObjectURL(file); }); }
-    async function compress(file) {
+    async function compress(file, force) {
         const img = await loadImg(file); let max = 1600, q = 0.8, blob = null;
         for (let a = 0; a < 5; a++) {
             const s = Math.min(1, max / Math.max(img.width, img.height)), c = document.createElement('canvas');
             c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
-            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); if (window.ocrEnhance) window.ocrEnhance(c, force);
             blob = await new Promise(r => c.toBlob(r, 'image/jpeg', q));
             if (blob.size <= 900 * 1024) break;
             max = Math.round(max * 0.8); q = Math.max(0.5, q - 0.1);
@@ -12876,15 +12996,13 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         const lines = (d.items || []).map(i => ({ name: String(i.description || '').trim(), qty: i.quantity ?? '', unit: i.measurement || '', price: i.unit_price ?? '', amount: i.amount ?? '' })).filter(l => l.name);
         const ls = v => Array.isArray(v) ? v.map(t => String(t || '').trim()).filter(Boolean).slice(0, 14) : [];
         const layout = { title: d.doc_title ? String(d.doc_title).trim() : '', time: d.receipt_time ? String(d.receipt_time).trim() : '', header: ls(d.header_lines), footer: ls(d.footer_lines) };
-        const x = { ...blank(), merchant: d.seller_name || '', tin: d.seller_tin || '', no: d.receipt_no || '', date, before: d.before_vat ?? '', vat: d.vat ?? '', total: d.total ?? '', lines, layout };
+        const x = { ...blank(), merchant: d.seller_name || '', tin: d.seller_tin || '', no: d.receipt_no || '', date, before: d.before_vat ?? '', vat: d.vat ?? '', total: d.total ?? '', lines, layout, dateRaw: d.date_raw || '', dateAlt: (d.date_ambiguous && d.date_alt_day && d.date_alt_month && d.date_year) ? `${d.date_year}-${p2(d.date_alt_month)}-${p2(d.date_alt_day)}` : '', warns: Array.isArray(d.warnings) ? d.warnings.map(w => String(w)).slice(0, 5) : [] };
         x.account = suggest(x.merchant, lines);
         return x;
     }
     async function extractOne(f) {
         try {
-            const res = await fetch('/api/extract-receipt-items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: await toB64(await compress(f)) }) });
-            const data = await res.json().catch(() => null);
-            if (!res.ok) throw new Error((data && data.error) || 'Failed (' + res.status + ')');
+            const data = await window.ocrReadWith(f, compress, toB64);
             return fromExtract(data);
         } catch (e) { const d = blank(); d.account = suggest('', []); d.error = 'Could not read this receipt automatically (' + e.message + '). Fill it in by hand.'; return d; }
     }
@@ -12897,7 +13015,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         const f = (label, field) => `<div class="form-group" style="margin:0;"><label>${label}</label>${field}</div>`;
         const mny = (k) => `<input type="text" inputmode="decimal" autocomplete="off" data-money="1" ${inp} value="${esc(d[k])}" oninput="sceHead('${k}',this.value)">`;
         const lines = d.lines.length ? `<details style="margin-top:12px;font-size:12px;color:var(--text-light);"><summary>${d.lines.length} line(s) read from the receipt</summary>${d.lines.map(l => `<div>${esc(l.name)}${l.amount !== '' ? ' — ' + money(l.amount) : ''}</div>`).join('')}</details>` : '';
-        openM(`${d.error ? `<p style="color:#c0392b;font-size:13px;margin-top:0;">${esc(d.error)}</p>` : `<p style="font-size:12px;color:var(--text-light);margin-top:0;">Check the details against the paper receipt. ${affects() ? 'It is also added to your Expenses page.' : 'It is saved here only.'}</p>`}
+        openM(`${d.error ? `<p style="color:#c0392b;font-size:13px;margin-top:0;">${esc(d.error)}</p>` : `<p style="font-size:12px;color:var(--text-light);margin-top:0;">Check the details against the paper receipt. ${affects() ? 'It is also added to your Expenses page.' : 'It is saved here only.'}</p>`}${window.ocrNotes(d, 'sceDateSwap')}
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">
             ${f('Shop / seller', `<input type="text" ${inp} value="${esc(d.merchant)}" oninput="sceHead('merchant',this.value)" onchange="sceMerchantDone()">`)}
             ${f('Date', `<input type="date" ${inp} value="${esc(d.date)}" onchange="sceHead('date',this.value)">`)}
@@ -12920,7 +13038,8 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         if (!queue.length) { draft = null; qTotal = 0; qIdx = 0; closeM(); return; }
         draft = queue.shift(); qIdx++; review();
     }
-    window.sceHead = (k, v) => { draft[k] = v; };
+    window.sceHead = (k, v) => { draft[k] = v; if (k === 'date') draft.dateAlt = ''; };
+    window.sceDateSwap = () => { if (!draft || !draft.dateAlt) return; const t = draft.date; draft.date = draft.dateAlt; draft.dateAlt = t; review(); };
     window.sceMerchantDone = () => { // a shop we have seen before: use the type chosen last time
         const mem = store.get('neba_sce_map_', {})[merchKey(draft.merchant)];
         if (mem && accounts().some(a => a.code === mem) && mem !== draft.account) { draft.account = mem; review(); }

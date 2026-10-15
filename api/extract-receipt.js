@@ -7,7 +7,7 @@
 // Frontend calls this as: POST /api/extract-receipt  with JSON body { image: "<base64 jpeg, no data: prefix>" }
 // Returns: the parsed receipt JSON (same shape the old client-side code produced).
 
-const RECEIPT_PROMPT = `You are reading a photo of an Ethiopian purchase document. It will be ONE of two layouts — figure out which one you're looking at first:
+const RECEIPT_PROMPT = `You are reading a photo of an Ethiopian purchase document. It will be ONE of three layouts — figure out which one you're looking at first and put its letter (A, B or C) in "layout":
 
 LAYOUT A — fiscal cash register receipt (ERCA-compliant, usually thin white/thermal paper):
 - The SELLER'S TIN is printed near the very top as "TIN: XXXXXXXXXX", immediately followed by the seller's business/owner name, then address/phone lines.
@@ -28,10 +28,22 @@ LAYOUT B — manual "Sales Invoice" (a hand-filled carbon-copy form, easy to rec
 - The date field on this layout ("ቀን"/"Date") is filled in BY HAND and is almost always the ETHIOPIAN CALENDAR, written day/month/year with a 2-digit year, e.g. "28/10/17" means day 28, month 10, Ethiopian year 2017 (a 2-digit year here always means 20XX in the Ethiopian calendar — so "17" is 2017, "16" is 2016, etc.). Set date_calendar to "EC" and date_year to the full 4-digit Ethiopian year (2017, not 17) whenever you see this handwritten day/month/2-digit-year style. Only use "GC" for this layout if a clearly 4-digit Gregorian year is written instead.
 - Line items, VAT (15%) and totals follow the same general idea as layout A: read whatever subtotal, VAT, and total figures are filled in by hand, and the single largest line item for description/quantity/unit price, exactly as described below.
 
+LAYOUT C — ERP "Cash Sales Voucher" / "Cash Sales Attachment" (a computer-printed A4 or half-A4 sheet, usually with a big grey diagonal watermark word such as "Attachment" across it; it is the itemised copy that accompanies a thermal fiscal receipt):
+- The SELLER is the business name printed as the big heading at the top (sometimes repeated in a small box on the right). The seller's TIN is printed as "TIN: XXXXXXXXXX" near that heading — read seller_name and seller_tin from there. A "VAT: XXXXXXXXXX" beside it is the seller's VAT registration number (vat_reg_no).
+- The box headed "To" / "Bill to" / "Customer" is the BUYER. Its "TIN No" / "TIN" value is buyer_tin. Never swap the two.
+- "FS No." (the fiscal receipt number) and "MRC No." (a code like TDB0016030 or FGB0005691) are printed in that box: use the FS No. for receipt_no and the MRC No. for mrc. "Voucher No" / "Ref." is only the supplier's internal number — use it for receipt_no ONLY if no FS No. is printed.
+- The item table has columns like SN, Code / Item Id / ID, Description, Qty, Unit, Unit Amount / Price, Total. A Description cell can sit on a slightly different row from its numbers (the numbers may appear staggered lower) — pair them by row ORDER. The Code (e.g. "Ele000000008") is NOT the description.
+- Item prices and line totals here are BEFORE VAT. "Sub Total" = before_vat, "VAT(15%)" = vat, "Grand Total" = total. A number printed in the middle of the Sub Total / VAT row (the VAT base) is not an extra total — ignore it.
+- The date is Gregorian, often with a time ("07-10-2026 11:42 AM" or "4/7/2026 16:00:35"). Different suppliers' systems print day-first or month-first, so copy the date exactly as printed into "date_raw" and give your best day/month reading in date_day/date_month (date_calendar "GC").
+- Ignore the watermark letters and read the text underneath. "Prepared by", signatures, stamps and "INVALID WITHOUT FISCAL OR REFUND RECEIPT ATTACHED" are not items.
+
+FADED OR HARD-TO-READ PHOTOS: thermal paper fades, photos blur, and watermarks cover text. Read every character you reasonably can, including very pale ones. Then check yourself with arithmetic: quantity x unit price = line amount; the line amounts add up to the subtotal; subtotal x 15% = VAT; subtotal + VAT = total. If a single digit is unreadable, use these relationships to repair it. If you still cannot read a value with confidence, return null for it — never invent it.
+
 Whichever layout it is, always try to extract BOTH seller_tin (from the Supplier block) and buyer_tin (from the Customer/Buyer block) when either is printed or written, even if one looks unused — both are needed to work out which side of the transaction belongs to our client, which is decided outside this extraction step, never by you.
 
 Extract exactly these fields and return ONLY raw JSON, no markdown fences, no commentary:
 {
+  "layout": "A" or "B" or "C",
   "seller_name": string or null,
   "seller_tin": string or null,
   "vat_reg_no": string or null,
@@ -41,6 +53,7 @@ Extract exactly these fields and return ONLY raw JSON, no markdown fences, no co
   "date_year": number or null,
   "date_month": number or null,
   "date_day": number or null,
+  "date_raw": string or null,
   "receipt_no": string or null,
   "is_vat": boolean,
   "before_vat": number or null,
@@ -95,6 +108,45 @@ function fillMissingVatFields(parsed) {
     parsed.vat = vat;
     parsed.total = total;
     return parsed;
+}
+
+
+// ---- Date reading for the printed ERP attachments (layout C) ----
+// Suppliers' systems print 07-10-2026 (day first) or 4/7/2026 (month first).
+// When both numbers are 12 or less we cannot know which is meant, so we keep
+// the day-first reading, flag it, and return the swapped reading so the screen
+// can offer a one-click switch.
+function fixDate(parsed) {
+    parsed.date_ambiguous = false;
+    parsed.date_alt_day = null;
+    parsed.date_alt_month = null;
+    if (parsed.date_calendar !== 'GC' || parsed.layout !== 'C') return parsed;
+    const m = String(parsed.date_raw || '').match(/(\d{1,2})\s*[\/\-.]\s*(\d{1,2})\s*[\/\-.]\s*(\d{4})/);
+    if (!m) return parsed;
+    const a = Number(m[1]), b = Number(m[2]), y = Number(m[3]);
+    parsed.date_year = y;
+    if (a > 12 && b <= 12) { parsed.date_day = a; parsed.date_month = b; }
+    else if (b > 12 && a <= 12) { parsed.date_day = b; parsed.date_month = a; }
+    else if (a === b) { parsed.date_day = a; parsed.date_month = b; }
+    else if (a <= 12 && b <= 12) {
+        parsed.date_day = a; parsed.date_month = b; // day-first by default
+        parsed.date_ambiguous = true;
+        parsed.date_alt_day = b; parsed.date_alt_month = a;
+    }
+    return parsed;
+}
+
+// If the three money figures disagree, the photo was probably misread
+// (faded digits are the usual reason) — tell the user to double-check.
+function mathWarnings(parsed) {
+    const w = [];
+    if (parsed.is_vat && parsed.before_vat !== null && parsed.vat !== null && parsed.total !== null && Math.abs(parsed.before_vat + parsed.vat - parsed.total) > 1) {
+        w.push('Before VAT + VAT does not equal the total. One of the three amounts may be misread — check them against the paper.');
+    }
+    if (parsed.quantity && parsed.unit_price && parsed.before_vat && parsed.quantity * parsed.unit_price - parsed.before_vat > 1 && parsed.measurement !== 'Lot') {
+        w.push('Quantity x unit price is more than the subtotal. The quantity or price may be misread.');
+    }
+    return w;
 }
 
 // Tried in order. First one that succeeds wins. If a model is overloaded
@@ -190,6 +242,12 @@ export default async function handler(req, res) {
         // usually Ethiopian) — only fall back to Gregorian if it left this
         // blank or returned something unrecognized.
         parsed.date_calendar = parsed.date_calendar === 'EC' ? 'EC' : 'GC';
+        parsed.layout = ['A', 'B', 'C'].includes(parsed.layout) ? parsed.layout : 'A';
+        parsed = fixDate(parsed);
+        parsed.before_vat = toNumOrNull(parsed.before_vat);
+        parsed.vat = toNumOrNull(parsed.vat);
+        parsed.total = toNumOrNull(parsed.total);
+        parsed.warnings = mathWarnings(parsed);
         res.status(200).json(parsed);
     } catch (e) {
         res.status(502).json({ error: 'Model returned non-JSON output that could not be parsed.' });
