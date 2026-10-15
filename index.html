@@ -1356,8 +1356,8 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 </div>
                 <div class="card" id="scan-expense-settings-card" style="display:none;">
                     <h2 style="border:none; margin-bottom:10px;">Scanned expense receipts</h2>
-                    <p style="font-size:13px; color:var(--text-light); margin-bottom:12px;">Scanned expense receipts are always saved as a receipt copy in Scanned Stock, under "Expense receipts". If you turn this on, each one is also booked as a row on the Expenses page (and in your journal), and a "Scan receipt" button appears on the Expenses page. Turned off, your Expenses page is not changed by scanning. Either way, the VAT printed on scanned expense receipts counts in your Estimated VAT. Turning this on only affects receipts you scan from then on; earlier expenses and receipts stay as they are. Deleting a linked expense or its receipt deletes both.</p>
-                    <label class="switch-row"><span class="switch"><input type="checkbox" id="settings-scan-expense-posts" onchange="toggleExpenseScanPosts(this.checked)"><span class="slider"></span></span> <span>Let scanned expense receipts also add a row to the Expenses page</span></label>
+                    <p style="font-size:13px; color:var(--text-light); margin-bottom:12px;">Also add scanned expense receipts to your Expenses page.</p>
+                    <label class="switch-row"><span class="switch"><input type="checkbox" id="settings-scan-expense-posts" onchange="toggleExpenseScanPosts(this.checked)"><span class="slider"></span></span> <span>Add to Expenses page</span></label>
                 </div>
                 <div class="card" id="accountant-access-card" style="display:none;">
                     <h2 style="border:none; margin-bottom:10px;" data-i18n="ui2.accountant_access">Accountant Access</h2>
@@ -12850,6 +12850,12 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
     // ---- optional link to the Expenses page (Settings -> "Scanned expense receipts") ----
     const affects = () => !!(typeof state !== 'undefined' && state.expenseScanPosts);
     const channels = () => { const el = $('exp-source'); const o = el ? [...el.options].map(x => x.value).filter(v => v && v !== '__add_new__') : []; return o.length ? o : ['Cash', 'Mobile banking', 'Accounts payable']; };
+    // Memo for the expense row: the shop, then what was bought (first few items), then your note.
+    function memoText(d) {
+        const names = (d.lines || []).map(l => String(l.name || '').trim()).filter(Boolean);
+        const items = names.slice(0, 3).join(', ') + (names.length > 3 ? ` +${names.length - 3} more` : '');
+        return [d.merchant || 'Scanned receipt', items].filter(Boolean).join(': ') + (d.note ? ' — ' + d.note : '');
+    }
     function postExpense(row, id, branchId, channel, memo) {
         const whole = branchId === 'all', posted = whole ? null : branchId;
         writeBranchId = posted;
@@ -12891,7 +12897,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         const f = (label, field) => `<div class="form-group" style="margin:0;"><label>${label}</label>${field}</div>`;
         const mny = (k) => `<input type="text" inputmode="decimal" autocomplete="off" data-money="1" ${inp} value="${esc(d[k])}" oninput="sceHead('${k}',this.value)">`;
         const lines = d.lines.length ? `<details style="margin-top:12px;font-size:12px;color:var(--text-light);"><summary>${d.lines.length} line(s) read from the receipt</summary>${d.lines.map(l => `<div>${esc(l.name)}${l.amount !== '' ? ' — ' + money(l.amount) : ''}</div>`).join('')}</details>` : '';
-        openM(`${d.error ? `<p style="color:#c0392b;font-size:13px;margin-top:0;">${esc(d.error)}</p>` : `<p style="font-size:12px;color:var(--text-light);margin-top:0;">Check the details against the paper receipt. ${affects() ? 'It is saved as a receipt copy and also added to your Expenses page.' : 'It is only saved as a receipt copy here; it does not change your Expenses page.'}</p>`}
+        openM(`${d.error ? `<p style="color:#c0392b;font-size:13px;margin-top:0;">${esc(d.error)}</p>` : `<p style="font-size:12px;color:var(--text-light);margin-top:0;">Check the details against the paper receipt. ${affects() ? 'It is also added to your Expenses page.' : 'It is saved here only.'}</p>`}
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">
             ${f('Shop / seller', `<input type="text" ${inp} value="${esc(d.merchant)}" oninput="sceHead('merchant',this.value)" onchange="sceMerchantDone()">`)}
             ${f('Date', `<input type="date" ${inp} value="${esc(d.date)}" onchange="sceHead('date',this.value)">`)}
@@ -12903,7 +12909,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             ${f('Total (ETB)', mny('total'))}
             ${affects() ? f('Paid from (channel)', `<select ${inp} onchange="sceHead('channel',this.value)">${channels().map(c => `<option value="${esc(c)}" ${c === (d.channel || channels()[0]) ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>`) : ''}
             ${f('Note (optional)', `<input type="text" ${inp} value="${esc(d.note)}" oninput="sceHead('note',this.value)">`)}
-          </div>${affects() ? '<p style="font-size:12px;color:var(--text-light);margin:10px 0 0;">Settings: scanned expense receipts are linked to the Expenses page, so saving also adds an expense row.</p>' : ''}${lines}
+          </div>${affects() ? '<p style="font-size:12px;color:var(--text-light);margin:10px 0 0;"></p>' : ''}${lines}
           <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:16px;">
             ${queue.length ? '<button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="sceSkip()">Skip this receipt</button>' : ''}
             <button type="button" class="btn btn-danger btn-small" onclick="sceCancel()">${queue.length ? 'Cancel all' : 'Cancel'}</button>
@@ -12995,7 +13001,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 if (!isNet(e) && navigator.onLine) throw e;
                 const p = pendingRows(); p.push({ uid: 'p' + Date.now() + Math.random().toString(36).slice(2, 6), row, at: new Date().toISOString() }); store.set('neba_sce_p_', p);
             }
-            if (link) postExpense(row, expId, branchId, chan, 'Receipt: ' + (d.merchant || 'scanned receipt') + (d.no ? ' #' + d.no : '') + (d.note ? ' — ' + d.note : ''));
+            if (link) postExpense(row, expId, branchId, chan, memoText(d));
             if (d.merchant && acc) { const m = store.get('neba_sce_map_', {}); m[merchKey(d.merchant)] = acc.code; store.set('neba_sce_map_', m); }
             draft = null; busy = false; vatStamp = 0; await load(); window.sceVatEnsure(true); await showNext();
         } catch (e) {
