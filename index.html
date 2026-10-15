@@ -82,6 +82,16 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'IBM Plex Sans', system-ui, sans-serif; }
 
         h1, h2, h3, .brand, nav button, button.btn, .metric-value, .auth-welcome-heading, .auth-brand-mark-fixed { font-family: 'Space Grotesk', 'IBM Plex Sans', system-ui, sans-serif; }
+
+        /* On/off switch (used for VAT registration and scanned expense receipts) */
+        .switch-row { display:flex; align-items:center; gap:12px; cursor:pointer; font-size:14px; }
+        .switch { position:relative; display:inline-block; width:46px; height:26px; flex:0 0 auto; }
+        .switch input { position:absolute; opacity:0; width:100%; height:100%; margin:0; cursor:pointer; z-index:1; }
+        .switch .slider { position:absolute; inset:0; background:#b9bcc8; border-radius:26px; transition:background .2s; }
+        .switch .slider:before { content:""; position:absolute; height:20px; width:20px; left:3px; top:3px; background:#fff; border-radius:50%; transition:transform .2s; box-shadow:0 1px 3px rgba(0,0,0,.3); }
+        .switch input:checked + .slider { background:#2e7d4f; }
+        .switch input:checked + .slider:before { transform:translateX(20px); }
+        .switch input:focus-visible + .slider { outline:2px solid var(--primary); outline-offset:2px; }
         .num, input[type="number"], .price-trace, code { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; }
 
         /* Global Viewport Anchoring */
@@ -1184,7 +1194,10 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
 
             <div id="view-expenses" class="view-panel">
                 <div class="card" id="expense-entry-card">
-                    <h2 data-i18n="exp.add_expense">Add Expense</h2>
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+                        <h2 data-i18n="exp.add_expense" style="margin:0;">Add Expense</h2>
+                        <button type="button" class="btn btn-small" id="exp-scan-btn" style="display:none;" onclick="sceScanFromExpenses()">Scan receipt</button>
+                    </div>
                     <form id="expense-form" onsubmit="handlePostExpense(event)">
                         <div class="form-group"><label data-i18n="sale.date">Date</label><input type="date" id="exp-date" required></div>
                         <div class="form-group"><label data-i18n="exp.account">Account</label><select id="exp-target"></select></div>
@@ -1261,7 +1274,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                         <div class="scn-filter"><label data-i18n="tr.from">From</label><input type="date" id="scn-s-from" onchange="scnRenderReceipts()" style="min-width:auto;"><label data-i18n="tr.to">To</label><input type="date" id="scn-s-to" onchange="scnRenderReceipts()" style="min-width:auto;"><button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="scnClearDates('s')" data-i18n="common.clear">Clear</button></div>
                         <div id="scn-sales-receipts"></div></div>
                     <div id="scn-pane-expenses" style="display:none;"><h3 style="margin:18px 0 8px;font-size:15px;">Expense receipts (scanned copies)</h3>
-                        <p style="font-size:12px; color:var(--text-light); margin:0 0 10px;">For receipts that are not products (fuel, electricity, rent and so on). One expense per receipt. These are kept here only and do not change your Expenses page.</p>
+                        <p style="font-size:12px; color:var(--text-light); margin:0 0 10px;">For receipts that are not products (fuel, electricity, rent and so on). One expense per receipt. By default these are kept here only; you can link them to the Expenses page in Settings.</p>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px;"><input type="file" id="sce-file" accept="image/*" multiple style="display:none;" onchange="scePick(this)"><button type="button" class="btn" onclick="document.getElementById('sce-file').click()">Scan expense receipt</button> <button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="sceManual()">Enter by hand</button></div>
                         <div class="scn-filter"><label data-i18n="tr.from">From</label><input type="date" id="sce-from" onchange="sceRender()" style="min-width:auto;"><label data-i18n="tr.to">To</label><input type="date" id="sce-to" onchange="sceRender()" style="min-width:auto;"><button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="sceClear()" data-i18n="common.clear">Clear</button></div>
                         <div id="sce-total" style="font-size:13px;font-weight:600;color:var(--primary);margin:8px 0;"></div>
@@ -1324,7 +1337,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 <div class="card" id="vat-settings-card" style="display:none;">
                     <h2 style="border:none; margin-bottom:10px;" data-i18n="team.vat_registration">VAT Registration</h2>
                     <p style="font-size:13px; color:var(--text-light); margin-bottom:12px;" data-i18n="team.vat_registration_hint">Turning this on adds an "Include VAT (15%)" checkbox to the Sales page and shows an Estimated VAT box on the Dashboard. This is only an estimate for your own planning — it does not affect your journal entries or accounts.</p>
-                    <label class="check-label" style="font-size:14px;"><input type="checkbox" id="settings-vat-registered" onchange="toggleVatRegistered(this.checked)"> <span data-i18n="team.vat_registered_label">This shop is VAT registered</span></label>
+                    <label class="switch-row"><span class="switch"><input type="checkbox" id="settings-vat-registered" onchange="toggleVatRegistered(this.checked)"><span class="slider"></span></span> <span data-i18n="team.vat_registered_label">This shop is VAT registered</span></label>
                     <div id="settings-vat-details-group" style="display:none; margin-top:16px; border-top:1px solid var(--border); padding-top:16px;">
                         <p style="font-size:12px; color:var(--text-light); margin:0 0 10px;" data-i18n="auth.vat_details_hint">Needed for VAT invoices — this goes on every receipt and invoice you print.</p>
                         <div style="display:flex; gap:10px 14px; flex-wrap:wrap;">
@@ -1340,6 +1353,11 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                         <button type="button" class="btn" onclick="saveVatDetails()" data-i18n="team.save_vat_details">Save VAT Details</button>
                         <span id="settings-vat-details-saved" style="display:none; color:var(--success); font-size:13px; margin-left:10px;" data-i18n="ui2.saved">Saved ✓</span>
                     </div>
+                </div>
+                <div class="card" id="scan-expense-settings-card" style="display:none;">
+                    <h2 style="border:none; margin-bottom:10px;">Scanned expense receipts</h2>
+                    <p style="font-size:13px; color:var(--text-light); margin-bottom:12px;">Scanned expense receipts are always saved as a receipt copy in Scanned Stock, under "Expense receipts". If you turn this on, each one is also booked as a row on the Expenses page (and in your journal), and a "Scan receipt" button appears on the Expenses page. Turned off, your Expenses page is not changed by scanning. Either way, the VAT printed on scanned expense receipts counts in your Estimated VAT. Turning this on only affects receipts you scan from then on; earlier expenses and receipts stay as they are. Deleting a linked expense or its receipt deletes both.</p>
+                    <label class="switch-row"><span class="switch"><input type="checkbox" id="settings-scan-expense-posts" onchange="toggleExpenseScanPosts(this.checked)"><span class="slider"></span></span> <span>Let scanned expense receipts also add a row to the Expenses page</span></label>
                 </div>
                 <div class="card" id="accountant-access-card" style="display:none;">
                     <h2 style="border:none; margin-bottom:10px;" data-i18n="ui2.accountant_access">Accountant Access</h2>
@@ -4065,6 +4083,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             state.customAccounts = biz.custom_accounts || [];
             state.saleTypes = biz.sale_types || [];
             state.vatRegistered = !!biz.vat_registered;
+            state.expenseScanPosts = biz.expense_scan_posts != null ? !!biz.expense_scan_posts : (function () { try { return localStorage.getItem('neba_sce_affect_' + currentTenantId) === '1'; } catch (e) { return false; } })();
             state.vatTin = biz.vat_tin || '';
             state.vatRegNo = biz.vat_reg_no || '';
             state.ownerFullName = biz.owner_full_name || '';
@@ -4614,7 +4633,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             accountantLinksChannel = supabaseClient
                 .channel(`accountant_links_biz_${currentTenantId}`)
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'accountant_links', filter: `business_id=eq.${currentTenantId}` }, async (payload) => {
-                    if (!currentIsOwner) return;
+                    if (!currentIsOwner || !currentPlanPremium) return;
                     await loadAccountantLinksSection();
                     notifyAccountantLinkChange(payload);
                 })
@@ -5978,6 +5997,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             // Purely informational.
             refreshVatBox();
             if (window.scnVatEnsure) window.scnVatEnsure(false); // owners: fetch scanned receipts, then the box refreshes itself
+            if (window.sceVatEnsure) window.sceVatEnsure(false); // same for scanned expense receipts
 
             let absoluteBalances = runAbsoluteAccountBalances();
             let cashTotal = (absoluteBalances["1010"] || 0) + (absoluteBalances["1020"] || 0)
@@ -6703,6 +6723,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             document.getElementById('modal-title').innerText = t('dash.estimated_vat');
             renderVatDrillDownModal();
             document.getElementById('audit-modal').style.display = "flex";
+            if (window.sceVatEnsure) window.sceVatEnsure(true).then(() => { const mm = document.getElementById('audit-modal'); if (mm && mm.style.display === 'flex' && document.getElementById('modal-title').innerText === t('dash.estimated_vat')) renderVatDrillDownModal(); });
             if (window.scnVatEnsure) window.scnVatEnsure(true).then(() => {
                 const mm = document.getElementById('audit-modal');
                 if (mm && mm.style.display === 'flex' && document.getElementById('modal-title').innerText === t('dash.estimated_vat')) renderVatDrillDownModal();
@@ -6724,13 +6745,15 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             const monthLabel = (i) => isEth ? ethMonthName(i) : VAT_GREG_MONTH_NAMES[i - 1];
             const periodOf = (isoDate) => isEth ? gregorianToEthiopian(isoDate) : (d => ({ y: d[0], m: d[1] }))(isoDate.split('-').map(Number));
 
-            const rAll = scannedVatReceipts();
-            let years = Array.from(new Set([...state.salesLog.filter(s => s.vatIncluded).map(s => periodOf(s.date).y), ...rAll.map(r => periodOf(r.date).y)]));
+            const rAll = scannedVatReceipts(), eAll = expenseVatReceipts();
+            let years = Array.from(new Set([...state.salesLog.filter(s => s.vatIncluded).map(s => periodOf(s.date).y), ...rAll.map(r => periodOf(r.date).y), ...eAll.map(r => periodOf(r.date).y)]));
             if (!years.includes(vs.year)) years.push(vs.year);
             years.sort((a,b) => b - a);
             const inPeriod = iso => { const p = periodOf(iso); return p.y === vs.year && !(vs.mode === 'month' && p.m !== vs.month); };
             let matches = state.salesLog.filter(s => s.vatIncluded && vatSaleActive(s) && shouldCountInCurrentTotals(s.branchId) && inPeriod(s.date)).sort((a,b) => new Date(b.date) - new Date(a.date));
             let pMatches = rAll.filter(r => inPeriod(r.date)).sort((a,b) => new Date(b.date) - new Date(a.date));
+            let eMatches = eAll.filter(r => inPeriod(r.date)).sort((a,b) => new Date(b.date) - new Date(a.date));
+            const eVat = eMatches.reduce((sum, r) => sum + r.vat, 0);
             const f2 = n => n.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2});
             let totalSum = matches.reduce((sum, s) => sum + saleVatBase(s), 0);
             let vatSum = matches.reduce((sum, s) => { const b = saleVatBase(s); return sum + (b - b / 1.15); }, 0);
@@ -6740,8 +6763,9 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             // Simple summary: a few labelled lines, then one clear result.
             let sumRows, resLabel, resVal;
             if (vs.mode === 'month') {
-                const e = ledger.get(vs.year * 100 + vs.month) || { carryIn: 0, net: vatSum - pVat };
+                const e = ledger.get(vs.year * 100 + vs.month) || { carryIn: 0, net: vatSum - pVat - eVat };
                 sumRows = [['VAT on sales', vatSum], ['VAT on purchases', pVat]];
+                if (eAll.length) sumRows.push(['VAT on expenses', eVat]);
                 if (e.carryIn < 0) sumRows.push(['Credit from earlier months', -e.carryIn]);
                 resLabel = e.net >= 0 ? 'VAT to pay' : 'Credit carried to next month';
                 resVal = Math.abs(e.net);
@@ -6750,6 +6774,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 const cIn = yr.length ? yr[0].carryIn : 0, due = yr.reduce((a, e) => a + Math.max(0, e.net), 0);
                 const cOut = yr.length && yr[yr.length - 1].net < 0 ? -yr[yr.length - 1].net : 0;
                 sumRows = [['VAT on sales', vatSum], ['VAT on purchases', pVat]];
+                if (eAll.length) sumRows.push(['VAT on expenses', eVat]);
                 if (cIn < 0) sumRows.push(['Credit from last year', -cIn]);
                 if (cOut > 0) sumRows.push(['Credit carried to next year', cOut]);
                 resLabel = 'VAT to pay'; resVal = due;
@@ -6771,12 +6796,15 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             </div>
             <div style="font-size:14px; padding:10px 12px; background:#ECEDF2; border-radius:4px; margin-bottom:14px; line-height:1.6;">${sumHtml}</div>
             <table><thead><tr><th>${t('sale.date')}</th><th>${t('sale.customer_name')}</th><th>${t('sale.product_item')}</th><th class="num">${t('sale.total')}</th><th class="num">${t('dash.estimated_vat')}</th></tr></thead><tbody>`;
-            if (matches.length === 0 && pMatches.length === 0) html += `<tr><td colspan="5" style="text-align:center;">${t('drill.no_sales')}</td></tr>`;
+            if (matches.length === 0 && pMatches.length === 0 && eMatches.length === 0) html += `<tr><td colspan="5" style="text-align:center;">${t('drill.no_sales')}</td></tr>`;
             matches.forEach(m => {
                 html += `<tr><td>${fmtDate(m.date)}</td><td>${escHtml(m.customer)}</td><td>${escHtml(m.desc)}</td><td class="num">${saleVatBase(m).money2()}${m.printPrice != null ? '*' : ''}</td><td class="num">${(saleVatBase(m) - saleVatBase(m) / 1.15).money2()}</td></tr>`;
             });
             pMatches.forEach(r => {
                 html += `<tr><td>${fmtDate(r.date)}</td><td>${escHtml(r.merchant || 'Unknown merchant')}</td><td>Scanned purchase receipt${r.receiptNo ? ' No. ' + escHtml(r.receiptNo) : ''}</td><td class="num">${r.total.money2()}</td><td class="num">-${(r.total - r.total / 1.15).money2()}</td></tr>`;
+            });
+            eMatches.forEach(r => {
+                html += `<tr><td>${fmtDate(r.date)}</td><td>${escHtml(r.merchant || 'Unknown merchant')}</td><td>Scanned expense receipt${r.receiptNo ? ' No. ' + escHtml(r.receiptNo) : ''}</td><td class="num">${r.total != null && isFinite(r.total) ? r.total.money2() : '—'}</td><td class="num">-${r.vat.money2()}</td></tr>`;
             });
             html += `</tbody></table>`;
             if (matches.some(m => m.printPrice != null)) html += `<p style="font-size:11px;color:var(--text-light);margin-top:8px;">* Uses the edited printed price instead of the selling price.</p>`;
@@ -8257,10 +8285,11 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             renderSalesLogTable(); renderAnalyticalDashboards();
         }
 
-        async function deleteExpense(id) {
-            let idx = state.expenseLog.findIndex(e => e.id === id); if(idx===-1) return;
-            if (blockIfBranchClosed(state.expenseLog[idx].branchId, 'voided')) return;
-            if(!(await uiConfirm('Void (cancel) this expense? Your accounts will go back to how they were before it.', { danger: true, yes: 'Yes, void it', no: 'No, keep it' }))) return;
+        async function deleteExpense(id, opts) {
+            let idx = state.expenseLog.findIndex(e => e.id === id); if(idx===-1) return false;
+            if (blockIfBranchClosed(state.expenseLog[idx].branchId, 'voided')) return false;
+            const linked = !!(window.sceHasReceipt && window.sceHasReceipt(id));
+            if(!(opts && opts.silent) && !(await uiConfirm('Void (cancel) this expense? Your accounts will go back to how they were before it.' + (linked ? ' The scanned receipt linked to it will be deleted too.' : ''), { danger: true, yes: 'Yes, void it', no: 'No, keep it' }))) return false;
             let exp = state.expenseLog[idx], jv = state.journal.find(j => j.id === id);
             
             state.trash.push({ id, type: 'expense', data: exp, journal: jv, deletedAt: new Date().toISOString() });
@@ -8273,6 +8302,8 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
 
             addNotification('Expense Voided', `Ledger entry ${id} trashed.`, `Voided: ETB ${exp.amount} for ${exp.memo}`);
             renderExpenseLogTable(); renderAnalyticalDashboards();
+            try { if (window.sceOnExpenseVoided) await window.sceOnExpenseVoided(id); } catch (e) { } // the scanned receipt linked to this expense goes too
+            return true;
         }
 
         function renderTrashTable() {
@@ -8992,6 +9023,10 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             return (s.printPrice != null && isFinite(s.printPrice)) ? Math.round(s.printPrice * s.qty * 100) / 100 : s.total;
         }
         // Scanned purchase receipts (owners; loaded by the Scanned Stock script into window.scnVatReceipts).
+        // Scanned expense receipts (fuel, electricity...): the VAT printed on each one counts as VAT paid.
+        function expenseVatReceipts() {
+            try { return (window.sceVatInput ? window.sceVatInput() : []).filter(r => r.date && isFinite(r.vat) && r.vat > 0); } catch (e) { return []; }
+        }
         function scannedVatReceipts() {
             return (window.scnVatReceipts || []).filter(r => r.date && r.total != null && isFinite(r.total));
         }
@@ -9011,6 +9046,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             };
             state.salesLog.forEach(s => { if (s.vatIncluded && vatSaleActive(s) && shouldCountInCurrentTotals(s.branchId)) { const b = saleVatBase(s); slot(per(s.date)).out += b - b / 1.15; } });
             scannedVatReceipts().forEach(r => { slot(per(r.date)).inn += r.total - r.total / 1.15; });
+            expenseVatReceipts().forEach(r => { slot(per(r.date)).inn += r.vat; }); // VAT printed on scanned expense receipts
             slot(per(todayISO()));
             const keys = [...map.keys()].sort((a, b) => a - b);
             let y = Math.floor(keys[0] / 100), m = keys[0] % 100, carry = 0;
@@ -10566,6 +10602,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         // roles/branches, and this one covers shop-level configuration).
         function loadSettingsView() {
             applyVatUIVisibility();
+            try { if (window.sceApplyUI) window.sceApplyUI(); } catch (e) { }
             loadAccountantLinksSection();
         }
 
@@ -10582,6 +10619,17 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             const card = document.getElementById('accountant-access-card');
             if (card) card.style.display = currentIsOwner ? 'block' : 'none';
             if (!currentIsOwner) return;
+            // Accountant access is a Premium feature: other plans see a short note instead of the search and list.
+            if (card) {
+                let note = document.getElementById('accountant-premium-note');
+                if (!currentPlanPremium) {
+                    if (!note) { note = document.createElement('p'); note.id = 'accountant-premium-note'; note.style.cssText = 'font-size:13px;color:var(--text-light);margin:0;'; note.textContent = 'Accountant access is available on the Premium plan. Contact your provider to upgrade.'; card.appendChild(note); }
+                    [...card.children].forEach(c => { if (c.id !== 'accountant-premium-note' && c.tagName !== 'H2') c.style.display = 'none'; });
+                    return;
+                }
+                if (note) note.remove();
+                [...card.children].forEach(c => { if (c.tagName !== 'H2') c.style.display = ''; });
+            }
             const { data, error } = await supabaseClient.rpc('my_business_links', { p_business_id: currentTenantId });
             businessAccountantLinks = error ? [] : (data || []);
             renderAccountantLinksList();
@@ -12765,7 +12813,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
     };
     const isNet = e => /fetch|network|timeout|load failed|offline/i.test(String((e && e.message) || e || ''));
     const TABLE = 'scanned_expense_receipts';
-    let rows = [], loadErr = '', draft = null, busy = false, reading = false, queue = [], qTotal = 0, qIdx = 0;
+    let rows = [], vatRows = [], vatBusy = null, vatStamp = 0, loadErr = '', draft = null, busy = false, reading = false, queue = [], qTotal = 0, qIdx = 0;
 
     // ---- photo -> base64 (same approach as the purchase scanner) ----
     function loadImg(file) { return new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error('Could not open this image')); i.src = URL.createObjectURL(file); }); }
@@ -12799,13 +12847,30 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         return g ? g.code : '';
     }
 
+    // ---- optional link to the Expenses page (Settings -> "Scanned expense receipts") ----
+    const affects = () => !!(typeof state !== 'undefined' && state.expenseScanPosts);
+    const channels = () => { const el = $('exp-source'); const o = el ? [...el.options].map(x => x.value).filter(v => v && v !== '__add_new__') : []; return o.length ? o : ['Cash', 'Mobile banking', 'Accounts payable']; };
+    function postExpense(row, id, branchId, channel, memo) {
+        const whole = branchId === 'all', posted = whole ? null : branchId;
+        writeBranchId = posted;
+        const e = { id, date: row.receipt_date, target: row.account_code, amount: row.total, source: channel, memo, branchId: posted };
+        const j = { id, date: row.receipt_date, desc: stampDesc('Expense: ' + memo), lines: [{ account: row.account_code, dr: row.total, cr: 0 }, { account: CHANNEL_ACCOUNT_CODES[channel], cr: row.total, dr: 0 }], branchId: posted };
+        state.expenseLog.push(e); state.journal.push(j);
+        queueWrite({ kind: 'insert', table: 'expense_log', row: toDbExpense(e) });
+        queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(j) });
+        try { renderExpenseLogTable(); } catch (x) { }
+        addNotification('Expense Logged', `ETB ${money(row.total)} booked for ${memo}` + (whole ? ' — recorded as a Whole Business expense' : ''), 'Source: ' + channel + ' (from a scanned receipt)');
+    }
+
     // ---- reading a photo ----
-    const blank = () => ({ merchant: '', tin: '', no: '', date: '', before: '', vat: '', total: '', account: '', note: '', lines: [], error: '' });
+    const blank = () => ({ merchant: '', tin: '', no: '', date: '', before: '', vat: '', total: '', account: '', channel: '', note: '', lines: [], layout: null, error: '' });
     function fromExtract(d) {
         let date = '';
         try { if (d.date_year && d.date_month && d.date_day) date = d.date_calendar === 'EC' ? ethiopianToGregorianISO(d.date_year, d.date_month, d.date_day) : `${d.date_year}-${p2(d.date_month)}-${p2(d.date_day)}`; } catch (e) { }
-        const lines = (d.items || []).map(i => ({ name: String(i.description || '').trim(), qty: i.quantity ?? '', amount: i.amount ?? '' })).filter(l => l.name);
-        const x = { ...blank(), merchant: d.seller_name || '', tin: d.seller_tin || '', no: d.receipt_no || '', date, before: d.before_vat ?? '', vat: d.vat ?? '', total: d.total ?? '', lines };
+        const lines = (d.items || []).map(i => ({ name: String(i.description || '').trim(), qty: i.quantity ?? '', unit: i.measurement || '', price: i.unit_price ?? '', amount: i.amount ?? '' })).filter(l => l.name);
+        const ls = v => Array.isArray(v) ? v.map(t => String(t || '').trim()).filter(Boolean).slice(0, 14) : [];
+        const layout = { title: d.doc_title ? String(d.doc_title).trim() : '', time: d.receipt_time ? String(d.receipt_time).trim() : '', header: ls(d.header_lines), footer: ls(d.footer_lines) };
+        const x = { ...blank(), merchant: d.seller_name || '', tin: d.seller_tin || '', no: d.receipt_no || '', date, before: d.before_vat ?? '', vat: d.vat ?? '', total: d.total ?? '', lines, layout };
         x.account = suggest(x.merchant, lines);
         return x;
     }
@@ -12826,7 +12891,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         const f = (label, field) => `<div class="form-group" style="margin:0;"><label>${label}</label>${field}</div>`;
         const mny = (k) => `<input type="text" inputmode="decimal" autocomplete="off" data-money="1" ${inp} value="${esc(d[k])}" oninput="sceHead('${k}',this.value)">`;
         const lines = d.lines.length ? `<details style="margin-top:12px;font-size:12px;color:var(--text-light);"><summary>${d.lines.length} line(s) read from the receipt</summary>${d.lines.map(l => `<div>${esc(l.name)}${l.amount !== '' ? ' — ' + money(l.amount) : ''}</div>`).join('')}</details>` : '';
-        openM(`${d.error ? `<p style="color:#c0392b;font-size:13px;margin-top:0;">${esc(d.error)}</p>` : '<p style="font-size:12px;color:var(--text-light);margin-top:0;">Check the details against the paper receipt. This is only saved as a receipt copy here; it does not change your Expenses page.</p>'}
+        openM(`${d.error ? `<p style="color:#c0392b;font-size:13px;margin-top:0;">${esc(d.error)}</p>` : `<p style="font-size:12px;color:var(--text-light);margin-top:0;">Check the details against the paper receipt. ${affects() ? 'It is saved as a receipt copy and also added to your Expenses page.' : 'It is only saved as a receipt copy here; it does not change your Expenses page.'}</p>`}
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">
             ${f('Shop / seller', `<input type="text" ${inp} value="${esc(d.merchant)}" oninput="sceHead('merchant',this.value)" onchange="sceMerchantDone()">`)}
             ${f('Date', `<input type="date" ${inp} value="${esc(d.date)}" onchange="sceHead('date',this.value)">`)}
@@ -12836,8 +12901,9 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             ${f('Before VAT', mny('before'))}
             ${f('VAT', mny('vat'))}
             ${f('Total (ETB)', mny('total'))}
+            ${affects() ? f('Paid from (channel)', `<select ${inp} onchange="sceHead('channel',this.value)">${channels().map(c => `<option value="${esc(c)}" ${c === (d.channel || channels()[0]) ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>`) : ''}
             ${f('Note (optional)', `<input type="text" ${inp} value="${esc(d.note)}" oninput="sceHead('note',this.value)">`)}
-          </div>${lines}
+          </div>${affects() ? '<p style="font-size:12px;color:var(--text-light);margin:10px 0 0;">Settings: scanned expense receipts are linked to the Expenses page, so saving also adds an expense row.</p>' : ''}${lines}
           <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:16px;">
             ${queue.length ? '<button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="sceSkip()">Skip this receipt</button>' : ''}
             <button type="button" class="btn btn-danger btn-small" onclick="sceCancel()">${queue.length ? 'Cancel all' : 'Cancel'}</button>
@@ -12876,9 +12942,19 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
 
     // ---- saving (online now, or kept on this device and sent later) ----
     const pendingRows = () => store.get('neba_sce_p_', []);
-    async function insertRow(row) { const r = await supabaseClient.from(TABLE).insert(row); if (r.error) throw r.error; }
+    async function insertRow(row) {
+        let r = await supabaseClient.from(TABLE).insert(row);
+        if (r.error && !isNet(r.error) && /layout|expense_id|column/i.test(r.error.message || '')) { const { layout, expense_id, ...plain } = row; r = await supabaseClient.from(TABLE).insert(plain); } // new columns not added yet
+        if (r.error) throw r.error;
+    }
     async function flush() {
         if (!navigator.onLine || !currentTenantId) return;
+        const dq = delQ();
+        if (dq.length) {
+            const left = [];
+            for (const eid of dq) { try { const r = await supabaseClient.from(TABLE).delete().eq('expense_id', eid).eq('tenant_id', currentTenantId); if (r.error) throw r.error; } catch (e) { if (isNet(e)) left.push(eid); } }
+            store.set('neba_sce_del_', left);
+        }
         let p = pendingRows(); if (!p.length) return;
         const keep = [];
         for (const x of p) {
@@ -12895,10 +12971,22 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         const dup = rows.concat(pendingRows().map(x => x.row)).find(r => d.no && String(r.receipt_no || '') === String(d.no) && merchKey(r.merchant) === merchKey(d.merchant) && r2(num(r.total)) === r2(total));
         if (dup && !confirm('This looks like a receipt you already saved (same shop, receipt number and total).\n\nSave it again?')) return;
         const acc = accounts().find(a => a.code === d.account);
+        const link = affects();
+        if (link && !acc) return alert('Choose an expense type.');
+        let branchId = null, chan = '';
+        if (link) {
+            chan = d.channel || channels()[0];
+            const m = $('sce-modal'), was = m.classList.contains('active'); m.classList.remove('active'); // the branch question must be visible
+            try { branchId = await resolveTransactionBranch(true); } finally { if (was) m.classList.add('active'); }
+            if (!branchId) return; // no branch chosen: nothing is saved
+        }
+        const expId = link ? `EX-${Date.now().toString().slice(-5)}` : null;
         const row = {
             tenant_id: currentTenantId, merchant: d.merchant || null, merchant_tin: d.tin || null, receipt_no: d.no || null, receipt_date: date,
             before_vat: d.before === '' ? null : num(d.before), vat: d.vat === '' ? null : num(d.vat), total,
-            account_code: acc ? acc.code : null, account_name: acc ? acc.name : null, note: d.note || null, lines: d.lines
+            account_code: acc ? acc.code : null, account_name: acc ? acc.name : null, note: d.note || null, lines: d.lines,
+            layout: d.layout && (d.layout.title || d.layout.time || (d.layout.header || []).length || (d.layout.footer || []).length) ? d.layout : null,
+            expense_id: expId
         };
         busy = true; const btn = $('sce-confirm'); if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
         try {
@@ -12907,12 +12995,61 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 if (!isNet(e) && navigator.onLine) throw e;
                 const p = pendingRows(); p.push({ uid: 'p' + Date.now() + Math.random().toString(36).slice(2, 6), row, at: new Date().toISOString() }); store.set('neba_sce_p_', p);
             }
+            if (link) postExpense(row, expId, branchId, chan, 'Receipt: ' + (d.merchant || 'scanned receipt') + (d.no ? ' #' + d.no : '') + (d.note ? ' — ' + d.note : ''));
             if (d.merchant && acc) { const m = store.get('neba_sce_map_', {}); m[merchKey(d.merchant)] = acc.code; store.set('neba_sce_map_', m); }
-            draft = null; busy = false; await load(); await showNext();
+            draft = null; busy = false; vatStamp = 0; await load(); window.sceVatEnsure(true); await showNext();
         } catch (e) {
             alert('Could not save: ' + (e.message || e) + '\n\nNothing was lost on your screen. Fix it and press Save again.');
             if (btn) { btn.disabled = false; btn.innerHTML = queue.length ? 'Save &amp; next' : 'Save receipt'; }
         } finally { busy = false; }
+    };
+
+    // ---- Estimated VAT: the VAT printed on every scanned expense receipt counts (on or off in Settings) ----
+    const ownerPremium = () => typeof currentIsOwner !== 'undefined' && currentIsOwner && typeof currentPlanPremium !== 'undefined' && currentPlanPremium;
+    const dayOf = x => /^\d{4}-\d{2}-\d{2}/.test(x.receipt_date || '') ? String(x.receipt_date).slice(0, 10) : String(x.created_at || '').slice(0, 10);
+    const toVat = x => ({ id: x.id, expense_id: x.expense_id || null, merchant: x.merchant, receiptNo: x.receipt_no, total: x.total == null ? null : num(x.total), vat: x.vat == null ? 0 : num(x.vat), date: dayOf(x) });
+    window.sceVatInput = () => vatRows.concat(pendingRows().map(x => toVat({ ...x.row, id: x.uid })));
+    window.sceHasReceipt = id => !!id && (vatRows.some(r => r.expense_id === String(id)) || rows.some(r => r.expense_id === String(id)) || pendingRows().some(x => x.row.expense_id === String(id)));
+    const refreshVat = () => { try { if (typeof refreshVatBox === 'function') refreshVatBox(); } catch (e) { } };
+    window.sceVatEnsure = force => {
+        if (!ownerPremium() || !currentTenantId) return Promise.resolve();
+        if (vatBusy) return vatBusy;
+        if (!force && vatStamp && Date.now() - vatStamp < 60000) return Promise.resolve();
+        vatBusy = (async () => {
+            try {
+                if (!navigator.onLine) throw new Error('offline');
+                const out = [];
+                for (let from = 0; from < 10000; from += 1000) {
+                    const r = await supabaseClient.from(TABLE).select('id,receipt_date,created_at,merchant,receipt_no,total,vat,expense_id').eq('tenant_id', currentTenantId).order('created_at', { ascending: false }).range(from, from + 999);
+                    if (r.error) throw r.error;
+                    (r.data || []).forEach(x => out.push(toVat(x)));
+                    if ((r.data || []).length < 1000) break;
+                }
+                vatRows = out; store.set('neba_sce_vat_', out);
+            } catch (e) { if (!vatRows.length) vatRows = store.get('neba_sce_vat_', []); }
+            finally { vatStamp = Date.now(); vatBusy = null; refreshVat(); }
+        })();
+        return vatBusy;
+    };
+
+    // ---- delete both: a receipt linked to an expense row goes when the expense is voided, and the other way round ----
+    const delQ = () => store.get('neba_sce_del_', []);
+    async function purgeByExpense(expId) {
+        expId = String(expId);
+        store.set('neba_sce_p_', pendingRows().filter(x => String(x.row.expense_id) !== expId));
+        rows = rows.filter(x => String(x.expense_id) !== expId); vatRows = vatRows.filter(x => x.expense_id !== expId);
+        store.set('neba_sce_rc_', rows.slice(0, 80)); store.set('neba_sce_vat_', vatRows);
+        render(); refreshVat();
+        try {
+            if (!navigator.onLine) throw new Error('offline');
+            const r = await supabaseClient.from(TABLE).delete().eq('expense_id', expId).eq('tenant_id', currentTenantId);
+            if (r.error) throw r.error;
+        } catch (e) { if (isNet(e)) { const q = delQ(); if (!q.includes(expId)) q.push(expId); store.set('neba_sce_del_', q); } }
+    }
+    window.sceOnExpenseVoided = async id => {
+        if (!ownerPremium()) return;
+        await window.sceVatEnsure(false);
+        if (window.sceHasReceipt(id)) await purgeByExpense(id);
     };
 
     // ---- the list ----
@@ -12924,7 +13061,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             if (r.error) { if (isNet(r.error)) { rows = store.get('neba_sce_rc_', []); loadErr = ''; } else { loadErr = /relation|does not exist|schema cache/i.test(r.error.message || '') ? 'Run scanned-expense-receipts.sql in Supabase (one time), then reload.' : 'Could not load expense receipts (' + r.error.message + ').'; rows = []; } }
             else { rows = r.data || []; loadErr = ''; store.set('neba_sce_rc_', rows.slice(0, 80)); }
         } else { rows = store.get('neba_sce_rc_', []); loadErr = ''; }
-        render();
+        render(); window.sceVatEnsure(false);
     }
     const isoDay = x => /^\d{4}-\d{2}-\d{2}/.test(x || '') ? String(x).slice(0, 10) : '';
     function render() {
@@ -12937,24 +13074,52 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             .sort((a, b) => day(a) < day(b) ? 1 : day(a) > day(b) ? -1 : String(b.created_at || '9999') < String(a.created_at || '9999') ? -1 : 1);
         $('sce-total').textContent = list.length ? `Total shown: ETB ${money(list.reduce((s, r) => s + num(r.total), 0))} (${list.length})` : '';
         if (!list.length) { box.innerHTML = `<span style="color:var(--text-light);font-size:13px;">${rows.length || pend.length ? 'No expense receipts in these dates.' : 'No expense receipts saved yet.'}</span>`; return; }
-        box.innerHTML = `<div class="table-scroll"><table><thead><tr><th>Date</th><th>Shop</th><th>Receipt no.</th><th>Expense type</th><th class="num">VAT</th><th class="num">Total (ETB)</th><th></th></tr></thead><tbody>${list.map(r => {
-            const lines = Array.isArray(r.lines) ? r.lines : [];
-            return `<tr><td>${esc(typeof fmtDate === 'function' ? fmtDate(day(r)) : day(r))}</td>
-              <td>${esc(r.merchant || '—')}${r.note ? `<br><small style="color:var(--text-light);">${esc(r.note)}</small>` : ''}${lines.length ? `<details style="font-size:12px;color:var(--text-light);"><summary>${lines.length} line(s)</summary>${lines.map(l => `<div>${esc(l.name)}${l.amount !== '' && l.amount != null ? ' — ' + money(l.amount) : ''}</div>`).join('')}</details>` : ''}${r._pending ? `<br><small style="color:#b8860b;">not synced yet${r._err ? ' — ' + esc(r._err) : ''}</small>` : ''}</td>
-              <td>${esc(r.receipt_no || '')}</td><td>${esc(r.account_name || '')}</td><td class="num">${r.vat == null ? '—' : money(r.vat)}</td><td class="num"><strong>${money(r.total)}</strong></td>
-              <td style="text-align:center;"><button type="button" class="btn btn-danger btn-small" onclick="sceDel('${esc(r.id)}')">Delete</button></td></tr>`;
-        }).join('')}</tbody></table></div>`;
+        const row = (l, r, cls) => `<div class="sp-row ${cls || ''}"><span>${l}</span><span>${r}</span></div>`;
+        const lineHtml = t => (t || []).map(x => `<div class="sp-c">${esc(x)}</div>`).join('');
+        box.innerHTML = '<div class="scn-papers">' + list.map(r => {
+            const lay = r.layout || {}, lines = Array.isArray(r.lines) ? r.lines : [];
+            const items = lines.map(i => {
+                const hasP = i.price !== '' && i.price != null, amt = i.amount !== '' && i.amount != null ? i.amount : (hasP && i.qty !== '' ? r2(num(i.qty) * num(i.price)) : null);
+                const q = i.qty !== '' && i.qty != null ? `${esc(i.qty)}${i.unit ? ' ' + esc(i.unit) : ''}${hasP ? ' x ' + money(i.price) : ''}` : '';
+                return `<div class="sp-item"><div>${esc(i.name)}</div>${q || amt != null ? row(q, amt == null ? '' : money(amt)) : ''}</div>`;
+            }).join('');
+            return `<div class="scn-paper">${r._pending ? `<div class="sp-s" style="text-align:right;color:#b8860b;">not synced yet${r._err ? ' — ' + esc(r._err) : ''}</div>` : `<button type="button" class="scn-del" title="Delete this receipt" onclick="sceDel('${esc(r.id)}')">&minus;</button>`}
+                <div class="sp-c sp-b sp-m">${esc(r.merchant || 'Unknown merchant')}</div>
+                ${r.merchant_tin ? `<div class="sp-c">TIN: ${esc(r.merchant_tin)}</div>` : ''}
+                ${lineHtml(lay.header)}
+                <div class="sp-hr"></div>
+                ${row(r.receipt_no ? 'No. ' + esc(r.receipt_no) : '', esc(typeof fmtDate === 'function' ? fmtDate(day(r)) : day(r)) + (lay.time ? ' ' + esc(lay.time) : ''))}
+                ${lay.title ? `<div class="sp-c sp-b" style="margin-top:4px;">${esc(lay.title)}</div>` : ''}
+                <div class="sp-hr"></div>
+                ${items || '<div class="sp-c sp-s">(no lines)</div>'}
+                <div class="sp-hr"></div>
+                ${r.before_vat != null ? row('Subtotal', money(r.before_vat)) : ''}
+                ${r.vat != null ? row('VAT', money(r.vat)) : ''}
+                ${r.total != null ? row('TOTAL', money(r.total), 'sp-t') : ''}
+                ${(lay.footer || []).length ? `<div class="sp-hr"></div>${lineHtml(lay.footer)}` : ''}
+                <div class="sp-hr"></div>
+                <div class="sp-c sp-s">${r.account_name ? esc(r.account_name) + ' &middot; ' : ''}scanned copy${r.expense_id ? ' &middot; on Expenses page (' + esc(r.expense_id) + ')' : ''}</div>
+                ${r.note ? `<div class="sp-c sp-s">${esc(r.note)}</div>` : ''}
+            </div>`;
+        }).join('') + '</div>';
     }
     window.sceRender = render;
     window.sceClear = () => { $('sce-from').value = ''; $('sce-to').value = ''; render(); };
     window.sceDel = async id => {
         const p = pendingRows(), k = p.findIndex(x => x.uid === id);
-        if (k >= 0) { if (!confirm('Delete this receipt copy?')) return; p.splice(k, 1); store.set('neba_sce_p_', p); return render(); }
+        const lr = k >= 0 ? p[k].row : rows.find(x => String(x.id) === String(id));
+        if (lr && lr.expense_id) { // linked to an expense row: delete both
+            if (!confirm('Delete this receipt and the expense row it created on the Expenses page?\n\nThe expense is voided and moved to Trash.')) return;
+            if (state.expenseLog.some(e => e.id === lr.expense_id)) { await deleteExpense(lr.expense_id, { silent: true }); if (window.sceHasReceipt(lr.expense_id)) { /* expense could not be voided (e.g. closed branch): keep both */ } }
+            else await purgeByExpense(lr.expense_id);
+            return;
+        }
+        if (k >= 0) { if (!confirm('Delete this receipt copy?')) return; p.splice(k, 1); store.set('neba_sce_p_', p); vatStamp = 0; render(); refreshVat(); return; }
         if (!navigator.onLine) return alert('Connect to the internet to delete a receipt.');
-        if (!confirm('Delete this expense receipt copy?\n\nThis does not change your Expenses page.')) return;
+        if (!confirm('Delete this expense receipt copy?')) return;
         const r = await supabaseClient.from(TABLE).delete().eq('id', id).eq('tenant_id', currentTenantId);
         if (r.error) return alert('Could not delete: ' + r.error.message);
-        rows = rows.filter(x => String(x.id) !== String(id)); store.set('neba_sce_rc_', rows.slice(0, 80)); render();
+        rows = rows.filter(x => String(x.id) !== String(id)); vatRows = vatRows.filter(x => String(x.id) !== String(id)); store.set('neba_sce_rc_', rows.slice(0, 80)); store.set('neba_sce_vat_', vatRows); render(); refreshVat();
     };
 
     // ---- the third tab ----
@@ -12966,6 +13131,23 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         if (b) { b.style.background = on ? '' : '#4a4e63'; b.style.opacity = on ? '1' : '.75'; }
         if (on) load();
     };
+
+    // ---- Settings link: button on the Expenses page + settings card ----
+    window.sceApplyUI = () => {
+        const ok = typeof currentIsOwner !== 'undefined' && currentIsOwner && currentPlanPremium;
+        const btn = $('exp-scan-btn'); if (btn) btn.style.display = ok && affects() ? '' : 'none';
+        const card = $('scan-expense-settings-card'); if (card) card.style.display = ok ? 'block' : 'none';
+        const cb = $('settings-scan-expense-posts'); if (cb) cb.checked = affects();
+    };
+    window.toggleExpenseScanPosts = checked => {
+        state.expenseScanPosts = !!checked;
+        try { localStorage.setItem('neba_sce_affect_' + currentTenantId, checked ? '1' : '0'); } catch (e) { }
+        queueWrite({ kind: 'tenant_update', patch: { expense_scan_posts: !!checked } });
+        window.sceApplyUI();
+    };
+    window.sceScanFromExpenses = () => { const f = $('sce-file'); if (f) f.click(); };
+    const baseSwitch = window.switchView;
+    window.switchView = function (v) { baseSwitch(v); if (v === 'expenses' || v === 'settings') window.sceApplyUI(); };
     window.addEventListener('online', () => { try { if (typeof currentIsOwner !== 'undefined' && currentIsOwner && currentPlanPremium) load(); } catch (e) { } });
 })();
 </script>
