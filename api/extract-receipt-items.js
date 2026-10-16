@@ -34,6 +34,8 @@ LAYOUT C - ERP "Cash Sales Voucher" / "Cash Sales Attachment" (computer-printed 
 - The date is Gregorian, often with a time: "07-10-2026 11:42 AM" or "4/7/2026 16:00:35". Different suppliers print day-first or month-first, so copy it exactly as printed into "date_raw" and give your best day/month reading. A "Prepared on ..." date or a printed stamp elsewhere on the page can help you decide the order.
 - Ignore the watermark letters; read the text underneath them. Ignore "Prepared by", signatures, stamps and "INVALID WITHOUT FISCAL OR REFUND RECEIPT ATTACHED" as items.
 
+MULTI-PAGE DOCUMENTS: a long sheet is photographed one page per photo. Page 1 usually has the header (seller, buyer, FS No., date) and the first lines; later pages may show only more lines; the LAST page has the Subtotal / VAT / Grand Total. Report only what is visible in THIS photo: set "has_header" to true only if the seller name/TIN block is visible, and "has_totals" to true only if a Subtotal/TXBL1, VAT/TAX1 or Grand Total/TOTAL amount is visible. If the footer says "Page 1 of 2" (or similar) fill "page_no" and "page_count" (numbers), otherwise null. Most ERP sheets also print a small faint "system stamp" line at the very top or bottom edge, like "001-01-0000033133 | 09.04.2026 13:40:55" (it can look like a ghost or duplicate print); copy it exactly into "doc_stamp" (it is the same on every page of one document), otherwise null. List ONLY the lines visible in this photo - a line hidden under a fold or finger must not be invented; if its description is hidden but its numbers are visible, use "" as the description.
+
 FADED OR HARD-TO-READ PHOTOS: thermal paper fades, photos blur, and watermarks cover text. Read every character you reasonably can, including very pale ones. Then use arithmetic to check yourself: quantity x unit price = line amount; the line amounts add up to the subtotal; subtotal x 15% = VAT; subtotal + VAT = total. If one digit is unreadable, use these relationships to repair it. If you still cannot read a value with confidence, return null for it and never invent it.
 
 TASK: extract EVERY line item on the document. Do not skip, merge, or summarise lines. Do not include subtotal, VAT, total, discount, or payment lines as items.
@@ -54,6 +56,11 @@ Return ONLY raw JSON, no markdown fences, no commentary:
   "date_month": number or null,
   "date_day": number or null,
   "date_raw": string or null,
+  "page_no": number or null,
+  "page_count": number or null,
+  "doc_stamp": string or null,
+  "has_header": boolean,
+  "has_totals": boolean,
   "is_vat": boolean,
   "doc_title": string or null,
   "receipt_time": string or null,
@@ -132,7 +139,7 @@ function cleanItems(rawItems) {
     for (const it of rawItems.slice(0, 150)) {
         if (!it || typeof it !== 'object') continue;
         const description = String(it.description || '').trim();
-        if (!description) continue;
+        if (!description && it.amount == null && it.quantity == null) continue;
         let quantity = toNumOrNull(it.quantity);
         let unitPrice = toNumOrNull(it.unit_price);
         let amount = toNumOrNull(it.amount);
@@ -188,13 +195,19 @@ function fixDate(parsed) {
 function mathWarnings(parsed) {
     const w = [];
     const items = parsed.items || [];
+    if (isPartialPage(parsed)) return w; // checked after the pages are combined
+    const allAmounts = items.length && items.every((i) => i.amount !== null);
     const sum = items.reduce((s, i) => s + (i.amount || 0), 0);
     const base = (parsed.before_vat !== null && parsed.before_vat !== undefined) ? parsed.before_vat : parsed.total;
-    if (items.length && base !== null && base !== undefined && items.every((i) => i.amount !== null) && Math.abs(sum - base) > 1) {
-        w.push('The item amounts add up to ' + round2(sum).toLocaleString('en-US') + ' but the receipt subtotal is ' + round2(base).toLocaleString('en-US') + '. A digit may be misread or a line missing - check every line against the paper.');
+    // Lines may legitimately add up to MORE than the VAT base (some lines have no VAT),
+    // so only flag a mismatch when the lines also fail to explain the grand total.
+    if (allAmounts && base !== null && base !== undefined && Math.abs(sum - base) > 1) {
+        const explained = parsed.is_vat && parsed.vat !== null && parsed.total !== null && Math.abs(sum + parsed.vat - parsed.total) <= 1;
+        if (!explained) w.push('The item amounts add up to ' + round2(sum).toLocaleString('en-US') + ' but the receipt subtotal is ' + round2(base).toLocaleString('en-US') + '. A digit may be misread or a line missing - check every line against the paper.');
     }
     if (parsed.is_vat && parsed.before_vat !== null && parsed.vat !== null && parsed.total !== null && Math.abs(parsed.before_vat + parsed.vat - parsed.total) > 1) {
-        w.push('Before VAT + VAT does not equal the total. One of the three amounts may be misread.');
+        const explained = allAmounts && Math.abs(sum + parsed.vat - parsed.total) <= 1;
+        if (!explained) w.push('Before VAT + VAT does not equal the total. One of the three amounts may be misread.');
     }
     items.forEach((i) => {
         if (i.quantity && i.unit_price && i.amount && Math.abs(i.quantity * i.unit_price - i.amount) > Math.max(1, i.amount * 0.005)) {
@@ -202,6 +215,24 @@ function mathWarnings(parsed) {
         }
     });
     return w.slice(0, 5);
+}
+
+// ---- Page information (for documents photographed as several pages) ----
+function cleanPageFields(parsed) {
+    const toInt = (v) => { const n = Number(v); return Number.isInteger(n) && n > 0 && n < 100 ? n : null; };
+    parsed.page_no = toInt(parsed.page_no);
+    parsed.page_count = toInt(parsed.page_count);
+    parsed.doc_stamp = parsed.doc_stamp ? String(parsed.doc_stamp).trim().slice(0, 80) : null;
+    const hasHeaderGuess = !!(parsed.seller_tin || parsed.seller_name);
+    const hasTotalsGuess = [parsed.before_vat, parsed.vat, parsed.total].some((v) => v !== null && v !== undefined && v !== '');
+    parsed.has_header = typeof parsed.has_header === 'boolean' ? parsed.has_header : hasHeaderGuess;
+    parsed.has_totals = typeof parsed.has_totals === 'boolean' ? parsed.has_totals : hasTotalsGuess;
+    return parsed;
+}
+// A photo that shows only part of a document cannot be checked on its own: the combined
+// document is checked later (in /api/merge-receipt-pages).
+function isPartialPage(parsed) {
+    return (parsed.page_count && parsed.page_count > 1) || parsed.has_header === false || parsed.has_totals === false;
 }
 
 // Tried in order. 429/503 (busy) -> try the next model.
@@ -289,6 +320,7 @@ export default async function handler(req, res) {
         // The attachment's own voucher number is internal; the FS No. is what ties it to the fiscal receipt.
         if (parsed.layout === 'C' && parsed.fs_no) parsed.receipt_no = String(parsed.fs_no).trim();
         parsed = fixDate(parsed);
+        parsed = cleanPageFields(parsed);
         parsed.items = cleanItems(parsed.items);
         parsed.header_lines = cleanLines(parsed.header_lines);
         parsed.footer_lines = cleanLines(parsed.footer_lines);

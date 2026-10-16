@@ -9132,7 +9132,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 ctx.putImageData(img, 0, 0);
             } catch (e) { /* if the browser cannot process the photo, send it as it is */ }
         };
-        window.ocrWeak = d => !((d && d.items) || []).length || d.total == null || ((d && d.warnings) || []).length > 0;
+        window.ocrWeak = d => !((d && d.items) || []).length || (d.total == null && d.has_totals !== false && !(d.page_count > 1)) || ((d && d.warnings) || []).length > 0;
         window.ocrScore = d => ((d && d.items) || []).length * 3 + (d && d.total != null ? 2 : 0) + (d && d.seller_tin ? 1 : 0) - ((d && d.warnings) || []).length * 2;
         // Read one photo. If the first read looks weak (no items, no total, or the numbers do not add up),
         // try once more with stronger enhancement and keep whichever read is better.
@@ -9148,11 +9148,29 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             return data;
         };
         // Yellow warning lines at the top of a review window: misread numbers, or a date that could be read two ways.
+        // Several photos can be pages of ONE document. Send every reading to the server, which groups pages
+        // (page stamp / FS No., then arithmetic: the lines must add up to the printed totals) and works out
+        // which lines have no VAT. Returns the combined documents, or null if the server could not be reached.
+        window.ocrMerge = async function (raws) {
+            try {
+                const res = await fetch('/api/merge-receipt-pages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pages: raws }) });
+                const j = await res.json().catch(() => null);
+                return (res.ok && j && Array.isArray(j.documents) && j.documents.length) ? j.documents : null;
+            } catch (e) { return null; }
+        };
+        window.ocrMergeQueue = async function (results, getRaw, build) {
+            const idx = []; results.forEach((r, i) => { if (getRaw(r)) idx.push(i); });
+            if (!idx.length) return results;
+            const docs = await window.ocrMerge(idx.map(i => getRaw(results[i])));
+            if (!docs) return results; // keep every photo as its own receipt
+            return docs.map(build).concat(results.filter((r, i) => !idx.includes(i)));
+        };
         window.ocrNotes = function (d, swapFn) {
             const e = x => String(x == null ? '' : x).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
             const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             const nice = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ''); return m ? (Number(m[3]) + ' ' + MON[Number(m[2]) - 1] + ' ' + m[1]) : (iso || ''); };
-            let h = ((d && d.warns) || []).map(w => '<p style="color:#b9770e;font-size:13px;margin:0 0 8px;">&#9888; ' + e(w) + '</p>').join('');
+            let h = ((d && d.infos) || []).map(w => '<p style="color:#2c6fbb;font-size:13px;margin:0 0 8px;">&#8505; ' + e(w) + '</p>').join('');
+            h += ((d && d.warns) || []).map(w => '<p style="color:#b9770e;font-size:13px;margin:0 0 8px;">&#9888; ' + e(w) + '</p>').join('');
             if (d && d.dateAlt) h += '<p style="color:#b9770e;font-size:13px;margin:0 0 8px;">&#9888; The date is printed as <b>' + e(d.dateRaw) + '</b>, which could be <b>' + nice(d.date) + '</b> or <b>' + nice(d.dateAlt) + '</b>. Check the paper. <button type="button" class="btn btn-small" onclick="' + swapFn + '()">Use ' + nice(d.dateAlt) + ' instead</button></p>';
             return h;
         };
@@ -12713,7 +12731,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             });
             const ls = v => Array.isArray(v) ? v.map(x => String(x || '').trim()).filter(Boolean).slice(0, 14) : [];
             const layout = { title: d.doc_title ? String(d.doc_title).trim() : '', time: d.receipt_time ? String(d.receipt_time).trim() : '', header: ls(d.header_lines), footer: ls(d.footer_lines) };
-            return { merchant: d.seller_name || '', tin: d.seller_tin || '', no: d.receipt_no || '', date, before: d.before_vat ?? '', vat: d.vat ?? '', total: d.total ?? '', items: items.length ? items : blank().items, layout, dateRaw: d.date_raw || '', dateAlt: (d.date_ambiguous && d.date_alt_day && d.date_alt_month && d.date_year) ? `${d.date_year}-${p2(d.date_alt_month)}-${p2(d.date_alt_day)}` : '', warns: Array.isArray(d.warnings) ? d.warnings.map(w => String(w)).slice(0, 5) : [], error: items.length ? '' : 'No items were found. Add them by hand below.' };
+            return { merchant: d.seller_name || '', tin: d.seller_tin || '', no: d.receipt_no || '', date, before: d.before_vat ?? '', vat: d.vat ?? '', total: d.total ?? '', items: items.length ? items : blank().items, layout, dateRaw: d.date_raw || '', dateAlt: (d.date_ambiguous && d.date_alt_day && d.date_alt_month && d.date_year) ? `${d.date_year}-${p2(d.date_alt_month)}-${p2(d.date_alt_day)}` : '', warns: Array.isArray(d.warnings) ? d.warnings.map(w => String(w)).slice(0, 5) : [], infos: Array.isArray(d.infos) ? d.infos.map(w => String(w)).slice(0, 6) : [], error: items.length ? '' : 'No items were found. Add them by hand below.' };
         }
 
         // ---- match receipt lines to Inventory items (many to many; stock stays separate) ----
@@ -12820,7 +12838,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         async function extractOne(f) {
             try {
                 const data = await window.ocrReadWith(f, compress, toB64);
-                return { draft: fromExtract(data), ok: true };
+                return { draft: fromExtract(data), ok: true, raw: data };
             } catch (e) { const d = blank(); d.error = 'Could not read this receipt automatically (' + e.message + '). Fill it in by hand.'; return { draft: d, ok: false }; }
         }
         // Show the next waiting receipt (or close when none are left). Matching to Inventory / Scanned Stock is done
@@ -12844,7 +12862,9 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 say();
                 const worker = async () => { while (next < files.length) { const k = next++; results[k] = await extractOne(files[k]); done++; say(); } };
                 await Promise.all(Array.from({ length: Math.min(3, files.length) }, worker)); // 3 at a time
-                queue = results;
+                if (files.length > 1) open('<p>Combining pages that belong to the same receipt…</p>');
+                queue = await window.ocrMergeQueue(results, r => r && r.ok && r.raw, doc => ({ draft: fromExtract(doc), ok: true, raw: doc }));
+                qTotal = queue.length;
             } finally { reading = false; }
             await showNext();
         };
@@ -12996,14 +13016,14 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         const lines = (d.items || []).map(i => ({ name: String(i.description || '').trim(), qty: i.quantity ?? '', unit: i.measurement || '', price: i.unit_price ?? '', amount: i.amount ?? '' })).filter(l => l.name);
         const ls = v => Array.isArray(v) ? v.map(t => String(t || '').trim()).filter(Boolean).slice(0, 14) : [];
         const layout = { title: d.doc_title ? String(d.doc_title).trim() : '', time: d.receipt_time ? String(d.receipt_time).trim() : '', header: ls(d.header_lines), footer: ls(d.footer_lines) };
-        const x = { ...blank(), merchant: d.seller_name || '', tin: d.seller_tin || '', no: d.receipt_no || '', date, before: d.before_vat ?? '', vat: d.vat ?? '', total: d.total ?? '', lines, layout, dateRaw: d.date_raw || '', dateAlt: (d.date_ambiguous && d.date_alt_day && d.date_alt_month && d.date_year) ? `${d.date_year}-${p2(d.date_alt_month)}-${p2(d.date_alt_day)}` : '', warns: Array.isArray(d.warnings) ? d.warnings.map(w => String(w)).slice(0, 5) : [] };
+        const x = { ...blank(), merchant: d.seller_name || '', tin: d.seller_tin || '', no: d.receipt_no || '', date, before: d.before_vat ?? '', vat: d.vat ?? '', total: d.total ?? '', lines, layout, dateRaw: d.date_raw || '', dateAlt: (d.date_ambiguous && d.date_alt_day && d.date_alt_month && d.date_year) ? `${d.date_year}-${p2(d.date_alt_month)}-${p2(d.date_alt_day)}` : '', warns: Array.isArray(d.warnings) ? d.warnings.map(w => String(w)).slice(0, 5) : [], infos: Array.isArray(d.infos) ? d.infos.map(w => String(w)).slice(0, 6) : [] };
         x.account = suggest(x.merchant, lines);
         return x;
     }
     async function extractOne(f) {
         try {
             const data = await window.ocrReadWith(f, compress, toB64);
-            return fromExtract(data);
+            const d = fromExtract(data); d._raw = data; return d;
         } catch (e) { const d = blank(); d.account = suggest('', []); d.error = 'Could not read this receipt automatically (' + e.message + '). Fill it in by hand.'; return d; }
     }
 
@@ -13060,7 +13080,9 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             say();
             const worker = async () => { while (next < files.length) { const k = next++; results[k] = await extractOne(files[k]); done++; say(); } };
             await Promise.all(Array.from({ length: Math.min(3, files.length) }, worker));
-            queue = results;
+            if (files.length > 1) openM('<p>Combining pages that belong to the same receipt…</p>');
+            queue = await window.ocrMergeQueue(results, r => r && r._raw, doc => { const d = fromExtract(doc); d._raw = doc; return d; });
+            qTotal = queue.length;
         } finally { reading = false; }
         await showNext();
     };

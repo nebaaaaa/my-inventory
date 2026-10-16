@@ -37,6 +37,8 @@ LAYOUT C — ERP "Cash Sales Voucher" / "Cash Sales Attachment" (a computer-prin
 - The date is Gregorian, often with a time ("07-10-2026 11:42 AM" or "4/7/2026 16:00:35"). Different suppliers' systems print day-first or month-first, so copy the date exactly as printed into "date_raw" and give your best day/month reading in date_day/date_month (date_calendar "GC").
 - Ignore the watermark letters and read the text underneath. "Prepared by", signatures, stamps and "INVALID WITHOUT FISCAL OR REFUND RECEIPT ATTACHED" are not items.
 
+MULTI-PAGE DOCUMENTS: a long sheet is photographed one page per photo. Page 1 usually has the header (seller, buyer, FS No., date) and the first lines; later pages may show only more lines; the LAST page has the Subtotal / VAT / Grand Total. Report only what is visible in THIS photo: set "has_header" to true only if the seller name/TIN block is visible, and "has_totals" to true only if a Subtotal/TXBL1, VAT/TAX1 or Grand Total/TOTAL amount is visible. If the footer says "Page 1 of 2" (or similar) fill "page_no" and "page_count" (numbers), otherwise null. Most ERP sheets also print a small faint "system stamp" line at the very top or bottom edge, like "001-01-0000033133 | 09.04.2026 13:40:55" (it can look like a ghost or duplicate print); copy it exactly into "doc_stamp" (it is the same on every page of one document), otherwise null. List ONLY the lines visible in this photo - a line hidden under a fold or finger must not be invented; if its description is hidden but its numbers are visible, use "" as the description.
+
 FADED OR HARD-TO-READ PHOTOS: thermal paper fades, photos blur, and watermarks cover text. Read every character you reasonably can, including very pale ones. Then check yourself with arithmetic: quantity x unit price = line amount; the line amounts add up to the subtotal; subtotal x 15% = VAT; subtotal + VAT = total. If a single digit is unreadable, use these relationships to repair it. If you still cannot read a value with confidence, return null for it — never invent it.
 
 Whichever layout it is, always try to extract BOTH seller_tin (from the Supplier block) and buyer_tin (from the Customer/Buyer block) when either is printed or written, even if one looks unused — both are needed to work out which side of the transaction belongs to our client, which is decided outside this extraction step, never by you.
@@ -54,6 +56,11 @@ Extract exactly these fields and return ONLY raw JSON, no markdown fences, no co
   "date_month": number or null,
   "date_day": number or null,
   "date_raw": string or null,
+  "page_no": number or null,
+  "page_count": number or null,
+  "doc_stamp": string or null,
+  "has_header": boolean,
+  "has_totals": boolean,
   "receipt_no": string or null,
   "is_vat": boolean,
   "before_vat": number or null,
@@ -63,8 +70,11 @@ Extract exactly these fields and return ONLY raw JSON, no markdown fences, no co
   "measurement": string or null,
   "quantity": number or null,
   "unit_price": number or null,
+  "items": [ { "description": string, "quantity": number or null, "measurement": string or null, "unit_price": number or null, "amount": number or null } ],
   "missing_fields": string[]
 }
+
+"items" lists EVERY line item visible in this photo, in order, in addition to the single-item fields above (do not skip, merge or summarise lines; do not include subtotal/VAT/total/payment lines). "description" copies the printed text exactly; "amount" is the line total as printed; "measurement" only if a unit is printed next to the line.
 
 If there are multiple line items, pick only the SINGLE item with the largest amount and use its description, quantity, and unit_price — do not combine or list multiple items together in "description". Set "measurement" to "Lot", "quantity" to 1, and "unit_price" equal to "before_vat" ONLY if you cannot identify a clear largest item; otherwise use that one item's own measurement/quantity/unit_price as printed (measurement only if a unit like PCS/KG/M is actually printed next to it — this receipt format usually does not print one, so leave it null rather than guess). If there is exactly ONE line item, fill "description", "quantity", and "measurement" from that single item, but set "unit_price" equal to "before_vat" (the receipt's taxable subtotal) regardless of what is printed next to that item — with only one item, its line amount and the subtotal are the same thing. "before_vat", "vat", and "total" should always be the receipt-wide totals from the TXBL1/TAX1/TOTAL lines, never a per-item figure. A separate VAT registration number is normal to be absent on this receipt format — never include "VAT reg no" in "missing_fields". In "missing_fields", only list fields from this set that you could not confidently read: "Seller name", "Seller TIN", "MRC".`;
 
@@ -140,13 +150,51 @@ function fixDate(parsed) {
 // (faded digits are the usual reason) — tell the user to double-check.
 function mathWarnings(parsed) {
     const w = [];
+    if (isPartialPage(parsed)) return w; // checked after the pages are combined
+    const items = parsed.items || [];
+    const sum = items.reduce((s, i) => s + (i.amount || 0), 0);
+    const allAmounts = items.length && items.every((i) => i.amount !== null);
     if (parsed.is_vat && parsed.before_vat !== null && parsed.vat !== null && parsed.total !== null && Math.abs(parsed.before_vat + parsed.vat - parsed.total) > 1) {
-        w.push('Before VAT + VAT does not equal the total. One of the three amounts may be misread — check them against the paper.');
+        const explained = allAmounts && Math.abs(sum + parsed.vat - parsed.total) <= 1;
+        if (!explained) w.push('Before VAT + VAT does not equal the total. One of the three amounts may be misread - check them against the paper.');
     }
-    if (parsed.quantity && parsed.unit_price && parsed.before_vat && parsed.quantity * parsed.unit_price - parsed.before_vat > 1 && parsed.measurement !== 'Lot') {
+    if (parsed.quantity && parsed.unit_price && parsed.before_vat && parsed.quantity * parsed.unit_price - parsed.before_vat > 1 && parsed.measurement !== 'Lot' && items.length <= 1) {
         w.push('Quantity x unit price is more than the subtotal. The quantity or price may be misread.');
     }
     return w;
+}
+
+// ---- Page information (for documents photographed as several pages) ----
+function cleanPageFields(parsed) {
+    const toInt = (v) => { const n = Number(v); return Number.isInteger(n) && n > 0 && n < 100 ? n : null; };
+    parsed.page_no = toInt(parsed.page_no);
+    parsed.page_count = toInt(parsed.page_count);
+    parsed.doc_stamp = parsed.doc_stamp ? String(parsed.doc_stamp).trim().slice(0, 80) : null;
+    const hasHeaderGuess = !!(parsed.seller_tin || parsed.seller_name);
+    const hasTotalsGuess = [parsed.before_vat, parsed.vat, parsed.total].some((v) => v !== null && v !== undefined && v !== '');
+    parsed.has_header = typeof parsed.has_header === 'boolean' ? parsed.has_header : hasHeaderGuess;
+    parsed.has_totals = typeof parsed.has_totals === 'boolean' ? parsed.has_totals : hasTotalsGuess;
+    return parsed;
+}
+// A photo that shows only part of a document cannot be checked on its own: the combined
+// document is checked later (in /api/merge-receipt-pages).
+function isPartialPage(parsed) {
+    return (parsed.page_count && parsed.page_count > 1) || parsed.has_header === false || parsed.has_totals === false;
+}
+
+function cleanItems(raw) {
+    if (!Array.isArray(raw)) return [];
+    const out = [];
+    for (const it of raw.slice(0, 150)) {
+        if (!it || typeof it !== 'object') continue;
+        const description = String(it.description || '').trim();
+        const q = toNumOrNull(it.quantity), p = toNumOrNull(it.unit_price);
+        let amount = toNumOrNull(it.amount);
+        if (!description && amount === null && q === null) continue;
+        if (amount === null && q !== null && p !== null) amount = round2(q * p);
+        out.push({ description, quantity: q, measurement: it.measurement ? String(it.measurement).trim() : null, unit_price: p, amount });
+    }
+    return out;
 }
 
 // Tried in order. First one that succeeds wins. If a model is overloaded
@@ -244,6 +292,8 @@ export default async function handler(req, res) {
         parsed.date_calendar = parsed.date_calendar === 'EC' ? 'EC' : 'GC';
         parsed.layout = ['A', 'B', 'C'].includes(parsed.layout) ? parsed.layout : 'A';
         parsed = fixDate(parsed);
+        parsed = cleanPageFields(parsed);
+        parsed.items = cleanItems(parsed.items);
         parsed.before_vat = toNumOrNull(parsed.before_vat);
         parsed.vat = toNumOrNull(parsed.vat);
         parsed.total = toNumOrNull(parsed.total);

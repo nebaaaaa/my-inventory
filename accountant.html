@@ -354,7 +354,7 @@
             const periodEntries = entries.filter((e) => entryEcKey(e) === periodKey);
             let nonVat = 0, vatBefore = 0, vatAmount = 0;
             periodEntries.forEach((e) => {
-                if (e.isVat) { vatBefore += Number(e.beforeVat) || 0; vatAmount += Number(e.vat) || 0; }
+                if (e.isVat) { vatBefore += Number(e.beforeVat) || 0; vatAmount += Number(e.vat) || 0; nonVat += Number(e.nonVatAmount) || 0; }
                 else { nonVat += Number(e.total ?? e.beforeVat) || 0; }
             });
             const lines = [
@@ -386,7 +386,7 @@
             const periodEntries = entries.filter((e) => entryEcKey(e) === periodKey);
             let sales = 0, nonVatSales = 0, vatPay = 0, vatWithholding = 0;
             periodEntries.forEach((e) => {
-                if (e.isVat) { sales += Number(e.beforeVat) || 0; vatPay += Number(e.vat) || 0; }
+                if (e.isVat) { sales += Number(e.beforeVat) || 0; vatPay += Number(e.vat) || 0; nonVatSales += Number(e.nonVatAmount) || 0; }
                 else { nonVatSales += Number(e.total ?? e.beforeVat) || 0; }
             });
             const ref = periodMonthLabel(Number(periodKey.split('-')[1])); // e.g. "Meskerem" or "Nehase-Pagume"
@@ -537,6 +537,52 @@ This field is  mandatory.",Total value,vat,value after vat`;
             ]);
         });
         return { rows, skipped };
+    }
+    // NON-TAX files. These hold the goods that carry no VAT:
+    //   - the non-VAT lines of a VAT receipt (each line becomes its own row), and
+    //   - receipts that are entirely non-VAT.
+    // Purchases are filed as type 6 (tax-exempt / no-VAT purchase); sales as type 3 (tax-exempt sale).
+    // Value after VAT = value, because there is no VAT on these rows.
+    function nonTaxLinesOf(e) {
+        const lines = (e.lines || []).filter((l) => l.description || lineAmount(l));
+        if (e.isVat) return lines.filter((l) => l.nonVat);
+        if (lines.length) return lines;
+        // a whole non-VAT receipt that was entered by hand: one row from its own fields
+        return [{ description: e.description, quantity: e.quantity, measurement: e.measurement, unitPrice: e.unitPrice, amount: e.total ?? e.beforeVat }];
+    }
+    function buildEtaxNonTaxRows(entries, side, typeCode, vatCategory) {
+        const rows = [];
+        const skipped = [];
+        entries.forEach((e) => {
+            nonTaxLinesOf(e).forEach((l) => {
+                const amount = lineAmount(l);
+                const qty = Number(l.quantity);
+                const unit = (l.unitPrice !== null && l.unitPrice !== '' && l.unitPrice !== undefined && Number.isFinite(Number(l.unitPrice))) ? Number(l.unitPrice) : (qty > 0 ? amount / qty : null);
+                const missingMandatory = [];
+                if (!e.date) missingMandatory.push('date');
+                if (!e.receiptNo) missingMandatory.push('receipt number');
+                if (!l.description) missingMandatory.push('line description');
+                if (!(qty > 0)) missingMandatory.push('quantity');
+                if (unit === null) missingMandatory.push('unit price');
+                if (missingMandatory.length) { skipped.push({ entry: e, reasons: missingMandatory }); return; }
+                rows.push([
+                    vatCategory, 'G', typeCode, side === 'purchase' ? (e.sellerTin || '') : '', side === 'purchase' ? (e.sellerName || '') : '',
+                    etaxDdMmYyyy(e.date), e.mrc || '', e.receiptNo, l.description,
+                    etaxUnitCode(l.measurement), qty, etaxMoney(unit),
+                    etaxMoney(amount), etaxMoney(0), etaxMoney(amount),
+                ]);
+            });
+        });
+        return { rows, skipped };
+    }
+    function buildEtaxNonTaxCsv(client, side, fromKey, toKey, vatCategory) {
+        const isPurchase = side === 'purchase';
+        const entries = client.entries.filter((e) => e.type === (isPurchase ? 'payment' : 'receipt') && !e.tinMismatch && entryEcKey(e) >= fromKey && entryEcKey(e) <= toKey
+            && (e.isVat ? (Number(e.nonVatAmount) > 0 || (e.lines || []).some((l) => l.nonVat)) : true));
+        const { rows, skipped } = buildEtaxNonTaxRows(entries, side, isPurchase ? '6' : '3', vatCategory);
+        if (!rows.length) return { csv: null, skipped };
+        const csv = (isPurchase ? ETAX_PURCHASE_CSV_HEADER : ETAX_SALE_CSV_HEADER) + '\r\n' + rows.map((r) => r.map(csvEscape).join(',')).join('\r\n');
+        return { csv, skipped };
     }
     function buildEtaxPurchaseCsv(client, fromKey, toKey, typeCode, vatCategory) {
         const entries = client.entries.filter((e) => e.type === 'payment' && e.isVat && !e.tinMismatch && entryEcKey(e) >= fromKey && entryEcKey(e) <= toKey);
@@ -726,6 +772,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
             beforeVat: row.before_vat, vat: row.vat, total: row.total, description: row.description || '',
             measurement: row.measurement || '', quantity: row.quantity, unitPrice: row.unit_price, missing: row.missing || [],
             reviewed: row.reviewed !== false, tinMismatch: !!row.tin_mismatch,
+            nonVatAmount: Number(row.non_vat_amount) || 0, lines: Array.isArray(row.lines) ? row.lines : [],
         };
     }
     function entryToDb(entry, clientId) {
@@ -740,6 +787,11 @@ This field is  mandatory.",Total value,vat,value after vat`;
             missing: entry.missing || [],
             reviewed: entry.reviewed !== false,
             tin_mismatch: !!entry.tinMismatch,
+            // only sent when there is something to store, so receipts without lines still save before the database update is run
+            ...((Number(entry.nonVatAmount) > 0 || (entry.lines && entry.lines.length)) ? {
+                non_vat_amount: Number(entry.nonVatAmount) || 0,
+                lines: (entry.lines || []).map((l) => ({ description: l.description || '', quantity: l.quantity ?? null, measurement: l.measurement || '', unitPrice: l.unitPrice ?? null, amount: l.amount ?? null, nonVat: !!l.nonVat })),
+            } : {}),
         };
     }
     // Loose TIN comparison: strips everything but digits so "0123456789",
@@ -1484,6 +1536,21 @@ This field is  mandatory.",Total value,vat,value after vat`;
     // live server-side in /api/extract-receipt.js — the API key never reaches
     // the browser. This function just sends the compressed image to our own
     // endpoint and returns whatever it hands back.
+    // Several photos can be pages of ONE document. The server groups pages (page stamp / FS No., then
+    // arithmetic: the lines must add up to the printed totals) and works out which lines have no VAT.
+    // Returns the combined documents, or null when the server cannot be reached (each photo then stays its own receipt).
+    async function ocrMerge(readings) {
+        try {
+            const res = await fetch('/api/merge-receipt-pages', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pages: readings }),
+            });
+            const j = await res.json().catch(() => null);
+            return (res.ok && j && Array.isArray(j.documents) && j.documents.length) ? j.documents : null;
+        } catch (e) { return null; }
+    }
+
     async function runGeminiExtraction(file, onStatus) {
         const post = async (force) => {
             onStatus && onStatus(force ? 'Trying again with a clearer image…' : 'Preparing photo…');
@@ -1507,7 +1574,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
         // A read is "weak" when the total is missing, the seller is unreadable, or the
         // numbers do not add up (the usual sign of a faded photo). Try once more with a
         // stronger contrast boost and keep whichever read is better.
-        const weak = (d) => d.total == null || (!d.seller_tin && !d.seller_name) || (d.warnings || []).length > 0;
+        const weak = (d) => (d.total == null && d.has_totals !== false && !(d.page_count > 1)) || (d.has_header !== false && !d.seller_tin && !d.seller_name) || (d.warnings || []).length > 0;
         const score = (d) => (d.total != null ? 3 : 0) + (d.seller_tin ? 2 : 0) + (d.seller_name ? 1 : 0) + (d.before_vat != null ? 1 : 0) + (d.description ? 1 : 0) - (d.warnings || []).length * 2;
         let data = await post(false);
         if (weak(data)) {
@@ -1529,7 +1596,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
     // every row in that download. Change it here if a given month's batch
     // is mostly a different category (e.g. capital assets instead of
     // general expenses); mismatched rows can still be moved on the site.
-    let etaxOptions = { purchaseType: '5', purchaseCategory: 'G', saleType: '1', saleCategory: 'G' };
+    let etaxOptions = { purchaseType: '5', purchaseCategory: 'G', saleType: '1', saleCategory: 'G', nonTaxPurchaseCategory: 'G', nonTaxSaleCategory: 'G' };
     let addFlow = null; // { step, preview, error, form }
 
     function activeClient() { return clients.find((c) => c.id === activeClientId) || null; }
@@ -1751,7 +1818,14 @@ This field is  mandatory.",Total value,vat,value after vat`;
 
     async function addEntry(entry) {
         const client = activeClient();
-        const { data, error } = await supabaseClient.from('accountant_entries').insert(entryToDb(entry, client.id)).select().single();
+        let row = entryToDb(entry, client.id);
+        let { data, error } = await supabaseClient.from('accountant_entries').insert(row).select().single();
+        if (error && /non_vat_amount|lines/i.test(error.message || '')) {
+            // the two new columns are not in the database yet
+            if (Number(entry.nonVatAmount) > 0) { alert('This receipt has non-VAT goods, but the database is missing the new columns (non_vat_amount, lines). Run the migration SQL once in Supabase, then save again.'); return; }
+            delete row.non_vat_amount; delete row.lines;
+            ({ data, error } = await supabaseClient.from('accountant_entries').insert(row).select().single());
+        }
         if (error) { alert(error.message); return; }
         client.entries.unshift(mapEntryFromDb(data));
         client.entryCount = (client.entryCount || 0) + 1;
@@ -1977,7 +2051,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
                 <td style="font-size:12px; color:var(--text-soft);">${e.type === 'payment' ? 'Purchase' : 'Sale'}</td>
                 <td class="mono num">${money(e.beforeVat)}</td>
                 <td class="mono num">${money(e.vat)}</td>
-                <td class="mono num" style="font-weight:600;">${money(e.total)}</td>
+                <td class="mono num" style="font-weight:600;">${money(e.total)}${e.nonVatAmount > 0 ? `<div style="font-size:10.5px; font-weight:400; color:var(--amber);" title="Goods on this receipt that carry no VAT">+ ${money(e.nonVatAmount)} non-VAT</div>` : ''}</td>
                 <td style="text-align:right; white-space:nowrap;">
                     ${e.tinMismatch ? `<button class="btn-icon" title="Unflag — include in exports" onclick="event.stopPropagation(); toggleTinMismatch('${e.id}')">${icon('flag', 14)}</button>` : ''}
                     <button class="btn-icon" onclick="event.stopPropagation(); removeEntry('${e.id}')">${icon('trash-2', 14)}</button>
@@ -2074,6 +2148,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
             description: d.description, measurement: d.measurement,
             quantity: d.quantity === '' ? null : Number(d.quantity), unitPrice: d.unitPrice === '' ? null : Number(d.unitPrice),
             reviewed: true, tinMismatch: !!d.tinMismatch,
+            nonVatAmount: Number(d.nonVatAmount) || 0, lines: d.lines || [],
         };
         const { error } = await supabaseClient.from('accountant_entries').update(entryToDb(patch, client.id)).eq('id', entryModalId);
         if (error) { alert(error.message); return; }
@@ -2144,6 +2219,8 @@ This field is  mandatory.",Total value,vat,value after vat`;
                         ${field('vat', 'VAT', true)}
                         ${field('total', 'Total', true)}
                     </div>
+                    ${d.nonVatAmount > 0 ? `<div style="font-size:12px; margin:-6px 0 10px; color:var(--text-soft);">Total here = taxable lines + VAT. Non-VAT goods on this receipt: <strong class="mono">${money(d.nonVatAmount)}</strong> (kept separately).</div>` : ''}
+                    ${renderLinesPanel(d, 'edit')}
                     <div class="grid-4" style="margin-bottom:16px;">
                         ${field('description', 'Description')}
                         ${field('measurement', 'Measurement')}
@@ -2168,23 +2245,63 @@ This field is  mandatory.",Total value,vat,value after vat`;
     }
     function cancelAddReceipt() { addFlow = null; render(); }
 
-    // Accepts one or many files (multi-select, or repeated camera captures).
-    // The first is processed immediately; the rest wait in addFlow.queue and
-    // are reviewed one at a time after each save/skip.
+    // Accepts one or many photos (multi-select, or repeated camera captures).
+    // All photos are read first, then pages that belong to the same document are
+    // combined (a long attachment photographed as 2-3 pages becomes ONE receipt).
+    // The resulting receipts wait in addFlow.queue and are reviewed one at a time.
     async function handleReceiptFile(input) {
         const files = Array.from(input.files || []);
         input.value = ''; // lets the same file(s) be picked again later
         if (!files.length) return;
-        addFlow.queue = files.slice(1);
+        addFlow.error = null;
+        addFlow.queue = [];
         addFlow.queueTotal = files.length;
-        addFlow.queueIndex = 1;
-        await processReceiptFile(files[0]);
+        addFlow.queueIndex = 0;
+        addFlow.preview = URL.createObjectURL(files[0]);
+        addFlow.step = 'extracting';
+        addFlow.statusText = files.length > 1 ? `Reading ${files.length} photos…` : 'Preparing photo…';
+        render();
+        const flow = addFlow;
+        const setStatus = (t) => {
+            flow.statusText = t;
+            const el = document.getElementById('ocr-progress-text');
+            if (el) el.textContent = t;
+        };
+        // 1. read every photo, three at a time
+        const reads = new Array(files.length);
+        let next = 0, done = 0;
+        const worker = async () => {
+            while (next < files.length) {
+                const k = next++;
+                try { reads[k] = { ex: await runGeminiExtraction(files[k], files.length > 1 ? () => {} : setStatus) }; }
+                catch (e) { console.error(e); reads[k] = { error: true }; }
+                done++;
+                if (files.length > 1) setStatus(`Read ${done} of ${files.length} photos…`);
+            }
+        };
+        await Promise.all(Array.from({ length: Math.min(3, files.length) }, worker));
+        if (addFlow !== flow) return; // cancelled while reading
+        // 2. combine pages of the same document + split taxable / non-VAT lines
+        const okIdx = [];
+        reads.forEach((r, i) => { if (r.ex) okIdx.push(i); });
+        const items = [];
+        if (okIdx.length) {
+            setStatus(files.length > 1 ? 'Combining pages…' : 'Checking the numbers…');
+            const docs = await ocrMerge(okIdx.map((i) => reads[i].ex));
+            if (addFlow !== flow) return;
+            if (docs) docs.forEach((doc) => items.push({ files: (doc.source_idx || []).map((k) => files[okIdx[k]]).filter(Boolean), ex: doc }));
+            else okIdx.forEach((i) => items.push({ files: [files[i]], ex: reads[i].ex }));
+        }
+        reads.forEach((r, i) => { if (r.error) items.push({ files: [files[i]], ex: null }); });
+        flow.queue = items;
+        flow.queueTotal = items.length;
+        processNextQueuedFile();
     }
     function processNextQueuedFile() {
         if (addFlow && addFlow.queue && addFlow.queue.length) {
             addFlow.queueIndex += 1;
             const next = addFlow.queue.shift();
-            processReceiptFile(next);
+            processReceiptItem(next);
         } else {
             addFlow = null;
             render();
@@ -2192,18 +2309,15 @@ This field is  mandatory.",Total value,vat,value after vat`;
     }
     function skipQueuedFile() { processNextQueuedFile(); }
 
-    async function processReceiptFile(file) {
+    async function processReceiptItem(item) {
         addFlow.error = null;
-        addFlow.preview = URL.createObjectURL(file);
+        addFlow.preview = item.files && item.files[0] ? URL.createObjectURL(item.files[0]) : null;
         addFlow.step = 'extracting';
-        addFlow.statusText = 'Preparing photo…';
+        addFlow.statusText = 'Preparing the receipt…';
         render();
         try {
-            const ex = await runGeminiExtraction(file, (status) => {
-                addFlow.statusText = status;
-                const el = document.getElementById('ocr-progress-text');
-                if (el) el.textContent = status;
-            });
+            if (!item.ex) throw new Error('This photo could not be read.');
+            const ex = item.ex;
             // If the photo only shows one of seller name / seller TIN clearly,
             // check past receipts for that same seller and fill in the other.
             ex.missing_fields = ex.missing_fields || [];
@@ -2239,10 +2353,15 @@ This field is  mandatory.",Total value,vat,value after vat`;
             addFlow.form = {
                 type: entryType, calendar, ecYear: ex.date_year || '', ecMonth: ex.date_month || '', ecDay: ex.date_day || '', date: gcDate,
                 sellerName: ex.seller_name || '', sellerTin: ex.seller_tin || '', vatRegNo: ex.vat_reg_no || '', mrc: ex.mrc || '',
-                receiptNo: ex.receipt_no || '', isVat: !!ex.is_vat, beforeVat: ex.before_vat ?? '', vat: ex.vat ?? '', total: ex.total ?? '',
+                receiptNo: ex.receipt_no || '', isVat: !!ex.is_vat, beforeVat: ex.before_vat ?? '', vat: ex.vat ?? '', total: (Number(ex.non_vat_total) > 0 && ex.before_vat != null && ex.vat != null) ? Math.round((Number(ex.before_vat) + Number(ex.vat)) * 100) / 100 : (ex.total ?? ''),
                 description: ex.description || '', measurement: ex.measurement || '', quantity: ex.quantity ?? '', unitPrice: ex.unit_price ?? '',
                 missing: ex.missing_fields || [], tinMismatch: match.mismatch,
                 dateRaw: ex.date_raw || '', dateAlt: !!ex.date_ambiguous, warns: Array.isArray(ex.warnings) ? ex.warnings.map(String).slice(0, 5) : [],
+                infos: Array.isArray(ex.infos) ? ex.infos.map(String).slice(0, 6) : [],
+                // every line of the receipt, with the ones that carry no VAT ticked (worked out from the VAT amount)
+                lines: (ex.items || []).map((it) => ({ description: it.description || '', quantity: it.quantity ?? null, measurement: it.measurement || '', unitPrice: it.unit_price ?? null, amount: it.amount ?? null, nonVat: it.taxable === false })),
+                nonVatAmount: Number(ex.non_vat_total) || 0,
+                splitStatus: (ex.split && ex.split.status) || 'none',
             };
             addFlow.step = 'review';
         } catch (e) {
@@ -2348,6 +2467,8 @@ This field is  mandatory.",Total value,vat,value after vat`;
                             ${field('vat', 'VAT', null, true)}
                             ${field('total', 'Total', null, true)}
                         </div>
+                        ${f.nonVatAmount > 0 ? `<div style="font-size:12px; margin:-6px 0 10px; color:var(--text-soft);">Total here = taxable lines + VAT. Non-VAT goods on this receipt: <strong class="mono">${money(f.nonVatAmount)}</strong> (kept separately).</div>` : ''}
+                        ${renderLinesPanel(f, 'add')}
                         <div class="grid-4" style="margin-bottom:16px;">
                             ${field('description', 'Description')}
                             ${field('measurement', 'Measurement', 'Measurement')}
@@ -2363,10 +2484,83 @@ This field is  mandatory.",Total value,vat,value after vat`;
                 </div>
             </div>`;
     }
+    // ------------------------------------------------------------------------
+    // Lines of a receipt and which of them carry no VAT.
+    // A receipt can mix taxable and non-taxable goods. Before VAT / VAT / Total only
+    // describe the TAXABLE lines; the non-VAT lines are kept separately (they go into the
+    // "non-tax purchase / sale" e-tax files and the non-VAT journal totals).
+    // ------------------------------------------------------------------------
+    function lineAmount(l) {
+        const a = Number(l.amount);
+        if (l.amount !== null && l.amount !== '' && l.amount !== undefined && Number.isFinite(a)) return a;
+        return (Number(l.quantity) * Number(l.unitPrice)) || 0;
+    }
+    function renderLinesPanel(d, ctx) {
+        const lines = d.lines || [];
+        if (!d.isVat || lines.length < 2) return '';
+        const r2 = (n) => Math.round(n * 100) / 100;
+        const taxable = r2(lines.filter((l) => !l.nonVat).reduce((t, l) => t + lineAmount(l), 0));
+        const nonVatSum = r2(lines.filter((l) => l.nonVat).reduce((t, l) => t + lineAmount(l), 0));
+        const nonCount = lines.filter((l) => l.nonVat).length;
+        const vatNum = Number(d.vat) || 0;
+        const vatCalc = r2(taxable * 0.15);
+        const vatOk = Math.abs(vatCalc - vatNum) <= Math.max(0.06, 0.005 * lines.length);
+        const open = nonCount > 0 || (d.splitStatus && !['none', 'inclusive'].includes(d.splitStatus));
+        const rows = lines.map((l, i) => `
+            <tr style="${l.nonVat ? 'background:#fff6e0;' : ''}">
+                <td style="text-align:center;"><input type="checkbox" style="width:auto;" ${l.nonVat ? 'checked' : ''} onchange="toggleLineNonVat('${ctx}', ${i})" title="Tick if this line has no VAT"></td>
+                <td>${esc(l.description) || '<span style="color:var(--text-soft);">(no description)</span>'}</td>
+                <td class="mono" style="text-align:right;">${esc(l.quantity ?? '')}</td>
+                <td class="mono" style="text-align:right;">${l.unitPrice != null && l.unitPrice !== '' ? money(l.unitPrice) : ''}</td>
+                <td class="mono" style="text-align:right;">${money(lineAmount(l))}</td>
+            </tr>`).join('');
+        return `
+            <details ${open ? 'open' : ''} style="border:1px solid var(--paper-line); border-radius:5px; padding:8px 12px; margin-bottom:12px; background:var(--paper);">
+                <summary style="cursor:pointer; font-size:12.5px; font-weight:600;">Lines (${lines.length})${nonCount ? ` · <span style="color:var(--amber);">${nonCount} non-VAT</span>` : ''}</summary>
+                <div style="max-height:260px; overflow:auto; margin-top:8px;">
+                    <table style="width:100%; font-size:12px; border-collapse:collapse;">
+                        <thead><tr style="text-align:left; color:var(--text-soft);"><th style="width:64px; text-align:center;">Non-VAT</th><th>Description</th><th style="text-align:right;">Qty</th><th style="text-align:right;">Unit price</th><th style="text-align:right;">Amount</th></tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+                <div style="font-size:12px; margin-top:8px; line-height:1.6;">
+                    Taxable lines <strong class="mono">${money(taxable)}</strong> · 15% VAT would be <strong class="mono">${money(vatCalc)}</strong>
+                    ${vatOk ? `<span style="color:var(--green, #2e7d32);">✓ matches the printed VAT</span>` : `<span style="color:var(--amber);">(printed VAT is ${money(vatNum)})</span>`}
+                    · Non-VAT lines <strong class="mono">${money(nonVatSum)}</strong>
+                </div>
+                <div style="font-size:11.5px; color:var(--text-soft); margin-top:4px;">Non-VAT lines are kept out of Before VAT / VAT / Total and go to the non-tax purchase / sale files.</div>
+            </details>`;
+    }
+    function recalcFromLines(d) {
+        const r2 = (n) => Math.round(n * 100) / 100;
+        const tax = d.lines.filter((l) => !l.nonVat);
+        const non = d.lines.filter((l) => l.nonVat);
+        d.beforeVat = r2(tax.reduce((t, l) => t + lineAmount(l), 0));
+        d.nonVatAmount = r2(non.reduce((t, l) => t + lineAmount(l), 0));
+        d.total = r2(d.beforeVat + (Number(d.vat) || 0));
+        // the largest taxable line stands in as the receipt's description / quantity / unit price
+        const pool = tax.length ? tax : d.lines;
+        const top = pool.slice().sort((a, b) => lineAmount(b) - lineAmount(a))[0];
+        if (top) {
+            d.description = top.description || d.description;
+            d.measurement = top.measurement || '';
+            d.quantity = top.quantity ?? '';
+            d.unitPrice = tax.length === 1 ? d.beforeVat : (top.unitPrice ?? '');
+        }
+    }
+    function toggleLineNonVat(ctx, i) {
+        const d = ctx === 'edit' ? entryModalDraft : (addFlow && addFlow.form);
+        if (!d || !d.lines || !d.lines[i]) return;
+        d.lines[i].nonVat = !d.lines[i].nonVat;
+        recalcFromLines(d);
+        render();
+    }
+
     // Yellow notes above the review form: numbers that do not add up (often a faded
     // photo) and dates that could be read as day/month or month/day.
     function renderScanNotes(f) {
-        let h = (f.warns || []).map((w) => `<div class="notice notice-warn">${icon('alert-triangle', 14)} ${esc(w)}</div>`).join('');
+        let h = (f.infos || []).map((w) => `<div class="notice" style="background:#eaf2fb; color:#1f4f86; border-color:#c5d9f0;">${icon('info', 14)} ${esc(w)}</div>`).join('');
+        h += (f.warns || []).map((w) => `<div class="notice notice-warn">${icon('alert-triangle', 14)} ${esc(w)}</div>`).join('');
         if (f.dateAlt && f.ecDay && f.ecMonth && f.calendar === 'GC') {
             h += `<div class="notice notice-warn">${icon('alert-triangle', 14)}<div>The date is printed as <strong>${esc(f.dateRaw)}</strong>, so it could be day ${esc(f.ecDay)} / month ${esc(f.ecMonth)} or day ${esc(f.ecMonth)} / month ${esc(f.ecDay)}. Check the paper.
                 <div><button type="button" class="btn btn-ghost" style="margin-top:6px; padding:4px 10px; font-size:12px;" onclick="swapScanDate()">Switch to day ${esc(f.ecMonth)} / month ${esc(f.ecDay)}</button></div></div></div>`;
@@ -2565,6 +2759,34 @@ This field is  mandatory.",Total value,vat,value after vat`;
                         </div>
                         <button class="btn btn-ghost" onclick="downloadEtaxSale()">${icon('download', 14)} Download</button>
                     </div>
+                    <div class="export-row">
+                        <div class="icon-box">${icon('upload', 16)}</div>
+                        <div class="info">
+                            <div class="title">Non-tax purchase upload CSV <span style="font-weight:400; color:var(--text-soft); font-size:12px;">(type 6, no VAT)</span></div>
+                            <div style="font-size:11.5px; color:var(--text-soft); margin-top:2px;">Non-VAT lines found on VAT receipts, plus receipts that are entirely non-VAT.</div>
+                            <div style="display:flex; gap:8px; margin-top:6px; flex-wrap:wrap;">
+                                <select style="width:auto; font-size:12px;" onchange="etaxOptions.nonTaxPurchaseCategory=this.value">
+                                    <option value="G" ${etaxOptions.nonTaxPurchaseCategory === 'G' ? 'selected' : ''}>Goods</option>
+                                    <option value="S" ${etaxOptions.nonTaxPurchaseCategory === 'S' ? 'selected' : ''}>Services</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button class="btn btn-ghost" onclick="downloadEtaxNonTax('purchase')">${icon('download', 14)} Download</button>
+                    </div>
+                    <div class="export-row">
+                        <div class="icon-box">${icon('upload', 16)}</div>
+                        <div class="info">
+                            <div class="title">Non-tax sale upload CSV <span style="font-weight:400; color:var(--text-soft); font-size:12px;">(type 3, tax-exempt)</span></div>
+                            <div style="font-size:11.5px; color:var(--text-soft); margin-top:2px;">Non-VAT lines found on VAT sales, plus sales that are entirely non-VAT.</div>
+                            <div style="display:flex; gap:8px; margin-top:6px; flex-wrap:wrap;">
+                                <select style="width:auto; font-size:12px;" onchange="etaxOptions.nonTaxSaleCategory=this.value">
+                                    <option value="G" ${etaxOptions.nonTaxSaleCategory === 'G' ? 'selected' : ''}>Goods</option>
+                                    <option value="S" ${etaxOptions.nonTaxSaleCategory === 'S' ? 'selected' : ''}>Services</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button class="btn btn-ghost" onclick="downloadEtaxNonTax('sale')">${icon('download', 14)} Download</button>
+                    </div>
                 </div>
             </div>`;
     }
@@ -2622,6 +2844,19 @@ This field is  mandatory.",Total value,vat,value after vat`;
             return;
         }
         downloadBlob(csv, `${client.name.replace(/\s+/g, '_')}_etax_purchase_${label}.csv`, 'text/csv');
+        warnEtaxSkipped(skipped);
+    }
+    function downloadEtaxNonTax(side) {
+        const client = activeClient();
+        const { fromKey, toKey, label } = exportRangeAndLabel(client);
+        const cat = side === 'purchase' ? etaxOptions.nonTaxPurchaseCategory : etaxOptions.nonTaxSaleCategory;
+        const { csv, skipped } = buildEtaxNonTaxCsv(client, side, fromKey, toKey, cat);
+        if (!csv) {
+            if (skipped.length) warnEtaxSkipped(skipped);
+            else alert(`No non-tax ${side} lines found for this period.`);
+            return;
+        }
+        downloadBlob(csv, `${client.name.replace(/\s+/g, '_')}_etax_nontax_${side}_${label}.csv`, 'text/csv');
         warnEtaxSkipped(skipped);
     }
     function downloadEtaxSale() {
