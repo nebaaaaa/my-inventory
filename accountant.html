@@ -773,6 +773,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
             measurement: row.measurement || '', quantity: row.quantity, unitPrice: row.unit_price, missing: row.missing || [],
             reviewed: row.reviewed !== false, tinMismatch: !!row.tin_mismatch,
             nonVatAmount: Number(row.non_vat_amount) || 0, lines: Array.isArray(row.lines) ? row.lines : [],
+            entryKind: row.entry_kind || '', syncedFrom: row.synced_from || '',
         };
     }
     function entryToDb(entry, clientId) {
@@ -787,6 +788,8 @@ This field is  mandatory.",Total value,vat,value after vat`;
             missing: entry.missing || [],
             reviewed: entry.reviewed !== false,
             tin_mismatch: !!entry.tinMismatch,
+            // purchase (goods, adds to the shop's stock) or expense (a service) - used when the client is linked to a shop
+            ...(entry.entryKind ? { entry_kind: entry.entryKind } : {}),
             // only sent when there is something to store, so receipts without lines still save before the database update is run
             ...((Number(entry.nonVatAmount) > 0 || (entry.lines && entry.lines.length)) ? {
                 non_vat_amount: Number(entry.nonVatAmount) || 0,
@@ -1409,19 +1412,105 @@ This field is  mandatory.",Total value,vat,value after vat`;
             </div>`;
     }
 
+    // ------------------------------------------------------------------------
+    // Linked shop: receipts are shared automatically (the database copies them to
+    // the shop while the MELEYA link is approved). Say so before saving.
+    // ------------------------------------------------------------------------
+    function linkedApprovedShop(client) {
+        const link = client && client.linkedBusinessId ? linkForBusiness(client.linkedBusinessId) : null;
+        return link && link.status === 'approved' ? link : null;
+    }
+    function renderShareNotice(f) {
+        const c = activeClient();
+        const link = linkedApprovedShop(c);
+        if (!link || f.tinMismatch) return '';
+        const shop = esc(link.business_name || c.name);
+        if (f.type === 'payment') {
+            const kind = f.entryKind === 'expense' ? 'expense' : 'purchase';
+            return `
+                <div class="notice" style="background:#eaf2fb; color:#1f4f86; border-color:#c5d9f0; align-items:flex-start;">
+                    ${icon('link-2', 14)}
+                    <div>
+                        This client is linked to <strong>${shop}</strong>. Saving shares this receipt with them (unless they already have it).
+                        <div style="margin-top:6px;">This is a
+                            <select style="width:auto; font-size:12.5px; padding:3px 6px;" onchange="addFlow.form.entryKind=this.value; render()">
+                                <option value="purchase" ${kind === 'purchase' ? 'selected' : ''}>Purchase of goods</option>
+                                <option value="expense" ${kind === 'expense' ? 'selected' : ''}>Expense (service, bill)</option>
+                            </select>
+                            ${kind === 'purchase' ? '— its items will be <strong>added to their Scanned Stock</strong>.' : '— it goes to their expense receipts; stock is not changed.'}
+                        </div>
+                    </div>
+                </div>`;
+        }
+        return `<div class="notice" style="background:#eaf2fb; color:#1f4f86; border-color:#c5d9f0;">${icon('link-2', 14)} This client is linked to <strong>${shop}</strong>. Saving shares this sale with their sales receipts (unless they already have it).</div>`;
+    }
+
+    async function syncClientReceipts(client, silent) {
+        if (!linkedApprovedShop(client)) { if (!silent) alert('This client is not linked to an approved MELEYA business yet.'); return; }
+        client.receiptsSynced = true;
+        const { data, error } = await supabaseClient.rpc('sync_linked_receipts', { p_business_id: client.linkedBusinessId });
+        if (error) {
+            console.error(error);
+            if (!silent) alert("Couldn't sync receipts: " + error.message + "\n\nIf this says the function does not exist, run migration_receipt_merge.sql in Supabase.");
+            return;
+        }
+        const fromShop = Number(data && data.to_accountant) || 0, toShop = Number(data && data.to_shop) || 0;
+        if (fromShop || toShop) {
+            if (activeClientId === client.id) await loadEntriesForActiveClient();
+            client.inventory = undefined; client.scannedStock = undefined;
+        }
+        if (!silent) alert(`Receipts synced.\n• ${fromShop} receipt(s) came in from the shop\n• ${toShop} receipt(s) went to the shop` + (data && data.errors ? `\n• ${data.errors} could not be copied (see receipt_sync_errors in Supabase)` : ''));
+        render();
+    }
+    function syncReceiptsNow(clientId) {
+        const c = clients.find((x) => x.id === clientId);
+        if (c) syncClientReceipts(c, false);
+    }
+
     // ---- Read-only inventory synced from an approved MELEYA link ----
     async function loadClientInventory(client) {
         if (!client.linkedBusinessId) return;
         const { data, error } = await supabaseClient.rpc('linked_accountant_inventory', { p_business_id: client.linkedBusinessId });
         client.inventory = error ? [] : (data || []);
         client.inventoryError = error ? error.message : null;
+        // the shop's Scanned Stock list (items from receipts scanned into stock)
+        const ss = await supabaseClient.rpc('linked_accountant_scanned_stock', { p_business_id: client.linkedBusinessId });
+        client.scannedStock = ss.error ? [] : (ss.data || []);
+        client.scannedStockError = ss.error ? ss.error.message : null;
     }
     function refreshClientInventory(id) {
         const c = clients.find((x) => x.id === id);
         if (c) c.inventory = undefined;
         render();
     }
+    function renderScannedStockSection(client) {
+        const items = client.scannedStock || [];
+        const rows = items.map((i) => `<tr><td>${esc(i.name || '—')}</td><td class="mono num">${Number(i.qty) || 0} ${esc(i.base_unit || '')}</td><td class="mono num">${i.last_cost != null && i.last_cost !== '' ? money(i.last_cost) : '—'}</td></tr>`).join('');
+        let body;
+        if (client.scannedStockError) {
+            body = `<div class="notice notice-warn">${icon('alert-triangle', 14)} Couldn't load the scanned stock list: ${esc(client.scannedStockError)}. If it says the function does not exist, run migration_receipt_merge.sql in Supabase.</div>`;
+        } else if (!items.length) {
+            body = `<div class="empty">${icon('scan-line', 28)}<div>No scanned stock yet. Items appear here when the shop scans purchase receipts into stock, or when you log a purchase for them.</div></div>`;
+        } else {
+            body = `<div class="list" style="overflow-x:auto;"><table class="entries">
+                <thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Last cost</th></tr></thead>
+                <tbody>${rows}</tbody></table></div>`;
+        }
+        return `
+            <div style="margin-top:28px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:10px; flex-wrap:wrap;">
+                    <div class="section-title" style="margin:0;">Scanned stock <span style="font-weight:400; color:var(--text-soft); font-size:12px;">(from the shop's scanned receipts, read-only)</span></div>
+                    <button class="btn btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="syncReceiptsNow('${client.id}')">${icon('refresh-cw', 13)} Sync receipts now</button>
+                </div>
+                ${body}
+            </div>`;
+    }
     function renderInventoryTab(client) {
+        const base = renderInventoryTabBase(client);
+        if (linkedApprovedShop(client) && client.inventory !== undefined) return base + renderScannedStockSection(client);
+        return base;
+    }
+    function renderInventoryTabBase(client) {
         const link = linkForBusiness(client.linkedBusinessId);
         const status = link ? link.status : null;
         if (!client.linkedBusinessId) {
@@ -1812,6 +1901,8 @@ This field is  mandatory.",Total value,vat,value after vat`;
         render();
         await loadEntriesForActiveClient();
         render();
+        const opened = activeClient();
+        if (opened && !opened.receiptsSynced && linkedApprovedShop(opened)) syncClientReceipts(opened, true);
     }
     function backToDashboard() { activeClientId = null; render(); }
     function setTab(key) { activeTab = key; addFlow = null; render(); }
@@ -1820,10 +1911,10 @@ This field is  mandatory.",Total value,vat,value after vat`;
         const client = activeClient();
         let row = entryToDb(entry, client.id);
         let { data, error } = await supabaseClient.from('accountant_entries').insert(row).select().single();
-        if (error && /non_vat_amount|lines/i.test(error.message || '')) {
+        if (error && /non_vat_amount|lines|entry_kind/i.test(error.message || '')) {
             // the two new columns are not in the database yet
-            if (Number(entry.nonVatAmount) > 0) { alert('This receipt has non-VAT goods, but the database is missing the new columns (non_vat_amount, lines). Run the migration SQL once in Supabase, then save again.'); return; }
-            delete row.non_vat_amount; delete row.lines;
+            if (Number(entry.nonVatAmount) > 0) { alert('This receipt has non-VAT goods, but the database is missing the new columns (non_vat_amount, lines, entry_kind). Run migration_non_vat_lines.sql and migration_receipt_merge.sql once in Supabase, then save again.'); return; }
+            delete row.non_vat_amount; delete row.lines; delete row.entry_kind;
             ({ data, error } = await supabaseClient.from('accountant_entries').insert(row).select().single());
         }
         if (error) { alert(error.message); return; }
@@ -2047,7 +2138,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
         const rows = sorted.map((e) => `
             <tr class="entry-row${e.reviewed === false ? ' unreviewed' : ''}${e.tinMismatch ? ' tin-mismatch' : ''}" onclick="openEntryDetail('${e.id}')" style="cursor:pointer;">
                 <td class="mono" style="font-size:12px;">${esc(e.date) || '—'}</td>
-                <td>${esc(e.sellerName) || 'Unknown seller'}${e.missing && e.missing.length ? ` <span title="Needs review: ${esc(e.missing.join(', '))}" style="color:var(--amber);">${icon('alert-triangle', 12)}</span>` : ''}${e.reviewed === false ? `<span class="badge-new" title="Auto-saved from a batch upload — not reviewed yet">New</span>` : ''}${e.tinMismatch ? `<span class="tin-mismatch-badge" title="Neither party's TIN on the document matches this client — excluded from exports">${icon('alert-triangle', 11)} TIN mismatch</span>` : ''}</td>
+                <td>${esc(e.sellerName) || 'Unknown seller'}${e.missing && e.missing.length ? ` <span title="Needs review: ${esc(e.missing.join(', '))}" style="color:var(--amber);">${icon('alert-triangle', 12)}</span>` : ''}${e.reviewed === false ? `<span class="badge-new" title="Auto-saved from a batch upload — not reviewed yet">New</span>` : ''}${e.syncedFrom === 'shop' ? `<span class="badge-new" style="background:#2c6fbb;" title="Came from the shop's own records. Check the details and the FS number.">From shop</span>` : ''}${e.tinMismatch ? `<span class="tin-mismatch-badge" title="Neither party's TIN on the document matches this client — excluded from exports">${icon('alert-triangle', 11)} TIN mismatch</span>` : ''}</td>
                 <td style="font-size:12px; color:var(--text-soft);">${e.type === 'payment' ? 'Purchase' : 'Sale'}</td>
                 <td class="mono num">${money(e.beforeVat)}</td>
                 <td class="mono num">${money(e.vat)}</td>
@@ -2361,6 +2452,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
                 // every line of the receipt, with the ones that carry no VAT ticked (worked out from the VAT amount)
                 lines: (ex.items || []).map((it) => ({ description: it.description || '', quantity: it.quantity ?? null, measurement: it.measurement || '', unitPrice: it.unit_price ?? null, amount: it.amount ?? null, nonVat: it.taxable === false })),
                 nonVatAmount: Number(ex.non_vat_total) || 0,
+                entryKind: 'purchase',
                 splitStatus: (ex.split && ex.split.status) || 'none',
             };
             addFlow.step = 'review';
@@ -2475,6 +2567,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
                             ${field('quantity', 'Quantity', 'Quantity', true)}
                             ${field('unitPrice', 'Unit price', 'Unit price', true)}
                         </div>
+                        ${renderShareNotice(f)}
                         <div style="display:flex; gap:10px;">
                             <button class="btn btn-primary" id="save-receipt-btn" ${f.date ? '' : 'disabled'} onclick="saveReceiptForm()">${icon('check', 15)} Save receipt</button>
                             ${addFlow.queue.length ? `<button class="btn btn-ghost" onclick="skipQueuedFile()">${icon('skip-forward', 15)} Skip this one</button>` : ''}

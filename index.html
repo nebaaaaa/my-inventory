@@ -119,33 +119,73 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         .footer-buttons .btn { min-width: 0; width: 100%; justify-content: center; white-space: nowrap; }
 
 
-        /* ===== Scanned Stock "incognito" dark mode =====
+        /* ===== Scanned Stock: the Meleya Accountant theme =====
+           Same palette as the accountant app: deep green ink on cream paper, amber accents, IBM Plex.
            Switched on only while the Scanned Stock page is open (class added to <html> by the
-           switchView wrapper in the SCANNED STOCK script). Every other page keeps the normal look. */
-        html.scn-dark {
-            color-scheme: dark;
-            --primary: #e4e4ea;
-            --secondary: #1c1c23;
-            --bg: #0b0b0e;
-            --surface: #15151a;
-            --border: #2a2a33;
-            --text: #e4e4ea;
-            --text-light: #8d8d9b;
-            --shadow-sm: 0 1px 2px rgba(0,0,0,0.5);
-            --shadow-md: 0 4px 16px rgba(0,0,0,0.55);
-            --shadow-lg: 0 12px 32px rgba(0,0,0,0.7);
+           switchView wrapper in the SCANNED STOCK script). The two review windows (#scn-modal, #sce-modal)
+           carry the theme by themselves, because the "match on Print" window can also open on other pages.
+           Every other page keeps the normal look. */
+        html.scn-acct, #scn-modal, #sce-modal {
+            color-scheme: light;
+            --ink: #1B3A2F; --paper: #F4F2EA; --paper-line: #E3DFD0;
+            --amber: #B5762A; --amber-bg: #FBEFDD; --amber-text: #4D320F;
+            --danger-bg: #F6E2DE; --text-soft: #6B6B5F; --drag-bg: #E3EDE5;
+            --primary: #1B3A2F;
+            --secondary: #274B3D;
+            --accent: #B5762A;
+            --accent-light: #D9B27A;
+            --success: #2E7D5B;
+            --danger: #B23A2E;
+            --warning: #B5762A;
+            --info: #2F6B5A;
+            --bg: #F4F2EA;
+            --surface: #ffffff;
+            --border: #E3DFD0;
+            --text: #2A2A24;
+            --text-light: #6B6B5F;
+            --shadow-sm: 0 1px 2px rgba(27,58,47,0.06);
+            --shadow-md: 0 4px 16px rgba(27,58,47,0.10);
+            --shadow-lg: 0 12px 32px rgba(27,58,47,0.18);
         }
-        html.scn-dark aside#sidebar { background: #07070a; border-right-color: #1c1c23; }
-        html.scn-dark .aside-footer { background: rgba(255,255,255,0.03); }
-        html.scn-dark input, html.scn-dark select, html.scn-dark textarea { background: #0e0e12; color: var(--text); border-color: #30303b; }
-        html.scn-dark input::placeholder, html.scn-dark textarea::placeholder { color: #6a6a78; }
-        html.scn-dark tr:hover { background: #1d1d25; }
-        html.scn-dark .modal-overlay { background: rgba(0,0,0,0.78); }
-        html.scn-dark .notif-panel { background: var(--surface); }
-        html.scn-dark .notif-item.unread { background: #1d1a14; }
-        html.scn-dark #scn-body tr.row-dragging td { background: #262633 !important; }
-        html.scn-dark ::-webkit-scrollbar-thumb { background: #34343f; border-radius: 6px; }
-        html.scn-dark ::-webkit-scrollbar-track { background: #0b0b0e; }
+        /* the accountant app uses IBM Plex Sans everywhere (the shop uses Space Grotesk for headings and buttons) */
+        html.scn-acct h1, html.scn-acct h2, html.scn-acct h3, html.scn-acct .brand, html.scn-acct nav button,
+        html.scn-acct button.btn, #scn-modal h3, #scn-modal button.btn, #sce-modal h3, #sce-modal button.btn {
+            font-family: 'IBM Plex Sans', system-ui, sans-serif;
+        }
+        /* figures in IBM Plex Mono, like the accountant's tables */
+        html.scn-acct td.num, html.scn-acct th.num, #scn-modal .num, #sce-modal .num, html.scn-acct #scn-total, html.scn-acct #sce-total {
+            font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums;
+        }
+        /* sidebar = the accountant's green header band */
+        html.scn-acct aside#sidebar { background: var(--ink); border-right-color: rgba(255,255,255,0.08); }
+        html.scn-acct nav button { color: #C9DACF; }
+        html.scn-acct nav button:hover, html.scn-acct nav button.active { background: rgba(255,255,255,0.08); color: #fff; border-left-color: var(--amber); }
+        html.scn-acct .aside-footer { background: rgba(255,255,255,0.05); }
+        /* buttons: green ink like the accountant's primary button; flatter and squarer */
+        html.scn-acct button.btn, #scn-modal button.btn, #sce-modal button.btn { background: var(--ink); border-radius: 5px; box-shadow: none; }
+        html.scn-acct button.btn-small, #scn-modal button.btn-small, #sce-modal button.btn-small { border-radius: 5px; }
+        html.scn-acct button.btn-danger, #scn-modal button.btn-danger, #sce-modal button.btn-danger { background: var(--danger); }
+        html.scn-acct button.btn-success, #scn-modal button.btn-success, #sce-modal button.btn-success { background: var(--success); }
+        html.scn-acct button.btn-warning, #scn-modal button.btn-warning, #sce-modal button.btn-warning { background: var(--amber); }
+        /* sidebar footer buttons (their colours are set inline, so they need !important to join the palette) */
+        html.scn-acct button.btn-excel { background: var(--success); }
+        html.scn-acct #btn-restore { background: rgba(255,255,255,0.14) !important; }
+        html.scn-acct .footer-buttons button:first-child { background: var(--amber) !important; }
+        /* cards, windows, fields, tables */
+        html.scn-acct .card { border-radius: 6px; box-shadow: none; border-color: var(--paper-line); }
+        #scn-modal .modal-box, #sce-modal .modal-box { border-radius: 8px; border: 1px solid var(--paper-line); }
+        #scn-modal.modal-overlay, #sce-modal.modal-overlay, html.scn-acct .modal-overlay { background: rgba(27,58,47,0.55); }
+        html.scn-acct input, html.scn-acct select, html.scn-acct textarea,
+        #scn-modal input, #scn-modal select, #scn-modal textarea, #sce-modal input, #sce-modal select, #sce-modal textarea { border-radius: 4px; border-color: var(--paper-line); background: #fff; }
+        html.scn-acct input:focus, html.scn-acct select:focus, html.scn-acct textarea:focus,
+        #scn-modal input:focus, #scn-modal select:focus, #sce-modal input:focus, #sce-modal select:focus { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(27,58,47,0.14); }
+        html.scn-acct th, #scn-modal th, #sce-modal th { background: var(--paper); color: var(--ink); }
+        html.scn-acct tr:hover { background: #FAF8F1; }
+        html.scn-acct .notif-panel { background: var(--surface); }
+        html.scn-acct .notif-item.unread { background: var(--amber-bg); }
+        html.scn-acct #scn-body tr.row-dragging td { background: var(--drag-bg) !important; }
+        html.scn-acct ::-webkit-scrollbar-thumb { background: #CFC9B6; border-radius: 6px; }
+        html.scn-acct ::-webkit-scrollbar-track { background: #EFEBDD; }
 
         /* Main Body Workspaces */
         main { flex: 1 1 0%; min-width: 0; display: flex; flex-direction: column; overflow: hidden; position: relative; }
@@ -1255,12 +1295,12 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             <div id="view-scanned" class="view-panel">
                 <div class="card">
                     <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; margin-bottom:12px;">
-                        <div style="display:flex;gap:10px;align-items:center;"><button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="switchView('inventory')" title="Back to Inventory" data-i18n-title="ui2.back_to_inventory" data-i18n="ui2.inventory">&#8249; Inventory</button><h2 style="border:none; margin:0; padding:0;" data-i18n="ui2.scanned_stock">Scanned Stock</h2></div>
-                        <div><input type="file" id="scn-file" accept="image/*" multiple style="display:none;" onchange="scnPickFile(this)"><button type="button" class="btn" onclick="document.getElementById('scn-file').click()" data-i18n="ui2.scan_purchase_receipt">Scan purchase receipt</button> <button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="scnManual()" title="Type a purchase receipt in by hand (works offline)" data-i18n-title="ui2.type_a_purchase_receipt_in_by_hand" data-i18n="ui2.enter_by_hand">Enter by hand</button></div>
+                        <div style="display:flex;gap:10px;align-items:center;"><button type="button" class="btn btn-small" style="background:var(--text-light);" onclick="switchView('inventory')" title="Back to Inventory" data-i18n-title="ui2.back_to_inventory" data-i18n="ui2.inventory">&#8249; Inventory</button><h2 style="border:none; margin:0; padding:0;" data-i18n="ui2.scanned_stock">Scanned Stock</h2></div>
+                        <div><input type="file" id="scn-file" accept="image/*" multiple style="display:none;" onchange="scnPickFile(this)"><button type="button" class="btn" onclick="document.getElementById('scn-file').click()" data-i18n="ui2.scan_purchase_receipt">Scan purchase receipt</button> <button type="button" class="btn btn-small" style="background:var(--text-light);" onclick="scnManual()" title="Type a purchase receipt in by hand (works offline)" data-i18n-title="ui2.type_a_purchase_receipt_in_by_hand" data-i18n="ui2.enter_by_hand">Enter by hand</button></div>
                     </div>
                     <p style="font-size:12px; color:var(--text-light); margin:0 0 10px;" data-i18n="ui2.separate_from_your_main_inventory">Separate from your main inventory. Only stock from scanned receipts is counted here (owners only).</p>
-                    <div id="scn-sync-note" style="display:none;font-size:12px;margin:0 0 10px;padding:8px 10px;border-radius:8px;background:rgba(255,193,7,.15);border:1px solid #e0a800;"></div>
-                    <div style="display:flex;gap:8px;margin:0 0 12px;"><button type="button" class="btn btn-small" id="scn-tab-stock" onclick="scnTab('stock')" data-i18n="ui2.stock">Stock</button><button type="button" class="btn btn-small" id="scn-tab-purchases" onclick="scnTab('purchases')" style="background:#4a4e63;opacity:.75;" data-i18n="ui2.purchase_receipts">Purchase receipts</button><button type="button" class="btn btn-small" id="scn-tab-sales" onclick="scnTab('sales')" style="background:#4a4e63;opacity:.75;" data-i18n="ui2.sales_receipts">Sales receipts</button><button type="button" class="btn btn-small" id="scn-tab-expenses" onclick="scnTab('expenses')" style="background:#4a4e63;opacity:.75;">Expense receipts</button></div>
+                    <div id="scn-sync-note" style="display:none;font-size:12px;margin:0 0 10px;padding:8px 10px;border-radius:8px;background:var(--amber-bg,rgba(255,193,7,.15));border:1px solid var(--amber,#e0a800);"></div>
+                    <div style="display:flex;gap:8px;margin:0 0 12px;"><button type="button" class="btn btn-small" id="scn-tab-stock" onclick="scnTab('stock')" data-i18n="ui2.stock">Stock</button><button type="button" class="btn btn-small" id="scn-tab-purchases" onclick="scnTab('purchases')" style="background:var(--text-light);opacity:.75;" data-i18n="ui2.purchase_receipts">Purchase receipts</button><button type="button" class="btn btn-small" id="scn-tab-sales" onclick="scnTab('sales')" style="background:var(--text-light);opacity:.75;" data-i18n="ui2.sales_receipts">Sales receipts</button><button type="button" class="btn btn-small" id="scn-tab-expenses" onclick="scnTab('expenses')" style="background:var(--text-light);opacity:.75;">Expense receipts</button></div>
                     <div id="scn-pane-stock"><table>
                         <thead><tr><th data-i18n="sale.item">Item</th><th class="num" data-i18n="tr.quantity">Quantity</th><th class="num" data-i18n="ui2.last_cost">Last cost</th><th class="num" data-i18n="ui2.value">Value</th></tr></thead>
                         <tbody id="scn-body"></tbody>
@@ -1268,15 +1308,15 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                     <div style="margin-top:12px; font-weight:700; color:var(--primary);"><span data-i18n="ui2.scanned_stock_value">Scanned stock value:</span> <span id="scn-total">ETB 0.00</span></div>
                     <div id="scn-waiting" style="margin-top:14px;"></div></div>
                     <div id="scn-pane-purchases" style="display:none;"><h3 style="margin:18px 0 8px;font-size:15px;" data-i18n="ui2.purchase_receipts_scanned_copies">Purchase receipts (scanned copies)</h3>
-                        <div class="scn-filter"><label data-i18n="tr.from">From</label><input type="date" id="scn-p-from" onchange="scnRenderReceipts()" style="min-width:auto;"><label data-i18n="tr.to">To</label><input type="date" id="scn-p-to" onchange="scnRenderReceipts()" style="min-width:auto;"><button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="scnClearDates('p')" data-i18n="common.clear">Clear</button></div>
+                        <div class="scn-filter"><label data-i18n="tr.from">From</label><input type="date" id="scn-p-from" onchange="scnRenderReceipts()" style="min-width:auto;"><label data-i18n="tr.to">To</label><input type="date" id="scn-p-to" onchange="scnRenderReceipts()" style="min-width:auto;"><button type="button" class="btn btn-small" style="background:var(--text-light);" onclick="scnClearDates('p')" data-i18n="common.clear">Clear</button></div>
                         <div id="scn-receipts"></div></div>
                     <div id="scn-pane-sales" style="display:none;"><h3 style="margin:18px 0 8px;font-size:15px;" data-i18n="ui2.sales_receipts_as_printed">Sales receipts (as printed)</h3>
-                        <div class="scn-filter"><label data-i18n="tr.from">From</label><input type="date" id="scn-s-from" onchange="scnRenderReceipts()" style="min-width:auto;"><label data-i18n="tr.to">To</label><input type="date" id="scn-s-to" onchange="scnRenderReceipts()" style="min-width:auto;"><button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="scnClearDates('s')" data-i18n="common.clear">Clear</button></div>
+                        <div class="scn-filter"><label data-i18n="tr.from">From</label><input type="date" id="scn-s-from" onchange="scnRenderReceipts()" style="min-width:auto;"><label data-i18n="tr.to">To</label><input type="date" id="scn-s-to" onchange="scnRenderReceipts()" style="min-width:auto;"><button type="button" class="btn btn-small" style="background:var(--text-light);" onclick="scnClearDates('s')" data-i18n="common.clear">Clear</button></div>
                         <div id="scn-sales-receipts"></div></div>
                     <div id="scn-pane-expenses" style="display:none;"><h3 style="margin:18px 0 8px;font-size:15px;">Expense receipts (scanned copies)</h3>
                         <p style="font-size:12px; color:var(--text-light); margin:0 0 10px;">For receipts that are not products (fuel, electricity, rent and so on). One expense per receipt. By default these are kept here only; you can link them to the Expenses page in Settings.</p>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px;"><input type="file" id="sce-file" accept="image/*" multiple style="display:none;" onchange="scePick(this)"><button type="button" class="btn" onclick="document.getElementById('sce-file').click()">Scan expense receipt</button> <button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="sceManual()">Enter by hand</button></div>
-                        <div class="scn-filter"><label data-i18n="tr.from">From</label><input type="date" id="sce-from" onchange="sceRender()" style="min-width:auto;"><label data-i18n="tr.to">To</label><input type="date" id="sce-to" onchange="sceRender()" style="min-width:auto;"><button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="sceClear()" data-i18n="common.clear">Clear</button></div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px;"><input type="file" id="sce-file" accept="image/*" multiple style="display:none;" onchange="scePick(this)"><button type="button" class="btn" onclick="document.getElementById('sce-file').click()">Scan expense receipt</button> <button type="button" class="btn btn-small" style="background:var(--text-light);" onclick="sceManual()">Enter by hand</button></div>
+                        <div class="scn-filter"><label data-i18n="tr.from">From</label><input type="date" id="sce-from" onchange="sceRender()" style="min-width:auto;"><label data-i18n="tr.to">To</label><input type="date" id="sce-to" onchange="sceRender()" style="min-width:auto;"><button type="button" class="btn btn-small" style="background:var(--text-light);" onclick="sceClear()" data-i18n="common.clear">Clear</button></div>
                         <div id="sce-total" style="font-size:13px;font-weight:600;color:var(--primary);margin:8px 0;"></div>
                         <div id="sce-list"></div></div>
                 </div>
@@ -9169,9 +9209,9 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             const e = x => String(x == null ? '' : x).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
             const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             const nice = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ''); return m ? (Number(m[3]) + ' ' + MON[Number(m[2]) - 1] + ' ' + m[1]) : (iso || ''); };
-            let h = ((d && d.infos) || []).map(w => '<p style="color:#2c6fbb;font-size:13px;margin:0 0 8px;">&#8505; ' + e(w) + '</p>').join('');
-            h += ((d && d.warns) || []).map(w => '<p style="color:#b9770e;font-size:13px;margin:0 0 8px;">&#9888; ' + e(w) + '</p>').join('');
-            if (d && d.dateAlt) h += '<p style="color:#b9770e;font-size:13px;margin:0 0 8px;">&#9888; The date is printed as <b>' + e(d.dateRaw) + '</b>, which could be <b>' + nice(d.date) + '</b> or <b>' + nice(d.dateAlt) + '</b>. Check the paper. <button type="button" class="btn btn-small" onclick="' + swapFn + '()">Use ' + nice(d.dateAlt) + ' instead</button></p>';
+            let h = ((d && d.infos) || []).map(w => '<p style="color:var(--info,#2c6fbb);font-size:13px;margin:0 0 8px;">&#8505; ' + e(w) + '</p>').join('');
+            h += ((d && d.warns) || []).map(w => '<p style="color:var(--amber,#b9770e);font-size:13px;margin:0 0 8px;">&#9888; ' + e(w) + '</p>').join('');
+            if (d && d.dateAlt) h += '<p style="color:var(--amber,#b9770e);font-size:13px;margin:0 0 8px;">&#9888; The date is printed as <b>' + e(d.dateRaw) + '</b>, which could be <b>' + nice(d.date) + '</b> or <b>' + nice(d.dateAlt) + '</b>. Check the paper. <button type="button" class="btn btn-small" onclick="' + swapFn + '()">Use ' + nice(d.dateAlt) + ' instead</button></p>';
             return h;
         };
         // 147319.6 -> "One Hundred Forty Seven Thousand Three Hundred Nineteen Birr and Sixty Cents Only"
@@ -10792,12 +10832,14 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 } else if (l.status === 'pending' && l.requested_by === 'client') {
                     actions = `<button class="btn btn-warning" style="padding:6px 12px; font-size:12px;" onclick="respondToBusinessLink('${l.id}','cancelled')">Cancel request</button>`;
                 } else if (l.status === 'approved') {
-                    actions = `<button class="btn btn-danger" style="padding:6px 12px; font-size:12px;" onclick="respondToBusinessLink('${l.id}','revoked')">Revoke access</button>`;
+                    actions = `<button class="btn" style="padding:6px 12px; font-size:12px;" onclick="syncAccountantReceipts()">Sync receipts now</button>
+                               <button class="btn btn-danger" style="padding:6px 12px; font-size:12px;" onclick="respondToBusinessLink('${l.id}','revoked')">Revoke access</button>`;
                 }
                 return `<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-top:1px solid var(--border);">
                     <div>
                         <strong>${escapeAccHtml(l.full_name)}</strong>
                         <div style="font-size:12px; color:var(--text-light);">${escapeAccHtml(l.phone || '')} · ${direction} · <span style="color:${badgeColor};">${l.status}</span></div>
+                        ${l.status === 'approved' ? `<div style="font-size:11.5px; color:var(--text-light); margin-top:2px;">Receipts are shared both ways while this link is active. Receipts your accountant logs add their items to your Scanned Stock.</div>` : ''}
                     </div>
                     <div style="display:flex; gap:6px;">${actions}</div>
                 </div>`;
@@ -10807,6 +10849,18 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             const { error } = await supabaseClient.from('accountant_links').update({ status: newStatus, responded_at: new Date().toISOString() }).eq('id', id);
             if (error) { alert(error.message); return; }
             await loadAccountantLinksSection();
+            if (newStatus === 'approved') {
+                // the database merges receipts as soon as the link is approved; this just refreshes the screen
+                try { await supabaseClient.rpc('sync_linked_receipts', { p_business_id: currentTenantId }); if (window.scnReload) window.scnReload(); } catch (e) { /* the automatic merge still runs in the database */ }
+            }
+        }
+        // Merge receipts with the linked accountant right now (new receipts are also copied automatically as they are saved).
+        async function syncAccountantReceipts() {
+            const { data, error } = await supabaseClient.rpc('sync_linked_receipts', { p_business_id: currentTenantId });
+            if (error) { alert("Couldn't sync receipts: " + error.message + "\n\nIf this says the function does not exist, run migration_receipt_merge.sql in Supabase."); return; }
+            try { if (window.scnReload) await window.scnReload(); } catch (e) { }
+            const toAcc = Number(data && data.to_accountant) || 0, fromAcc = Number(data && data.to_shop) || 0;
+            alert('Receipts synced with your accountant.\n• ' + toAcc + ' receipt(s) went to your accountant\n• ' + fromAcc + ' receipt(s) came in from your accountant' + (data && data.errors ? '\n• ' + data.errors + ' could not be copied' : ''));
         }
         // ---- Recent-search history (per device, via localStorage) --------
         // Generic so the same helpers cover every search box in the app —
@@ -12575,7 +12629,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 const v = num(r.qty) * num(r.last_cost); tot += v;
                 const packs = (r.units || []).map(u => `1 ${esc(u.unit)} = ${num(u.base_qty)} ${esc(r.base_unit)}`).join(', ');
                 return `<tr data-item-id="${esc(r.id)}"><td>${esc(r.name)}${packs ? `<div style="font-size:11px;color:var(--text-light);">${packs}</div>` : ''}</td>
-                    <td class="num" style="${num(r.qty) < 0 ? 'color:#c0392b;font-weight:700;' : ''}">${money(r.qty)} ${esc(r.base_unit)}</td>
+                    <td class="num" style="${num(r.qty) < 0 ? 'color:var(--danger,#c0392b);font-weight:700;' : ''}">${money(r.qty)} ${esc(r.base_unit)}</td>
                     <td class="num">${r.last_cost == null ? '—' : money(r.last_cost)}</td><td class="num">${money(v)}</td></tr>`;
             }).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text-light);">' + (rows.length ? 'Nothing in stock right now.' : 'No scanned stock yet. Scan a purchase receipt to start.') + '</td></tr>';
             $('scn-total').textContent = 'ETB ' + money(tot);
@@ -12595,7 +12649,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                     if (window.scnAfterLoad) window.scnAfterLoad(rows, true);
                     return;
                 }
-                $('scn-body').innerHTML = net ? '<tr><td colspan="4" style="text-align:center;color:var(--text-light);">You are offline and nothing is saved on this device yet. Open Scanned Stock once while online.</td></tr>' : '<tr><td colspan="4" style="color:#c0392b;">Could not load: ' + esc(error.message) + '</td></tr>';
+                $('scn-body').innerHTML = net ? '<tr><td colspan="4" style="text-align:center;color:var(--text-light);">You are offline and nothing is saved on this device yet. Open Scanned Stock once while online.</td></tr>' : '<tr><td colspan="4" style="color:var(--danger,#c0392b);">Could not load: ' + esc(error.message) + '</td></tr>';
                 if (window.scnSyncNote) window.scnSyncNote();
                 return;
             }
@@ -12702,7 +12756,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         }
         function initDrag() { makeRowDrag($('scn-body'), { canStart: () => rows.length > 1, onSave: saveOrder, onCancel: render }); }
         const dragCss = document.createElement('style');
-        dragCss.textContent = '#scn-body tr{-webkit-touch-callout:none}#scn-body td{-webkit-user-select:none;user-select:none}#scn-body tr.row-dragging{position:relative;z-index:1}#scn-body tr.row-dragging td{background:#dbe7ff !important;box-shadow:0 8px 14px -6px rgba(0,0,0,.4)}';
+        dragCss.textContent = '#scn-body tr{-webkit-touch-callout:none}#scn-body td{-webkit-user-select:none;user-select:none}#scn-body tr.row-dragging{position:relative;z-index:1}#scn-body tr.row-dragging td{background:var(--drag-bg,#dbe7ff) !important;box-shadow:0 8px 14px -6px rgba(0,0,0,.4)}';
         document.head.appendChild(dragCss);
 
         // ---- photo -> base64 (same approach as the accountant app) ----
@@ -12793,7 +12847,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         }
         const linkRow = (i, it) => {
             const sg = invSuggest(it.name).filter(z => !(it.links || []).some(L => L.comp === z.x.comp)), inv = invList().filter(x => !(it.links || []).some(L => L.comp === x.comp) && !sg.some(z => z.x.comp === x.comp));
-            const from = it.packFrom ? `<div style="font-size:11px;color:#a8a8a8;margin-bottom:3px;">like ${esc(it.packFrom)}</div>` : '';
+            const from = it.packFrom ? `<div style="font-size:11px;color:var(--text-light);margin-bottom:3px;">like ${esc(it.packFrom)}</div>` : '';
             if (!inv.length && !sg.length && !(it.links || []).length) return from ? `<tr><td colspan="6" style="padding-top:0;">${from}</td></tr>` : '';
             return `<tr><td colspan="6" style="padding-top:0;">${from}
                 ${(it.links || []).map((L, j) => `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--text-light);margin-bottom:3px;">&rarr; <b style="color:inherit;">${esc(L.name)}</b> &middot; 1 = <input type="number" step="any" min="0" value="${esc(L.mult)}" oninput="scnLinkMult(${i},${j},this.value)" style="width:80px;min-width:0;padding:3px 6px;"> ${esc(baseUnitOf(it))} <button type="button" class="btn btn-danger btn-small" onclick="scnLinkDel(${i},${j})">&#10005;</button></div>`).join('')}
@@ -12814,7 +12868,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         };
         function review() {
             const d = draft, inp = 'style="width:100%;"';
-            open(`${d.error ? `<p style="color:#c0392b;font-size:13px;">${esc(d.error)}</p>` : ''}${window.ocrNotes(d, 'scnDateSwap')}
+            open(`${d.error ? `<p style="color:var(--danger,#c0392b);font-size:13px;">${esc(d.error)}</p>` : ''}${window.ocrNotes(d, 'scnDateSwap')}
               <p style="font-size:12px;color:var(--text-light);margin:0 0 10px;">Check every line against the paper receipt. Lines matched to an Inventory item (&rarr;) are stored in Scanned Stock under the Inventory item&#39;s name; other lines keep the name written here.</p>
               <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
                 ${[['merchant', 'Merchant', 'text'], ['tin', 'Merchant TIN', 'text'], ['no', 'Receipt No.', 'text'], ['date', 'Date', 'date'], ['before', 'Before VAT', 'number'], ['vat', 'VAT', 'number'], ['total', 'Total', 'number']]
@@ -12830,8 +12884,8 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                   <td><button type="button" class="btn btn-danger btn-small" onclick="scnDel(${i})">✕</button></td></tr>${hint(i, it)}${linkRow(i, it)}`).join('')}
               </tbody></table></div>
               <div style="display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;margin-top:14px;">
-                <button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="scnAdd()">+ Add line</button>
-                <div style="display:flex;gap:10px;flex-wrap:wrap;">${queue.length ? '<button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="scnSkip()">Skip this receipt</button>' : ''}<button type="button" class="btn btn-danger" onclick="scnCancel()">${queue.length ? 'Cancel all' : 'Cancel'}</button><button type="button" class="btn" id="scn-confirm" onclick="scnSave()">${queue.length ? 'Confirm &amp; next' : 'Confirm &amp; add to stock'}</button></div>
+                <button type="button" class="btn btn-small" style="background:var(--text-light);" onclick="scnAdd()">+ Add line</button>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">${queue.length ? '<button type="button" class="btn btn-small" style="background:var(--text-light);" onclick="scnSkip()">Skip this receipt</button>' : ''}<button type="button" class="btn btn-danger" onclick="scnCancel()">${queue.length ? 'Cancel all' : 'Cancel'}</button><button type="button" class="btn" id="scn-confirm" onclick="scnSave()">${queue.length ? 'Confirm &amp; next' : 'Confirm &amp; add to stock'}</button></div>
               </div>`);
         }
 
@@ -12917,7 +12971,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         window.scnTab = t => {
             if (t === 'receipts') t = 'purchases';
             setTimeout(() => { if ((t === 'sales' || t === 'purchases') && window.scnRenderReceipts) window.scnRenderReceipts(); }, 0);
-            ['stock', 'purchases', 'sales'].forEach(n => { const pane = $('scn-pane-' + n), b = $('scn-tab-' + n), on = n === t; if (pane) pane.style.display = on ? '' : 'none'; if (b) { b.style.background = on ? '' : '#4a4e63'; b.style.opacity = on ? '1' : '.75'; } });
+            ['stock', 'purchases', 'sales'].forEach(n => { const pane = $('scn-pane-' + n), b = $('scn-tab-' + n), on = n === t; if (pane) pane.style.display = on ? '' : 'none'; if (b) { b.style.background = on ? '' : 'var(--text-light)'; b.style.opacity = on ? '1' : '.75'; } });
         };
         window.scnReload = load; window.scnRefresh = review;
         window.scnShowNav = () => { const n = $('nav-scanned'); if (n) n.style.display = (typeof currentIsOwner !== 'undefined' && currentIsOwner && currentPlanPremium) ? 'flex' : 'none'; try { if (window.scnRecomputeVoided) window.scnRecomputeVoided(); } catch (e) { } };
@@ -12926,11 +12980,11 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             if (v === 'scanned' && (!currentIsOwner || !currentPlanPremium)) return;
             baseSwitch(v);
             if (v === 'sales' && typeof loadReprintRequests === 'function') loadReprintRequests();
-            // Incognito dark look: only on the Scanned Stock page.
-            document.documentElement.classList.toggle('scn-dark', v === 'scanned');
+            // Accountant theme (green ink on cream): only on the Scanned Stock page.
+            document.documentElement.classList.toggle('scn-acct', v === 'scanned');
             let tc = document.querySelector('meta[name="theme-color"]');
             if (!tc) { tc = document.createElement('meta'); tc.name = 'theme-color'; document.head.appendChild(tc); }
-            if (v === 'scanned') { tc.dataset.prev = tc.content || ''; tc.content = '#0b0b0e'; }
+            if (v === 'scanned') { tc.dataset.prev = tc.content || ''; tc.content = '#1B3A2F'; }
             else if (tc.dataset.prev !== undefined) { tc.content = tc.dataset.prev; }
             if (v === 'scanned') { $('page-title').innerText = 'Scanned Stock'; const n = $('nav-inventory'); if (n) n.classList.add('active'); window.scnTab('stock'); load(); }
         };
@@ -13035,7 +13089,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         const f = (label, field) => `<div class="form-group" style="margin:0;"><label>${label}</label>${field}</div>`;
         const mny = (k) => `<input type="text" inputmode="decimal" autocomplete="off" data-money="1" ${inp} value="${esc(d[k])}" oninput="sceHead('${k}',this.value)">`;
         const lines = d.lines.length ? `<details style="margin-top:12px;font-size:12px;color:var(--text-light);"><summary>${d.lines.length} line(s) read from the receipt</summary>${d.lines.map(l => `<div>${esc(l.name)}${l.amount !== '' ? ' — ' + money(l.amount) : ''}</div>`).join('')}</details>` : '';
-        openM(`${d.error ? `<p style="color:#c0392b;font-size:13px;margin-top:0;">${esc(d.error)}</p>` : `<p style="font-size:12px;color:var(--text-light);margin-top:0;">Check the details against the paper receipt. ${affects() ? 'It is also added to your Expenses page.' : 'It is saved here only.'}</p>`}${window.ocrNotes(d, 'sceDateSwap')}
+        openM(`${d.error ? `<p style="color:var(--danger,#c0392b);font-size:13px;margin-top:0;">${esc(d.error)}</p>` : `<p style="font-size:12px;color:var(--text-light);margin-top:0;">Check the details against the paper receipt. ${affects() ? 'It is also added to your Expenses page.' : 'It is saved here only.'}</p>`}${window.ocrNotes(d, 'sceDateSwap')}
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">
             ${f('Shop / seller', `<input type="text" ${inp} value="${esc(d.merchant)}" oninput="sceHead('merchant',this.value)" onchange="sceMerchantDone()">`)}
             ${f('Date', `<input type="date" ${inp} value="${esc(d.date)}" onchange="sceHead('date',this.value)">`)}
@@ -13049,7 +13103,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             ${f('Note (optional)', `<input type="text" ${inp} value="${esc(d.note)}" oninput="sceHead('note',this.value)">`)}
           </div>${affects() ? '<p style="font-size:12px;color:var(--text-light);margin:10px 0 0;"></p>' : ''}${lines}
           <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:16px;">
-            ${queue.length ? '<button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="sceSkip()">Skip this receipt</button>' : ''}
+            ${queue.length ? '<button type="button" class="btn btn-small" style="background:var(--text-light);" onclick="sceSkip()">Skip this receipt</button>' : ''}
             <button type="button" class="btn btn-danger btn-small" onclick="sceCancel()">${queue.length ? 'Cancel all' : 'Cancel'}</button>
             <button type="button" class="btn" id="sce-confirm" onclick="sceSave()">${queue.length ? 'Save &amp; next' : 'Save receipt'}</button>
           </div>`);
@@ -13213,7 +13267,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
     const isoDay = x => /^\d{4}-\d{2}-\d{2}/.test(x || '') ? String(x).slice(0, 10) : '';
     function render() {
         const box = $('sce-list'); if (!box) return;
-        if (loadErr) { box.innerHTML = `<span style="color:#c0392b;font-size:13px;">${esc(loadErr)}</span>`; $('sce-total').textContent = ''; return; }
+        if (loadErr) { box.innerHTML = `<span style="color:var(--danger,#c0392b);font-size:13px;">${esc(loadErr)}</span>`; $('sce-total').textContent = ''; return; }
         const from = $('sce-from').value, to = $('sce-to').value;
         const pend = pendingRows().map(x => ({ ...x.row, id: x.uid, _pending: true, _err: x.err }));
         const day = r => isoDay(r.receipt_date) || isoDay(r.created_at);
@@ -13230,7 +13284,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 const q = i.qty !== '' && i.qty != null ? `${esc(i.qty)}${i.unit ? ' ' + esc(i.unit) : ''}${hasP ? ' x ' + money(i.price) : ''}` : '';
                 return `<div class="sp-item"><div>${esc(i.name)}</div>${q || amt != null ? row(q, amt == null ? '' : money(amt)) : ''}</div>`;
             }).join('');
-            return `<div class="scn-paper">${r._pending ? `<div class="sp-s" style="text-align:right;color:#b8860b;">not synced yet${r._err ? ' — ' + esc(r._err) : ''}</div>` : `<button type="button" class="scn-del" title="Delete this receipt" onclick="sceDel('${esc(r.id)}')">&minus;</button>`}
+            return `<div class="scn-paper">${r._pending ? `<div class="sp-s" style="text-align:right;color:var(--amber,#b8860b);">not synced yet${r._err ? ' — ' + esc(r._err) : ''}</div>` : `<button type="button" class="scn-del" title="Delete this receipt" onclick="sceDel('${esc(r.id)}')">&minus;</button>`}
                 <div class="sp-c sp-b sp-m">${esc(r.merchant || 'Unknown merchant')}</div>
                 ${r.merchant_tin ? `<div class="sp-c">TIN: ${esc(r.merchant_tin)}</div>` : ''}
                 ${lineHtml(lay.header)}
@@ -13275,7 +13329,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         baseTab(t);
         const on = t === 'expenses', pane = $('scn-pane-expenses'), b = $('scn-tab-expenses');
         if (pane) pane.style.display = on ? '' : 'none';
-        if (b) { b.style.background = on ? '' : '#4a4e63'; b.style.opacity = on ? '1' : '.75'; }
+        if (b) { b.style.background = on ? '' : 'var(--text-light)'; b.style.opacity = on ? '1' : '.75'; }
         if (on) load();
     };
 
@@ -13703,7 +13757,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                     </div>
                     ${cur && unitOpts(cur).length > 1 ? `<select onchange="scnUnit(${i},this.value)">${unitOpts(cur).map(o => `<option value="${esc(o.unit)}" ${sel.unit === o.unit ? 'selected' : ''}>sold as ${esc(o.unit)}${o.mult > 1 ? ' (' + o.mult + ' ' + esc(cur.base_unit) + ')' : ''}</option>`).join('')}</select>` : ''}
                   </div>
-                  ${sg && sg.warn ? '<div style="color:#c0392b;font-size:12px;margin-top:4px;">Price looks very different from the cost. Check the unit or the match.</div>' : ''}`;
+                  ${sg && sg.warn ? '<div style="color:var(--danger,#c0392b);font-size:12px;margin-top:4px;">Price looks very different from the cost. Check the unit or the match.</div>' : ''}`;
         }
         function drawMatch() {
             if (ctx.ui) return drawLines();
@@ -13711,7 +13765,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                   <div><b>${esc(l.desc)}</b> &times; ${esc(l.qty)} @ ${money(l.unit)}</div>
                   ${selHtml(l, i)}
                 </div>`).join('') + `<div style="display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;margin-top:14px;">
-                <button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="scnLater()">Close</button>
+                <button type="button" class="btn btn-small" style="background:var(--text-light);" onclick="scnLater()">Close</button>
                 <button type="button" class="btn" id="scn-mconfirm" onclick="scnConfirmMatch()">Confirm</button>
               </div>`;
         }
@@ -13777,7 +13831,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         function drawLines() {
             const ui = ctx.ui, L = ctx.lines;
             ui.box.innerHTML = `<div style="font-size:12px;font-weight:700;color:var(--primary);margin:6px 0 2px;">Items</div>`
-                + (ui.note ? `<div style="font-size:12px;color:#c0392b;margin-bottom:6px;">${esc(ui.note)}</div>` : '')
+                + (ui.note ? `<div style="font-size:12px;color:var(--danger,#c0392b);margin-bottom:6px;">${esc(ui.note)}</div>` : '')
                 + ui.all.map(a => `<div style="border-top:1px solid var(--border,#ddd);padding:8px 0;">
                     <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:10px;">
                       <div style="min-width:0;flex:1 1 auto;"><div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(a.dl.desc)}</div>
@@ -13942,7 +13996,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             }).join('');
             const date = x.receipt_date || String(x.created_at || '').slice(0, 10);
             const lines = a => (a || []).map(t => `<div class="sp-c">${esc(t)}</div>`).join('');
-            return `<div class="scn-paper">${x._pending ? '<div class="sp-s" style="text-align:right;color:#b8860b;">not synced yet</div>' : `<button type="button" class="scn-del" title="Delete this receipt" onclick="scnDelPur('${esc(x.id)}')">&minus;</button>`}
+            return `<div class="scn-paper">${x._pending ? '<div class="sp-s" style="text-align:right;color:var(--amber,#b8860b);">not synced yet</div>' : `<button type="button" class="scn-del" title="Delete this receipt" onclick="scnDelPur('${esc(x.id)}')">&minus;</button>`}
                 <div class="sp-c sp-b sp-m">${esc(x.merchant || 'Unknown merchant')}</div>
                 ${x.merchant_tin ? `<div class="sp-c">TIN: ${esc(x.merchant_tin)}</div>` : ''}
                 ${lines(lay.header)}
@@ -13980,8 +14034,8 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         // ---------- alert for owners at login: VAT sales that have not been printed ----------
         if (!document.getElementById('scn-va-css')) {
             const st = document.createElement('style'); st.id = 'scn-va-css';
-            st.textContent = `#scn-vat-alert{position:fixed;top:calc(64px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:3000;width:min(440px,92vw);box-sizing:border-box;display:flex;gap:10px;align-items:flex-start;background:#fff3cd;color:#3d2e00;border:1px solid #e0a800;border-radius:10px;padding:12px 12px 12px 14px;box-shadow:0 8px 24px rgba(0,0,0,.25);cursor:pointer;font-size:13px;line-height:1.4;}
-            #scn-vat-alert .scn-va-t{flex:1 1 auto;}#scn-vat-alert .scn-va-x{flex:0 0 auto;background:none;border:0;box-shadow:none;color:#3d2e00;font-size:22px;line-height:1;padding:0 4px;cursor:pointer;}`;
+            st.textContent = `#scn-vat-alert{position:fixed;top:calc(64px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:3000;width:min(440px,92vw);box-sizing:border-box;display:flex;gap:10px;align-items:flex-start;background:var(--amber-bg,#fff3cd);color:var(--amber-text,#3d2e00);border:1px solid var(--amber,#e0a800);border-radius:10px;padding:12px 12px 12px 14px;box-shadow:0 8px 24px rgba(0,0,0,.25);cursor:pointer;font-size:13px;line-height:1.4;}
+            #scn-vat-alert .scn-va-t{flex:1 1 auto;}#scn-vat-alert .scn-va-x{flex:0 0 auto;background:none;border:0;box-shadow:none;color:var(--amber-text,#3d2e00);font-size:22px;line-height:1;padding:0 4px;cursor:pointer;}`;
             document.head.appendChild(st);
         }
         let vaBusy = false, vaDoneFor = null;
@@ -14013,7 +14067,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                     const cutoff = rows.length ? (rows.map(r => r.created_at).filter(Boolean).sort()[0] || null) : null;
                     const waiting = await unprintedVat(cutoff);
                     hasWaiting = waiting.length > 0;
-                    w.innerHTML = waiting.length ? `<div style="background:rgba(255,193,7,.15);border:1px solid #e0a800;border-radius:8px;padding:10px;"><b>${waiting.length} VAT sale line(s) not printed yet</b>
+                    w.innerHTML = waiting.length ? `<div style="background:var(--amber-bg,rgba(255,193,7,.15));border:1px solid var(--amber,#e0a800);border-radius:8px;padding:10px;"><b>${waiting.length} VAT sale line(s) not printed yet</b>
                         <div style="font-size:12px;margin:4px 0 8px;">These sales have VAT, but no receipt has been printed. When the receipt is printed, its items are matched to scanned stock and leave this list.</div>
                         <div style="font-size:12px;max-height:240px;overflow-y:auto;">${waiting.map(r => esc(r.date) + ' · ' + esc(r.desc) + ' × ' + esc(r.qty)).join('<br>')}</div></div>` : '';
                 } catch (e) { w.innerHTML = ''; }
@@ -14049,7 +14103,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         const allSal = () => [...store.get(PSK, []), ...salRows].filter(x => !x.sale_deleted_hidden); // copies of deleted sales stay hidden until the sale is restored
         if (!document.getElementById('scn-filter-css')) {
             const st = document.createElement('style'); st.id = 'scn-filter-css';
-            st.textContent = `.scn-del{background:none;border:0;color:#d0021b;font-size:26px;font-weight:700;line-height:1;cursor:pointer;padding:0 6px;box-shadow:none;}.scn-paper .scn-del{position:absolute;top:2px;right:4px;z-index:2;}.scn-filter{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 12px;font-size:13px;}.scn-filter input{width:auto;}
+            st.textContent = `.scn-del{background:none;border:0;color:var(--danger,#d0021b);font-size:26px;font-weight:700;line-height:1;cursor:pointer;padding:0 6px;box-shadow:none;}.scn-paper .scn-del{position:absolute;top:2px;right:4px;z-index:2;}.scn-filter{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 12px;font-size:13px;}.scn-filter input{width:auto;}
             .scn-sal{background:#fffdf7;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.35);padding:8px;color:#222;font-size:12px;}
             .scn-sal .scn-sal-h{display:flex;justify-content:space-between;gap:8px;margin-bottom:6px;font-weight:600;}
             .scn-sal .scn-sal-w{width:100%;overflow:hidden;position:relative;}.scn-sal iframe{border:0;background:#fff;transform-origin:0 0;display:block;}
@@ -14073,11 +14127,11 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             const rc = $('scn-receipts'), sc = $('scn-sales-receipts'); if (!rc || !sc) return;
             const pf = val('scn-p-from'), pt = val('scn-p-to'), sf = val('scn-s-from'), st = val('scn-s-to');
             const pl = allPur().filter(x => inRange(isoDay(x.receipt_date) || String(x.created_at || '').slice(0, 10), pf, pt)).sort((a, b) => byDateDesc(a, b, 'receipt_date'));
-            rc.innerHTML = purErr ? '<span style="color:#c0392b;">Could not load receipts.</span>' : pl.length ? '<div class="scn-papers">' + pl.map(paperCard).join('') + '</div>' : '<span style="color:var(--text-light);font-size:13px;">' + (allPur().length ? 'No receipts in these dates.' : 'No receipts saved yet.') + '</span>';
+            rc.innerHTML = purErr ? '<span style="color:var(--danger,#c0392b);">Could not load receipts.</span>' : pl.length ? '<div class="scn-papers">' + pl.map(paperCard).join('') + '</div>' : '<span style="color:var(--text-light);font-size:13px;">' + (allPur().length ? 'No receipts in these dates.' : 'No receipts saved yet.') + '</span>';
             const sl = allSal().filter(x => inRange(isoDay(x.sale_date) || String(x.created_at || '').slice(0, 10), sf, st)).sort((a, b) => byDateDesc(a, b, 'sale_date'));
-            sc.innerHTML = salErr ? '<span style="color:#c0392b;">Could not load sales receipts. Run premium-and-sales-receipts.sql in Supabase (one time).</span>'
+            sc.innerHTML = salErr ? '<span style="color:var(--danger,#c0392b);">Could not load sales receipts. Run premium-and-sales-receipts.sql in Supabase (one time).</span>'
                 : sl.length ? '<div class="scn-sal-grid">' + sl.map(x => `<div class="scn-sal ${x.doc_type === 'invoice' ? 'inv' : ''}" style="${x.doc_type === 'invoice' ? 'max-width:620px;' : ''}">
-                    <div class="scn-sal-h"><span>${esc(fmtDate(isoDay(x.sale_date) || String(x.created_at || '').slice(0, 10)))}</span><span>Receipt ${esc(x.doc_number || '')}${x.sale_deleted_by && !x.sale_deleted_hidden ? ` <small style="color:#c0392b;">sale deleted by ${esc(x.sale_deleted_by)}</small>` : ''}${x._pending ? ' <small style="color:#b8860b;">not synced yet</small>' : `<button type="button" class="scn-del" title="Delete this receipt" onclick="scnDelSale('${esc(x.id)}')">&minus;</button>`}</span></div>
+                    <div class="scn-sal-h"><span>${esc(fmtDate(isoDay(x.sale_date) || String(x.created_at || '').slice(0, 10)))}</span><span>Receipt ${esc(x.doc_number || '')}${x.sale_deleted_by && !x.sale_deleted_hidden ? ` <small style="color:var(--danger,#c0392b);">sale deleted by ${esc(x.sale_deleted_by)}</small>` : ''}${x._pending ? ' <small style="color:var(--amber,#b8860b);">not synced yet</small>' : `<button type="button" class="scn-del" title="Delete this receipt" onclick="scnDelSale('${esc(x.id)}')">&minus;</button>`}</span></div>
                     <div class="scn-sal-w" data-w="${x.doc_type === 'invoice' ? 794 : 300}"><iframe data-i="${esc(x.id)}" scrolling="no" sandbox="allow-same-origin"></iframe></div></div>`).join('') + '</div>'
                 : '<span style="color:var(--text-light);font-size:13px;">' + (allSal().length ? 'No sales receipts in these dates.' : 'No printed sales receipts saved yet.') + '</span>';
             sc.querySelectorAll('iframe[data-i]').forEach(fr => {
@@ -14090,7 +14144,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                         if (!L || !L.o || L.o === L.p) return;
                         const td = [...dd.querySelectorAll('td')].find(t => !used.has(t) && t.textContent.trim() === String(L.p).trim()); if (!td) return;
                         used.add(td);
-                        const tr = td.parentElement, n = dd.createElement('tr'); n.innerHTML = '<td colspan="3" style="font-size:9px;color:#aaa;padding:0 0 3px 6px;"></td>';
+                        const tr = td.parentElement, n = dd.createElement('tr'); n.innerHTML = '<td colspan="3" style="font-size:9px;color:var(--text-light);padding:0 0 3px 6px;"></td>';
                         const mo = /^\[([^\]]*)\]\s*([\s\S]*)$/.exec(String(L.o)), nm = mo ? mo[2] : String(L.o), cat = mo ? mo[1] : catOf(nm);
                         n.firstChild.textContent = '\u2192 ' + nm + (cat ? ' \u00b7 ' + cat : ''); tr.parentElement.insertBefore(n, tr.nextSibling);
                     });
