@@ -181,6 +181,23 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         #scn-modal input:focus, #scn-modal select:focus, #sce-modal input:focus, #sce-modal select:focus { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(27,58,47,0.14); }
         html.scn-acct th, #scn-modal th, #sce-modal th { background: var(--paper); color: var(--ink); }
         html.scn-acct tr:hover { background: #FAF8F1; }
+        /* Review window: simple grid of fields, then the lines, like the accountant's review window */
+        #scn-modal label, #sce-modal label { font-size: 11px; color: var(--text-light); display: block; margin: 0 0 3px; font-weight: 500; }
+        #scn-modal .modal-box { padding: 20px 22px; }
+        #scn-modal .rv-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; }
+        #scn-modal .rv-grid input { width: 100%; min-width: 0; box-sizing: border-box; padding: 7px 9px; font-size: 13px; }
+        #scn-modal .rv-note { font-size: 12.5px; padding: 8px 10px; border-radius: 4px; margin: 0 0 12px; background: var(--paper); color: var(--text-light); border: 1px solid var(--paper-line); }
+        #scn-modal .rv-note.warn { background: var(--amber-bg); color: var(--amber); border-color: transparent; }
+        #scn-modal .rv-sec { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 16px 0 8px; font-size: 13px; font-weight: 600; color: var(--ink); }
+        #scn-modal .rv-sec span { font-weight: 400; font-size: 11.5px; color: var(--text-light); }
+        #scn-modal .rv-items { border: 1px solid var(--paper-line); border-radius: 6px; overflow-x: auto; }
+        #scn-modal .rv-items table { margin: 0; }
+        #scn-modal .rv-items th { font-size: 11.5px; font-weight: 600; padding: 8px 10px; text-align: left; }
+        #scn-modal .rv-items td { padding: 7px 10px; border-top: 1px solid var(--paper-line); }
+        #scn-modal .rv-items input { padding: 6px 8px; font-size: 13px; }
+        #scn-modal .rv-foot { display: flex; gap: 10px; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-top: 16px; }
+        #scn-modal button.btn-ghost { background: #fff; color: var(--ink); border: 1px solid var(--ink); }
+        @media (max-width: 640px) { #scn-modal .rv-grid { grid-template-columns: 1fr 1fr; } }
         html.scn-acct .notif-panel { background: var(--surface); }
         html.scn-acct .notif-item.unread { background: var(--amber-bg); }
         html.scn-acct #scn-body tr.row-dragging td { background: var(--drag-bg) !important; }
@@ -1296,7 +1313,6 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 <div class="card">
                     <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; margin-bottom:12px;">
                         <div style="display:flex;gap:10px;align-items:center;"><button type="button" class="btn btn-small" style="background:var(--text-light);" onclick="switchView('inventory')" title="Back to Inventory" data-i18n-title="ui2.back_to_inventory" data-i18n="ui2.inventory">&#8249; Inventory</button><h2 style="border:none; margin:0; padding:0;" data-i18n="ui2.scanned_stock">Scanned Stock</h2></div>
-                        <div><input type="file" id="scn-file" accept="image/*" multiple style="display:none;" onchange="scnPickFile(this)"><button type="button" class="btn" onclick="document.getElementById('scn-file').click()" data-i18n="ui2.scan_purchase_receipt">Scan purchase receipt</button> <button type="button" class="btn btn-small" style="background:var(--text-light);" onclick="scnManual()" title="Type a purchase receipt in by hand (works offline)" data-i18n-title="ui2.type_a_purchase_receipt_in_by_hand" data-i18n="ui2.enter_by_hand">Enter by hand</button></div>
                     </div>
                     <p style="font-size:12px; color:var(--text-light); margin:0 0 10px;" data-i18n="ui2.separate_from_your_main_inventory">Separate from your main inventory. Only stock from scanned receipts is counted here (owners only).</p>
                     <div id="scn-sync-note" style="display:none;font-size:12px;margin:0 0 10px;padding:8px 10px;border-radius:8px;background:var(--amber-bg,rgba(255,193,7,.15));border:1px solid var(--amber,#e0a800);"></div>
@@ -1307,7 +1323,8 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                     </table>
                     <div style="margin-top:12px; font-weight:700; color:var(--primary);"><span data-i18n="ui2.scanned_stock_value">Scanned stock value:</span> <span id="scn-total">ETB 0.00</span></div>
                     <div id="scn-waiting" style="margin-top:14px;"></div></div>
-                    <div id="scn-pane-purchases" style="display:none;"><h3 style="margin:18px 0 8px;font-size:15px;" data-i18n="ui2.purchase_receipts_scanned_copies">Purchase receipts (scanned copies)</h3>
+                    <div id="scn-pane-purchases" style="display:none;"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin:18px 0 8px;"><h3 style="margin:0;font-size:15px;" data-i18n="ui2.purchase_receipts_scanned_copies">Purchase receipts (scanned copies)</h3>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;"><input type="file" id="scn-file" accept="image/*" multiple style="display:none;" onchange="scnPickFile(this)"><button type="button" class="btn" onclick="document.getElementById('scn-file').click()" data-i18n="ui2.scan_purchase_receipt">Scan purchase receipt</button> <button type="button" class="btn btn-small" style="background:var(--text-light);" onclick="scnManual()" title="Type a purchase receipt in by hand (works offline)" data-i18n-title="ui2.type_a_purchase_receipt_in_by_hand" data-i18n="ui2.enter_by_hand">Enter by hand</button></div></div>
                         <div class="scn-filter"><label data-i18n="tr.from">From</label><input type="date" id="scn-p-from" onchange="scnRenderReceipts()" style="min-width:auto;"><label data-i18n="tr.to">To</label><input type="date" id="scn-p-to" onchange="scnRenderReceipts()" style="min-width:auto;"><button type="button" class="btn btn-small" style="background:var(--text-light);" onclick="scnClearDates('p')" data-i18n="common.clear">Clear</button></div>
                         <div id="scn-receipts"></div></div>
                     <div id="scn-pane-sales" style="display:none;"><h3 style="margin:18px 0 8px;font-size:15px;" data-i18n="ui2.sales_receipts_as_printed">Sales receipts (as printed)</h3>
@@ -1647,7 +1664,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
 
     <div id="scn-modal" class="modal-overlay" style="z-index:3100;">
         <div class="modal-box" style="max-width:920px; width:96%; max-height:92vh; overflow:auto;" onclick="event.stopPropagation()">
-            <h3 style="color:var(--primary); margin-top:0;">Review scanned receipt</h3>
+            <h3 style="color:var(--primary); margin:0 0 14px; font-size:16px;">Review scanned receipt</h3>
             <div id="scn-modal-body"></div>
         </div>
     </div>
@@ -12775,7 +12792,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         }
         const toB64 = blob => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = () => no(new Error('Could not read image')); r.readAsDataURL(blob); });
 
-        const blank = () => ({ merchant: '', tin: '', no: '', date: '', before: '', vat: '', total: '', items: [{ name: '', qty: 1, unit: '', price: '', pack: 1, links: [] }], error: '' });
+        const blank = () => ({ merchant: '', tin: '', mrc: '', no: '', date: '', before: '', vat: '', total: '', items: [{ name: '', qty: 1, unit: '', price: '', pack: 1, links: [] }], error: '' });
         function fromExtract(d) {
             let date = '';
             try { if (d.date_year && d.date_month && d.date_day) date = d.date_calendar === 'EC' ? ethiopianToGregorianISO(d.date_year, d.date_month, d.date_day) : `${d.date_year}-${p2(d.date_month)}-${p2(d.date_day)}`; } catch (e) { }
@@ -12785,7 +12802,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             });
             const ls = v => Array.isArray(v) ? v.map(x => String(x || '').trim()).filter(Boolean).slice(0, 14) : [];
             const layout = { title: d.doc_title ? String(d.doc_title).trim() : '', time: d.receipt_time ? String(d.receipt_time).trim() : '', header: ls(d.header_lines), footer: ls(d.footer_lines) };
-            return { merchant: d.seller_name || '', tin: d.seller_tin || '', no: d.receipt_no || '', date, before: d.before_vat ?? '', vat: d.vat ?? '', total: d.total ?? '', items: items.length ? items : blank().items, layout, dateRaw: d.date_raw || '', dateAlt: (d.date_ambiguous && d.date_alt_day && d.date_alt_month && d.date_year) ? `${d.date_year}-${p2(d.date_alt_month)}-${p2(d.date_alt_day)}` : '', warns: Array.isArray(d.warnings) ? d.warnings.map(w => String(w)).slice(0, 5) : [], infos: Array.isArray(d.infos) ? d.infos.map(w => String(w)).slice(0, 6) : [], error: items.length ? '' : 'No items were found. Add them by hand below.' };
+            return { merchant: d.seller_name || '', tin: d.seller_tin || '', mrc: d.mrc ? String(d.mrc).trim() : '', no: d.receipt_no || '', date, before: d.before_vat ?? '', vat: d.vat ?? '', total: d.total ?? '', items: items.length ? items : blank().items, layout, dateRaw: d.date_raw || '', dateAlt: (d.date_ambiguous && d.date_alt_day && d.date_alt_month && d.date_year) ? `${d.date_year}-${p2(d.date_alt_month)}-${p2(d.date_alt_day)}` : '', warns: Array.isArray(d.warnings) ? d.warnings.map(w => String(w)).slice(0, 5) : [], infos: Array.isArray(d.infos) ? d.infos.map(w => String(w)).slice(0, 6) : [], error: items.length ? '' : 'No items were found. Add them by hand below.' };
         }
 
         // ---- match receipt lines to Inventory items (many to many; stock stays separate) ----
@@ -12867,25 +12884,29 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             return m && m.score >= 45 ? `<tr><td colspan="6" style="font-size:12px;color:var(--text-light);padding-top:0;">Looks like <b>${esc(m.item.name)}</b> (${m.label}) <button type="button" class="btn btn-small" onclick="scnRow(${i},'name',${esc(JSON.stringify(m.item.name))});scnRefresh()">Use this name</button></td></tr>` : '';
         };
         function review() {
-            const d = draft, inp = 'style="width:100%;"';
-            open(`${d.error ? `<p style="color:var(--danger,#c0392b);font-size:13px;">${esc(d.error)}</p>` : ''}${window.ocrNotes(d, 'scnDateSwap')}
-              <p style="font-size:12px;color:var(--text-light);margin:0 0 10px;">Check every line against the paper receipt. Lines matched to an Inventory item (&rarr;) are stored in Scanned Stock under the Inventory item&#39;s name; other lines keep the name written here.</p>
-              <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
-                ${[['merchant', 'Merchant', 'text'], ['tin', 'Merchant TIN', 'text'], ['no', 'Receipt No.', 'text'], ['date', 'Date', 'date'], ['before', 'Before VAT', 'number'], ['vat', 'VAT', 'number'], ['total', 'Total', 'number']]
-                    .map(([k, l, t]) => `<div class="form-group" style="flex:1 1 140px;margin:0;"><label>${l}</label><input type="${t}" step="0.01" value="${esc(d[k])}" oninput="scnHead('${k}',this.value)" ${inp}></div>`).join('')}
+            const d = draft;
+            const fld = (k, l, t) => `<div><label>${l}</label><input type="${t}" ${t === 'number' ? 'step="0.01"' : ''} value="${esc(d[k])}" oninput="scnHead('${k}',this.value)"></div>`;
+            open(`${d.error ? `<div class="rv-note warn">${esc(d.error)}</div>` : ''}${window.ocrNotes(d, 'scnDateSwap')}
+              <div class="rv-grid">
+                ${fld('merchant', 'Merchant', 'text')}${fld('tin', 'Merchant TIN', 'text')}${fld('mrc', 'MRC code', 'text')}
+                ${fld('no', 'Receipt / FS number', 'text')}${fld('date', 'Date', 'date')}<div></div>
               </div>
-              <div style="overflow-x:auto;"><table><thead><tr><th>Item (as on receipt)</th><th class="num">Qty</th><th>Unit</th><th class="num">Price / unit</th><th class="num" title="If 1 unit holds several pieces, e.g. 1 pk = 10 pcs, enter 10. Stock is saved in pieces.">Pcs in 1 unit</th><th></th></tr></thead><tbody>
+              <div class="rv-grid">
+                ${fld('before', 'Before VAT', 'number')}${fld('vat', 'VAT', 'number')}${fld('total', 'Total', 'number')}
+              </div>
+              <div class="rv-sec">Items <span>Check each line against the paper receipt. A line matched to an Inventory item (&rarr;) is stored under that item&#39;s name.</span></div>
+              <div class="rv-items"><table><thead><tr><th>Item (as on receipt)</th><th class="num">Qty</th><th>Unit</th><th class="num">Price / unit</th><th class="num" title="If 1 unit holds several pieces, e.g. 1 pk = 10 pcs, enter 10. Stock is saved in pieces.">Pcs in 1 unit</th><th></th></tr></thead><tbody>
                 ${d.items.map((it, i) => `<tr>
                   <td><input type="text" value="${esc(it.name)}" oninput="scnRow(${i},'name',this.value)" style="min-width:180px;width:100%;"></td>
                   <td><input type="number" step="any" value="${esc(it.qty)}" oninput="scnRow(${i},'qty',this.value)" style="width:80px;"></td>
                   <td><input type="text" value="${esc(it.unit)}" oninput="scnRow(${i},'unit',this.value)" placeholder="pk, kg…" style="width:80px;"></td>
                   <td><input type="number" step="any" value="${esc(it.price)}" oninput="scnRow(${i},'price',this.value)" style="width:100px;"></td>
                   <td><input type="number" step="any" min="1" value="${esc(it.pack)}" oninput="scnRow(${i},'pack',this.value)" style="width:80px;"></td>
-                  <td><button type="button" class="btn btn-danger btn-small" onclick="scnDel(${i})">✕</button></td></tr>${hint(i, it)}${linkRow(i, it)}`).join('')}
+                  <td><button type="button" class="btn btn-danger btn-small" onclick="scnDel(${i})" title="Remove this line">&times;</button></td></tr>${hint(i, it)}${linkRow(i, it)}`).join('')}
               </tbody></table></div>
-              <div style="display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;margin-top:14px;">
-                <button type="button" class="btn btn-small" style="background:var(--text-light);" onclick="scnAdd()">+ Add line</button>
-                <div style="display:flex;gap:10px;flex-wrap:wrap;">${queue.length ? '<button type="button" class="btn btn-small" style="background:var(--text-light);" onclick="scnSkip()">Skip this receipt</button>' : ''}<button type="button" class="btn btn-danger" onclick="scnCancel()">${queue.length ? 'Cancel all' : 'Cancel'}</button><button type="button" class="btn" id="scn-confirm" onclick="scnSave()">${queue.length ? 'Confirm &amp; next' : 'Confirm &amp; add to stock'}</button></div>
+              <div class="rv-foot">
+                <button type="button" class="btn btn-small btn-ghost" onclick="scnAdd()">+ Add line</button>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">${queue.length ? '<button type="button" class="btn btn-small btn-ghost" onclick="scnSkip()">Skip this receipt</button>' : ''}<button type="button" class="btn btn-small btn-ghost" onclick="scnCancel()">${queue.length ? 'Cancel all' : 'Cancel'}</button><button type="button" class="btn" id="scn-confirm" onclick="scnSave()">${queue.length ? 'Confirm &amp; next' : 'Confirm &amp; add to stock'}</button></div>
               </div>`);
         }
 
@@ -12948,7 +12969,8 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                     items: items.map(i => ({ name: i.name.trim(), stock_name: stockName(i), qty: num(i.qty), unit: i.unit || null, unit_price: i.price === '' ? null : num(i.price), pcs_per_unit: Math.max(1, num(i.pack) || 1), matches: (i.links || []).map(L => L.name), match_cats: (i.links || []).map(L => { const m = /^\[([^\]]*)\]/.exec(String(L.comp || '')); return m ? m[1] : ''; }), amount: (i.amount === '' || i.amount == null) ? (i.price === '' ? null : r2(num(i.qty) * num(i.price))) : num(i.amount) }))
                 };
                 // layout = the extra printed lines (title, time, header/footer text) so the saved copy looks like the paper.
-                const lay = d.layout && (d.layout.title || d.layout.time || (d.layout.header || []).length || (d.layout.footer || []).length) ? d.layout : null;
+                const L0 = d.layout || {}, mrcTxt = String(d.mrc || '').trim();
+                const lay = (L0.title || L0.time || (L0.header || []).length || (L0.footer || []).length || mrcTxt) ? { ...L0, ...(mrcTxt ? { mrc: mrcTxt } : {}) } : null;
                 // Everything needed to save it, kept together so it can also wait on this device when there is no internet.
                 const pkg = {
                     tid, recRow, lay, createdAt: new Date().toISOString(),
@@ -13063,14 +13085,14 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
     }
 
     // ---- reading a photo ----
-    const blank = () => ({ merchant: '', tin: '', no: '', date: '', before: '', vat: '', total: '', account: '', channel: '', note: '', lines: [], layout: null, error: '' });
+    const blank = () => ({ merchant: '', tin: '', mrc: '', no: '', date: '', before: '', vat: '', total: '', account: '', channel: '', note: '', lines: [], layout: null, error: '' });
     function fromExtract(d) {
         let date = '';
         try { if (d.date_year && d.date_month && d.date_day) date = d.date_calendar === 'EC' ? ethiopianToGregorianISO(d.date_year, d.date_month, d.date_day) : `${d.date_year}-${p2(d.date_month)}-${p2(d.date_day)}`; } catch (e) { }
         const lines = (d.items || []).map(i => ({ name: String(i.description || '').trim(), qty: i.quantity ?? '', unit: i.measurement || '', price: i.unit_price ?? '', amount: i.amount ?? '' })).filter(l => l.name);
         const ls = v => Array.isArray(v) ? v.map(t => String(t || '').trim()).filter(Boolean).slice(0, 14) : [];
         const layout = { title: d.doc_title ? String(d.doc_title).trim() : '', time: d.receipt_time ? String(d.receipt_time).trim() : '', header: ls(d.header_lines), footer: ls(d.footer_lines) };
-        const x = { ...blank(), merchant: d.seller_name || '', tin: d.seller_tin || '', no: d.receipt_no || '', date, before: d.before_vat ?? '', vat: d.vat ?? '', total: d.total ?? '', lines, layout, dateRaw: d.date_raw || '', dateAlt: (d.date_ambiguous && d.date_alt_day && d.date_alt_month && d.date_year) ? `${d.date_year}-${p2(d.date_alt_month)}-${p2(d.date_alt_day)}` : '', warns: Array.isArray(d.warnings) ? d.warnings.map(w => String(w)).slice(0, 5) : [], infos: Array.isArray(d.infos) ? d.infos.map(w => String(w)).slice(0, 6) : [] };
+        const x = { ...blank(), merchant: d.seller_name || '', tin: d.seller_tin || '', mrc: d.mrc ? String(d.mrc).trim() : '', no: d.receipt_no || '', date, before: d.before_vat ?? '', vat: d.vat ?? '', total: d.total ?? '', lines, layout, dateRaw: d.date_raw || '', dateAlt: (d.date_ambiguous && d.date_alt_day && d.date_alt_month && d.date_year) ? `${d.date_year}-${p2(d.date_alt_month)}-${p2(d.date_alt_day)}` : '', warns: Array.isArray(d.warnings) ? d.warnings.map(w => String(w)).slice(0, 5) : [], infos: Array.isArray(d.infos) ? d.infos.map(w => String(w)).slice(0, 6) : [] };
         x.account = suggest(x.merchant, lines);
         return x;
     }
@@ -13096,6 +13118,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             ${f('Expense type', `<select ${inp} onchange="sceHead('account',this.value)">${accs.map(a => `<option value="${esc(a.code)}" ${a.code === d.account ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select>`)}
             ${f('Receipt no.', `<input type="text" ${inp} value="${esc(d.no)}" oninput="sceHead('no',this.value)">`)}
             ${f('Seller TIN', `<input type="text" ${inp} value="${esc(d.tin)}" oninput="sceHead('tin',this.value)">`)}
+            ${f('MRC code', `<input type="text" ${inp} value="${esc(d.mrc)}" oninput="sceHead('mrc',this.value)">`)}
             ${f('Before VAT', mny('before'))}
             ${f('VAT', mny('vat'))}
             ${f('Total (ETB)', mny('total'))}
@@ -13186,7 +13209,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             tenant_id: currentTenantId, merchant: d.merchant || null, merchant_tin: d.tin || null, receipt_no: d.no || null, receipt_date: date,
             before_vat: d.before === '' ? null : num(d.before), vat: d.vat === '' ? null : num(d.vat), total,
             account_code: acc ? acc.code : null, account_name: acc ? acc.name : null, note: d.note || null, lines: d.lines,
-            layout: d.layout && (d.layout.title || d.layout.time || (d.layout.header || []).length || (d.layout.footer || []).length) ? d.layout : null,
+            layout: (() => { const L0 = d.layout || {}, m = String(d.mrc || '').trim(); return (L0.title || L0.time || (L0.header || []).length || (L0.footer || []).length || m) ? { ...L0, ...(m ? { mrc: m } : {}) } : null; })(),
             expense_id: expId
         };
         busy = true; const btn = $('sce-confirm'); if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
@@ -13287,6 +13310,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             return `<div class="scn-paper">${r._pending ? `<div class="sp-s" style="text-align:right;color:var(--amber,#b8860b);">not synced yet${r._err ? ' — ' + esc(r._err) : ''}</div>` : `<button type="button" class="scn-del" title="Delete this receipt" onclick="sceDel('${esc(r.id)}')">&minus;</button>`}
                 <div class="sp-c sp-b sp-m">${esc(r.merchant || 'Unknown merchant')}</div>
                 ${r.merchant_tin ? `<div class="sp-c">TIN: ${esc(r.merchant_tin)}</div>` : ''}
+                ${window.scnMrcOf && window.scnMrcOf(lay) ? `<div class="sp-c">MRC: ${esc(window.scnMrcOf(lay))}</div>` : ''}
                 ${lineHtml(lay.header)}
                 <div class="sp-hr"></div>
                 ${row(r.receipt_no ? 'No. ' + esc(r.receipt_no) : '', esc(typeof fmtDate === 'function' ? fmtDate(day(r)) : day(r)) + (lay.time ? ' ' + esc(lay.time) : ''))}
@@ -13304,7 +13328,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             </div>`;
         }).join('') + '</div>';
     }
-    window.sceRender = render;
+    window.sceRender = render; window.sceReload = load;
     window.sceClear = () => { $('sce-from').value = ''; $('sce-to').value = ''; render(); };
     window.sceDel = async id => {
         const p = pendingRows(), k = p.findIndex(x => x.uid === id);
@@ -13987,6 +14011,8 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         // (name, then qty x price ... amount), then before-VAT / VAT / total. Empty parts are left out.
         // Category of an Inventory item, found by name (used for receipts saved before the category was kept with them).
         const catOf = name => { const k = key(name), it = (state.inventory || []).find(x => key(x.desc) === k); return it ? (it.category || '') : ''; };
+        const mrcOf = lay => { if (lay && lay.mrc) return String(lay.mrc); const t = [...((lay && lay.header) || []), ...((lay && lay.footer) || [])].join(' | '); const m = /\bMRC\b[^A-Za-z0-9]{0,4}([A-Za-z0-9][A-Za-z0-9-]{4,})/i.exec(t); return m ? m[1] : ''; };
+        window.scnMrcOf = mrcOf;
         function paperCard(x) {
             const row = (l, r, cls) => `<div class="sp-row ${cls || ''}"><span>${l}</span><span>${r}</span></div>`;
             const lay = x.layout || {};
@@ -13999,6 +14025,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             return `<div class="scn-paper">${x._pending ? '<div class="sp-s" style="text-align:right;color:var(--amber,#b8860b);">not synced yet</div>' : `<button type="button" class="scn-del" title="Delete this receipt" onclick="scnDelPur('${esc(x.id)}')">&minus;</button>`}
                 <div class="sp-c sp-b sp-m">${esc(x.merchant || 'Unknown merchant')}</div>
                 ${x.merchant_tin ? `<div class="sp-c">TIN: ${esc(x.merchant_tin)}</div>` : ''}
+                ${mrcOf(lay) ? `<div class="sp-c">MRC: ${esc(mrcOf(lay))}</div>` : ''}
                 ${lines(lay.header)}
                 <div class="sp-hr"></div>
                 ${row(x.receipt_no ? 'No. ' + esc(x.receipt_no) : '', esc(fmtDate(date)) + (lay.time ? ' ' + esc(lay.time) : ''))}
@@ -14436,6 +14463,77 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         document.addEventListener('contextmenu', e => { if (holding || swallow) e.preventDefault(); }, true);
         // the finger is still down when the page changes: ignore the click made when it lifts
         document.addEventListener('click', e => { if (swallow) { e.stopPropagation(); e.preventDefault(); swallow = false; } }, true);
+    })();
+    </script>
+
+    <script>
+    // ============ SCANNED STOCK page follows the accountant live ============
+    // When the accountant logs or changes a receipt, or either side scans one, this page (stock + the three receipt lists)
+    // updates by itself. Two layers: realtime (instant, needs migration_live_sync.sql once) and a light check every 10 seconds
+    // that only reloads when something really changed. It never redraws while a review window is open or a row is being dragged.
+    (function () {
+        const $ = id => document.getElementById(id);
+        let channels = [], timer = null, busy = false, tick = 0, debounce = null, last = null, touching = false, touchT = null;
+        const onPage = () => { const v = $('view-scanned'); return !!(v && v.classList.contains('active')); };
+        const tenant = () => (typeof currentTenantId !== 'undefined' ? currentTenantId : null);
+        const ready = () => onPage() && !document.hidden && navigator.onLine && tenant();
+        const modalOpen = () => ['scn-modal', 'sce-modal'].some(id => { const m = $(id); return m && m.classList.contains('active'); });
+        // a row being picked up / dragged in the stock table: leave the table alone for a moment
+        document.addEventListener('pointerdown', ev => { if (ev.target && ev.target.closest && ev.target.closest('#scn-body')) { touching = true; clearTimeout(touchT); } }, true);
+        ['pointerup', 'pointercancel'].forEach(n => document.addEventListener(n, () => { clearTimeout(touchT); touchT = setTimeout(() => { touching = false; }, 1500); }, true));
+        async function sig() {
+            const t = tenant();
+            const q = async (tbl, cols) => { try { const r = await supabaseClient.from(tbl).select(cols).eq('tenant_id', t).order('created_at', { ascending: false }).limit(400); return r.error ? 'x' : JSON.stringify(r.data || []); } catch (e) { return 'x'; } };
+            const [stock, pur, sal, exp] = await Promise.all([
+                q('scanned_stock_items', 'id,name,qty,last_cost'),
+                q('scanned_receipts', 'id,merchant,receipt_no,receipt_date,total,vat,before_vat,layout'),
+                q('scanned_sales_receipts', 'id,doc_number,sale_date,total'),
+                q('scanned_expense_receipts', 'id,merchant,receipt_no,receipt_date,total')
+            ]);
+            return { stock, pur, sal, exp };
+        }
+        async function refresh(force) {
+            if (busy || !ready() || modalOpen() || touching) return;
+            busy = true;
+            try {
+                const now = await sig(), prev = last; last = now;
+                if (!prev && !force) return; // first look only sets the starting point
+                const changed = k => force || !prev || now[k] !== prev[k];
+                if (changed('stock') || changed('pur') || changed('sal')) { if (window.scnReload) await window.scnReload(); }
+                if (changed('exp')) { if (window.sceReload) await window.sceReload(); try { if (window.sceVatEnsure) window.sceVatEnsure(true); } catch (e) { } }
+            } catch (e) { console.warn('live refresh', e); }
+            finally { busy = false; }
+        }
+        async function syncWithAccountant() {
+            try {
+                if (typeof businessAccountantLinks !== 'undefined' && !businessAccountantLinks.some(l => l.status === 'approved')) return;
+                await supabaseClient.rpc('sync_linked_receipts', { p_business_id: tenant() });
+            } catch (e) { /* the database also merges on its own */ }
+        }
+        function stop() {
+            channels.forEach(c => { try { supabaseClient.removeChannel(c); } catch (e) { } }); channels = [];
+            if (timer) { clearInterval(timer); timer = null; }
+            clearTimeout(debounce); last = null;
+        }
+        function start() {
+            stop();
+            const t = tenant(); if (!onPage() || !t) return;
+            // one channel per table, so a table that is not enabled for realtime yet cannot break the others
+            ['scanned_stock_items', 'scanned_receipts', 'scanned_sales_receipts', 'scanned_expense_receipts'].forEach(tbl => {
+                try {
+                    const ch = supabaseClient.channel('scn_live_' + tbl + '_' + t)
+                        .on('postgres_changes', { event: '*', schema: 'public', table: tbl, filter: 'tenant_id=eq.' + t }, () => { clearTimeout(debounce); debounce = setTimeout(() => refresh(true), 400); })
+                        .subscribe();
+                    channels.push(ch);
+                } catch (e) { /* the timer below still keeps the page current */ }
+            });
+            refresh(false);
+            timer = setInterval(() => { tick++; if (tick % 6 === 0) syncWithAccountant(); refresh(false); }, 10000);
+        }
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(false); });
+        window.addEventListener('online', () => refresh(true));
+        const baseSwitch = window.switchView;
+        window.switchView = function (v) { const r = baseSwitch.apply(this, arguments); try { if (v === 'scanned') start(); else stop(); } catch (e) { } return r; };
     })();
     </script>
 

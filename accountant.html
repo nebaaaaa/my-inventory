@@ -67,6 +67,25 @@
     .notice-muted { background: var(--paper-line); color: var(--text-soft); }
     .entry-row.unreviewed { background: var(--amber-bg); border-left: 3px solid var(--amber); }
     .entry-row.unreviewed td:first-child { position: relative; }
+    .badge-shop { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; color: #1f4f86; background: #eaf2fb; border: 1px solid #c9dcf1; border-radius: 999px; padding: 1px 8px 1px 6px; margin-left: 8px; vertical-align: middle; white-space: nowrap; line-height: 1.5; }
+    .badge-shop svg { width: 11px !important; height: 11px !important; }
+    .kind-pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--paper-line); background: var(--paper); color: var(--text-soft); white-space: nowrap; }
+    .kind-pill.purchase { background: #f1f6f2; color: var(--ink); border-color: #d3e2d6; }
+    .kind-pill.sale { background: #eef4fb; color: #1f4f86; border-color: #d0e0f2; }
+    .kind-pill.expense { background: var(--amber-bg); color: var(--amber); border-color: #efd9b8; }
+    .seg { display: inline-flex; border: 1px solid var(--paper-line); border-radius: 6px; overflow: hidden; background: #fff; flex-wrap: wrap; }
+    .seg button { border: none; background: #fff; padding: 7px 12px; font-size: 12.5px; font-family: inherit; cursor: pointer; color: var(--text-soft); border-right: 1px solid var(--paper-line); }
+    .seg button:last-child { border-right: none; }
+    .seg button.on { background: var(--ink); color: #fff; font-weight: 600; }
+    .seg button .cnt { opacity: .65; margin-left: 4px; font-size: 11px; }
+    .search-box { position: relative; flex: 1 1 300px; min-width: 220px; }
+    .search-box input { padding-left: 30px; }
+    .search-box svg { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--text-soft); pointer-events: none; }
+    .live-pill { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-soft); }
+    .live-pill::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: #3a9b5c; box-shadow: 0 0 0 3px rgba(58,155,92,.18); }
+    .ro-banner { display: flex; gap: 8px; align-items: flex-start; padding: 9px 11px; border-radius: 4px; font-size: 12.5px; margin-bottom: 14px; background: #eaf2fb; color: #1f4f86; border: 1px solid #c9dcf1; }
+    fieldset.ro { border: 0; padding: 0; margin: 0; min-width: 0; }
+    fieldset.ro input:disabled, fieldset.ro select:disabled { background: var(--paper); color: var(--text); opacity: 1; cursor: default; }
     .badge-new { display: inline-block; font-size: 10px; font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase; color: var(--amber); background: #fff; border: 1px solid var(--amber); border-radius: 3px; padding: 1px 5px; margin-left: 6px; vertical-align: middle; }
     .undo-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
     .undo-bar .btn { white-space: nowrap; }
@@ -530,7 +549,8 @@ This field is  mandatory.",Total value,vat,value after vat`;
             const partyTin = side === 'purchase' ? (e.sellerTin || '') : '';
             const partyName = side === 'purchase' ? (e.sellerName || '') : '';
             rows.push([
-                vatCategory, 'G', typeCode, partyTin, partyName,
+                // an expense receipt (fuel, rent, a bill...) is a service, never goods
+                e.entryKind === 'expense' ? 'S' : vatCategory, 'G', typeCode, partyTin, partyName,
                 etaxDdMmYyyy(e.date), e.mrc || '', e.receiptNo, e.description,
                 etaxUnitCode(e.measurement), Number(e.quantity), etaxMoney(e.unitPrice),
                 etaxMoney(e.beforeVat), etaxMoney(e.vat), etaxMoney(e.total),
@@ -566,7 +586,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
                 if (unit === null) missingMandatory.push('unit price');
                 if (missingMandatory.length) { skipped.push({ entry: e, reasons: missingMandatory }); return; }
                 rows.push([
-                    vatCategory, 'G', typeCode, side === 'purchase' ? (e.sellerTin || '') : '', side === 'purchase' ? (e.sellerName || '') : '',
+                    side === 'purchase' && e.entryKind === 'expense' ? 'S' : vatCategory, 'G', typeCode, side === 'purchase' ? (e.sellerTin || '') : '', side === 'purchase' ? (e.sellerName || '') : '',
                     etaxDdMmYyyy(e.date), e.mrc || '', e.receiptNo, l.description,
                     etaxUnitCode(l.measurement), qty, etaxMoney(unit),
                     etaxMoney(amount), etaxMoney(0), etaxMoney(amount),
@@ -789,7 +809,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
             reviewed: entry.reviewed !== false,
             tin_mismatch: !!entry.tinMismatch,
             // purchase (goods, adds to the shop's stock) or expense (a service) - used when the client is linked to a shop
-            ...(entry.entryKind ? { entry_kind: entry.entryKind } : {}),
+            ...(entry.entryKind && entry.type === 'payment' ? { entry_kind: entry.entryKind } : {}),
             // only sent when there is something to store, so receipts without lines still save before the database update is run
             ...((Number(entry.nonVatAmount) > 0 || (entry.lines && entry.lines.length)) ? {
                 non_vat_amount: Number(entry.nonVatAmount) || 0,
@@ -890,6 +910,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
         showAuthError('Password reset email sent — check your inbox.');
     }
     async function handleSignOut() {
+        stopLive();
         await supabaseClient.auth.signOut();
         document.getElementById('app').style.display = 'none';
         document.getElementById('auth-overlay').style.display = 'flex';
@@ -1432,19 +1453,63 @@ This field is  mandatory.",Total value,vat,value after vat`;
                     ${icon('link-2', 14)}
                     <div>
                         This client is linked to <strong>${shop}</strong>. Saving shares this receipt with them (unless they already have it).
-                        <div style="margin-top:6px;">This is a
-                            <select style="width:auto; font-size:12.5px; padding:3px 6px;" onchange="addFlow.form.entryKind=this.value; render()">
-                                <option value="purchase" ${kind === 'purchase' ? 'selected' : ''}>Purchase of goods</option>
-                                <option value="expense" ${kind === 'expense' ? 'selected' : ''}>Expense (service, bill)</option>
-                            </select>
-                            ${kind === 'purchase' ? '— its items will be <strong>added to their Scanned Stock</strong>.' : '— it goes to their expense receipts; stock is not changed.'}
-                        </div>
+                        <div style="margin-top:6px;">${kind === 'purchase' ? 'As a purchase of goods, its items will be <strong>added to their Scanned Stock</strong>.' : 'As an expense (a service), it goes to their expense receipts; stock is not changed.'}</div>
                     </div>
                 </div>`;
         }
         return `<div class="notice" style="background:#eaf2fb; color:#1f4f86; border-color:#c5d9f0;">${icon('link-2', 14)} This client is linked to <strong>${shop}</strong>. Saving shares this sale with their sales receipts (unless they already have it).</div>`;
     }
 
+    // ------------------------------------------------------------------------
+    // Helpers shared by the receipts list, the review windows and the live updates
+    // ------------------------------------------------------------------------
+    // Purchase of goods / Expense (a service) / Sale. Sales are always type 'receipt'.
+    function entryKindOf(e) { return e.type === 'receipt' ? 'sale' : (e.entryKind === 'expense' ? 'expense' : 'purchase'); }
+    const KIND_LABEL = { purchase: 'Purchase', sale: 'Sale', expense: 'Expense' };
+    // A sale that came in from the shop is the shop's own record: the accountant can read it but not change it.
+    function isShopSale(e) { return !!e && e.type === 'receipt' && e.syncedFrom === 'shop'; }
+    function normKey(s) { return String(s ?? '').toLowerCase().replace(/[^a-z0-9\u1200-\u137f]+/g, ''); }
+    // One search box for four things: FS / receipt number, MRC number, seller name, seller TIN.
+    // Several words work too ("0012 abebe"): every word has to be found in at least one of the four.
+    function entryMatchesQuery(e, q) {
+        const tokens = String(q || '').toLowerCase().split(/\s+/).map(normKey).filter(Boolean);
+        if (!tokens.length) return true;
+        const hay = [e.receiptNo, e.mrc, e.sellerName, e.sellerTin].map(normKey);
+        return tokens.every((t) => hay.some((h) => h.includes(t)));
+    }
+    function entriesSignature(list) {
+        return JSON.stringify((list || []).map((e) => [e.id, e.date, e.type, e.entryKind, e.sellerName, e.sellerTin, e.vatRegNo, e.mrc, e.receiptNo, e.isVat, e.beforeVat, e.vat, e.total, e.nonVatAmount, e.description, e.measurement, e.quantity, e.unitPrice, e.reviewed, e.tinMismatch, (e.lines || []).length, e.syncedFrom]));
+    }
+    function visibleStock(list) { return (list || []).filter((i) => Math.abs(Number(i.qty) || 0) >= 1e-9); } // zero-quantity items are hidden, same as on the shop's page
+    function stockSignature(list) { return JSON.stringify((list || []).map((i) => [i.id || i.name, i.qty, i.last_cost, i.base_unit])); }
+
+    // ------------------------------------------------------------------------
+    // Sync with the linked shop
+    // ------------------------------------------------------------------------
+    let mrcSyncWarned = false;
+    // Copies the MRC numbers the shop scanned onto the receipts that came across (needs sync_shop_mrc in the database).
+    async function syncShopMrc(client) {
+        try {
+            const m = await supabaseClient.rpc('sync_shop_mrc', { p_business_id: client.linkedBusinessId });
+            if (m.error) { if (!mrcSyncWarned) { mrcSyncWarned = true; console.warn('sync_shop_mrc is not available yet - run migration_live_sync.sql in Supabase:', m.error.message); } return 0; }
+            return Number(m.data) || 0;
+        } catch (err) { return 0; }
+    }
+    // Reloads what this accountant is looking at (receipts, and the scanned stock if that tab is open). True when something changed.
+    async function reloadClientData(client) {
+        let changed = false;
+        if (activeClientId === client.id) {
+            const { data, error } = await supabaseClient.from('accountant_entries').select('*').eq('client_id', client.id).order('date', { ascending: false });
+            if (!error) {
+                const next = (data || []).map(mapEntryFromDb);
+                if (entriesSignature(next) !== entriesSignature(client.entries)) { client.entries = next; client.entryCount = next.length; changed = true; }
+            }
+        }
+        if (linkedApprovedShop(client) && (activeTab === 'inventory' || client.scannedStock !== undefined)) {
+            if (await loadScannedStock(client)) changed = true;
+        }
+        return changed;
+    }
     async function syncClientReceipts(client, silent) {
         if (!linkedApprovedShop(client)) { if (!silent) alert('This client is not linked to an approved MELEYA business yet.'); return; }
         client.receiptsSynced = true;
@@ -1454,63 +1519,125 @@ This field is  mandatory.",Total value,vat,value after vat`;
             if (!silent) alert("Couldn't sync receipts: " + error.message + "\n\nIf this says the function does not exist, run migration_receipt_merge.sql in Supabase.");
             return;
         }
+        const mrcFixed = await syncShopMrc(client);
         const fromShop = Number(data && data.to_accountant) || 0, toShop = Number(data && data.to_shop) || 0;
-        if (fromShop || toShop) {
-            if (activeClientId === client.id) await loadEntriesForActiveClient();
-            client.inventory = undefined; client.scannedStock = undefined;
-        }
-        if (!silent) alert(`Receipts synced.\n• ${fromShop} receipt(s) came in from the shop\n• ${toShop} receipt(s) went to the shop` + (data && data.errors ? `\n• ${data.errors} could not be copied (see receipt_sync_errors in Supabase)` : ''));
-        render();
+        const changed = await reloadClientData(client);
+        if (!silent) alert(`Receipts synced.\n• ${fromShop} receipt(s) came in from the shop\n• ${toShop} receipt(s) went to the shop` + (mrcFixed ? `\n• ${mrcFixed} MRC number(s) filled in` : '') + (data && data.errors ? `\n• ${data.errors} could not be copied (see receipt_sync_errors in Supabase)` : ''));
+        if (!silent || changed || fromShop || toShop) { if (!silent) render(); else liveRender(); }
     }
     function syncReceiptsNow(clientId) {
         const c = clients.find((x) => x.id === clientId);
         if (c) syncClientReceipts(c, false);
     }
 
-    // ---- Read-only inventory synced from an approved MELEYA link ----
-    async function loadClientInventory(client) {
-        if (!client.linkedBusinessId) return;
-        const { data, error } = await supabaseClient.rpc('linked_accountant_inventory', { p_business_id: client.linkedBusinessId });
-        client.inventory = error ? [] : (data || []);
-        client.inventoryError = error ? error.message : null;
-        // the shop's Scanned Stock list (items from receipts scanned into stock)
+    // ---- Live updates: the receipts list and the scanned stock follow the shop (and the other way round) without a refresh ----
+    // Two layers: a realtime subscription on this client's receipts (instant, needs migration_live_sync.sql once)
+    // and a light check every few seconds (works either way). Nothing is redrawn while you are typing or editing.
+    let liveChannel = null, liveTimer = null, liveBusy = false, liveTick = 0, liveDebounce = null;
+    function liveSafeToRender() {
+        if (entryModalId || addFlow || profileModalOpen || linkSearchOpen || addClientSearchOpen || clientEditOpen) return false;
+        const a = document.activeElement, tag = a && a.tagName;
+        if (a && (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT')) return false;
+        return true;
+    }
+    function liveRender() {
+        const client = activeClient();
+        // a shop sale that is open (read-only) shows the shop's latest version
+        if (client && entryModalId) {
+            const fresh = client.entries.find((x) => x.id === entryModalId);
+            if (fresh && isShopSale(fresh) && JSON.stringify(fresh) !== JSON.stringify(entryModalDraft)) { entryModalDraft = JSON.parse(JSON.stringify(fresh)); render(); return; }
+        }
+        if (liveSafeToRender()) { render(); return; }
+        if (!entryModalId && !addFlow && activeTab === 'receipts') refreshReceiptsList(); // e.g. while typing in the search box
+    }
+    async function liveRefresh(withSync) {
+        const client = activeClient();
+        if (!client || liveBusy || !navigator.onLine) return;
+        liveBusy = true;
+        try {
+            if (withSync && linkedApprovedShop(client)) {
+                try { await supabaseClient.rpc('sync_linked_receipts', { p_business_id: client.linkedBusinessId }); await syncShopMrc(client); } catch (err) { /* the database also merges on its own */ }
+            }
+            if (await reloadClientData(client)) liveRender();
+        } catch (err) { console.warn('live refresh', err); }
+        finally { liveBusy = false; }
+    }
+    function stopLive() {
+        if (liveChannel) { try { supabaseClient.removeChannel(liveChannel); } catch (err) { } liveChannel = null; }
+        if (liveTimer) { clearInterval(liveTimer); liveTimer = null; }
+        clearTimeout(liveDebounce);
+    }
+    function startLive() {
+        stopLive();
+        const client = activeClient();
+        if (!client) return;
+        try {
+            liveChannel = supabaseClient.channel(`acct_entries_${client.id}`)
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'accountant_entries', filter: `client_id=eq.${client.id}` }, () => {
+                    clearTimeout(liveDebounce);
+                    liveDebounce = setTimeout(() => liveRefresh(false), 300);
+                })
+                .subscribe();
+        } catch (err) { console.warn('realtime not available, using the timer only', err); }
+        liveTimer = setInterval(() => { if (document.hidden) return; liveTick++; liveRefresh(liveTick % 8 === 0); }, 8000);
+    }
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && activeClientId) liveRefresh(false); });
+    window.addEventListener('online', () => { if (activeClientId) liveRefresh(true); });
+
+    // ---- The shop's Scanned Stock: the only part of the shop's stock that is shared with the accountant ----
+    async function loadScannedStock(client) {
+        if (!client.linkedBusinessId) return false;
         const ss = await supabaseClient.rpc('linked_accountant_scanned_stock', { p_business_id: client.linkedBusinessId });
-        client.scannedStock = ss.error ? [] : (ss.data || []);
-        client.scannedStockError = ss.error ? ss.error.message : null;
+        if (ss.error) {
+            const first = client.scannedStock === undefined;
+            const msgChanged = client.scannedStockError !== ss.error.message;
+            client.scannedStockError = ss.error.message;
+            if (first) client.scannedStock = [];
+            return first || msgChanged;
+        }
+        const next = visibleStock(ss.data || []);
+        const changed = client.scannedStock === undefined || stockSignature(next) !== stockSignature(client.scannedStock) || !!client.scannedStockError;
+        client.scannedStock = next; client.scannedStockError = null;
+        return changed;
     }
     function refreshClientInventory(id) {
         const c = clients.find((x) => x.id === id);
-        if (c) c.inventory = undefined;
+        if (c) c.scannedStock = undefined;
         render();
     }
     function renderScannedStockSection(client) {
         const items = client.scannedStock || [];
-        const rows = items.map((i) => `<tr><td>${esc(i.name || '—')}</td><td class="mono num">${Number(i.qty) || 0} ${esc(i.base_unit || '')}</td><td class="mono num">${i.last_cost != null && i.last_cost !== '' ? money(i.last_cost) : '—'}</td></tr>`).join('');
+        let total = 0;
+        const rows = items.map((i) => {
+            const q = Number(i.qty) || 0, cost = (i.last_cost != null && i.last_cost !== '') ? Number(i.last_cost) : null;
+            const value = cost != null ? q * cost : 0; total += value;
+            return `<tr><td>${esc(i.name || '—')}</td><td class="mono num" style="${q < 0 ? 'color:#b42318; font-weight:600;' : ''}">${money(q)} ${esc(i.base_unit || '')}</td><td class="mono num">${cost != null ? money(cost) : '—'}</td><td class="mono num">${cost != null ? money(value) : '—'}</td></tr>`;
+        }).join('');
         let body;
         if (client.scannedStockError) {
             body = `<div class="notice notice-warn">${icon('alert-triangle', 14)} Couldn't load the scanned stock list: ${esc(client.scannedStockError)}. If it says the function does not exist, run migration_receipt_merge.sql in Supabase.</div>`;
         } else if (!items.length) {
-            body = `<div class="empty">${icon('scan-line', 28)}<div>No scanned stock yet. Items appear here when the shop scans purchase receipts into stock, or when you log a purchase for them.</div></div>`;
+            body = `<div class="empty">${icon('scan-line', 28)}<div>Nothing in scanned stock right now. Items appear here when the shop scans purchase receipts into stock, or when you log a purchase for them.</div></div>`;
         } else {
             body = `<div class="list" style="overflow-x:auto;"><table class="entries">
-                <thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Last cost</th></tr></thead>
-                <tbody>${rows}</tbody></table></div>`;
+                <thead><tr><th>Item</th><th class="num">Quantity</th><th class="num">Last cost</th><th class="num">Value</th></tr></thead>
+                <tbody>${rows}</tbody></table></div>
+                <div style="margin-top:12px; font-size:13px; font-weight:600; color:var(--ink);">Scanned stock value: <span class="mono">ETB ${money(total)}</span></div>`;
         }
         return `
-            <div style="margin-top:28px;">
-                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:10px; flex-wrap:wrap;">
-                    <div class="section-title" style="margin:0;">Scanned stock <span style="font-weight:400; color:var(--text-soft); font-size:12px;">(from the shop's scanned receipts, read-only)</span></div>
-                    <button class="btn btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="syncReceiptsNow('${client.id}')">${icon('refresh-cw', 13)} Sync receipts now</button>
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; gap:10px; flex-wrap:wrap;">
+                <div>
+                    <div class="section-title" style="margin:0 0 4px;">Scanned stock</div>
+                    <div style="font-size:12.5px; color:var(--text-soft);">Read-only. Only stock from the shop's scanned purchase receipts is shared with you; the shop's main inventory stays private. <span class="live-pill">Live</span></div>
                 </div>
-                ${body}
-            </div>`;
+                <div style="display:flex; gap:8px;">
+                    <button class="btn btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="syncReceiptsNow('${client.id}')">${icon('refresh-cw', 13)} Sync receipts now</button>
+                    <button class="btn btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="refreshClientInventory('${client.id}')">${icon('rotate-cw', 13)} Reload</button>
+                </div>
+            </div>
+            ${body}`;
     }
     function renderInventoryTab(client) {
-        const base = renderInventoryTabBase(client);
-        if (linkedApprovedShop(client) && client.inventory !== undefined) return base + renderScannedStockSection(client);
-        return base;
-    }
-    function renderInventoryTabBase(client) {
         const link = linkForBusiness(client.linkedBusinessId);
         const status = link ? link.status : null;
         if (!client.linkedBusinessId) {
@@ -1519,8 +1646,8 @@ This field is  mandatory.",Total value,vat,value after vat`;
         }
         if (status === 'pending') {
             return link.requested_by === 'accountant'
-                ? `<div class="empty">${icon('clock', 28)}<div>Waiting on their approval to view this client's inventory.</div></div>`
-                : `<div class="empty">${icon('clock', 28)}<div>This business sent you a link request — approve it to view their inventory.</div>
+                ? `<div class="empty">${icon('clock', 28)}<div>Waiting on their approval to view this client's scanned stock.</div></div>`
+                : `<div class="empty">${icon('clock', 28)}<div>This business sent you a link request — approve it to view their scanned stock.</div>
                     <button class="btn btn-primary" style="margin-top:12px;" onclick="openLinksInbox()">${icon('link-2', 15)} Go to Requests</button></div>`;
         }
         if (status !== 'approved') {
@@ -1531,28 +1658,14 @@ This field is  mandatory.",Total value,vat,value after vat`;
             return `<div class="empty">${icon('link-2', 28)}<div>The MELEYA link for this client was ${esc(label)}. Search again to reconnect.</div>
                 <button class="btn btn-primary" style="margin-top:12px;" onclick="openLinkSearch('${client.id}')">${icon('search', 15)} Find them on MELEYA</button></div>`;
         }
-        if (client.inventory === undefined) {
-            if (!client.inventoryLoading) {
-                client.inventoryLoading = true;
-                loadClientInventory(client).then(() => { client.inventoryLoading = false; render(); });
+        if (client.scannedStock === undefined) {
+            if (!client.stockLoading) {
+                client.stockLoading = true;
+                loadScannedStock(client).then(() => { client.stockLoading = false; render(); });
             }
-            return `<div style="color:var(--text-soft); font-size:13px;">Loading inventory…</div>`;
+            return `<div style="color:var(--text-soft); font-size:13px;">Loading scanned stock…</div>`;
         }
-        if (client.inventoryError) return `<div class="notice notice-warn">${icon('alert-triangle', 14)} Couldn't load inventory: ${esc(client.inventoryError)}</div>`;
-        if (!client.inventory.length) return `<div class="empty">${icon('package', 28)}<div>No inventory items found for this business yet.</div></div>`;
-        const rows = client.inventory.map((i) => {
-            const qty = Number(i.qty_on_hand) || 0;
-            const avgCost = qty > 0 ? (Number(i.total_cost) || 0) / qty : 0;
-            return `<tr><td>${esc(i.item_desc || '—')}</td><td class="mono">${esc(i.category || '—')}</td><td class="mono num">${qty}</td><td class="mono num">${money(avgCost)}</td><td class="mono num">${money(i.selling_price)}</td></tr>`;
-        }).join('');
-        return `
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
-                <div class="notice notice-ok" style="margin-bottom:0;">${icon('check', 14)} Read-only, synced from this client's MELEYA account.</div>
-                <button class="btn btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="refreshClientInventory('${client.id}')">${icon('refresh-cw', 13)} Refresh</button>
-            </div>
-            <div class="list" style="overflow-x:auto;"><table class="entries">
-                <thead><tr><th>Item</th><th>Category</th><th class="num">Qty</th><th class="num">Avg cost</th><th class="num">Selling price</th></tr></thead>
-                <tbody>${rows}</tbody></table></div>`;
+        return renderScannedStockSection(client);
     }
 
     // ------------------------------------------------------------------------
@@ -1679,7 +1792,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
     let clients = [];
     let activeClientId = null;
     let activeTab = 'receipts';
-    let receiptsFilter = { mode: 'all', month: null, year: currentEcYear() };
+    let receiptsFilter = { mode: 'all', month: null, year: currentEcYear(), kind: 'all', query: '' };
     let exportFilter = { mode: null, month: null, year: null };
     // Which VAT line each eTax CSV export should file under — applies to
     // every row in that download. Change it here if a given month's batch
@@ -1896,15 +2009,17 @@ This field is  mandatory.",Total value,vat,value after vat`;
     async function openClient(id) {
         activeClientId = id;
         activeTab = 'receipts';
-        receiptsFilter = { mode: 'all', month: null, year: currentEcYear() };
+        receiptsFilter = { mode: 'all', month: null, year: currentEcYear(), kind: 'all', query: '' };
         addFlow = null;
+        stopLive();
         render();
         await loadEntriesForActiveClient();
         render();
         const opened = activeClient();
         if (opened && !opened.receiptsSynced && linkedApprovedShop(opened)) syncClientReceipts(opened, true);
+        startLive();
     }
-    function backToDashboard() { activeClientId = null; render(); }
+    function backToDashboard() { activeClientId = null; stopLive(); render(); }
     function setTab(key) { activeTab = key; addFlow = null; render(); }
 
     async function addEntry(entry) {
@@ -1927,6 +2042,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
         const client = activeClient();
         if (!client) return;
         const idx = client.entries.findIndex((e) => e.id === id);
+        if (idx !== -1 && isShopSale(client.entries[idx])) { alert("This sale came from the shop, so it can't be deleted here. Only the shop can change it."); return; }
         const snapshot = idx !== -1 ? { ...client.entries[idx] } : null;
         const { error } = await supabaseClient.from('accountant_entries').delete().eq('id', id);
         if (error) { alert(error.message); return; }
@@ -2129,39 +2245,84 @@ This field is  mandatory.",Total value,vat,value after vat`;
     // ------------------------------------------------------------------------
     // Receipts tab
     // ------------------------------------------------------------------------
-    function renderReceiptsTab(client) {
+    function receiptsPeriodFiltered(client) {
         const [fromKey, toKey] = filterRange(receiptsFilter, client.entries);
-        const filtered = receiptsFilter.mode === 'all' ? client.entries : client.entries.filter((e) => { const k = entryEcKey(e); return k >= fromKey && k <= toKey; });
-        const sorted = [...filtered].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        return receiptsFilter.mode === 'all' ? client.entries : client.entries.filter((e) => { const k = entryEcKey(e); return k >= fromKey && k <= toKey; });
+    }
+    function receiptsView(client) {
+        const base = receiptsPeriodFiltered(client).filter((e) => entryMatchesQuery(e, receiptsFilter.query));
+        const counts = { all: base.length, purchase: 0, sale: 0, expense: 0 };
+        base.forEach((e) => { counts[entryKindOf(e)]++; });
+        const shown = receiptsFilter.kind === 'all' ? base : base.filter((e) => entryKindOf(e) === receiptsFilter.kind);
+        return { shown, counts };
+    }
+    function receiptsCountText(client) {
+        const { shown } = receiptsView(client);
+        const total = client.entries.length;
+        const filtering = shown.length !== total;
+        return filtering ? `${shown.length} of ${total} receipt${total === 1 ? '' : 's'}` : `${total} receipt${total === 1 ? '' : 's'} logged`;
+    }
+    function renderKindFilter(client) {
+        const { counts } = receiptsView(client);
+        const opts = [['all', 'All'], ['purchase', 'Purchase receipts'], ['sale', 'Sales receipts'], ['expense', 'Expense receipts']];
+        return `<div class="seg">${opts.map(([k, label]) => `<button type="button" class="${receiptsFilter.kind === k ? 'on' : ''}" onclick="rfSetKind('${k}')">${label}<span class="cnt">${counts[k]}</span></button>`).join('')}</div>`;
+    }
+    function renderReceiptsList(client) {
+        const { shown } = receiptsView(client);
+        const sorted = [...shown].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
         receiptsListOrder = sorted.map((e) => e.id);
-
-        const rows = sorted.map((e) => `
+        if (!sorted.length) {
+            const filtering = receiptsFilter.query.trim() || receiptsFilter.kind !== 'all' || receiptsFilter.mode !== 'all';
+            return `<div class="empty">${icon(filtering ? 'search-x' : 'receipt', 28)}<div>${filtering ? 'No receipts match this search or filter.' : 'No receipts in this view yet.'}</div></div>`;
+        }
+        const rows = sorted.map((e) => {
+            const kind = entryKindOf(e), locked = isShopSale(e);
+            return `
             <tr class="entry-row${e.reviewed === false ? ' unreviewed' : ''}${e.tinMismatch ? ' tin-mismatch' : ''}" onclick="openEntryDetail('${e.id}')" style="cursor:pointer;">
                 <td class="mono" style="font-size:12px;">${esc(e.date) || '—'}</td>
-                <td>${esc(e.sellerName) || 'Unknown seller'}${e.missing && e.missing.length ? ` <span title="Needs review: ${esc(e.missing.join(', '))}" style="color:var(--amber);">${icon('alert-triangle', 12)}</span>` : ''}${e.reviewed === false ? `<span class="badge-new" title="Auto-saved from a batch upload — not reviewed yet">New</span>` : ''}${e.syncedFrom === 'shop' ? `<span class="badge-new" style="background:#2c6fbb;" title="Came from the shop's own records. Check the details and the FS number.">From shop</span>` : ''}${e.tinMismatch ? `<span class="tin-mismatch-badge" title="Neither party's TIN on the document matches this client — excluded from exports">${icon('alert-triangle', 11)} TIN mismatch</span>` : ''}</td>
-                <td style="font-size:12px; color:var(--text-soft);">${e.type === 'payment' ? 'Purchase' : 'Sale'}</td>
+                <td>${esc(e.sellerName) || 'Unknown seller'}${e.missing && e.missing.length ? ` <span title="Needs review: ${esc(e.missing.join(', '))}" style="color:var(--amber);">${icon('alert-triangle', 12)}</span>` : ''}${e.reviewed === false ? `<span class="badge-new" title="Auto-saved from a batch upload — not reviewed yet">New</span>` : ''}${e.syncedFrom === 'shop' ? `<span class="badge-shop" title="${locked ? "This is the shop's own sales record, so it is view-only." : "Came from the shop's own records. Check the details and the FS number."}">${icon('store', 11)} From shop</span>` : ''}${e.tinMismatch ? `<span class="tin-mismatch-badge" title="Neither party's TIN on the document matches this client — excluded from exports">${icon('alert-triangle', 11)} TIN mismatch</span>` : ''}
+                    ${(e.receiptNo || e.mrc) ? `<div class="mono" style="font-size:11px; color:var(--text-soft); margin-top:2px;">${e.receiptNo ? `FS ${esc(e.receiptNo)}` : ''}${e.receiptNo && e.mrc ? ' · ' : ''}${e.mrc ? `MRC ${esc(e.mrc)}` : ''}</div>` : ''}</td>
+                <td><span class="kind-pill ${kind}" title="${kind === 'expense' ? 'Saved as a service' : ''}">${KIND_LABEL[kind]}</span></td>
                 <td class="mono num">${money(e.beforeVat)}</td>
                 <td class="mono num">${money(e.vat)}</td>
                 <td class="mono num" style="font-weight:600;">${money(e.total)}${e.nonVatAmount > 0 ? `<div style="font-size:10.5px; font-weight:400; color:var(--amber);" title="Goods on this receipt that carry no VAT">+ ${money(e.nonVatAmount)} non-VAT</div>` : ''}</td>
                 <td style="text-align:right; white-space:nowrap;">
-                    ${e.tinMismatch ? `<button class="btn-icon" title="Unflag — include in exports" onclick="event.stopPropagation(); toggleTinMismatch('${e.id}')">${icon('flag', 14)}</button>` : ''}
-                    <button class="btn-icon" onclick="event.stopPropagation(); removeEntry('${e.id}')">${icon('trash-2', 14)}</button>
+                    ${e.tinMismatch && !locked ? `<button class="btn-icon" title="Unflag — include in exports" onclick="event.stopPropagation(); toggleTinMismatch('${e.id}')">${icon('flag', 14)}</button>` : ''}
+                    ${locked ? `<span class="btn-icon" style="cursor:default;" title="View-only: this sale came from the shop">${icon('lock', 14)}</span>` : `<button class="btn-icon" onclick="event.stopPropagation(); removeEntry('${e.id}')">${icon('trash-2', 14)}</button>`}
                 </td>
-            </tr>`).join('');
-
+            </tr>`;
+        }).join('');
+        return `<div class="list" style="overflow-x:auto;"><table class="entries">
+            <thead><tr><th>Date</th><th>Seller</th><th>Type</th><th class="num">Before VAT</th><th class="num">VAT</th><th class="num">Total</th><th></th></tr></thead>
+            <tbody>${rows}</tbody></table></div>`;
+    }
+    // Redraws only the filter counts, the count line and the list (used while typing in the search box, so it never loses focus).
+    function refreshReceiptsList() {
+        const client = activeClient();
+        const box = document.getElementById('receipts-list');
+        if (!client || !box) return;
+        box.innerHTML = renderReceiptsList(client);
+        const seg = document.getElementById('rf-seg'); if (seg) seg.innerHTML = renderKindFilter(client);
+        const cnt = document.getElementById('receipts-count'); if (cnt) cnt.textContent = receiptsCountText(client);
+        refreshIcons();
+    }
+    function rfSetKind(k) { receiptsFilter.kind = k; render(); }
+    function rfSetQuery(v) { receiptsFilter.query = v; refreshReceiptsList(); }
+    function rfClearQuery() { receiptsFilter.query = ''; render(); const el = document.getElementById('rf-search'); if (el) el.focus(); }
+    function renderReceiptsTab(client) {
         return `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; gap:12px; flex-wrap:wrap;">
-                <div style="font-size:14px; color:var(--text-soft);">${client.entries.length} receipt${client.entries.length === 1 ? '' : 's'} logged</div>
+                <div style="font-size:14px; color:var(--text-soft);"><span id="receipts-count">${receiptsCountText(client)}</span>${linkedApprovedShop(client) ? ' <span class="live-pill" style="margin-left:8px;" title="Receipts update on their own when the shop adds or changes something">Live</span>' : ''}</div>
                 ${addFlow ? '' : `<button class="btn btn-primary" onclick="startAddReceipt()">${icon('plus', 16)} Add receipt</button>`}
             </div>
             ${renderUndoBar('receipt')}
-            <div style="margin-bottom:16px;">${renderEcFilter('rf', client.entries, receiptsFilter)}</div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px;">
+                <div class="search-box">${icon('search', 14)}<input id="rf-search" type="search" autocomplete="off" placeholder="Search FS / receipt no., MRC, seller name or TIN" value="${esc(receiptsFilter.query)}" oninput="rfSetQuery(this.value)"></div>
+                ${renderEcFilter('rf', client.entries, receiptsFilter)}
+            </div>
+            <div id="rf-seg" style="margin-bottom:16px;">${renderKindFilter(client)}</div>
             ${addFlow ? renderAddReceiptFlow() : ''}
-            ${sorted.length === 0
-                ? `<div class="empty">${icon('receipt', 28)}<div>No receipts in this view yet.</div></div>`
-                : `<div class="list" style="overflow-x:auto;"><table class="entries">
-                    <thead><tr><th>Date</th><th>Seller</th><th>Type</th><th class="num">Before VAT</th><th class="num">VAT</th><th class="num">Total</th><th></th></tr></thead>
-                    <tbody>${rows}</tbody></table></div>`}
+            <div id="receipts-list">${renderReceiptsList(client)}</div>
             ${entryModalId ? renderEntryDetailModal() : ''}`;
     }
 
@@ -2192,6 +2353,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
         const idx = client.entries.findIndex((x) => x.id === id);
         if (idx === -1) return;
         if (client.entries[idx].reviewed !== false) return; // already reviewed, nothing to do
+        if (isShopSale(client.entries[idx])) return; // shop sales are view-only, nothing to change
         const { error } = await supabaseClient.from('accountant_entries').update({ reviewed: true }).eq('id', id);
         if (error) { console.error(error); return; }
         client.entries[idx] = { ...client.entries[idx], reviewed: true };
@@ -2204,6 +2366,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
         if (!client) return;
         const idx = client.entries.findIndex((x) => x.id === id);
         if (idx === -1) return;
+        if (isShopSale(client.entries[idx])) return;
         const next = !client.entries[idx].tinMismatch;
         const { error } = await supabaseClient.from('accountant_entries').update({ tin_mismatch: next }).eq('id', id);
         if (error) { alert(error.message); return; }
@@ -2232,7 +2395,9 @@ This field is  mandatory.",Total value,vat,value after vat`;
         const d = entryModalDraft;
         const idx = client.entries.findIndex((x) => x.id === entryModalId);
         const previous = idx >= 0 ? { ...client.entries[idx] } : null;
+        if (previous && isShopSale(previous)) { alert("This sale came from the shop, so it can't be changed here. Only the shop can change it."); closeEntryDetail(); return; }
         const patch = {
+            entryKind: d.type === 'payment' ? (d.entryKind === 'expense' ? 'expense' : 'purchase') : '',
             type: d.type, date: d.date, sellerName: d.sellerName, sellerTin: d.sellerTin, vatRegNo: d.vatRegNo,
             mrc: d.mrc, receiptNo: d.receiptNo, isVat: !!d.isVat,
             beforeVat: Number(d.beforeVat) || 0, vat: Number(d.vat) || 0, total: Number(d.total) || 0,
@@ -2241,7 +2406,14 @@ This field is  mandatory.",Total value,vat,value after vat`;
             reviewed: true, tinMismatch: !!d.tinMismatch,
             nonVatAmount: Number(d.nonVatAmount) || 0, lines: d.lines || [],
         };
-        const { error } = await supabaseClient.from('accountant_entries').update(entryToDb(patch, client.id)).eq('id', entryModalId);
+        let upd = entryToDb(patch, client.id);
+        let { error } = await supabaseClient.from('accountant_entries').update(upd).eq('id', entryModalId);
+        if (error && /non_vat_amount|lines|entry_kind/i.test(error.message || '')) {
+            // the newer columns are not in the database yet: save everything else
+            if (Number(patch.nonVatAmount) > 0) { alert('This receipt has non-VAT goods, but the database is missing the new columns (non_vat_amount, lines, entry_kind). Run migration_non_vat_lines.sql and migration_receipt_merge.sql once in Supabase, then save again.'); return; }
+            delete upd.non_vat_amount; delete upd.lines; delete upd.entry_kind;
+            ({ error } = await supabaseClient.from('accountant_entries').update(upd).eq('id', entryModalId));
+        }
         if (error) { alert(error.message); return; }
         if (idx >= 0) client.entries[idx] = { ...client.entries[idx], ...patch };
         rememberSeller(patch.sellerName, patch.sellerTin);
@@ -2264,8 +2436,22 @@ This field is  mandatory.",Total value,vat,value after vat`;
         closeEntryDetail();
         await removeEntry(id);
     }
+    // "Goods (purchase)" or "Service (expense)" - an expense is saved and exported as a service.
+    function renderKindPicker(d, ref) {
+        if (d.type !== 'payment') return '';
+        const kind = d.entryKind === 'expense' ? 'expense' : 'purchase';
+        return `<div style="display:flex; align-items:center; gap:8px; margin:-4px 0 14px; font-size:13px; flex-wrap:wrap;">
+            <span style="color:var(--text-soft);">This is a</span>
+            <select style="width:auto; font-size:12.5px; padding:4px 8px;" onchange="${ref}.entryKind=this.value; render()">
+                <option value="purchase" ${kind === 'purchase' ? 'selected' : ''}>Purchase of goods</option>
+                <option value="expense" ${kind === 'expense' ? 'selected' : ''}>Expense (service, bill)</option>
+            </select>
+            ${kind === 'expense' ? `<span style="font-size:12px; color:var(--text-soft);">Saved and exported as a <strong>service</strong>, not goods.</span>` : ''}
+        </div>`;
+    }
     function renderEntryDetailModal() {
         const d = entryModalDraft;
+        const locked = isShopSale(d);
         const ec = gcToEc(d.date);
         const ecLabel = ec ? `${EC_MONTHS[ec.month - 1]} ${ec.day}, ${ec.year} (EC)` : '';
         const field = (key, label, mono) => `
@@ -2285,14 +2471,17 @@ This field is  mandatory.",Total value,vat,value after vat`;
                             <button class="btn-icon" onclick="closeEntryDetail()">${icon('x', 18)}</button>
                         </div>
                     </div>
-                    ${d.reviewed === false ? `<div class="notice notice-warn">${icon('alert-triangle', 14)} Auto-saved from a batch upload, not reviewed yet. Check the fields below, then Save (or just move to the next one — that marks it reviewed too).</div>` : ''}
+                    ${locked ? `<div class="ro-banner">${icon('lock', 14)}<div><strong>View only.</strong> This sale came from the shop, so only the shop can change it. If something looks wrong, ask them to correct it and it will update here.</div></div>` : ''}
+                    ${d.reviewed === false && !locked ? `<div class="notice notice-warn">${icon('alert-triangle', 14)} Auto-saved from a batch upload, not reviewed yet. Check the fields below, then Save (or just move to the next one — that marks it reviewed too).</div>` : ''}
                     ${d.tinMismatch ? `<div class="notice notice-danger">${icon('alert-triangle', 14)} <div>Neither party's TIN on this document matched this client's TIN, so it's excluded from filing exports. <button type="button" class="btn btn-ghost" style="margin-left:6px; padding:2px 8px; font-size:12px;" onclick="entryModalDraft.tinMismatch=false; render();">${icon('check', 12)} Confirm it's theirs — include it</button></div></div>` : ''}
                     ${renderUndoBar('receipt')}
+                    <fieldset class="ro" ${locked ? 'disabled' : ''}>
                     <div style="display:flex; gap:16px; margin-bottom:14px; flex-wrap:wrap;">
-                        <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="edit-entry-type" style="width:auto;" ${d.type === 'payment' ? 'checked' : ''} onchange="entryModalDraft.type='payment'"> Purchase (payment out)</label>
-                        <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="edit-entry-type" style="width:auto;" ${d.type === 'receipt' ? 'checked' : ''} onchange="entryModalDraft.type='receipt'"> Sale (receipt in)</label>
+                        <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="edit-entry-type" style="width:auto;" ${d.type === 'payment' ? 'checked' : ''} onchange="entryModalDraft.type='payment'; render()"> Purchase (payment out)</label>
+                        <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="edit-entry-type" style="width:auto;" ${d.type === 'receipt' ? 'checked' : ''} onchange="entryModalDraft.type='receipt'; render()"> Sale (receipt in)</label>
                         <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; margin-left:auto;"><input type="checkbox" style="width:auto;" ${d.isVat ? 'checked' : ''} onchange="entryModalDraft.isVat=this.checked"> VAT receipt</label>
                     </div>
+                    ${renderKindPicker(d, 'entryModalDraft')}
                     <div class="grid-2" style="margin-bottom:12px;">
                         <div><label>Date (GC)</label><input type="date" value="${esc(d.date)}" oninput="onEntryDateInput(this.value)"></div>
                         <div><label>&nbsp;</label><div id="edit-ec-label" class="mono" style="font-size:12px; color:var(--text-soft); padding-top:8px;">${esc(ecLabel)}</div></div>
@@ -2318,10 +2507,12 @@ This field is  mandatory.",Total value,vat,value after vat`;
                         ${field('quantity', 'Quantity', true)}
                         ${field('unitPrice', 'Unit price', true)}
                     </div>
+                    </fieldset>
                     <div style="display:flex; gap:10px;">
+                        ${locked ? `<button class="btn btn-ghost" onclick="closeEntryDetail()">Close</button>` : `
                         <button class="btn btn-primary" onclick="saveEntryEdit()">${icon('check', 15)} Save changes</button>
                         <button class="btn btn-ghost" onclick="deleteEntryFromModal()">${icon('trash-2', 15)} Delete receipt</button>
-                        <button class="btn btn-ghost" onclick="closeEntryDetail()">Cancel</button>
+                        <button class="btn btn-ghost" onclick="closeEntryDetail()">Cancel</button>`}
                     </div>
                 </div>
             </div>`;
@@ -2518,10 +2709,11 @@ This field is  mandatory.",Total value,vat,value after vat`;
                         ${addFlow.error ? `<div class="notice notice-warn">${icon('alert-triangle', 14)} ${esc(addFlow.error)}</div>` : ''}
                         ${renderScanNotes(addFlow.form)}
                         <div style="display:flex; gap:16px; margin-bottom:14px; flex-wrap:wrap;">
-                            <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="entry-type" style="width:auto;" ${f.type === 'payment' ? 'checked' : ''} onchange="addFlow.form.type='payment'"> Purchase (payment out)</label>
-                            <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="entry-type" style="width:auto;" ${f.type === 'receipt' ? 'checked' : ''} onchange="addFlow.form.type='receipt'"> Sale (receipt in)</label>
+                            <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="entry-type" style="width:auto;" ${f.type === 'payment' ? 'checked' : ''} onchange="addFlow.form.type='payment'; render()"> Purchase (payment out)</label>
+                            <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="entry-type" style="width:auto;" ${f.type === 'receipt' ? 'checked' : ''} onchange="addFlow.form.type='receipt'; render()"> Sale (receipt in)</label>
                             <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; margin-left:auto;"><input type="checkbox" style="width:auto;" ${f.isVat ? 'checked' : ''} onchange="addFlow.form.isVat=this.checked"> VAT receipt</label>
                         </div>
+                        ${renderKindPicker(f, 'addFlow.form')}
                         ${f.tinMismatch ? `
                         <div class="notice notice-danger">
                             ${icon('alert-triangle', 14)}
