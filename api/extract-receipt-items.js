@@ -12,7 +12,9 @@
 
 export const config = { maxDuration: 30 };
 
-const ITEMS_PROMPT = `You are reading a photo of an Ethiopian PURCHASE document (the shop bought goods from a supplier). It is ONE of three layouts - figure out which first and put the letter in "layout":
+const GC_YEAR = new Date().getFullYear(); // used inside the prompt to explain Ethiopian vs Gregorian years
+
+const ITEMS_PROMPT = `You are reading a photo of an Ethiopian PURCHASE document (the shop bought goods from a supplier). The photo may be rotated sideways or upside down - read it the right way up in your mind. It is ONE of four layouts - figure out which first and put the letter in "layout":
 
 LAYOUT A - fiscal cash register receipt (thin thermal paper):
 - The SELLER'S TIN is near the top as "TIN: XXXXXXXXXX", followed by the seller's business name. "Buyer's TIN" further down is the buyer, never the seller.
@@ -20,10 +22,12 @@ LAYOUT A - fiscal cash register receipt (thin thermal paper):
 - Items are either one line each ("DESCRIPTION  QTY  PRICE  AMOUNT") or two lines each ("QTY x PRICE =" then "DESCRIPTION  *AMOUNT").
 - Taxable subtotal = "TXBL1". VAT = "TAX1"/"TAX 1" (15%). Grand total = "TOTAL".
 
-LAYOUT B - manual yellow "Sales Invoice" (hand-filled carbon copy):
+LAYOUT B - manual "Sales Invoice" / "Value Added Tax Invoice (Cash Sales)" (hand-filled carbon copy; the title is printed in Amharic and English, e.g. "Value Added Tax Cash Sales Invoice"). The ORIGINAL copy is white and the other copies are coloured (often yellow), so do not rely on paper colour - recognise it by the printed form, the pre-printed serial and the hand-written ink:
 - Seller = the pre-printed "Supplier" block (top-left). Buyer = the hand-filled "Customer" block. Never swap them.
 - Invoice number is the pre-printed (often red) serial near "No.".
 - The date is handwritten and is almost always ETHIOPIAN calendar, day/month/2-digit-year (e.g. "28/10/17" = day 28, month 10, year 2017). Then date_calendar = "EC" and date_year = full 4-digit year.
+- The year may ALSO be written in full, e.g. "4/11/2018" - that is STILL the Ethiopian calendar (Ethiopian 2018 is Gregorian 2025/2026). This year is ${GC_YEAR} in the Gregorian calendar, which is ${GC_YEAR - 8} or ${GC_YEAR - 7} in the Ethiopian calendar, so on this hand-filled layout a written year of ${GC_YEAR - 9}, ${GC_YEAR - 8} or ${GC_YEAR - 7} is Ethiopian: date_calendar = "EC", date_year as written. Ethiopian months run 1 to 13 (13 = Pagume). Only use "GC" here if the written year is ${GC_YEAR - 6} or later.
+- On the "Value Added Tax Cash Sales Invoice" form the table columns are No., Description, Unit, Qty, Unit Price, Total Amount - read the hand-written Qty (for example 2) and the Unit Price. The totals box under the table reads top to bottom: "Total" = before_vat (an empty "Service Charge" row above it is ignored), "VAT /15%/" = vat, "Total Selling Price Including VAT" = total. The amount in words ("... only") is the total and can be used to double-check the digits. Verify Qty x Unit Price = Total Amount for each line.
 
 LAYOUT C - ERP "Cash Sales Voucher" / "Cash Sales Attachment" (computer-printed A4 or half-A4 sheet, usually with a big grey diagonal watermark word such as "Attachment" across the page; it is the itemised copy that goes with a thermal fiscal receipt):
 - SELLER = the business name printed as the big heading at the top (sometimes also repeated inside a small box on the right). The seller's TIN is printed as "TIN: XXXXXXXXXX" near that heading. A "VAT: XXXXXXXXXX" next to it is the seller's VAT registration number.
@@ -34,6 +38,16 @@ LAYOUT C - ERP "Cash Sales Voucher" / "Cash Sales Attachment" (computer-printed 
 - The date is Gregorian, often with a time: "07-10-2026 11:42 AM" or "4/7/2026 16:00:35". Different suppliers print day-first or month-first, so copy it exactly as printed into "date_raw" and give your best day/month reading. A "Prepared on ..." date or a printed stamp elsewhere on the page can help you decide the order.
 - Ignore the watermark letters; read the text underneath them. Ignore "Prepared by", signatures, stamps and "INVALID WITHOUT FISCAL OR REFUND RECEIPT ATTACHED" as items.
 
+LAYOUT D - ethio telecom "CASH RECEIPT" (computer-printed, bilingual Amharic/English, "ethio telecom" logo at the top-left; a receipt for a telecom BILL payment, not a sale of goods, so there is no item table):
+- SELLER = ethio telecom. Its details are in a small block of text at the top beside the logo ("VAT Reg. No", "TIN No", "VAT Reg Date", "Address", "Tel"). seller_name = "ethio telecom" (as printed), seller_tin = the "TIN No" in THAT top block, vat_reg_no = its "VAT Reg. No".
+- The "Customer Information" block lists Customer Name, Address, City, "TIN No", Service No, Account No and Customer Code. The "TIN No" there is the BUYER'S TIN (buyer_tin). Never swap it with the seller's TIN, and never use Account No or Customer Code as a TIN.
+- receipt_no = the "Receipt No" at the top right (a long number such as 2290819115). voucher_no = the "Invoice No" inside the Payment Information table (the bill's own number). fs_no and mrc are null.
+- The date is printed next to the Receipt No as DD/MM/YYYY followed by a time (for example "19/08/2026 09:51AM"): Gregorian, day first. The "Billing Month" (for example "Jul 2026") is the month the bill covers, NOT the receipt date.
+- The "Payment Information" table lists: Invoice No, Billing Month, "Total Bill Payment (Inclusive VAT)", "5% Excise Tax", "Bill Payment (Excluding VAT)", "15% VAT", "5% National Disaster Risk Fund", "Advance Payment", "Total Amount Received". Map: before_vat = "Bill Payment (Excluding VAT)" (it already includes the excise tax and the disaster fund - subtract nothing); vat = "15% VAT"; total = "Total Amount Received". The excise tax and the disaster fund are NOT VAT. Before VAT + VAT can differ from the total by a cent or two because of the tiny "Advance Payment" line - that is normal, do not "repair" it. is_vat is true.
+- Return exactly ONE item: description "ethio telecom bill - <Billing Month>" (for example "ethio telecom bill - Jul 2026"), quantity 1, measurement null, unit_price and amount both equal to before_vat.
+- doc_title = "CASH RECEIPT" as printed. header_lines = the remaining small-print lines of the seller block (VAT Reg. No, address, tel) followed by the customer lines as "Label: value" (Customer Name, Address, City, Service No, Account No, Customer Code). footer_lines = the payment lines that are not items, as "Label: value" (5% Excise Tax, 5% National Disaster Risk Fund, Advance Payment, Payment Mode, Payment Reason, Service Center, the amount in words, Received By).
+- Ignore the round stamp, the signature, the social-media icons and the "Thank you" note. A fold or the paper edge can cover part of the page - read around it.
+
 MULTI-PAGE DOCUMENTS: a long sheet is photographed one page per photo. Page 1 usually has the header (seller, buyer, FS No., date) and the first lines; later pages may show only more lines; the LAST page has the Subtotal / VAT / Grand Total. Report only what is visible in THIS photo: set "has_header" to true only if the seller name/TIN block is visible, and "has_totals" to true only if a Subtotal/TXBL1, VAT/TAX1 or Grand Total/TOTAL amount is visible. If the footer says "Page 1 of 2" (or similar) fill "page_no" and "page_count" (numbers), otherwise null. Most ERP sheets also print a small faint "system stamp" line at the very top or bottom edge, like "001-01-0000033133 | 09.04.2026 13:40:55" (it can look like a ghost or duplicate print); copy it exactly into "doc_stamp" (it is the same on every page of one document), otherwise null. List ONLY the lines visible in this photo - a line hidden under a fold or finger must not be invented; if its description is hidden but its numbers are visible, use "" as the description.
 
 FADED OR HARD-TO-READ PHOTOS: thermal paper fades, photos blur, and watermarks cover text. Read every character you reasonably can, including very pale ones. Then use arithmetic to check yourself: quantity x unit price = line amount; the line amounts add up to the subtotal; subtotal x 15% = VAT; subtotal + VAT = total. If one digit is unreadable, use these relationships to repair it. If you still cannot read a value with confidence, return null for it and never invent it.
@@ -42,7 +56,7 @@ TASK: extract EVERY line item on the document. Do not skip, merge, or summarise 
 
 Return ONLY raw JSON, no markdown fences, no commentary:
 {
-  "layout": "A" or "B" or "C",
+  "layout": "A" or "B" or "C" or "D",
   "seller_name": string or null,
   "seller_tin": string or null,
   "buyer_tin": string or null,
@@ -89,7 +103,7 @@ Rules for each item:
 - "measurement": only a unit that is actually printed next to the item (PCS, KG, M, MT, L, BOX, PK...). Otherwise null - never guess.
 - "pack_hint": only if the description itself states a pack size, for example "12PCS/BOX", "carton of 24", "1x10". Copy that text; otherwise null.
 - "before_vat", "vat", "total" are always the receipt-wide totals, never per-item figures.
-- "receipt_no": for layout A use the FS No.; for layout B the invoice serial; for layout C use the FS No. if one is printed, otherwise the Voucher No.
+- "receipt_no": for layout A use the FS No.; for layout B the invoice serial; for layout C use the FS No. if one is printed, otherwise the Voucher No; for layout D use the "Receipt No" at the top right (not the Invoice No in the payment table).
 - "doc_title": the banner/title line printed on the document, copied exactly (for example "CASH INVOICE", "Sales Invoice", "Cash Sales Attachment"). Otherwise null.
 - "receipt_time": the time printed next to the date (HH:MM, 24-hour; if AM/PM is printed, convert it). Otherwise null.
 - "header_lines": every OTHER text line printed at the top, in order, copied exactly (address, phone, VAT registration number, branch, etc.). Do not repeat the seller name, the TIN line, the receipt number, the date or the title. Use [] if none.
@@ -174,11 +188,15 @@ function fixDate(parsed) {
     parsed.date_ambiguous = false;
     parsed.date_alt_day = null;
     parsed.date_alt_month = null;
-    if (parsed.date_calendar !== 'GC' || parsed.layout !== 'C') return parsed;
+    if (parsed.date_calendar !== 'GC' || (parsed.layout !== 'C' && parsed.layout !== 'D')) return parsed;
     const m = String(parsed.date_raw || '').match(/(\d{1,2})\s*[\/\-.]\s*(\d{1,2})\s*[\/\-.]\s*(\d{4})/);
     if (!m) return parsed;
     const a = Number(m[1]), b = Number(m[2]), y = Number(m[3]);
     parsed.date_year = y;
+    if (parsed.layout === 'D') { // ethio telecom always prints day first
+        if (b > 12 && a <= 12) { parsed.date_day = b; parsed.date_month = a; } else { parsed.date_day = a; parsed.date_month = b; }
+        return parsed;
+    }
     if (a > 12 && b <= 12) { parsed.date_day = a; parsed.date_month = b; }
     else if (b > 12 && a <= 12) { parsed.date_day = b; parsed.date_month = a; }
     else if (a === b) { parsed.date_day = a; parsed.date_month = b; }
@@ -233,6 +251,37 @@ function cleanPageFields(parsed) {
 // document is checked later (in /api/merge-receipt-pages).
 function isPartialPage(parsed) {
     return (parsed.page_count && parsed.page_count > 1) || parsed.has_header === false || parsed.has_totals === false;
+}
+
+// ---- Hand-filled invoices (layout B): the date is Ethiopian even when the year is written in full ----
+// "4/11/2018" looks Gregorian but is Ethiopian. The Gregorian year is 7 or 8 higher than the
+// Ethiopian one, so on a hand-filled invoice a year this far behind today can only be Ethiopian.
+function fixEthiopianYear(parsed) {
+    if (parsed.layout !== 'B') return parsed;
+    let y = toNumOrNull(parsed.date_year);
+    if (y === null) return parsed;
+    if (y < 100) { y += 2000; parsed.date_year = y; parsed.date_calendar = 'EC'; }
+    if (y >= 2000 && y <= new Date().getFullYear() - 7) parsed.date_calendar = 'EC';
+    return parsed;
+}
+
+// ---- ethio telecom receipts (layout D) have no item table ----
+// If the model left the item list empty, make the single "bill" item from the totals.
+function fixTelecomItem(parsed) {
+    const base = toNumOrNull(parsed.before_vat);
+    if (parsed.layout !== 'D' || (parsed.items && parsed.items.length) || base === null) return parsed;
+    const label = 'ethio telecom bill';
+    parsed.items = [{ description: label, quantity: 1, measurement: null, unit_price: base, amount: base, pack_hint: null }];
+    return parsed;
+}
+
+// ---- Services (not stock) ----
+// The ethio telecom bill (layout D) is a SERVICE, not goods: it must never be added to stock.
+// The reading carries is_service: true (on the document and on its item) so the screen can skip it.
+function markService(parsed) {
+    parsed.is_service = parsed.layout === 'D';
+    if (parsed.is_service) parsed.items = (parsed.items || []).map((it) => ({ ...it, is_service: true }));
+    return parsed;
 }
 
 // Tried in order. 429/503 (busy) -> try the next model.
@@ -316,12 +365,15 @@ export default async function handler(req, res) {
         let parsed = JSON.parse(cleaned);
         parsed = fillMissingVatFields(parsed);
         parsed.date_calendar = parsed.date_calendar === 'EC' ? 'EC' : 'GC';
-        parsed.layout = ['A', 'B', 'C'].includes(parsed.layout) ? parsed.layout : 'A';
+        parsed.layout = ['A', 'B', 'C', 'D'].includes(parsed.layout) ? parsed.layout : 'A';
         // The attachment's own voucher number is internal; the FS No. is what ties it to the fiscal receipt.
         if (parsed.layout === 'C' && parsed.fs_no) parsed.receipt_no = String(parsed.fs_no).trim();
+        parsed = fixEthiopianYear(parsed);
         parsed = fixDate(parsed);
         parsed = cleanPageFields(parsed);
         parsed.items = cleanItems(parsed.items);
+        parsed = fixTelecomItem(parsed);
+        parsed = markService(parsed);
         parsed.header_lines = cleanLines(parsed.header_lines);
         parsed.footer_lines = cleanLines(parsed.footer_lines);
         parsed.doc_title = parsed.doc_title ? String(parsed.doc_title).trim().slice(0, 60) : null;

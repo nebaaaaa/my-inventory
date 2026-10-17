@@ -12921,6 +12921,11 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         async function showNext() {
             if (!queue.length) { draft = null; qTotal = 0; qIdx = 0; close(); return; }
             const q = queue.shift(); draft = q.draft; qIdx++;
+            if (q.ok && q.raw && q.raw.is_service) { // a service bill (e.g. ethio telecom) is not goods: it never goes into stock
+                draft = null;
+                alert('"' + (q.raw.seller_name || 'This receipt') + '" is a service bill, not goods, so it was not added to stock. Record it with the expense receipt scanner instead.');
+                return showNext();
+            }
             if (q.ok) { try { if (window.scnEnsure) await window.scnEnsure(); } catch (e) { } try { await guessPacks(draft); await prefillLinks(draft); } catch (e) { console.warn(e); } }
             review();
         }

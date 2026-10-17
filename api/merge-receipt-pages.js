@@ -131,6 +131,9 @@ function evaluate(items, t) {
     const amts = items.map(lineCents);
     if (!items.length || amts.some((a) => a === null)) return { status: 'unknown', nonVat: [] };
     const S = amts.reduce((s, a) => s + a, 0);
+    // A service bill (ethio telecom) has taxes outside the VAT base (excise, disaster fund), so the
+    // taxable/non-VAT line search does not apply: the single bill line is the whole receipt.
+    if (t.is_service) return { status: 'none', sum: S, nonVat: [] };
     const V = num(t.vat), G = num(t.total), B = num(t.before_vat);
 
     if (!t.is_vat || V === null || V <= 0) {
@@ -229,6 +232,7 @@ function pseudoDoc(members) {
     return {
         items,
         is_vat: members.some((m) => m.p.is_vat),
+        is_service: members.some((m) => m.p.is_service || m.p.layout === 'D'),
         before_vat: tp.before_vat, vat: tp.vat, total: tp.total,
     };
 }
@@ -338,6 +342,7 @@ export function mergeGroup(group) {
         date_year: null, date_month: null, date_day: null, date_raw: null,
         date_ambiguous: false, date_alt_day: null, date_alt_month: null,
         is_vat: members.some((m) => m.p.is_vat),
+        is_service: members.some((m) => m.p.is_service || m.p.layout === 'D'),
         doc_title: pick('doc_title'), receipt_time: pick('receipt_time'),
         header_lines: (headFirst.find((m) => m.hasHeader) || members[0]).p.header_lines || [],
         footer_lines: (members.slice().reverse().find((m) => m.hasTotals) || members[0]).p.footer_lines || [],
@@ -368,7 +373,7 @@ export function mergeGroup(group) {
     // lines, in page order
     let items = [];
     members.forEach((m) => m.items.forEach((it) => items.push({ ...it })));
-    const tt = { is_vat: doc.is_vat, vat: doc.vat, total: doc.total, before_vat: doc.before_vat };
+    const tt = { is_vat: doc.is_vat, is_service: doc.is_service, vat: doc.vat, total: doc.total, before_vat: doc.before_vat };
     const evr = evaluateWithRepair(items, tt);
     let ev = evr.ev;
     items = evr.items;
