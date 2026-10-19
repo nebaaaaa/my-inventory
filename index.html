@@ -1138,12 +1138,12 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 <div class="card" id="drafts-empty" style="display:none; text-align:center; color:var(--text-light);">
                     No drafts yet. In a multi-item purchase or sale, press <b>Save to Draft</b> to keep a basket for later.
                 </div>
-                <div class="card" id="purchase-drafts-card" style="display:none;">
-                    <h2>Purchase Drafts</h2>
+                <div id="purchase-drafts-card" style="display:none;">
+                    <h2 style="margin:4px 0 12px;">Purchase Drafts</h2>
                     <div id="purchase-drafts-body"></div>
                 </div>
-                <div class="card" id="sale-drafts-card" style="display:none;">
-                    <h2>Sale Drafts</h2>
+                <div id="sale-drafts-card" style="display:none;">
+                    <h2 style="margin:4px 0 12px;">Sale Drafts</h2>
                     <div id="sale-drafts-body"></div>
                 </div>
             </div>
@@ -10225,6 +10225,10 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             const empty = document.getElementById('drafts-empty');
             if (empty) empty.style.display = ['purchase', 'sale'].some(k => draftKindAllowed(k) && draftList(k).length) ? 'none' : 'block';
         }
+        // Drafts are drawn with the SAME layout as the multi-item basket (header, Date/Supplier row, item table,
+        // Basket Total, big Complete button) so nothing looks unfamiliar. Extra: a tick box per line, because a
+        // draft is completed with only the ticked items.
+        const draftLabel = (key, fb) => { const v = t(key); return v === key ? fb : v; };
         function renderDrafts(kind) {
             updateDraftsBadge();
             const card = document.getElementById(kind + '-drafts-card'), body = document.getElementById(kind + '-drafts-body');
@@ -10232,37 +10236,72 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             const rows = draftKindAllowed(kind) ? draftList(kind) : [];
             card.style.display = rows.length ? 'block' : 'none';
             if (!rows.length) { body.innerHTML = ''; return; }
-            const w = draftWord(kind), see = draftSeeAmounts(kind), groups = new Map();
+            const w = draftWord(kind), see = draftSeeAmounts(kind), groups = new Map(), isP = kind === 'purchase';
             rows.forEach(d => { if (!groups.has(d.partyKey)) groups.set(d.partyKey, []); groups.get(d.partyKey).push(d); });
+            const day = iso => { try { return new Date(iso).toISOString().slice(0, 10); } catch (e) { return ''; } };
             const when = iso => { try { return new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return ''; } };
+            const lock = planLockSvg;
             const list = Array.from(groups.entries()).map(([key, ls]) => {
                 ls.sort((a, b) => String(a.savedAt).localeCompare(String(b.savedAt)));
                 return { key, ls, last: ls[ls.length - 1].savedAt };
             }).sort((a, b) => String(b.last).localeCompare(String(a.last)));
             const arg = key => `'${kind}','${encodeURIComponent(key)}'`;
+            const L = {
+                title: isP ? draftLabel('pur.multi_item_purchase', 'Multi-Item Purchase') : draftLabel('sale.multi_item_sale', 'Multi-Item Sale'),
+                party: isP ? draftLabel('pur.supplier_name', 'Supplier Name') : draftLabel('sale.customer_name', 'Customer Name'),
+                item: draftLabel('sale.item', 'Item'), qty: draftLabel('tr.quantity', 'Qty'), amt: isP ? draftLabel('ui2.cost', 'Cost') : draftLabel('sale.price', 'Price'),
+                line: draftLabel('sale.line_total', 'Line Total'), remove: draftLabel('sale.remove', 'Remove'), total: draftLabel('sale.basket_total', 'Basket Total'),
+                done: isP ? draftLabel('pur.complete_purchase', 'Complete Purchase') : draftLabel('sale.complete_sale', 'Complete Sale')
+            };
             body.innerHTML = list.map(g => {
-                const allOn = g.ls.every(d => !draftOff.has(d.id));
-                return `<div style="border:1px solid var(--border); border-radius:8px; margin-bottom:12px; overflow:hidden;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; padding:10px 12px; background:var(--bg);">
-                        <div><strong>${escHtml(g.ls[g.ls.length - 1].party)}</strong><div style="font-size:12px; color:var(--text-light);">${draftPlural(g.ls.length)} &middot; last saved ${escHtml(when(g.last))}</div></div>
-                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                            <button type="button" class="btn btn-small" onclick="draftComplete(${arg(g.key)})">${w.done}</button>
-                            <button type="button" class="btn btn-small btn-ghost" onclick="draftPrint(${arg(g.key)})">Print</button>
-                            <button type="button" class="btn btn-small btn-danger" onclick="draftDelete(${arg(g.key)},false)">Delete Selected</button>
-                            <button type="button" class="btn btn-small btn-danger" onclick="draftDelete(${arg(g.key)},true)">Delete All</button>
-                        </div>
+                const ticked = g.ls.filter(d => !draftOff.has(d.id)), allOn = ticked.length === g.ls.length;
+                const total = ticked.reduce((s, d) => s + d.qty * d.amount, 0);
+                const shown = n => see ? n.money2() : lock;
+                return `<div class="card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <h2 style="border:none; margin-bottom:0; padding-bottom:0;">${escHtml(L.title)} <span style="font-size:12px; font-weight:600; color:var(--accent);">&middot; Draft</span></h2>
+                        <span style="font-size:12px; color:var(--text-light);">${escHtml(when(g.last))}</span>
+                    </div>
+                    <div class="filter-panel" style="margin-top:14px;">
+                        <div class="form-group"><label>Saved on</label><input type="text" readonly value="${escHtml(day(g.last))}" style="background:var(--bg);"></div>
+                        <div class="form-group"><label>${escHtml(L.party)}</label><input type="text" readonly value="${escHtml(g.ls[g.ls.length - 1].party)}" style="background:var(--bg);"></div>
                     </div>
                     <div style="overflow-x:auto;"><table>
-                        <thead><tr><th style="width:34px;"><input type="checkbox" ${allOn ? 'checked' : ''} onchange="draftToggleAll(${arg(g.key)},this.checked)"></th><th>Item</th><th class="num">Qty</th>${see ? `<th class="num">${w.amt}</th>` : ''}<th>Saved</th></tr></thead>
-                        <tbody>${g.ls.map(d => `<tr><td><input type="checkbox" ${draftOff.has(d.id) ? '' : 'checked'} onchange="draftToggle('${d.id}',this.checked)"></td>
-                            <td><span style="color:var(--text-light); font-size:11px;">${escHtml(d.category)}</span><br>${escHtml(d.desc)}</td><td class="num">${d.qty}</td>${see ? `<td class="num">${d.amount.money2()}</td>` : ''}
-                            <td style="font-size:12px; color:var(--text-light);">${escHtml(when(d.savedAt))}</td></tr>`).join('')}</tbody>
-                    </table></div></div>`;
+                        <thead><tr><th style="width:34px;"><input type="checkbox" ${allOn ? 'checked' : ''} onchange="draftToggleAll(${arg(g.key)},this.checked)"></th><th>${escHtml(L.item)}</th><th class="num">${escHtml(L.qty)}</th><th class="num">${escHtml(L.amt)}</th><th class="num">${escHtml(L.line)}</th><th style="text-align:center;">${escHtml(L.remove)}</th></tr></thead>
+                        <tbody>${g.ls.map(d => `<tr>
+                            <td><input type="checkbox" ${draftOff.has(d.id) ? '' : 'checked'} onchange="draftToggle('${d.id}',this.checked)"></td>
+                            <td><span style="color:var(--text-light); font-size:11px;">${escHtml(d.category)}</span><br>${escHtml(d.desc)}</td><td class="num">${d.qty}</td><td class="num">${shown(d.amount)}</td>
+                            <td class="num">${shown(d.qty * d.amount)}</td>
+                            <td style="text-align:center;"><button class="btn btn-danger btn-small" onclick="draftDeleteOne('${d.id}')">&#10005;</button></td>
+                        </tr>`).join('')}</tbody>
+                    </table></div>
+                    <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+                        <div style="min-width:280px;">
+                            <div style="display:flex; justify-content:space-between; font-size:15px; font-weight:700; color:var(--primary); margin-bottom:4px;">
+                                <span>${escHtml(L.total)}</span><span class="num">${see ? 'ETB ' + total.money2() : lock}</span>
+                            </div>
+                            <div style="font-size:12px; color:var(--text-light); margin-bottom:12px; text-align:right;">${ticked.length} of ${g.ls.length} ${g.ls.length === 1 ? 'item' : 'items'} ticked</div>
+                            <button class="btn" style="width:100%;${isP ? '' : ' background:var(--success);'}" onclick="draftComplete(${arg(g.key)})">${escHtml(L.done)}</button>
+                            <div style="display:flex; gap:8px; margin-top:8px;">
+                                <button type="button" class="btn btn-ghost" style="flex:1;" onclick="draftPrint(${arg(g.key)})">Print</button>
+                                <button type="button" class="btn btn-danger" style="flex:1;" onclick="draftDelete(${arg(g.key)},false)">Delete Ticked</button>
+                                <button type="button" class="btn btn-danger" style="flex:1;" onclick="draftDelete(${arg(g.key)},true)">Delete All</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
             }).join('');
+        }
+        function draftDeleteOne(id) {
+            const d = (state.cartDrafts || []).find(x => x.id === id); if (!d) return;
+            if (!confirm(`Remove "${d.desc}" from the draft for ${d.party}?`)) return;
+            draftRemove([id]);
+            addNotification(draftWord(d.kind).short + ' Draft Deleted', `1 item deleted from the draft for ${d.party}.`);
+            renderDrafts(d.kind);
         }
         function draftGroup(kind, enc) { const key = decodeURIComponent(enc); return draftList(kind).filter(d => d.partyKey === key); }
         function draftTicked(kind, enc) { return draftGroup(kind, enc).filter(d => !draftOff.has(d.id)); }
-        function draftToggle(id, on) { if (on) draftOff.delete(id); else draftOff.add(id); }
+        function draftToggle(id, on) { if (on) draftOff.delete(id); else draftOff.add(id); const d = (state.cartDrafts || []).find(x => x.id === id); if (d) renderDrafts(d.kind); }
         function draftToggleAll(kind, enc, on) { draftGroup(kind, enc).forEach(d => { if (on) draftOff.delete(d.id); else draftOff.add(d.id); }); renderDrafts(kind); }
 
         function draftDelete(kind, enc, all) {
@@ -11239,10 +11278,10 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 const encrypted = await encryptBackupObject(fullBackup);
                 let blob = URL.createObjectURL(new Blob([encrypted], { type: 'application/octet-stream' }));
                 const safeBizName = (currentTenantName || 'Shop').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-                let a = document.createElement('a'); a.setAttribute("href", blob); a.setAttribute("download", `My_Inventory_Backup_${safeBizName}_${new Date().toISOString().split('T')[0]}${fromDevice ? '_OFFLINE' : ''}.meleya`); a.click(); setTimeout(() => URL.revokeObjectURL(blob), 5000);
+                let a = document.createElement('a'); a.setAttribute("href", blob); a.setAttribute("download", `${safeBizName}_Meleya_backup_${new Date().toISOString().split('T')[0]}.meleya`); a.click(); setTimeout(() => URL.revokeObjectURL(blob), 5000);
                 if (fromDevice) alert('Backup saved from the copy on this device (you are offline). It may not include changes made on other devices. Please make a normal backup again once you are online.');
             } catch (err) {
-                alert('Could not prepare the backup: ' + err.message);
+                console.error('Backup failed:', err); alert('The backup was not created. Reason: ' + (err && err.message ? err.message : String(err)));
             } finally {
                 if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Backup'; }
             }
