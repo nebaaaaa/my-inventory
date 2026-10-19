@@ -651,7 +651,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             <p style="font-size:13px; color:var(--text-light); margin-bottom:16px;">If you already have a MELEYA backup file (a <code>.json</code> file exported using the "Backup" button), upload it now to bring your existing data over. Otherwise, just start fresh with an empty shop.</p>
             <div class="form-group" style="display:block; width:100%; margin-bottom:16px;">
                 <label data-i18n="misc.upload_backup">Upload Backup File (optional)</label>
-                <input type="file" id="onboarding-file" accept=".json" style="width:100%;">
+                <input type="file" id="onboarding-file" accept=".meleya,.json" style="width:100%;">
             </div>
             <div style="display:flex; gap:10px;">
                 <button class="btn" style="flex:1;" onclick="finishOnboarding(true)" data-i18n="misc.import_file">Import This File</button>
@@ -725,6 +725,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 <button onclick="switchView('cash_handover')" id="nav-cash-handover" style="display:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg> <span data-i18n="nav.cash_handover">Cash Handover</span></button>
                 <button onclick="switchView('sales')" id="nav-sales"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg> <span data-i18n="nav.sales">Sales</span></button>
                 <button onclick="switchView('purchase')" id="nav-purchase"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg> <span data-i18n="nav.purchase">Purchase</span></button>
+                <button onclick="switchView('drafts')" id="nav-drafts" style="display:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="13" y2="17"></line></svg> <span data-i18n="nav.drafts">Drafts</span><span id="drafts-badge" style="display:none; margin-left:auto; background:var(--accent); color:#fff; border-radius:10px; padding:0 7px; font-size:11px; line-height:18px;"></span></button>
                 <button onclick="switchView('expenses')" id="nav-expenses"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline><polyline points="17 18 23 18 23 12"></polyline></svg> <span data-i18n="nav.expense">Expense</span></button>
                 <button class="nav-group-toggle" onclick="toggleNavGroup('accounting')" id="nav-group-accounting-toggle"><span style="display:flex; align-items:center; gap:12px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Accounting</span><svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
                 <div class="nav-group" id="nav-group-accounting">
@@ -894,6 +895,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
 
             <div id="view-inventory" class="view-panel">
                 <div id="inventory-def-card" style="text-align:right; margin-bottom:12px;">
+                    <button type="button" class="btn btn-ghost" id="inv-scn-lock" style="display:none; align-items:center; gap:6px; margin-right:8px;" onclick="showUpgrade('scanned_stock')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Scanned Stock</button>
                     <button type="button" class="btn" id="inv-bulk-btn" onclick="openBulkImport()" data-i18n="ui2.add_in_bulk">Add in bulk</button>
                     <button type="button" class="btn" id="inv-open-add" onclick="openProductModal()" style="margin-left:8px;" data-i18n="ui2.add_product">+ Add Product</button>
                 </div>
@@ -1094,6 +1096,10 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                                 <select id="cart-sale-channel" style="width:100%;"><option value="Cash">Cash</option><option value="Mobile banking">Mobile banking</option></select>
                             </div>
                             <button class="btn" style="background:var(--success); width:100%;" onclick="submitSaleCart()" data-i18n="sale.complete_sale">Complete Sale</button>
+                            <div style="display:flex; gap:8px; margin-top:8px;">
+                                <button type="button" class="btn btn-ghost" style="flex:1;" onclick="saveCartToDraft('sale')">Save to Draft</button>
+                                <button type="button" class="btn btn-ghost" style="flex:1;" onclick="printBasket('sale')">Print</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1126,6 +1132,20 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                      this mount point, replacing the normal sales content
                      above (hidden for that business type). -->
                 <div id="sales-rental-mount"></div>
+            </div>
+
+            <div id="view-drafts" class="view-panel">
+                <div class="card" id="drafts-empty" style="display:none; text-align:center; color:var(--text-light);">
+                    No drafts yet. In a multi-item purchase or sale, press <b>Save to Draft</b> to keep a basket for later.
+                </div>
+                <div class="card" id="purchase-drafts-card" style="display:none;">
+                    <h2>Purchase Drafts</h2>
+                    <div id="purchase-drafts-body"></div>
+                </div>
+                <div class="card" id="sale-drafts-card" style="display:none;">
+                    <h2>Sale Drafts</h2>
+                    <div id="sale-drafts-body"></div>
+                </div>
             </div>
 
             <div id="view-purchase" class="view-panel">
@@ -1222,6 +1242,10 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                                 <select id="cart-pur-channel" style="width:100%;"><option value="Cash">Cash</option><option value="Mobile banking">Mobile banking</option></select>
                             </div>
                             <button class="btn" style="width:100%;" onclick="submitPurchaseCart()" data-i18n="pur.complete_purchase">Complete Purchase</button>
+                            <div style="display:flex; gap:8px; margin-top:8px;">
+                                <button type="button" class="btn btn-ghost" style="flex:1;" onclick="saveCartToDraft('purchase')">Save to Draft</button>
+                                <button type="button" class="btn btn-ghost" style="flex:1;" onclick="printBasket('purchase')">Print</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2548,6 +2572,82 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         let writeBranchId = null;        // which branch a specific write goes to — always a real branch, never 'all'
         let currentPlanMaxBranches = null;   // null = unlimited (no plan, or plan has no cap)
         let currentPlanMaxEmployees = null;  // null = unlimited (no plan, or plan has no cap)
+        // ---------------------------------------------------------------
+        // PLAN FEATURES (Free / Standard / Premium ...)
+        // currentPlanFeatures is null when the shop has NO plan assigned: full access, exactly as before.
+        // With a plan, it is the plan's `features` object: a feature set to false is locked,
+        // a missing feature is allowed (so older plans keep working untouched).
+        // Scanned Stock and Accountant link also still require the Premium flag.
+        // ---------------------------------------------------------------
+        let currentPlanFeatures = null;
+        let currentPlanName = '';
+        const PLAN_FEATURE_LABELS = {
+            scanned_stock: 'Scanned Stock', deep_analytics: 'Deep Sales Analytics', accounting: 'Accounting pages',
+            excel_export: 'Excel report download', vat: 'VAT registration', accountant_link: 'Accountant link', employees: 'Team members'
+        };
+        const planLockSvg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
+        function planCan(f) {
+            const premiumOnly = (f === 'scanned_stock' || f === 'accountant_link');
+            if (currentPlanFeatures === null) return premiumOnly ? currentPlanPremium : true;
+            if (premiumOnly) return currentPlanPremium && currentPlanFeatures[f] !== false;
+            return currentPlanFeatures[f] !== false;
+        }
+        // "Locked" = the shop HAS a plan and the plan leaves this out (shown with a lock + Upgrade message).
+        function planLocked(f) { return currentPlanFeatures !== null && !planCan(f); }
+        function showUpgrade(f) {
+            let m = document.getElementById('plan-upgrade-modal');
+            if (!m) {
+                m = document.createElement('div'); m.id = 'plan-upgrade-modal';
+                m.style.cssText = 'position:fixed; inset:0; z-index:10070; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; padding:16px;';
+                m.onclick = e => { if (e.target === m) m.style.display = 'none'; };
+                document.body.appendChild(m);
+            }
+            const label = PLAN_FEATURE_LABELS[f] || 'This feature';
+            m.innerHTML = `<div style="background:var(--surface,#fff); color:var(--text); border-radius:10px; max-width:380px; width:100%; padding:20px; text-align:center; box-shadow:var(--shadow-lg);">
+                <div style="color:var(--accent); margin-bottom:6px;">${planLockSvg.replace('width="13" height="13"', 'width="28" height="28"')}</div>
+                <h3 style="margin:0 0 8px;">Upgrade to unlock</h3>
+                <p style="font-size:14px; margin:0 0 6px;"><b>${label}</b> is not included in your ${currentPlanName ? escHtml(currentPlanName) + ' ' : ''}plan.</p>
+                <p style="font-size:13px; color:var(--text-light); margin:0 0 14px;">Contact your provider to upgrade.</p>
+                <button type="button" class="btn" onclick="document.getElementById('plan-upgrade-modal').style.display='none'">OK</button></div>`;
+            m.style.display = 'flex';
+        }
+        function planBadge(id, on) {   // small lock icon at the end of a button
+            const b = document.getElementById(id); if (!b) return;
+            let s = b.querySelector(':scope > .plan-lock');
+            if (!on) { if (s) s.remove(); return; }
+            if (s) return;
+            s = document.createElement('span'); s.className = 'plan-lock'; s.innerHTML = planLockSvg; b.appendChild(s);
+        }
+        function planOverlay(el, id, feature) {   // frosted cover with an Upgrade button on top of a card
+            if (!el) return;
+            let ov = document.getElementById(id);
+            if (!planLocked(feature)) { if (ov) ov.remove(); return; }
+            if (ov) return;
+            if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
+            ov = document.createElement('div'); ov.id = id; ov.className = 'plan-overlay';
+            ov.innerHTML = `<div style="padding:12px;"><div style="color:var(--accent);">${planLockSvg.replace('width="13" height="13"', 'width="24" height="24"')}</div>
+                <div style="font-weight:600; margin:6px 0 2px; color:var(--text);">${PLAN_FEATURE_LABELS[feature]}</div>
+                <div style="font-size:12px; color:var(--text-light); margin-bottom:10px;">Not included in your ${currentPlanName ? escHtml(currentPlanName) + ' ' : ''}plan.</div>
+                <button type="button" class="btn btn-small" onclick="showUpgrade('${feature}')">Upgrade</button></div>`;
+            el.appendChild(ov);
+        }
+        function applyPlanLocks() {
+            const acc = planLocked('accounting');
+            ['nav-group-accounting-toggle', 'nav-coa', 'nav-journal', 'nav-ledger', 'nav-statements'].forEach(id => planBadge(id, acc));
+            planBadge('btn-export-hub', planLocked('excel_export'));
+            const scn = document.getElementById('inv-scn-lock');
+            if (scn) scn.style.display = (planLocked('scanned_stock') && currentIsOwner) ? 'inline-flex' : 'none';
+            planOverlay(document.getElementById('analytics-module'), 'plan-ov-analytics', 'deep_analytics');
+            const card = sel => { const h = document.querySelector(sel); return h ? h.closest('.card') : null; };
+            planOverlay(card('#view-team h2[data-i18n="team.members"]'), 'plan-ov-members', 'employees');
+            planOverlay(card('#view-team h2[data-i18n="team.roles_perms"]'), 'plan-ov-roles', 'employees');
+            planOverlay(document.getElementById('vat-settings-card'), 'plan-ov-vat', 'vat');
+        }
+
+        (function () { const st = document.createElement('style'); st.textContent = `.plan-overlay { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; text-align: center; border-radius: inherit;
+        background: rgba(244,245,248,0.88); background: color-mix(in srgb, var(--bg) 88%, transparent); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+    .plan-lock { margin-left: auto; padding-left: 8px; opacity: .75; display: inline-flex; }`; document.head.appendChild(st); })();
+
         let currentPlanPremium = false;      // Premium plan: scanned receipts, stock matching and printed-price editing
         function syncWriteBranchId() {
             writeBranchId = (currentBranchId === 'all') ? writeBranchId : currentBranchId;
@@ -2563,7 +2663,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             en: {
                 'ui.ok': 'OK', 'ui.cancel': 'Cancel', 'ui.yes': 'Yes', 'ui.close': 'Close', 'ui.are_you_sure': 'Are you sure?', 'ui.saving': 'Saving…', 'ui.signing_in': 'Signing in…', 'ui.creating': 'Creating account…',
                 'nav.dashboard': 'Dashboard', 'nav.inventory': 'Inventory/Stock', 'nav.transfer': 'Transfer',
-                'nav.cash_handover': 'Cash Handover', 'nav.sales': 'Sales', 'nav.purchase': 'Purchase',
+                'nav.cash_handover': 'Cash Handover', 'nav.sales': 'Sales', 'nav.purchase': 'Purchase', 'nav.drafts': 'Drafts',
                 'nav.expense': 'Expense', 'nav.team': 'Team & Branches', 'nav.rentals': 'Rentals', 'nav.settings': 'Settings',
 
                 'dash.all_time': 'All-Time', 'dash.today': 'Today', 'dash.this_week': 'This Week',
@@ -2655,7 +2755,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 'team.save_vat_details': 'Save VAT Details',
 
                 'pagetitle.dashboard': 'Dashboard', 'pagetitle.inventory': 'Inventory/Stock', 'pagetitle.transfer': 'Transfer',
-                'pagetitle.cash_handover': 'Cash Handover', 'pagetitle.sales': 'Sales', 'pagetitle.purchase': 'Purchase',
+                'pagetitle.cash_handover': 'Cash Handover', 'pagetitle.sales': 'Sales', 'pagetitle.purchase': 'Purchase', 'pagetitle.drafts': 'Drafts',
                 'pagetitle.expenses': 'Expense', 'pagetitle.coa': 'Chart of Accounts', 'pagetitle.journal': 'Journal Entries',
                 'pagetitle.ledger': 'General Ledger', 'pagetitle.statements': 'Financial Statements', 'pagetitle.trash': 'Trash',
                 'pagetitle.team': 'Team & Branches', 'pagetitle.settings': 'Settings',
@@ -2933,7 +3033,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             am: {
                 'ui.ok': 'እሺ', 'ui.cancel': 'ይቅር', 'ui.yes': 'አዎ', 'ui.close': 'ዝጋ', 'ui.are_you_sure': 'እርግጠኛ ነዎት?', 'ui.saving': 'በማስቀመጥ ላይ…', 'ui.signing_in': 'በመግባት ላይ…', 'ui.creating': 'መለያ በመፍጠር ላይ…',
                 'nav.dashboard': 'ዳሽቦርድ', 'nav.inventory': 'የዕቃ ክምችት', 'nav.transfer': 'ዝውውር',
-                'nav.cash_handover': 'ካሽ ርክክብ', 'nav.sales': 'ሽያጭ', 'nav.purchase': 'ግዢ',
+                'nav.cash_handover': 'ካሽ ርክክብ', 'nav.sales': 'ሽያጭ', 'nav.purchase': 'ግዢ', 'nav.drafts': 'ረቂቆች',
                 'nav.expense': 'ወጪ', 'nav.team': 'ቡድን እና ቅርንጫፎች', 'nav.rentals': 'ኪራዮች', 'nav.settings': 'ቅንብሮች',
 
                 'dash.all_time': 'ሁሉም ጊዜ', 'dash.today': 'ዛሬ', 'dash.this_week': 'ይህ ሳምንት',
@@ -3025,7 +3125,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 'team.save_vat_details': 'የቫት ዝርዝሮችን አስቀምጥ',
 
                 'pagetitle.dashboard': 'ዳሽቦርድ', 'pagetitle.inventory': 'የዕቃ ክምችት', 'pagetitle.transfer': 'ዝውውር',
-                'pagetitle.cash_handover': 'ካሽ ርክክብ', 'pagetitle.sales': 'ሽያጭ', 'pagetitle.purchase': 'ግዢ',
+                'pagetitle.cash_handover': 'ካሽ ርክክብ', 'pagetitle.sales': 'ሽያጭ', 'pagetitle.purchase': 'ግዢ', 'pagetitle.drafts': 'ረቂቆች',
                 'pagetitle.expenses': 'ወጪ', 'pagetitle.coa': 'Chart of Accounts', 'pagetitle.journal': 'Journal Entries',
                 'pagetitle.ledger': 'General Ledger', 'pagetitle.statements': 'Financial Statements', 'pagetitle.trash': 'የተሰረዙ',
                 'pagetitle.team': 'ቡድን እና ቅርንጫፎች', 'pagetitle.settings': 'ቅንብሮች',
@@ -3611,6 +3711,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         }
 
         function toggleVatRegistered(checked) {
+            if (checked && planLocked('vat')) { const cb = document.getElementById('settings-vat-registered'); if (cb) cb.checked = false; showUpgrade('vat'); return; }
             state.vatRegistered = checked;
             queueWrite({ kind: 'tenant_update', patch: { vat_registered: checked } });
             applyVatUIVisibility();
@@ -3650,6 +3751,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 'nav-inventory': hasPerm('inventory.view'),
                 'nav-sales': hasPerm('sales.view'),
                 'nav-purchase': hasPerm('purchase.view'),
+ 'nav-drafts': hasPerm('purchase.view') || hasPerm('sales.view'),
                 'nav-expenses': hasPerm('expense.view'),
                 'nav-coa': hasPerm('reports.view'),
                 'nav-journal': hasPerm('journal.view'),
@@ -4010,6 +4112,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                     syncWriteBranchId();
                     // Offline start: Premium was not re-checked, use what this device saw last time online.
                     try { currentPlanPremium = localStorage.getItem('neba_erp_premium_' + currentTenantId) === '1'; } catch (e) { }
+                try { const f = localStorage.getItem('neba_erp_features_' + currentTenantId); currentPlanFeatures = f ? JSON.parse(f) : null; currentPlanName = localStorage.getItem('neba_erp_planname_' + currentTenantId) || ''; } catch (e) { }
                     if (window.scnShowNav) window.scnShowNav();
                 }
                 const cached = loadCachedStateLocally();
@@ -4119,12 +4222,16 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                     // Premium = plan marked is_premium, OR any plan whose name contains "premium".
                     currentPlanPremium = !!(pr.data && (pr.data.is_premium || /premium/i.test(pr.data.name || '')));
                     try { localStorage.setItem('neba_erp_premium_' + currentTenantId, currentPlanPremium ? '1' : '0'); } catch (e) { }
-                } catch (e) { currentPlanPremium = false; }
+                    currentPlanFeatures = (pr.data && pr.data.features && typeof pr.data.features === 'object') ? pr.data.features : {};
+                    currentPlanName = (pr.data && pr.data.name) || '';
+                    try { localStorage.setItem('neba_erp_features_' + currentTenantId, JSON.stringify(currentPlanFeatures)); localStorage.setItem('neba_erp_planname_' + currentTenantId, currentPlanName); } catch (e) { }
+                } catch (e) { currentPlanPremium = false; currentPlanFeatures = {}; }
             } else {
                 currentPlanMaxBranches = null;
                 currentPlanMaxEmployees = null;
                 currentPlanPremium = false;
-                try { localStorage.setItem('neba_erp_premium_' + currentTenantId, '0'); } catch (e) { }
+                currentPlanFeatures = null; currentPlanName = '';   // no plan assigned: full access, as before
+                try { localStorage.setItem('neba_erp_premium_' + currentTenantId, '0'); localStorage.removeItem('neba_erp_features_' + currentTenantId); localStorage.removeItem('neba_erp_planname_' + currentTenantId); } catch (e) { }
             }
             if (window.scnShowNav) window.scnShowNav();
             setTimeout(() => { try { if (currentPlanPremium && window.scnEnsure) window.scnEnsure().catch(() => { }); } catch (e) { } }, 4000); // keep matches ready for offline selling
@@ -4139,7 +4246,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             if (Array.isArray(biz.inventory_order)) state.inventoryOrder = biz.inventory_order; // shared stock-list order
             state.customAccounts = biz.custom_accounts || [];
             state.saleTypes = biz.sale_types || [];
-            state.vatRegistered = !!biz.vat_registered;
+            state.vatRegistered = !!biz.vat_registered && planCan('vat'); // the saved choice stays in the database for when the plan is upgraded
             state.expenseScanPosts = biz.expense_scan_posts != null ? !!biz.expense_scan_posts : (function () { try { return localStorage.getItem('neba_sce_affect_' + currentTenantId) === '1'; } catch (e) { return false; } })();
             state.vatTin = biz.vat_tin || '';
             state.vatRegNo = biz.vat_reg_no || '';
@@ -4164,7 +4271,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 if (pendingVat !== null) {
                     sessionStorage.removeItem('neba_pending_vat_registered');
                     const wantVat = pendingVat === '1';
-                    if (wantVat !== state.vatRegistered) {
+                    if (planCan('vat') && wantVat !== state.vatRegistered) {
                         state.vatRegistered = wantVat;
                         queueWrite({ kind: 'tenant_update', patch: { vat_registered: wantVat } });
                     }
@@ -4246,12 +4353,12 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 document.getElementById('onboarding-loading').style.display = 'block';
                 try {
                     const text = await file.text();
-                    const imported = JSON.parse(text);
+                    const imported = await readBackupFileText(text);
                     applyImportedState(imported);
                     await bulkReplaceAllData();
                 } catch (err) {
                     document.getElementById('onboarding-loading').style.display = 'none';
-                    alert('That file could not be read. Please check it is a valid MELEYA backup .json file.');
+                    alert(err && err.message && backupIsEncrypted(await file.text().catch(() => '')) ? err.message : 'That file could not be read. Please check it is a valid MELEYA backup file.');
                     return;
                 }
                 document.getElementById('onboarding-loading').style.display = 'none';
@@ -4606,6 +4713,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             }));
 
             state.hasEmployees = (employeeCountRes.count || 0) > 0;
+            await loadDraftsFromSupabase(tid, withBranchOrWholeBusinessFilter);
         }
 
         async function bootApp(loadedFromCache) {
@@ -4662,6 +4770,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             applyBusinessTypeLabels();
             renderAnalyticalDashboards();
             applyPermissionGating();
+            try { applyPlanLocks(); } catch (e) { console.warn(e); }
 
             // Lazy-load this tenant's vertical module (e.g. pharmacy's
             // "Expiring soon" card) — no-op for business types that don't
@@ -4677,6 +4786,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             updateBranchColumnVisibility();
             subscribeToAccountantLinks();
             if (window.scnLoginAlert) window.scnLoginAlert(); // owners: tell them about VAT sales that have not been printed
+            try { updateDraftsBadge(); checkUnfinishedBaskets(); } catch (e) { console.warn(e); }
         }
 
         // Live-updates the Accountant Access card the instant a request is
@@ -4923,7 +5033,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         function loadFailedOps() { try { failedOps = JSON.parse(localStorage.getItem(failedKey()) || '[]'); } catch (e) { failedOps = []; } updateSyncProblemBar(); }
         function persistFailedOps() { try { localStorage.setItem(failedKey(), JSON.stringify(failedOps)); } catch (e) { } }
         function syncProblemCount() { let n = failedOps.length; try { if (window.scnProblems) n += window.scnProblems().length; } catch (e) { } return n; }
-        const TABLE_LABELS = { sales_log: 'sale', purchase_log: 'purchase', expense_log: 'expense', inventory_items: 'inventory item', inventory_lots: 'stock lot', journal_entries: 'journal entry', trash: 'recycle-bin entry', notifications: 'notification', stock_transfers: 'stock transfer', cash_handovers: 'cash handover', rentals: 'rental booking' };
+        const TABLE_LABELS = { cart_drafts: 'draft', sales_log: 'sale', purchase_log: 'purchase', expense_log: 'expense', inventory_items: 'inventory item', inventory_lots: 'stock lot', journal_entries: 'journal entry', trash: 'recycle-bin entry', notifications: 'notification', stock_transfers: 'stock transfer', cash_handovers: 'cash handover', rentals: 'rental booking' };
         function describeOp(op) {
             const lab = TABLE_LABELS[op.table] || op.table || '', row = op.row || {}, nm = row.desc || row.name || row.customer || row.supplier || row.title || '';
             const verb = { insert: 'Add', update: 'Change', delete: 'Delete' }[op.kind];
@@ -5145,6 +5255,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         };
 
         function openExportHub() { 
+            if (planLocked('excel_export')) return showUpgrade('excel_export');
             updateExportColumns(); 
             updateExportScopeUI();
             document.getElementById('export-modal').style.display = "flex"; 
@@ -5169,6 +5280,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         }
 
         function executeExcelExport() {
+            if (planLocked('excel_export')) return showUpgrade('excel_export');
             const mod = document.getElementById('export-module').value;
             const scope = document.getElementById('export-scope').value;
             const btn = document.getElementById('export-trigger-btn');
@@ -5378,6 +5490,8 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         }
 
         function switchView(viewId) {
+            const lockedBy = ({ coa: 'accounting', journal: 'accounting', ledger: 'accounting', statements: 'accounting' })[viewId];
+            if (lockedBy && planLocked(lockedBy)) { showUpgrade(lockedBy); return; }
             document.querySelectorAll('.view-panel').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
             
@@ -5413,6 +5527,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             if (viewId === 'settings') loadSettingsView();
             if (viewId === 'statements') buildReports('trial');
             if (viewId === 'trash') renderTrashTable();
+            if (viewId === 'drafts') renderAllDrafts();
         }
 
         // ---- Subscription expiry warning (owners only, shown on each sign-in/load, can be closed) ----
@@ -6139,6 +6254,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         }
 
         function renderDeepAnalytics(isSortingOnly = false) {
+            if (planLocked('deep_analytics')) return;
             let aStart = document.getElementById('analytics-start').value;
             let aEnd = document.getElementById('analytics-end').value;
 
@@ -8749,6 +8865,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         }
 
         function renderSaleCartTable() {
+            try { basketAutosave('sale'); } catch (e) { }
             const tbody = document.getElementById('sale-cart-table-body');
             if (!saleCart.length) {
                 tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-light);">No items added yet.</td></tr>`;
@@ -8855,6 +8972,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             state.journal.push(newJournal);
             queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(newJournal) });
 
+            const draftIdsUsed = saleCart.map(c => c.draftId).filter(Boolean);
             saleCart = [];
             document.getElementById('cart-sale-amount-paid').dataset.touched = '';
             document.getElementById('cart-sale-include-vat').checked = false;
@@ -8864,6 +8982,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             toggleSaleCartMode(false);
             const payNote = remaining <= 0.001 ? '' : ` (ETB ${amountPaidNow.money2()} paid now, ETB ${remaining.money2()} owed)`;
             addNotification('Multi-Item Sale Completed', `Posted revenue: ETB ${total.money2()}${payNote}`, `Sold ${newRows.length} items to ${cName}`);
+            draftsCompleted('sale', draftIdsUsed, cName);
             if (includeVat) setTimeout(() => openBuyerInfoModal('sale', groupId, true, 'receipt'), 150); // VAT sale: open the print window straight away
         }
 
@@ -10000,6 +10119,402 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         // ---------------------------------------------------------------
         let purchaseCart = [];
 
+        // ---------------------------------------------------------------
+        // DRAFTS + PRINT for the multi-item baskets (purchase and sale).
+        // - Save to Draft: files the basket under its supplier (or customer). Saving again for the
+        //   same name adds to the same group. Same item twice stays as two lines.
+        // - Print: draws the chosen lines as a PNG picture (with or without prices).
+        // - A draft line is one row in the cart_drafts table, so two devices never overwrite each other.
+        // - Completing from a draft loads the ticked lines into the normal basket; the normal
+        //   Complete button does the real posting, then the used draft lines are removed.
+        // ---------------------------------------------------------------
+        const DRAFT_LOGO_URI = 'data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%22635%22%20height=%22552%22%20viewBox=%220.32%204.14%2063.48%2055.16%22%3E%3Cpath%20d=%22M2.25%207.50%20L1.62%209.75%20L1.62%2057.44%20L2.00%2057.94%20L3.06%2057.88%20L12.38%2051.81%20L13.94%2050.31%20L13.88%2027.81%20L14.31%2027.19%20L30.69%2041.81%20L32.12%2042.12%20L34.12%2041.88%20L35.50%2040.94%20L48.31%2029.12%20L48.94%2029.12%20L49.31%2050.38%20L60.94%2057.88%20L62.25%2057.75%20L62.44%2010.56%20L61.88%207.69%20L60.56%206.25%20L58.38%205.44%20L55.38%206.12%20L35.06%2021.88%20L35.25%2022.88%20L41.69%2026.69%20L43.19%2026.69%20L59.25%2016.06%20L60.88%2015.50%20L58.94%2017.94%20L42.62%2032.19%20L9.12%206.38%20L5.62%205.44%20L3.50%206.19Z%22%20fill=%22%23B67D10%22%20fill-rule=%22evenodd%22%20stroke=%22%23B67D10%22%20stroke-width=%221.2%22%20stroke-linejoin=%22round%22/%3E%3C/svg%3E';
+        let draftLogoImg = null;
+        try { draftLogoImg = new Image(); draftLogoImg.src = DRAFT_LOGO_URI; } catch (e) { draftLogoImg = null; }
+        let draftsUnavailable = false;      // set when the cart_drafts table has not been created yet
+        const draftOff = new Set();         // draft line ids the user un-ticked (everything else counts as ticked)
+        let draftPrintCtx = null;
+
+        const draftNorm = s => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+        const draftList = kind => (state.cartDrafts || []).filter(d => d.kind === kind);
+        const draftSeeAmounts = kind => kind === 'sale' || hasPerm('inventory.view_cost');
+        const draftCart = kind => kind === 'purchase' ? purchaseCart : saleCart;
+        const draftPartyOf = kind => (document.getElementById(kind === 'purchase' ? 'cart-pur-supplier' : 'cart-sale-customer').value || '').trim();
+        const draftWord = kind => kind === 'purchase' ? { party: 'Supplier', amt: 'Cost', done: 'Complete Purchase', short: 'Purchase' } : { party: 'Customer', amt: 'Price', done: 'Complete Sale', short: 'Sale' };
+        const draftPlural = n => n + ' item' + (n === 1 ? '' : 's');
+
+        function fromDbDraft(r) {
+            return {
+                id: r.id, kind: r.kind, party: r.party, partyKey: r.party_key, batchId: r.batch_id, savedAt: r.saved_at, savedBy: r.saved_by,
+                comp: r.comp, desc: r.item_desc || r.comp, category: r.category || '', qty: Number(r.qty) || 0, amount: Number(r.unit_amount) || 0,
+                sellingPrice: r.selling_price == null ? null : Number(r.selling_price), expiry: r.expiry_date || null, branchId: r.branch_id || null
+            };
+        }
+        function toDbDraft(d) {
+            return {
+                id: d.id, tenant_id: currentTenantId, branch_id: d.branchId || null, kind: d.kind, party: d.party, party_key: d.partyKey, batch_id: d.batchId,
+                saved_at: d.savedAt, saved_by: d.savedBy || null, comp: d.comp, item_desc: d.desc, category: d.category, qty: d.qty, unit_amount: d.amount,
+                selling_price: d.sellingPrice, expiry_date: d.expiry || null
+            };
+        }
+        async function loadDraftsFromSupabase(tid, branchFilter) {
+            try {
+                const r = await branchFilter(supabaseClient.from('cart_drafts').select('*').eq('tenant_id', tid));
+                if (r.error) { draftsUnavailable = true; state.cartDrafts = []; return; }
+                draftsUnavailable = false;
+                state.cartDrafts = (r.data || []).map(fromDbDraft);
+            } catch (e) { draftsUnavailable = true; state.cartDrafts = []; }
+            try { updateDraftsBadge(); } catch (e) { }
+        }
+
+        function draftRemove(ids) {
+            const gone = new Set(ids);
+            state.cartDrafts = (state.cartDrafts || []).filter(d => !gone.has(d.id));
+            ids.forEach(id => { draftOff.delete(id); queueWrite({ kind: 'delete', table: 'cart_drafts', id }); });
+        }
+
+        // ---- Save to Draft ----
+        function saveCartToDraft(kind) {
+            const cart = draftCart(kind), w = draftWord(kind);
+            if (!cart.length) return alert('Add at least one item to the basket first.');
+            if (draftsUnavailable) return alert('Drafts need a one-time database update. Run the cart_drafts SQL once, then reload the app.');
+            let party = draftPartyOf(kind);
+            if (!party) {
+                if (kind === 'purchase') return alert('Enter a supplier name so the draft can be filed under it.');
+                party = 'Walk-in';
+            }
+            const reuse = cart.map(c => c.draftId).filter(Boolean);      // lines that came from a draft are replaced, not duplicated
+            if (reuse.length) draftRemove(reuse);
+            const key = draftNorm(party), batchId = 'DB-' + Date.now().toString(36), savedAt = new Date().toISOString();
+            const branchId = (currentBranchId && currentBranchId !== 'all') ? currentBranchId : null;
+            if (!state.cartDrafts) state.cartDrafts = [];
+            // Same supplier saved earlier under a different spelling/case -> keep the first spelling so the group stays one
+            const known = draftList(kind).find(d => d.partyKey === key);
+            const shownParty = known ? known.party : party;
+            let total = 0;
+            cart.forEach((c, i) => {
+                const amount = kind === 'purchase' ? c.cost : c.price;
+                total += c.qty * amount;
+                const d = {
+                    id: `DR-${Date.now().toString(36)}-${i}-${Math.random().toString(36).slice(2, 6)}`, kind, party: shownParty, partyKey: key, batchId, savedAt,
+                    savedBy: currentUsername || null, comp: c.comp, desc: c.desc, category: c.category, qty: c.qty, amount,
+                    sellingPrice: kind === 'purchase' ? (c.sellingPrice == null ? null : c.sellingPrice) : null, expiry: kind === 'purchase' ? (c.expiry || null) : null, branchId
+                };
+                state.cartDrafts.push(d);
+                queueWrite({ kind: 'insert', table: 'cart_drafts', row: toDbDraft(d) });
+            });
+            const n = cart.length;
+            if (kind === 'purchase') {
+                purchaseCart = []; document.getElementById('cart-pur-amount-paid').dataset.touched = ''; renderPurchaseCartTable(); document.getElementById('cart-pur-supplier').value = '';
+            } else {
+                saleCart = []; document.getElementById('cart-sale-amount-paid').dataset.touched = ''; renderSaleCartTable(); document.getElementById('cart-sale-customer').value = '';
+            }
+            addNotification(w.short + ' Draft Saved', `${draftPlural(n)} saved as a draft for ${shownParty}.`, draftSeeAmounts(kind) ? `Total ETB ${total.money2()}` : '');
+            renderDrafts(kind);
+        }
+
+        // ---- the Drafts list (grouped by supplier / customer) ----
+        const draftKindAllowed = kind => hasPerm(kind === 'purchase' ? 'purchase.view' : 'sales.view');
+        function updateDraftsBadge() {
+            const el = document.getElementById('drafts-badge'); if (!el) return;
+            const groups = new Set(); ['purchase', 'sale'].forEach(k => { if (draftKindAllowed(k)) draftList(k).forEach(d => groups.add(k + '|' + d.partyKey)); });
+            el.textContent = groups.size; el.style.display = groups.size ? 'inline-block' : 'none';
+        }
+        function renderAllDrafts() {
+            renderDrafts('purchase'); renderDrafts('sale');
+            const empty = document.getElementById('drafts-empty');
+            if (empty) empty.style.display = ['purchase', 'sale'].some(k => draftKindAllowed(k) && draftList(k).length) ? 'none' : 'block';
+        }
+        function renderDrafts(kind) {
+            updateDraftsBadge();
+            const card = document.getElementById(kind + '-drafts-card'), body = document.getElementById(kind + '-drafts-body');
+            if (!card || !body) return;
+            const rows = draftKindAllowed(kind) ? draftList(kind) : [];
+            card.style.display = rows.length ? 'block' : 'none';
+            if (!rows.length) { body.innerHTML = ''; return; }
+            const w = draftWord(kind), see = draftSeeAmounts(kind), groups = new Map();
+            rows.forEach(d => { if (!groups.has(d.partyKey)) groups.set(d.partyKey, []); groups.get(d.partyKey).push(d); });
+            const when = iso => { try { return new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return ''; } };
+            const list = Array.from(groups.entries()).map(([key, ls]) => {
+                ls.sort((a, b) => String(a.savedAt).localeCompare(String(b.savedAt)));
+                return { key, ls, last: ls[ls.length - 1].savedAt };
+            }).sort((a, b) => String(b.last).localeCompare(String(a.last)));
+            const arg = key => `'${kind}','${encodeURIComponent(key)}'`;
+            body.innerHTML = list.map(g => {
+                const allOn = g.ls.every(d => !draftOff.has(d.id));
+                return `<div style="border:1px solid var(--border); border-radius:8px; margin-bottom:12px; overflow:hidden;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; padding:10px 12px; background:var(--bg);">
+                        <div><strong>${escHtml(g.ls[g.ls.length - 1].party)}</strong><div style="font-size:12px; color:var(--text-light);">${draftPlural(g.ls.length)} &middot; last saved ${escHtml(when(g.last))}</div></div>
+                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            <button type="button" class="btn btn-small" onclick="draftComplete(${arg(g.key)})">${w.done}</button>
+                            <button type="button" class="btn btn-small btn-ghost" onclick="draftPrint(${arg(g.key)})">Print</button>
+                            <button type="button" class="btn btn-small btn-danger" onclick="draftDelete(${arg(g.key)},false)">Delete Selected</button>
+                            <button type="button" class="btn btn-small btn-danger" onclick="draftDelete(${arg(g.key)},true)">Delete All</button>
+                        </div>
+                    </div>
+                    <div style="overflow-x:auto;"><table>
+                        <thead><tr><th style="width:34px;"><input type="checkbox" ${allOn ? 'checked' : ''} onchange="draftToggleAll(${arg(g.key)},this.checked)"></th><th>Item</th><th class="num">Qty</th>${see ? `<th class="num">${w.amt}</th>` : ''}<th>Saved</th></tr></thead>
+                        <tbody>${g.ls.map(d => `<tr><td><input type="checkbox" ${draftOff.has(d.id) ? '' : 'checked'} onchange="draftToggle('${d.id}',this.checked)"></td>
+                            <td><span style="color:var(--text-light); font-size:11px;">${escHtml(d.category)}</span><br>${escHtml(d.desc)}</td><td class="num">${d.qty}</td>${see ? `<td class="num">${d.amount.money2()}</td>` : ''}
+                            <td style="font-size:12px; color:var(--text-light);">${escHtml(when(d.savedAt))}</td></tr>`).join('')}</tbody>
+                    </table></div></div>`;
+            }).join('');
+        }
+        function draftGroup(kind, enc) { const key = decodeURIComponent(enc); return draftList(kind).filter(d => d.partyKey === key); }
+        function draftTicked(kind, enc) { return draftGroup(kind, enc).filter(d => !draftOff.has(d.id)); }
+        function draftToggle(id, on) { if (on) draftOff.delete(id); else draftOff.add(id); }
+        function draftToggleAll(kind, enc, on) { draftGroup(kind, enc).forEach(d => { if (on) draftOff.delete(d.id); else draftOff.add(d.id); }); renderDrafts(kind); }
+
+        function draftDelete(kind, enc, all) {
+            const ls = all ? draftGroup(kind, enc) : draftTicked(kind, enc);
+            if (!ls.length) return alert('Tick the draft items you want to delete first.');
+            const party = ls[0].party;
+            if (!confirm(`Delete ${draftPlural(ls.length)} from the draft for ${party}? This cannot be undone.`)) return;
+            draftRemove(ls.map(d => d.id));
+            addNotification(draftWord(kind).short + ' Draft Deleted', `${draftPlural(ls.length)} deleted from the draft for ${party}.`);
+            renderDrafts(kind);
+        }
+
+        // ---- Complete from a draft: ticked lines go into the normal basket ----
+        function draftComplete(kind, enc) {
+            const ls = draftTicked(kind, enc);
+            if (!ls.length) return alert(kind === 'purchase' ? 'Tick the items you bought first.' : 'Tick the items that were sold first.');
+            const gone = ls.filter(d => !state.inventory.find(i => `[${i.category}] ${i.desc}` === d.comp));
+            const ok = ls.filter(d => !gone.includes(d));
+            if (gone.length) alert(`These items no longer exist in the catalog and were left in the draft:\n- ${gone.map(d => d.desc).join('\n- ')}`);
+            if (!ok.length) return;
+            if (draftCart(kind).length && !confirm('Your basket already has items. Replace it with the ticked draft items?')) return;
+            const party = ok[0].party;
+            switchView(kind === 'purchase' ? 'purchase' : 'sales');
+            if (kind === 'purchase') {
+                togglePurchaseCartMode(true);
+                purchaseCart = ok.map(d => ({ comp: d.comp, desc: d.desc, category: d.category, qty: d.qty, cost: d.amount, sellingPrice: d.sellingPrice, expiry: d.expiry, draftId: d.id }));
+                document.getElementById('cart-pur-supplier').value = party;
+                renderPurchaseCartTable();
+                document.getElementById('purchase-cart-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else {
+                toggleSaleCartMode(true);
+                saleCart = ok.map(d => ({ comp: d.comp, desc: d.desc, category: d.category, qty: d.qty, price: d.amount, draftId: d.id }));
+                document.getElementById('cart-sale-customer').value = party === 'Walk-in' ? '' : party;
+                renderSaleCartTable();
+                document.getElementById('sale-cart-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+        // Called by the normal Complete button once the posting succeeded.
+        function draftsCompleted(kind, ids, party) {
+            if (!ids.length) return;
+            draftRemove(ids);
+            addNotification(draftWord(kind).short + ' Draft Completed', `${draftPlural(ids.length)} from the draft for ${party} ${kind === 'purchase' ? 'purchased' : 'sold'}.`);
+            renderDrafts(kind);
+        }
+
+        // ---- Print as a picture ----
+        function printBasket(kind) {
+            const cart = draftCart(kind);
+            if (!cart.length) return alert('Add at least one item to the basket first.');
+            openDraftPrint({ kind, party: draftPartyOf(kind), lines: cart.map(c => ({ desc: c.desc, category: c.category, qty: c.qty, amount: kind === 'purchase' ? c.cost : c.price })) });
+        }
+        function draftPrint(kind, enc) {
+            const ls = draftTicked(kind, enc);
+            if (!ls.length) return alert('Tick the draft items you want to print first.');
+            openDraftPrint({ kind, party: ls[0].party, lines: ls.map(d => ({ desc: d.desc, category: d.category, qty: d.qty, amount: d.amount })) });
+        }
+
+        function draftWrap(g, text, maxW) {
+            const words = String(text || '').split(/\s+/).filter(Boolean), out = []; let line = '';
+            for (const w of words) {
+                const t = line ? line + ' ' + w : w;
+                if (g.measureText(t).width <= maxW) { line = t; continue; }
+                if (line) out.push(line);
+                if (g.measureText(w).width <= maxW) { line = w; continue; }
+                let part = ''; for (const ch of w) { if (g.measureText(part + ch).width > maxW) { out.push(part); part = ch; } else part += ch; }
+                line = part;
+            }
+            if (line) out.push(line);
+            return out.length ? out : [''];
+        }
+        // Draws the list on a canvas (white page, 900 px wide, drawn at 2x so the picture is sharp).
+        function drawDraftImage(createCanvas, info, lines, withPrices, logo) {
+            const S = 2, W = 900, P = 36, FONT = "'Segoe UI', Roboto, 'Noto Sans Ethiopic', Arial, sans-serif";
+            const qtyR = withPrices ? 560 : W - P, priceR = 700, totR = W - P, itemX = P + 44, itemW = qtyR - 70 - itemX;
+            const probe = createCanvas(10, 10).getContext('2d');
+            probe.font = '16px ' + FONT;
+            const rows = lines.map(l => ({ l, wrapped: draftWrap(probe, l.desc, itemW) }));
+            const rowH = r => 20 + r.wrapped.length * 22 + (r.l.category ? 16 : 0);
+            const total = lines.reduce((s, l) => s + l.qty * l.amount, 0);
+            const H = 150 + 38 + rows.reduce((s, r) => s + rowH(r), 0) + (withPrices ? 70 : 24) + 66;
+            const cv = createCanvas(W * S, H * S), g = cv.getContext('2d');
+            g.scale(S, S); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.textBaseline = 'alphabetic';
+            const okLogo = !!(logo && logo.complete !== false && (logo.naturalWidth || logo.width));
+            if (okLogo) { // faint Meleya 'm' behind the list
+                const lw = 420, lh = lw * 55.16 / 63.48;
+                g.globalAlpha = 0.08; g.drawImage(logo, (W - lw) / 2, Math.max(150, (H - lh) / 2), lw, lh); g.globalAlpha = 1;
+            }
+            const txt = (s, x, y, font, color, align) => { g.font = font; g.fillStyle = color; g.textAlign = align || 'left'; g.fillText(s, x, y); };
+            txt(currentTenantName || 'Your Shop', P, P + 24, 'bold 26px ' + FONT, '#171B34');
+            txt(info.title, P, P + 54, 'bold 18px ' + FONT, '#555');
+            txt(`${info.partyLabel}: ${info.party || '-'}`, P, P + 86, '16px ' + FONT, '#222');
+            txt(info.date, W - P, P + 86, '16px ' + FONT, '#222', 'right');
+            g.fillStyle = '#171B34'; g.fillRect(P, 138, W - 2 * P, 2);
+            let y = 150;
+            g.fillStyle = '#f3f4f6'; g.fillRect(P, y, W - 2 * P, 32);
+            txt('#', P + 10, y + 21, 'bold 13px ' + FONT, '#444');
+            txt('Item', itemX, y + 21, 'bold 13px ' + FONT, '#444');
+            txt('Qty', qtyR, y + 21, 'bold 13px ' + FONT, '#444', 'right');
+            if (withPrices) { txt(info.amtLabel, priceR, y + 21, 'bold 13px ' + FONT, '#444', 'right'); txt('Total', totR, y + 21, 'bold 13px ' + FONT, '#444', 'right'); }
+            y += 38;
+            rows.forEach((r, i) => {
+                const h = rowH(r); let ty = y + 24;
+                txt(String(i + 1), P + 10, ty, '15px ' + FONT, '#666');
+                r.wrapped.forEach((ln, k) => txt(ln, itemX, ty + k * 22, '16px ' + FONT, '#111'));
+                if (r.l.category) txt(r.l.category, itemX, ty + (r.wrapped.length - 1) * 22 + 16, '12px ' + FONT, '#888');
+                txt(String(r.l.qty), qtyR, ty, 'bold 16px ' + FONT, '#111', 'right');
+                if (withPrices) { txt(r.l.amount.money2(), priceR, ty, '16px ' + FONT, '#111', 'right'); txt((r.l.qty * r.l.amount).money2(), totR, ty, '16px ' + FONT, '#111', 'right'); }
+                g.fillStyle = '#e5e7eb'; g.fillRect(P, y + h - 1, W - 2 * P, 1);
+                y += h;
+            });
+            if (withPrices) { g.fillStyle = '#171B34'; g.fillRect(P, y + 6, W - 2 * P, 2); txt('Total  ETB ' + total.money2(), totR, y + 40, 'bold 20px ' + FONT, '#171B34', 'right'); }
+            txt('Printed ' + new Date().toLocaleString(), W / 2, H - 46, '11px ' + FONT, '#999', 'center');
+            const credit = 'Made with Meleya Software Solutions'; g.font = 'bold 12px ' + FONT;
+            const cH = 14, cW = cH * 63.48 / 55.16, tw = g.measureText(credit).width, x0 = (W - (okLogo ? cW + 6 : 0) - tw) / 2;
+            if (okLogo) g.drawImage(logo, x0, H - 32, cW, cH);
+            txt(credit, x0 + (okLogo ? cW + 6 : 0), H - 21, 'bold 12px ' + FONT, '#B67D10', 'left');
+            return cv;
+        }
+        function draftPrintInfo() {
+            const c = draftPrintCtx, w = draftWord(c.kind);
+            return { title: c.kind === 'purchase' ? 'Order List' : 'Sale Items List', partyLabel: w.party, party: c.party, amtLabel: w.amt, date: new Date().toLocaleDateString([], { dateStyle: 'medium' }) };
+        }
+        function draftPrintCanvas() {
+            const c = draftPrintCtx, chosen = c.lines.filter((l, i) => !c.off.has(i));
+            if (!chosen.length) return null;
+            return drawDraftImage((w, h) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; return cv; }, draftPrintInfo(), chosen, c.withPrices && c.canPrice, draftLogoImg);
+        }
+        function openDraftPrint(ctx) {
+            draftPrintCtx = { ...ctx, off: new Set(), canPrice: draftSeeAmounts(ctx.kind), withPrices: ctx.kind === 'sale' && draftSeeAmounts(ctx.kind) };
+            let m = document.getElementById('draft-print-modal');
+            if (!m) {
+                m = document.createElement('div'); m.id = 'draft-print-modal';
+                m.style.cssText = 'position:fixed; inset:0; z-index:10050; background:rgba(0,0,0,.5); display:flex; align-items:flex-start; justify-content:center; overflow:auto; padding:16px;';
+                document.body.appendChild(m);
+            }
+            const c = draftPrintCtx;
+            m.innerHTML = `<div style="background:var(--surface,#fff); color:var(--text); border-radius:10px; max-width:560px; width:100%; padding:18px; box-shadow:var(--shadow-lg);">
+                <h3 style="margin:0 0 4px;">Print as picture</h3>
+                <div style="font-size:12px; color:var(--text-light); margin-bottom:12px;">Tick the items to include. The picture can be saved or shared.</div>
+                <div style="max-height:200px; overflow:auto; border:1px solid var(--border); border-radius:8px; padding:6px 10px; margin-bottom:10px;">
+                    ${c.lines.map((l, i) => `<label class="check-label" style="display:flex; gap:8px; align-items:center; padding:4px 0; font-size:14px;"><input type="checkbox" checked onchange="draftPrintToggle(${i},this.checked)"> <span style="flex:1;">${escHtml(l.desc)}</span><span style="color:var(--text-light);">&times; ${l.qty}</span></label>`).join('')}
+                </div>
+                ${c.canPrice ? `<label class="check-label" style="display:flex; gap:8px; align-items:center; font-size:14px; margin-bottom:10px;"><input type="checkbox" ${c.withPrices ? 'checked' : ''} onchange="draftPrintPrices(this.checked)"> Include prices</label>` : ''}
+                <div id="draft-print-preview" style="border:1px solid var(--border); border-radius:8px; padding:6px; text-align:center; background:#fff; margin-bottom:12px;"></div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
+                    <button type="button" class="btn btn-ghost" onclick="draftPrintClose()">Close</button>
+                    <button type="button" class="btn btn-ghost" id="draft-print-share" onclick="draftPrintOut(true)">Share</button>
+                    <button type="button" class="btn" onclick="draftPrintOut(false)">Download picture</button>
+                </div></div>`;
+            m.style.display = 'flex';
+            draftPrintPreview();
+        }
+        function draftPrintToggle(i, on) { if (on) draftPrintCtx.off.delete(i); else draftPrintCtx.off.add(i); draftPrintPreview(); }
+        function draftPrintPrices(on) { draftPrintCtx.withPrices = on; draftPrintPreview(); }
+        function draftPrintClose() { const m = document.getElementById('draft-print-modal'); if (m) m.style.display = 'none'; draftPrintCtx = null; }
+        function draftPrintPreview() {
+            const box = document.getElementById('draft-print-preview'); if (!box) return;
+            const cv = draftPrintCanvas();
+            box.innerHTML = cv ? `<img src="${cv.toDataURL('image/png')}" style="max-width:100%; height:auto;" alt="Preview">` : '<div style="padding:24px; color:var(--text-light);">Tick at least one item.</div>';
+        }
+        async function draftPrintOut(share) {
+            const c = draftPrintCtx, cv = draftPrintCanvas();
+            if (!cv) return alert('Tick at least one item first.');
+            const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+            const name = (draftWord(c.kind).short.toLowerCase() + '-list-' + (c.party || 'basket') + '-' + new Date().toISOString().slice(0, 10)).replace(/[^\p{L}\p{N}\-]+/gu, '_') + '.png';
+            const n = c.lines.filter((l, i) => !c.off.has(i)).length, withP = c.withPrices && c.canPrice;
+            let done = false;
+            if (share) {
+                try {
+                    const file = new File([blob], name, { type: 'image/png' });
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file] }); done = true; }
+                    else alert('Sharing is not available on this device. Use Download picture instead.');
+                } catch (e) { if (e && e.name !== 'AbortError') alert('Could not share the picture. Use Download picture instead.'); }
+            } else {
+                const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(() => URL.revokeObjectURL(a.href), 4000); done = true;
+            }
+            if (done) addNotification(draftWord(c.kind).short + ' List Printed', `${draftPlural(n)} for ${c.party || 'the basket'} saved as a picture${withP ? ' (with prices)' : ' (without prices)'}.`);
+        }
+
+        // ---------------------------------------------------------------
+        // UNFINISHED BASKET: kept on this device, so a refresh or a closed app never loses it.
+        // At the next sign-in the person is asked whether to continue. Stored per business + user.
+        // ---------------------------------------------------------------
+        let basketReady = false;               // nothing is written until the sign-in check has run
+        let basketChecked = false;
+        const basketPending = new Set();       // kinds waiting for an answer (never overwritten meanwhile)
+        const basketKey = () => 'meleya_basket_' + currentTenantId + '_' + (currentUsername || 'user');
+        function basketRead() { try { return JSON.parse(localStorage.getItem(basketKey()) || '{}') || {}; } catch (e) { return {}; } }
+        function basketWrite(o) { try { if (Object.keys(o).length) localStorage.setItem(basketKey(), JSON.stringify(o)); else localStorage.removeItem(basketKey()); } catch (e) { } }
+        function basketAutosave(kind) {
+            if (!basketReady || basketPending.has(kind)) return;
+            const cart = draftCart(kind), all = basketRead();
+            if (cart.length) all[kind] = { party: draftPartyOf(kind), items: cart, savedAt: new Date().toISOString() }; else delete all[kind];
+            basketWrite(all);
+        }
+        document.addEventListener('input', e => {
+            if (e.target && e.target.id === 'cart-pur-supplier') basketAutosave('purchase');
+            if (e.target && e.target.id === 'cart-sale-customer') basketAutosave('sale');
+        });
+
+        function checkUnfinishedBaskets() {
+            if (basketChecked) return; basketChecked = true;
+            const all = basketRead();
+            const kinds = ['purchase', 'sale'].filter(k => all[k] && Array.isArray(all[k].items) && all[k].items.length && draftKindAllowed(k) && !draftCart(k).length);
+            kinds.forEach(k => basketPending.add(k));
+            basketReady = true;
+            if (!kinds.length) return;
+            let m = document.getElementById('basket-resume-modal');
+            if (!m) {
+                m = document.createElement('div'); m.id = 'basket-resume-modal';
+                m.style.cssText = 'position:fixed; inset:0; z-index:10060; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; padding:16px;';
+                document.body.appendChild(m);
+            }
+            const when = iso => { try { return new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return ''; } };
+            m.innerHTML = `<div style="background:var(--surface,#fff); color:var(--text); border-radius:10px; max-width:460px; width:100%; padding:18px; box-shadow:var(--shadow-lg);">
+                <h3 style="margin:0 0 10px;">Unfinished work</h3>
+                ${kinds.map(k => { const r = all[k], w = draftWord(k); return `<div data-basket-row="${k}" style="border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:10px;">
+                    <div style="font-size:14px; margin-bottom:10px;">You have an unfinished <b>${k === 'purchase' ? 'purchase' : 'sale'}</b> basket: <b>${draftPlural(r.items.length)}</b>${r.party ? ` for <b>${escHtml(r.party)}</b>` : ''} <span style="color:var(--text-light);">(${escHtml(when(r.savedAt))})</span>. Would you like to continue?</div>
+                    <div style="display:flex; gap:8px; justify-content:flex-end;"><button type="button" class="btn btn-ghost" onclick="basketDiscard('${k}')">Discard</button><button type="button" class="btn" onclick="basketResume('${k}')">Continue</button></div></div>`; }).join('')}
+            </div>`;
+            m.style.display = 'flex';
+        }
+        function basketRowDone(kind) {
+            basketPending.delete(kind);
+            const m = document.getElementById('basket-resume-modal'); if (!m) return;
+            const row = m.querySelector(`[data-basket-row="${kind}"]`); if (row) row.remove();
+            if (!m.querySelector('[data-basket-row]')) m.style.display = 'none';
+        }
+        function basketDiscard(kind) {
+            const all = basketRead(); delete all[kind]; basketWrite(all);
+            basketRowDone(kind);
+        }
+        function basketResume(kind) {
+            const rec = basketRead()[kind]; if (!rec) return basketRowDone(kind);
+            const items = rec.items.filter(c => state.inventory.find(i => `[${i.category}] ${i.desc}` === c.comp));
+            const dropped = rec.items.length - items.length;
+            basketRowDone(kind);
+            if (dropped) alert(`${draftPlural(dropped)} no longer in the catalog ${dropped === 1 ? 'was' : 'were'} left out of the basket.`);
+            if (!items.length) { basketAutosave(kind); return; }
+            switchView(kind === 'purchase' ? 'purchase' : 'sales');
+            if (kind === 'purchase') {
+                togglePurchaseCartMode(true); purchaseCart = items;
+                document.getElementById('cart-pur-supplier').value = rec.party || '';
+                renderPurchaseCartTable();
+            } else {
+                toggleSaleCartMode(true); saleCart = items;
+                document.getElementById('cart-sale-customer').value = rec.party || '';
+                renderSaleCartTable();
+            }
+        }
+
         function togglePurchaseCartMode(showCart) {
             document.getElementById('purchase-entry-card').style.display = showCart ? 'none' : 'block';
             document.getElementById('purchase-cart-card').style.display = showCart ? 'block' : 'none';
@@ -10049,6 +10564,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         }
 
         function renderPurchaseCartTable() {
+            try { basketAutosave('purchase'); } catch (e) { }
             const tbody = document.getElementById('purchase-cart-table-body');
             const canSeeCost = hasPerm('inventory.view_cost');
             if (!purchaseCart.length) {
@@ -10137,6 +10653,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             state.journal.push(newJournal);
             queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(newJournal) });
 
+            const draftIdsUsed = purchaseCart.map(c => c.draftId).filter(Boolean);
             purchaseCart = [];
             document.getElementById('cart-pur-amount-paid').dataset.touched = '';
             renderPurchaseCartTable();
@@ -10145,6 +10662,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             togglePurchaseCartMode(false);
             const payNote = remaining <= 0.001 ? '' : ` (ETB ${amountPaidNow.money2()} paid now, ETB ${remaining.money2()} owed)`;
             addNotification('Multi-Item Purchase Completed', `Added ${newRows.length} items for ETB ${total.money2()}${payNote}`, `From ${sup}`);
+            draftsCompleted('purchase', draftIdsUsed, sup);
         }
 
         async function handlePostPurchase(e) {
@@ -10648,31 +11166,80 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             };
         }
 
+        // ---------------------------------------------------------------
+        // ENCRYPTED BACKUPS. The backup is scrambled by the server (/api/backup-crypt) with a key that only the
+        // platform admin holds. The file is useless outside this system; the key never reaches the browser.
+        // Old plain .json backups can still be restored.
+        // ---------------------------------------------------------------
+        const BACKUP_MAGIC = 'MELEYA-BACKUP-2';
+        const BACKUP_CHUNK = 2 * 1024 * 1024;   // bytes per piece sent to the server
+        const bkB64 = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); };
+        const bkU8 = b64 => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+        async function bkStream(bytes, Ctor, kind) {
+            const out = new Response(new Blob([bytes]).stream().pipeThrough(new Ctor(kind)));
+            return new Uint8Array(await out.arrayBuffer());
+        }
+        async function backupCall(payload) {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) throw new Error('Please sign in again.');
+            let r;
+            try { r = await fetch('/api/backup-crypt', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token }, body: JSON.stringify(payload) }); }
+            catch (e) { throw new Error('Backups need an internet connection. Please connect and try again.'); }
+            const j = await r.json().catch(() => null);
+            if (!r.ok || !j) throw new Error((j && j.error) || 'The backup service did not answer. Please try again.');
+            return j;
+        }
+        function backupIsEncrypted(text) { return typeof text === 'string' && text.startsWith(BACKUP_MAGIC); }
+        async function encryptBackupObject(obj) {
+            let bytes = new TextEncoder().encode(JSON.stringify(obj)), gz = false;
+            if (typeof CompressionStream !== 'undefined') { bytes = await bkStream(bytes, CompressionStream, 'gzip'); gz = true; }
+            const kid = currentTenantId, salt = crypto.getRandomValues(new Uint8Array(16)), saltB64 = bkB64(salt);
+            const total = Math.max(1, Math.ceil(bytes.length / BACKUP_CHUNK)), chunks = new Array(total); let kv = 1;
+            for (let i = 0; i < total; i++) {
+                const j = await backupCall({ action: 'encrypt', kid, salt: saltB64, index: i, total, data: bkB64(bytes.subarray(i * BACKUP_CHUNK, (i + 1) * BACKUP_CHUNK)) });
+                chunks[i] = { iv: j.iv, ct: j.ct }; kv = j.kv || 1;
+            }
+            return BACKUP_MAGIC + '\n' + btoa(JSON.stringify({ kid, kv, gz, salt: saltB64, chunks }));
+        }
+        async function decryptBackupText(text) {
+            let env;
+            try { env = JSON.parse(atob(text.slice(BACKUP_MAGIC.length).trim())); } catch (e) { throw new Error('This backup file is damaged.'); }
+            if (!env || !env.kid || !Array.isArray(env.chunks) || !env.chunks.length || !env.salt) throw new Error('This backup file is damaged.');
+            const total = env.chunks.length, parts = [];
+            for (let i = 0; i < total; i++) {
+                const j = await backupCall({ action: 'decrypt', kid: env.kid, kv: env.kv || 1, salt: env.salt, index: i, total, iv: env.chunks[i].iv, ct: env.chunks[i].ct });
+                parts.push(bkU8(j.data));
+            }
+            let bytes = new Uint8Array(parts.reduce((n, p) => n + p.length, 0)), off = 0;
+            parts.forEach(p => { bytes.set(p, off); off += p.length; });
+            if (env.gz) {
+                if (typeof DecompressionStream === 'undefined') throw new Error('This browser cannot open this backup. Please update your browser.');
+                bytes = await bkStream(bytes, DecompressionStream, 'gzip');
+            }
+            return JSON.parse(new TextDecoder().decode(bytes));
+        }
+        // Reads a chosen backup file's text: encrypted (opened through the server) or an old plain .json.
+        async function readBackupFileText(text) {
+            if (backupIsEncrypted(text)) return decryptBackupText(text);
+            return JSON.parse(text);
+        }
+
         async function exportBackupData() {
             const btn = document.getElementById('btn-backup');
             if (btn) { btn.disabled = true; btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Preparing...'; }
             try {
-                let fullBackup;
-                let fromDevice = false;
-                if (!navigator.onLine) {
-                    fullBackup = buildOfflineBackupFromDevice();
-                    fromDevice = true;
-                } else {
-                    try {
-                        fullBackup = await buildFullBusinessBackup();
-                    } catch (err) {
-                        // Connection dropped mid-backup: fall back to the device copy.
-                        if (looksLikeNetworkError(err)) { fullBackup = buildOfflineBackupFromDevice(); fromDevice = true; }
-                        else throw err;
-                    }
-                }
+                // The backup is scrambled by the server, so an internet connection is needed (no readable copy is ever made offline).
+                if (!navigator.onLine) { alert('Backups are encrypted by the system, so they need an internet connection. Please connect and try again.'); return; }
+                const fromDevice = false;
+                const fullBackup = await buildFullBusinessBackup();
                 if (backupIsEmpty(fullBackup)) {
                     alert('Nothing was saved: there is no data to back up (the backup would be empty). If you expected data here, check your connection, refresh the page and try again.');
                     return;
                 }
-                let blob = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(fullBackup));
+                const encrypted = await encryptBackupObject(fullBackup);
+                let blob = URL.createObjectURL(new Blob([encrypted], { type: 'application/octet-stream' }));
                 const safeBizName = (currentTenantName || 'Shop').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-                let a = document.createElement('a'); a.setAttribute("href", blob); a.setAttribute("download", `My_Inventory_Backup_${safeBizName}_${new Date().toISOString().split('T')[0]}${fromDevice ? '_OFFLINE' : ''}.json`); a.click();
+                let a = document.createElement('a'); a.setAttribute("href", blob); a.setAttribute("download", `My_Inventory_Backup_${safeBizName}_${new Date().toISOString().split('T')[0]}${fromDevice ? '_OFFLINE' : ''}.meleya`); a.click(); setTimeout(() => URL.revokeObjectURL(blob), 5000);
                 if (fromDevice) alert('Backup saved from the copy on this device (you are offline). It may not include changes made on other devices. Please make a normal backup again once you are online.');
             } catch (err) {
                 alert('Could not prepare the backup: ' + err.message);
@@ -10682,15 +11249,15 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         }
 
         function importBackupData() {
-            let inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json';
+            let inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.meleya,.json';
             inp.onchange = e => {
                 let r = new FileReader(); r.readAsText(e.target.files[0], 'UTF-8');
                 r.onload = async ev => {
                     let imported;
                     try {
-                        imported = JSON.parse(ev.target.result);
+                        imported = await readBackupFileText(ev.target.result);
                     } catch (err) {
-                        return alert("Invalid File — this doesn't look like a valid backup (.json) file.");
+                        return alert(backupIsEncrypted(ev.target.result) ? err.message : "Invalid File — this doesn't look like a valid backup file.");
                     }
                     if (backupIsEmpty(imported)) {
                         return alert('This backup file is empty (it has no sales, purchases, stock or expenses). Restoring it would erase your data, so it was NOT restored.');
@@ -10819,7 +11386,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             if (card) {
                 let note = document.getElementById('accountant-premium-note');
                 if (!currentPlanPremium) {
-                    if (!note) { note = document.createElement('p'); note.id = 'accountant-premium-note'; note.style.cssText = 'font-size:13px;color:var(--text-light);margin:0;'; note.textContent = 'Accountant access is available on the Premium plan. Contact your provider to upgrade.'; card.appendChild(note); }
+                    if (!note) { note = document.createElement('p'); note.id = 'accountant-premium-note'; note.style.cssText = 'font-size:13px;color:var(--text-light);margin:0;'; note.innerHTML = planLockSvg + ' Accountant access is available on the Premium plan. Contact your provider to upgrade.'; card.appendChild(note); }
                     [...card.children].forEach(c => { if (c.id !== 'accountant-premium-note' && c.tagName !== 'H2') c.style.display = 'none'; });
                     return;
                 }
