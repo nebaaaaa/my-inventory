@@ -4797,7 +4797,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             updateBranchColumnVisibility();
             subscribeToAccountantLinks();
             if (window.scnLoginAlert) window.scnLoginAlert(); // owners: tell them about VAT sales that have not been printed
-            try { if (window.mlyAnnounce) window.mlyAnnounce(user); } catch (e) { console.warn(e); } // new-feature / announcement popup (content comes from the announcements table)
+            try { if (window.mlyAnnounce) window.mlyAnnounce(); } catch (e) { console.warn(e); } // new-feature / announcement popup (content comes from the announcements table)
             try { updateDraftsBadge(); checkUnfinishedBaskets(); refreshInstallUI(); } catch (e) { console.warn(e); }
         }
 
@@ -15358,27 +15358,49 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
 
     function showWhenFree(a, uid, tries) {
         if (impersonating()) return;
-        if (busy() || tourRunning()) { if (tries < 8) setTimeout(function () { showWhenFree(a, uid, tries + 1); }, 2500); return; }
+        if (busy() || tourRunning()) { dbg('waiting (a dialog or the first-run tour is open)'); if (tries < 8) setTimeout(function () { showWhenFree(a, uid, tries + 1); }, 2500); return; }
         show(a, uid);
     }
 
-    // Called once from onLoginSuccess. Safe to call again: it only asks once per person per page load.
+    // Optional diagnostics: in the browser console run  localStorage.mly_ann_debug = '1'  then reload, to see why a popup did or did not show.
+    const dbg = function () { try { if (localStorage.getItem('mly_ann_debug')) console.info.apply(console, ['[announcements]'].concat([].slice.call(arguments))); } catch (e) { } };
+    // For testing: clears the "already seen" marks for the signed-in person in this browser, so the popup can show again.
+    window.mlyAnnounceReset = async function () {
+        try {
+            const s = await supabaseClient.auth.getSession(); const u = s && s.data && s.data.session && s.data.session.user;
+            if (u) localStorage.removeItem(SEEN_PREFIX + u.id); asked.clear(); console.info('[announcements] seen marks cleared. Reload the page.');
+        } catch (e) { console.warn(e); }
+    };
+
+    // Called once from bootApp (after login or when a saved session is restored).
+    // It works out who is signed in by itself. It only asks once per person per page load.
     window.mlyAnnounce = async function (user) {
         try {
-            const uid = user && user.id;
-            if (!uid || asked.has(uid) || impersonating()) return;
+            let uid = user && user.id;
+            if (!uid) {
+                const s = await supabaseClient.auth.getSession();
+                uid = s && s.data && s.data.session && s.data.session.user && s.data.session.user.id;
+            }
+            if (!uid) { dbg('no signed-in user yet'); return; }
+            if (asked.has(uid)) { dbg('already asked this page load'); return; }
+            if (impersonating()) { dbg('skipped: owner/admin is viewing as someone else'); return; }
             asked.add(uid);
             const r = await supabaseClient.from('announcements').select('*')
                 .order('priority', { ascending: false }).order('starts_at', { ascending: false }).limit(10);
-            if (r.error || !r.data || !r.data.length) return;    // table not created yet, or offline: stay silent
+            if (r.error) { dbg('could not read the announcements table (was announcements.sql run?)', r.error.message || r.error); return; }
+            if (!r.data || !r.data.length) { dbg('no active announcements returned'); return; }
             const seen = seenSet(uid), now = Date.now();
             const next = r.data.find(function (a) {
-                if (!a || !a.slug || seen.has(a.slug)) return false;
+                if (!a || !a.slug) return false;
+                if (seen.has(a.slug)) { dbg('already seen:', a.slug); return false; }
                 if (a.starts_at && new Date(a.starts_at).getTime() > now) return false;
                 if (a.ends_at && new Date(a.ends_at).getTime() <= now) return false;
-                const ok = READY[a.cta_action]; return !ok || ok();
+                const ok = READY[a.cta_action]; if (ok && !ok()) { dbg('skipped, feature not ready:', a.slug); return false; }
+                return true;
             });
-            if (next) setTimeout(function () { showWhenFree(next, uid, 0); }, 1500);
+            if (!next) { dbg('nothing new to show'); return; }
+            dbg('will show:', next.slug);
+            setTimeout(function () { showWhenFree(next, uid, 0); }, 1500);
         } catch (e) { console.warn('announcements:', e); }
     };
 })();
