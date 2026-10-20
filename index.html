@@ -10441,6 +10441,10 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             if (!chosen.length) return null;
             return drawDraftImage((w, h) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; return cv; }, draftPrintInfo(), chosen, c.withPrices && c.canPrice, draftLogoImg);
         }
+        // Phones (iPhone / Android phone) see "Save to gallery"; computers and tablets keep "Download picture".
+        const draftIsPhone = () => /iPhone|iPod|Android.*Mobile/i.test(navigator.userAgent || '');
+        const draftIsIOS = () => /iPhone|iPod/i.test(navigator.userAgent || '');
+        const draftSaveLabel = () => draftIsPhone() ? 'Save to gallery' : 'Download picture';
         function openDraftPrint(ctx) {
             draftPrintCtx = { ...ctx, off: new Set(), canPrice: draftSeeAmounts(ctx.kind), withPrices: ctx.kind === 'sale' && draftSeeAmounts(ctx.kind) };
             let m = document.getElementById('draft-print-modal');
@@ -10461,7 +10465,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
                     <button type="button" class="btn btn-ghost" onclick="draftPrintClose()">Close</button>
                     <button type="button" class="btn btn-ghost" id="draft-print-share" onclick="draftPrintOut(true)">Share</button>
-                    <button type="button" class="btn" onclick="draftPrintOut(false)">Download picture</button>
+                    <button type="button" class="btn" onclick="draftPrintOut(false)">${draftSaveLabel()}</button>
                 </div></div>`;
             m.style.display = 'flex';
             draftPrintPreview();
@@ -10481,12 +10485,14 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             const name = (draftWord(c.kind).short.toLowerCase() + '-list-' + (c.party || 'basket') + '-' + new Date().toISOString().slice(0, 10)).replace(/[^\p{L}\p{N}\-]+/gu, '_') + '.png';
             const n = c.lines.filter((l, i) => !c.off.has(i)).length, withP = c.withPrices && c.canPrice;
             let done = false;
-            if (share) {
+            let viaSheet = share;
+            if (!share && draftIsIOS()) { try { viaSheet = !!(navigator.canShare && navigator.canShare({ files: [new File([blob], name, { type: 'image/png' })] })); } catch (e) { viaSheet = false; } }
+            if (viaSheet) {
                 try {
                     const file = new File([blob], name, { type: 'image/png' });
                     if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file] }); done = true; }
-                    else alert('Sharing is not available on this device. Use Download picture instead.');
-                } catch (e) { if (e && e.name !== 'AbortError') alert('Could not share the picture. Use Download picture instead.'); }
+                    else alert('Sharing is not available on this device. Use ' + draftSaveLabel() + ' instead.');
+                } catch (e) { if (e && e.name !== 'AbortError') alert('Could not share the picture. Use ' + draftSaveLabel() + ' instead.'); }
             } else {
                 const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
                 setTimeout(() => URL.revokeObjectURL(a.href), 4000); done = true;
@@ -15278,6 +15284,8 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             '.mly-ann-card{background:var(--surface,#fff);color:var(--text,#23263A);width:100%;max-width:440px;max-height:calc(100vh - 32px);overflow:auto;border-radius:12px;box-shadow:var(--shadow-lg,0 12px 32px rgba(23,27,52,.14));animation:mlyAnnPop .24s cubic-bezier(.2,.8,.2,1)}',
             '.mly-ann-media{background:var(--bg,#F4F5F8);aspect-ratio:16/10;overflow:hidden}',
             '.mly-ann-media img,.mly-ann-media video{display:block;width:100%;height:100%;object-fit:cover}',
+            '.mly-ann-media.phone{aspect-ratio:4/5;max-height:52vh;background:#F4F5F8}',
+            '.mly-ann-media.phone img,.mly-ann-media.phone video{object-fit:contain}',
             '.mly-ann-body{padding:18px 20px 20px}',
             '.mly-ann-pill{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 10px;border-radius:999px;margin-bottom:8px;background:rgba(169,117,47,.14);color:var(--accent,#A9752F)}',
             '.mly-ann-pill.k-ad{background:var(--bg,#F4F5F8);color:var(--text-light,#6b6f81);border:1px solid var(--border,#e3e4ea)}',
@@ -15308,14 +15316,18 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         const ov = mk('div', 'mly-ann-ov'); ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true');
         const card = mk('div', 'mly-ann-card'); ov.appendChild(card);
 
-        if (a.media_url && safeMedia(a.media_url)) {
-            const m = mk('div', 'mly-ann-media');
+        const ua = navigator.userAgent || '';
+        let mediaUrl = a.media_url, phoneMedia = false;
+        if (/iPhone|iPod/i.test(ua) && a.media_url_ios) { mediaUrl = a.media_url_ios; phoneMedia = true; }
+        else if (/Android.*Mobile/i.test(ua) && a.media_url_android) { mediaUrl = a.media_url_android; phoneMedia = true; }
+        if (mediaUrl && safeMedia(mediaUrl)) {
+            const m = mk('div', 'mly-ann-media' + (phoneMedia ? ' phone' : ''));
             let node;
-            if (/\.(mp4|webm)(\?|$)/i.test(a.media_url)) {
-                node = document.createElement('video'); node.src = a.media_url;
+            if (/\.(mp4|webm)(\?|$)/i.test(mediaUrl)) {
+                node = document.createElement('video'); node.src = mediaUrl;
                 node.autoplay = true; node.loop = true; node.muted = true; node.playsInline = true; node.setAttribute('aria-label', title);
             } else {
-                node = document.createElement('img'); node.src = a.media_url; node.alt = title;
+                node = document.createElement('img'); node.src = mediaUrl; node.alt = title;
             }
             node.onerror = function () { m.remove(); };
             m.appendChild(node); card.appendChild(m);
