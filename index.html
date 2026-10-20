@@ -56,6 +56,11 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2"></script>
     <script src="business-types.config.js"></script>
+    <link rel="manifest" href="manifest.json">
+    <meta name="application-name" content="MELEYA">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="MELEYA">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+Ethiopic:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -755,12 +760,18 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
     </aside>
 
     <main>
+        <div id="install-app-banner" style="display:none; position:fixed; left:12px; right:12px; bottom:12px; z-index:5002; max-width:520px; margin:0 auto; background:var(--primary); color:#fff; border-radius:10px; padding:12px 14px; align-items:center; gap:10px; box-shadow:var(--shadow-lg);">
+            <div style="flex:1; font-size:13px; line-height:1.4;"><b>Install MELEYA</b><br><span style="opacity:.85;">Opens faster and works like an app on this device.</span></div>
+            <button type="button" class="btn btn-small" style="background:var(--accent); border-color:var(--accent); color:#fff;" onclick="installApp()">Install</button>
+            <button type="button" class="btn btn-small btn-ghost" style="color:#fff; border-color:rgba(255,255,255,.4);" onclick="installBannerLater()">Not now</button>
+        </div>
         <header>
             <div class="header-left">
                 <button class="menu-toggle-btn" onclick="toggleSidebar()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
                 <h1 id="page-title">Dashboard</h1>
             </div>
             <div class="header-right">
+                <button class="menu-toggle-btn" id="install-app-btn" onclick="installApp()" title="Install MELEYA as an app" style="display:none; font-size:12px; font-weight:700; gap:5px; color:var(--accent);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg><span>Install</span></button>
                 <button class="menu-toggle-btn" id="lang-toggle-btn" onclick="toggleLanguage()" title="Switch language" data-i18n-title="ui2.switch_language" style="font-size:12px; font-weight:700; min-width:44px;">አማ</button>
                 <button class="menu-toggle-btn" id="neba-tour-help-btn" onclick="restartNebaTour()" title="Show guide" data-i18n-title="ui2.show_guide">?</button>
                 <button class="menu-toggle-btn" id="calendar-toggle-btn" onclick="toggleCalendarPref()" title="Switch calendar" data-i18n-title="ui2.switch_calendar" style="font-size:12px; font-weight:700; min-width:44px;">GC</button>
@@ -4786,7 +4797,8 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             updateBranchColumnVisibility();
             subscribeToAccountantLinks();
             if (window.scnLoginAlert) window.scnLoginAlert(); // owners: tell them about VAT sales that have not been printed
-            try { updateDraftsBadge(); checkUnfinishedBaskets(); } catch (e) { console.warn(e); }
+            try { if (window.mlyAnnounce) window.mlyAnnounce(user); } catch (e) { console.warn(e); } // new-feature / announcement popup (content comes from the announcements table)
+            try { updateDraftsBadge(); checkUnfinishedBaskets(); refreshInstallUI(); } catch (e) { console.warn(e); }
         }
 
         // Live-updates the Accountant Access card the instant a request is
@@ -10554,6 +10566,70 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             }
         }
 
+        // ---------------------------------------------------------------
+        // INSTALL AS AN APP (PWA). Browsers never allow a site to install itself silently, so the app offers a
+        // one-tap Install button (Android, Windows/Mac/Linux Chrome and Edge). iPhone/iPad have no install button
+        // at all, so a short "Add to Home Screen" guide is shown instead. Pinning to the taskbar and starting with
+        // Windows are the user's own choices in Chrome/Edge: after installing, a tips window shows the steps.
+        // ---------------------------------------------------------------
+        let installEvt = null;
+        const appIsStandalone = () => (window.matchMedia && (window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: window-controls-overlay)').matches)) || navigator.standalone === true;
+        const appIsIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const appIsDesktop = () => !/android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent) && !(navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const appIsEdge = () => /\bEdg\//.test(navigator.userAgent);
+        const installLS = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } };
+
+        window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; refreshInstallUI(); });
+        window.addEventListener('appinstalled', () => { installEvt = null; installLS('meleya_installed', '1'); refreshInstallUI(); if (appIsDesktop()) setTimeout(showPcTips, 800); });
+
+        function refreshInstallUI() {
+            const can = !appIsStandalone() && (!!installEvt || appIsIOS());
+            const btn = document.getElementById('install-app-btn'); if (btn) btn.style.display = can ? 'flex' : 'none';
+            const bar = document.getElementById('install-app-banner');
+            const loggedIn = typeof currentTenantId !== 'undefined' && !!currentTenantId;
+            const snoozed = Number(installLS('meleya_install_snooze') || 0) > Date.now();
+            if (bar) bar.style.display = (can && loggedIn && !snoozed) ? 'flex' : 'none';
+        }
+        function installBannerLater() { installLS('meleya_install_snooze', String(Date.now() + 7 * 86400000)); refreshInstallUI(); }
+        async function installApp() {
+            if (installEvt) {
+                installEvt.prompt();
+                try { await installEvt.userChoice; } catch (e) { }
+                installEvt = null; refreshInstallUI();
+            } else if (appIsIOS()) {
+                showAppModal('Install MELEYA on your iPhone', `<ol style="padding-left:20px; margin:0; line-height:1.7; font-size:14px;">
+                    <li>Open this page in <b>Safari</b>.</li><li>Tap the <b>Share</b> button (the square with an arrow).</li>
+                    <li>Scroll and tap <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b>. MELEYA now opens like an app.</li></ol>`);
+            }
+        }
+        function showAppModal(title, html) {
+            let m = document.getElementById('app-info-modal');
+            if (!m) {
+                m = document.createElement('div'); m.id = 'app-info-modal';
+                m.style.cssText = 'position:fixed; inset:0; z-index:10080; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; padding:16px;';
+                m.onclick = e => { if (e.target === m) m.style.display = 'none'; };
+                document.body.appendChild(m);
+            }
+            m.innerHTML = `<div style="background:var(--surface,#fff); color:var(--text); border-radius:10px; max-width:440px; width:100%; padding:20px; box-shadow:var(--shadow-lg);">
+                <h3 style="margin:0 0 12px;">${title}</h3>${html}
+                <div style="text-align:right; margin-top:16px;"><button type="button" class="btn" onclick="document.getElementById('app-info-modal').style.display='none'">OK</button></div></div>`;
+            m.style.display = 'flex';
+        }
+        function showPcTips() {
+            const edge = appIsEdge();
+            const startup = edge
+                ? 'Open <b>edge://apps</b> in Edge, click the <b>&hellip;</b> next to MELEYA and choose <b>Auto-start on device login</b>.'
+                : 'Open <b>chrome://apps</b> in Chrome, right-click MELEYA and choose <b>Start app when you sign in</b>.';
+            showAppModal('MELEYA is installed', `<p style="font-size:14px; margin:0 0 10px;">Two optional settings for this PC:</p>
+                <ol style="padding-left:20px; margin:0; line-height:1.7; font-size:14px;">
+                    <li><b>Pin to the taskbar:</b> open MELEYA, then right-click its icon on the taskbar and choose <b>Pin to taskbar</b>.</li>
+                    <li><b>Open when the PC starts:</b> ${startup}</li></ol>
+                <p style="font-size:12px; color:var(--text-light); margin:12px 0 0;">These are your computer's own settings, so the browser asks you to switch them on yourself.</p>`);
+            installLS('meleya_pc_tips_shown', '1');
+        }
+        // First time MELEYA opens as an installed app on a PC (even if it was installed from the browser menu)
+        if (appIsStandalone() && appIsDesktop() && !installLS('meleya_pc_tips_shown')) setTimeout(() => { if (typeof currentTenantId !== 'undefined' && currentTenantId) showPcTips(); }, 4000);
+
         function togglePurchaseCartMode(showCart) {
             document.getElementById('purchase-entry-card').style.display = showCart ? 'none' : 'block';
             document.getElementById('purchase-cart-card').style.display = showCart ? 'block' : 'none';
@@ -15146,6 +15222,166 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         const baseSwitch = window.switchView;
         window.switchView = function (v) { const r = baseSwitch.apply(this, arguments); try { if (v === 'scanned') start(); else stop(); } catch (e) { } return r; };
     })();
+    </script>
+
+    <script>
+/* ===== MELEYA announcements =====
+   Shows one unseen "new feature / announcement / ad" popup after login, to owners AND employees.
+   The content lives in the Supabase table `announcements` (see announcements.sql), NOT in this file,
+   so this block stays the same size however many announcements you post. Text is always written with
+   textContent (never innerHTML), so a row in the table can never inject code into the app.
+   "Seen" is remembered per signed-in user in this browser. */
+(function () {
+    'use strict';
+    const SEEN_PREFIX = 'mly_ann_seen_';
+    const asked = new Set();
+    const TXT = {
+        en: { feature: 'New feature', announcement: 'Announcement', ad: 'Sponsored', later: 'Not now', got: 'Got it', go: 'Try it' },
+        am: { feature: 'አዲስ ባህሪ', announcement: 'ማስታወቂያ', ad: 'ስፖንሰር የተደረገ', later: 'አሁን አይደለም', got: 'ገብቶኛል', go: 'ሞክር' }
+    };
+    // Optional "is this feature actually usable right now?" checks, keyed by cta_action.
+    const READY = {
+        'view:drafts': function () { try { return typeof draftsUnavailable === 'undefined' || !draftsUnavailable; } catch (e) { return true; } }
+    };
+    const lang = function () { try { return currentLang === 'am' ? 'am' : 'en'; } catch (e) { return 'en'; } };
+
+    function seenSet(uid) { try { return new Set(JSON.parse(localStorage.getItem(SEEN_PREFIX + uid) || '[]')); } catch (e) { return new Set(); } }
+    function markSeen(uid, slug) {
+        try { const s = seenSet(uid); s.add(slug); localStorage.setItem(SEEN_PREFIX + uid, JSON.stringify(Array.from(s).slice(-200))); } catch (e) { }
+    }
+    // Never interrupt: owner/admin "viewing as" sessions (would record the wrong person's dismissal),
+    // the first-run tour, or another dialog that is already open.
+    function impersonating() {
+        try { return !!(sessionStorage.getItem('neba_owner_session_backup') || sessionStorage.getItem('neba_admin_impersonation_active')); } catch (e) { return false; }
+    }
+    function tourRunning() { try { return !localStorage.getItem('neba_tour_done_v1'); } catch (e) { return false; } }
+    function busy() {
+        if (document.querySelector('.mly-ann-ov, .modal-overlay.active, #neba-tour-tip')) return true;
+        const a = document.getElementById('auth-overlay'); return !!(a && a.style.display !== 'none' && getComputedStyle(a).display !== 'none');
+    }
+    function actionFor(a) {
+        const act = String(a.cta_action || '');
+        if (act.indexOf('view:') !== 0) return null;
+        const id = act.slice(5);
+        if (!/^[A-Za-z0-9_-]+$/.test(id)) return null;
+        const nav = document.getElementById('nav-' + id);
+        if (!nav || nav.style.display === 'none') return null;      // this person has no access to that page
+        return function () { window.switchView(id); };
+    }
+    const safeMedia = u => /^(https:\/\/|announcements\/|\/(?!\/))/.test(u || '') && u.indexOf('..') < 0;
+
+    function injectCss() {
+        if (document.getElementById('mly-ann-css')) return;
+        const s = document.createElement('style'); s.id = 'mly-ann-css';
+        s.textContent = [
+            '.mly-ann-ov{position:fixed;inset:0;z-index:3500;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(23,27,52,.55);animation:mlyAnnFade .18s ease-out}',
+            '.mly-ann-card{background:var(--surface,#fff);color:var(--text,#23263A);width:100%;max-width:440px;max-height:calc(100vh - 32px);overflow:auto;border-radius:12px;box-shadow:var(--shadow-lg,0 12px 32px rgba(23,27,52,.14));animation:mlyAnnPop .24s cubic-bezier(.2,.8,.2,1)}',
+            '.mly-ann-media{background:var(--bg,#F4F5F8);aspect-ratio:16/10;overflow:hidden}',
+            '.mly-ann-media img,.mly-ann-media video{display:block;width:100%;height:100%;object-fit:cover}',
+            '.mly-ann-body{padding:18px 20px 20px}',
+            '.mly-ann-pill{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 10px;border-radius:999px;margin-bottom:8px;background:rgba(169,117,47,.14);color:var(--accent,#A9752F)}',
+            '.mly-ann-pill.k-ad{background:var(--bg,#F4F5F8);color:var(--text-light,#6b6f81);border:1px solid var(--border,#e3e4ea)}',
+            '.mly-ann-card h2::before{display:none}',
+            '.mly-ann-card h2{font-size:19px;line-height:1.25;color:var(--primary,#171B34);margin:0 0 8px;padding:0;border:none}',
+            '.mly-ann-card p{font-size:14px;line-height:1.55;color:var(--text-light,#6b6f81);white-space:pre-line;margin:0 0 18px}',
+            '.mly-ann-actions{display:flex;gap:8px;justify-content:flex-end}',
+            '.mly-ann-actions .btn{min-width:112px;justify-content:center}',
+            '.mly-ann-actions button.btn.mly-ann-later{background:transparent;color:var(--text,#23263A);border:1px solid var(--border,#d3d5de);box-shadow:none}',
+            '@media (max-width:480px){.mly-ann-actions{flex-direction:column-reverse}.mly-ann-actions .btn{width:100%}}',
+            '@keyframes mlyAnnFade{from{opacity:0}to{opacity:1}}',
+            '@keyframes mlyAnnPop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}',
+            '@media (prefers-reduced-motion:reduce){.mly-ann-ov,.mly-ann-card{animation:none}}'
+        ].join('\n');
+        document.head.appendChild(s);
+    }
+    const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+    function show(a, uid) {
+        injectCss();
+        const L = lang(), T = TXT[L], tr = (a.i18n && a.i18n[L]) || {};
+        const title = tr.title || a.title || '', body = tr.body || a.body || '';
+        const go = actionFor(a);
+        const link = /^https:\/\//i.test(a.link_url || '') ? a.link_url : '';
+        const kind = ['feature', 'announcement', 'ad'].indexOf(a.kind) >= 0 ? a.kind : 'announcement';
+        const prevFocus = document.activeElement;
+
+        const ov = mk('div', 'mly-ann-ov'); ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true');
+        const card = mk('div', 'mly-ann-card'); ov.appendChild(card);
+
+        if (a.media_url && safeMedia(a.media_url)) {
+            const m = mk('div', 'mly-ann-media');
+            let node;
+            if (/\.(mp4|webm)(\?|$)/i.test(a.media_url)) {
+                node = document.createElement('video'); node.src = a.media_url;
+                node.autoplay = true; node.loop = true; node.muted = true; node.playsInline = true; node.setAttribute('aria-label', title);
+            } else {
+                node = document.createElement('img'); node.src = a.media_url; node.alt = title;
+            }
+            node.onerror = function () { m.remove(); };
+            m.appendChild(node); card.appendChild(m);
+        }
+        const b = mk('div', 'mly-ann-body'); card.appendChild(b);
+        b.appendChild(mk('span', 'mly-ann-pill k-' + kind, T[kind]));
+        const h = mk('h2', '', title); h.id = 'mly-ann-title'; ov.setAttribute('aria-labelledby', 'mly-ann-title'); b.appendChild(h);
+        if (body) b.appendChild(mk('p', '', body));
+
+        const acts = mk('div', 'mly-ann-actions'); b.appendChild(acts);
+        function close() { document.removeEventListener('keydown', onKey, true); ov.remove(); try { if (prevFocus && prevFocus.focus) prevFocus.focus(); } catch (e) { } }
+        function done() { markSeen(uid, a.slug); close(); }
+        let primary;
+        if (go || link) {
+            const later = mk('button', 'btn mly-ann-later', T.later); later.type = 'button'; later.onclick = done; acts.appendChild(later);
+            primary = mk('button', 'btn', tr.cta_label || a.cta_label || T.go); primary.type = 'button';
+            primary.onclick = function () {
+                done();
+                if (go) setTimeout(function () { try { go(); } catch (e) { console.warn(e); } }, 0);
+                else window.open(link, '_blank', 'noopener');
+            };
+        } else {
+            primary = mk('button', 'btn', T.got); primary.type = 'button'; primary.onclick = done;
+        }
+        acts.appendChild(primary);
+
+        function onKey(e) {
+            if (e.key === 'Escape') { e.stopPropagation(); done(); return; }
+            if (e.key !== 'Tab') return;
+            const f = Array.prototype.slice.call(card.querySelectorAll('button')); if (!f.length) return;
+            const i = f.indexOf(document.activeElement);
+            if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
+            else if (!e.shiftKey && i === f.length - 1) { e.preventDefault(); f[0].focus(); }
+        }
+        document.addEventListener('keydown', onKey, true);
+        ov.addEventListener('mousedown', function (e) { if (e.target === ov) done(); });
+        document.body.appendChild(ov);
+        try { primary.focus(); } catch (e) { }
+    }
+
+    function showWhenFree(a, uid, tries) {
+        if (impersonating()) return;
+        if (busy() || tourRunning()) { if (tries < 8) setTimeout(function () { showWhenFree(a, uid, tries + 1); }, 2500); return; }
+        show(a, uid);
+    }
+
+    // Called once from onLoginSuccess. Safe to call again: it only asks once per person per page load.
+    window.mlyAnnounce = async function (user) {
+        try {
+            const uid = user && user.id;
+            if (!uid || asked.has(uid) || impersonating()) return;
+            asked.add(uid);
+            const r = await supabaseClient.from('announcements').select('*')
+                .order('priority', { ascending: false }).order('starts_at', { ascending: false }).limit(10);
+            if (r.error || !r.data || !r.data.length) return;    // table not created yet, or offline: stay silent
+            const seen = seenSet(uid), now = Date.now();
+            const next = r.data.find(function (a) {
+                if (!a || !a.slug || seen.has(a.slug)) return false;
+                if (a.starts_at && new Date(a.starts_at).getTime() > now) return false;
+                if (a.ends_at && new Date(a.ends_at).getTime() <= now) return false;
+                const ok = READY[a.cta_action]; return !ok || ok();
+            });
+            if (next) setTimeout(function () { showWhenFree(next, uid, 0); }, 1500);
+        } catch (e) { console.warn('announcements:', e); }
+    };
+})();
     </script>
 
 </body>
