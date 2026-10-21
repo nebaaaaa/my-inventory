@@ -4679,6 +4679,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 // over to, so we use this to decide whether to show that nav item.
                 supabaseClient.from('business_members').select('id', { count: 'exact', head: true }).eq('business_id', tid).eq('is_owner', false)
             ]);
+            if (liveStrictLoad) { const bad = [items, lots, sales, purchases, expenses, journal, trash, notifs].find(r => r && r.error && looksLikeNetworkError(r.error)); if (bad) throw bad.error; }
 
             state.inventory = (items.data || []).map(i => ({
                 id: i.id, category: i.category, desc: i.desc, sellingPrice: parseFloat(i.selling_price) || 0,
@@ -4796,9 +4797,231 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             populateBranchSwitcher();
             updateBranchColumnVisibility();
             subscribeToAccountantLinks();
+            try { startLiveSync(loadedFromCache); } catch (e) { console.warn('Live sync not started:', e); }
             if (window.scnLoginAlert) window.scnLoginAlert(); // owners: tell them about VAT sales that have not been printed
             try { if (window.mlyAnnounce) window.mlyAnnounce(); } catch (e) { console.warn(e); } // new-feature / announcement popup (content comes from the announcements table)
             try { updateDraftsBadge(); checkUnfinishedBaskets(); refreshInstallUI(); } catch (e) { console.warn(e); }
+        }
+
+        // ---------------------------------------------------------------
+        // LIVE SYNC. Every device that is online sees other devices' changes
+        // within a second or two (owner on a phone + owner on a PC + employee
+        // at the shop), with no refresh. Offline devices simply catch up the
+        // moment they are back online: first their own waiting changes are sent
+        // (the existing offline queue), THEN the latest data is read back.
+        // Needs live-sync.sql to be run once in Supabase (see that file).
+        // ---------------------------------------------------------------
+        const LIVE_TENANT_TABLES = ['inventory_items', 'inventory_lots', 'sales_log', 'purchase_log', 'expense_log', 'journal_entries', 'trash', 'notifications', 'cart_drafts', 'stock_transfers', 'cash_handovers', 'rentals'];
+        const LIVE_BRANCH_TABLES = new Set(['inventory_lots', 'sales_log', 'purchase_log', 'expense_log', 'journal_entries', 'cart_drafts']);
+        let liveChannels = [], liveTimer = null, liveBusy = false, liveDirty = false, liveWasDown = false, liveHiddenAt = 0;
+        let liveStrictLoad = false, liveWriteSeq = 0, liveReason = '', liveFails = 0, liveListenersOn = false;
+        let liveEvt = { rentals: false, settings: false, branches: false, me: false };
+        const liveOwn = new Map(); // changes THIS device just sent: their echo must not trigger a pointless re-read
+
+        function liveNoteOwn(op) {
+            try {
+                let key = null;
+                if (op.kind === 'tenant_update') key = 'businesses:' + currentTenantId;
+                else { const id = op.id != null ? op.id : (op.row && op.row.id); if (op.table && id != null) key = op.table + ':' + id; }
+                if (!key) return;
+                const e = liveOwn.get(key) || { n: 0, t: 0 }; e.n++; e.t = Date.now(); liveOwn.set(key, e);
+            } catch (e) { }
+        }
+        function liveIsOwn(table, id) {
+            const k = table + ':' + id, e = liveOwn.get(k);
+            if (!e) return false;
+            if (Date.now() - e.t > 60000) { liveOwn.delete(k); return false; }
+            if (--e.n <= 0) liveOwn.delete(k);
+            return true;
+        }
+
+        function liveOnChange(table, payload) {
+            try {
+                const row = (payload && payload.new && payload.new.id != null) ? payload.new : ((payload && payload.old) || {});
+                if (row.id != null && liveIsOwn(table, row.id)) return;
+                if (table === 'role_permissions') { if (currentIsOwner || String(row.role_id) !== String(currentRoleId)) return; liveEvt.me = true; }
+                else if (table === 'business_members') { liveEvt.me = true; liveEvt.branches = true; }
+                else if (table === 'branches') liveEvt.branches = true;
+                else if (table === 'businesses') liveEvt.settings = true;
+                else {
+                    // another branch's change does not affect what this device is showing
+                    if (LIVE_BRANCH_TABLES.has(table) && currentBranchId !== 'all' && row.branch_id && row.branch_id !== currentBranchId) return;
+                    if (table === 'rentals') liveEvt.rentals = true;
+                }
+            } catch (e) { }
+            liveSchedule(1200);
+        }
+
+        function liveSchedule(ms, reason) {
+            if (reason) liveReason = reason;
+            if (liveTimer) clearTimeout(liveTimer);
+            liveTimer = setTimeout(liveRun, ms);
+        }
+
+        function liveSettingsSnapshot() {
+            return JSON.stringify([currentTenantName, currentBusinessType, state.categories, state.customAccounts, state.saleTypes, state.vatRegistered, state.vatTin, state.vatRegNo, state.ownerFullName, state.vatCity, state.vatSubCity, state.vatKebele, state.vatTel, state.vatAddress, state.inventoryOrder]);
+        }
+        // Business settings (categories, sale types, VAT details, name...) changed on another device.
+        async function liveRefreshSettings() {
+            const { data: biz, error } = await supabaseClient.from('businesses').select('*').eq('id', currentTenantId).single();
+            if (error || !biz) throw (error || new Error('business not found'));
+            if (['inactive', 'suspended', 'cancelled'].includes(biz.subscription_status)) { const o = document.getElementById('inactive-overlay'); if (o) o.style.display = 'flex'; }
+            const before = liveSettingsSnapshot();
+            currentTenantName = biz.business_name;
+            currentBusinessType = biz.business_type || 'retail';
+            state.categories = biz.categories || [];
+            if (Array.isArray(biz.inventory_order)) state.inventoryOrder = biz.inventory_order;
+            state.customAccounts = biz.custom_accounts || [];
+            state.saleTypes = biz.sale_types || [];
+            state.vatRegistered = !!biz.vat_registered && planCan('vat');
+            state.vatTin = biz.vat_tin || ''; state.vatRegNo = biz.vat_reg_no || ''; state.ownerFullName = biz.owner_full_name || '';
+            state.vatCity = biz.vat_city || ''; state.vatSubCity = biz.vat_sub_city || ''; state.vatKebele = biz.vat_kebele || '';
+            state.vatTel = biz.vat_tel || ''; state.vatAddress = biz.vat_address || '';
+            if (liveSettingsSnapshot() === before) return false;
+            rebuildChartOfAccounts();
+            const nm = document.getElementById('shop-brand-name'); if (nm) nm.innerText = currentTenantName.toUpperCase();
+            syncCategoriesDatalist(); syncSaleTypesDropdown(); populateSaleTypeFilterDropdown(); syncChannelDropdowns();
+            populateExpenseAccountDropdown(); populateExpenseAccountFilterDropdown();
+            applyBusinessTypeLabels(); applyVatUIVisibility();
+            return true;
+        }
+        // This person's own role / permissions changed (e.g. the owner edited what an employee may do).
+        async function liveRefreshMe() {
+            if (currentIsOwner || !currentMemberId) return false;
+            const { data: m, error } = await supabaseClient.from('business_members').select('role_id, is_owner').eq('id', currentMemberId).maybeSingle();
+            if (error) throw error;
+            if (!m) return false;
+            const { data: perms, error: pErr } = await supabaseClient.from('role_permissions').select('permission_key').eq('role_id', m.role_id);
+            if (pErr) throw pErr;
+            const next = new Set((perms || []).map(p => p.permission_key));
+            const same = m.role_id === currentRoleId && next.size === currentPermissions.size && [...next].every(k => currentPermissions.has(k));
+            if (same) return false;
+            currentRoleId = m.role_id; currentPermissions = next;
+            const teamNav = document.getElementById('nav-team');
+            if (teamNav) teamNav.style.display = (hasPerm('team.view') || hasPerm('team.manage_members') || hasPerm('team.manage_roles')) ? 'flex' : 'none';
+            applyPermissionGating(); applyEmployeeGatedUI();
+            try { cacheStateLocally(); } catch (e) { }
+            return true;
+        }
+        // Branches added / closed / given or taken away from this person.
+        async function liveRefreshBranches() {
+            const { data: raw, error } = await supabaseClient.from('branches').select('id, name, address, closed').eq('business_id', currentTenantId).order('created_at', { ascending: true });
+            if (error) throw error;
+            const nextById = {}; (raw || []).forEach(b => { nextById[b.id] = b; });
+            let accessible = (raw || []).filter(b => !b.closed);
+            if (!currentIsOwner) {
+                const { data: acc, error: aErr } = await supabaseClient.from('branch_access').select('branch_id').eq('member_id', currentMemberId);
+                if (aErr) throw aErr;
+                const ok = new Set((acc || []).map(a => a.branch_id));
+                accessible = accessible.filter(b => ok.has(b.id));
+            }
+            const before = JSON.stringify([Object.values(allBranchesById || {}), accessibleBranches]);
+            allBranchesById = nextById; accessibleBranches = accessible;
+            if (JSON.stringify([Object.values(allBranchesById), accessibleBranches]) === before) return false;
+            if (currentBranchId !== 'all' && accessible.length && !accessible.some(b => b.id === currentBranchId)) { currentBranchId = accessible[0].id; syncWriteBranchId(); }
+            else if (currentBranchId === 'all' && accessible.length < 2 && accessible.length) { currentBranchId = accessible[0].id; syncWriteBranchId(); }
+            const transferNav = document.getElementById('nav-transfer');
+            if (transferNav) transferNav.style.display = (accessibleBranches.length > 1 && hasPerm('inventory.transfer')) ? 'flex' : 'none';
+            populateBranchSwitcher(); updateBranchColumnVisibility();
+            return true;
+        }
+
+        // Redraw whatever is on screen from the fresh data WITHOUT touching forms (no field is cleared, nothing typed is lost).
+        function liveRepaint(ev) {
+            const step = fn => { try { fn(); } catch (e) { console.warn('live repaint:', e); } };
+            step(() => {
+                const sList = document.getElementById('sale-item-list'), pList = document.getElementById('pur-item-list');
+                if (sList && pList) { const h = state.inventory.map(i => `<option value="[${escHtml(i.category)}] ${escHtml(i.desc)}"></option>`).join(''); sList.innerHTML = h; pList.innerHTML = h; }
+            });
+            step(updateNotifBadge); step(updateDraftsBadge); step(applyEmployeeGatedUI);
+            step(renderAnalyticalDashboards);
+            const panel = document.querySelector('.view-panel.active');
+            const v = panel ? panel.id.replace('view-', '') : '';
+            const modalOpen = !!document.querySelector('[id$="-modal"].active');
+            if (v === 'inventory') { step(renderPerpetualInventoryTable); if (ev.rentals && currentVerticalModule && typeof currentVerticalModule.renderInventorySection === 'function') step(() => currentVerticalModule.renderInventorySection({ state, tenantId: currentTenantId, channelAccountCodes: CHANNEL_ACCOUNT_CODES, supabaseClient, branchId: currentBranchId, calendarPref: currentCalendarPref, mountEl: document.getElementById('inventory-rental-mount') })); }
+            else if (v === 'sales') { step(renderSalesLogTable); if (ev.rentals && currentVerticalModule && typeof currentVerticalModule.renderBookingSection === 'function') step(() => currentVerticalModule.renderBookingSection({ state, tenantId: currentTenantId, channelAccountCodes: CHANNEL_ACCOUNT_CODES, supabaseClient, branchId: currentBranchId, calendarPref: currentCalendarPref, mountEl: document.getElementById('sales-rental-mount') })); }
+            else if (v === 'purchase') step(renderPurchaseLogTable);
+            else if (v === 'expenses') step(renderExpenseLogTable);
+            else if (v === 'journal') step(renderHistoricalJournalsTable);
+            else if (v === 'ledger') step(renderGeneralLedgerCards);
+            else if (v === 'trash') step(renderTrashTable);
+            else if (v === 'drafts') step(renderAllDrafts);
+            else if (v === 'cash_handover') step(renderCashHandoverView);
+            else if (v === 'transfer') step(renderStockTransferHistory);
+            else if (v === 'team') { if (!modalOpen && ev.me) step(loadTeamView); }
+            else if (v === 'statements') step(() => { const b = document.querySelector('.stmt-selected'); if (b && /^stmt-btn-/.test(b.id)) buildReports(b.id.replace('stmt-btn-', '')); });
+        }
+
+        async function liveRun() {
+            liveTimer = null;
+            if (!currentTenantId) return;
+            if (!navigator.onLine) { liveDirty = true; return; }               // offline: catch up the moment we are back
+            if (document.hidden) { liveDirty = true; return; }                 // tab in the background: catch up when it is shown
+            if (liveBusy || activeWriteCount > 0) { liveSchedule(1500); return; } // never read while our own save is on its way
+            liveBusy = true; liveDirty = false;
+            const ev = liveEvt, reason = liveReason; liveEvt = { rentals: false, settings: false, branches: false, me: false }; liveReason = '';
+            const seq = liveWriteSeq, bid = currentBranchId, tid = currentTenantId;
+            let ok = false;
+            try {
+                await Promise.race([writeChain, new Promise(r => setTimeout(r, 15000))]);
+                // Our own waiting changes go first. If they cannot be sent yet, do NOT overwrite the screen with older cloud data.
+                if (offlineOpQueue.length > 0 && !(await drainOfflineQueueInline())) throw new Error('own changes still waiting');
+                const wide = !!reason; // reconnecting / coming back to the app: also re-check settings, access and branches
+                // These extra checks must never block the main data refresh: only a real connection problem stops everything.
+                const aux = async fn => { try { await fn(); } catch (e) { if (looksLikeNetworkError(e)) throw e; console.warn('live check skipped:', e); } };
+                if (ev.settings || wide) await aux(liveRefreshSettings);
+                if (ev.branches || wide) await aux(liveRefreshBranches);
+                if (ev.me || wide) await aux(liveRefreshMe);
+                liveStrictLoad = true;
+                try { await loadStateFromSupabase(); } finally { liveStrictLoad = false; }
+                if (currentTenantId !== tid) return;
+                cacheStateLocally();
+                liveRepaint(ev);
+                try { setSyncIndicator('synced'); } catch (e) { }
+                ok = true; liveFails = 0;
+            } catch (err) {
+                console.warn('Live update will retry:', err);
+                liveDirty = true;
+                Object.keys(ev).forEach(k => { if (ev[k]) liveEvt[k] = true; });
+                if (reason) liveReason = reason;
+                if (navigator.onLine && ++liveFails <= 6) liveSchedule(Math.min(30000, 3000 * liveFails));
+            } finally { liveBusy = false; }
+            // something changed on THIS device (or the branch was switched) while we were reading: read once more so nothing is missing
+            if (ok && (seq !== liveWriteSeq || bid !== currentBranchId)) liveSchedule(800);
+        }
+
+        function stopLiveSync() {
+            liveChannels.forEach(c => { try { supabaseClient.removeChannel(c); } catch (e) { } });
+            liveChannels = [];
+        }
+        function startLiveSync(startedFromCache) {
+            if (!currentTenantId) return;
+            stopLiveSync();
+            const tid = currentTenantId;
+            liveWasDown = !!startedFromCache;
+            const onStatus = status => {
+                if (status === 'SUBSCRIBED') { if (liveWasDown) { liveWasDown = false; liveSchedule(600, 'reconnect'); } }
+                else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') liveWasDown = true;
+            };
+            // One channel per table, so one table that is not set up yet can never stop the others from working.
+            const add = (table, filter) => {
+                const cfg = { event: '*', schema: 'public', table }; if (filter) cfg.filter = filter;
+                const ch = supabaseClient.channel(`live_${table}_${tid}`).on('postgres_changes', cfg, p => liveOnChange(table, p)).subscribe(onStatus);
+                liveChannels.push(ch);
+            };
+            LIVE_TENANT_TABLES.forEach(t => add(t, `tenant_id=eq.${tid}`));
+            add('businesses', `id=eq.${tid}`);
+            add('branches', `business_id=eq.${tid}`);
+            add('business_members', `business_id=eq.${tid}`);
+            if (!currentIsOwner) add('role_permissions', null);
+            if (!liveListenersOn) {
+                liveListenersOn = true;
+                window.addEventListener('online', () => liveSchedule(1500, 'online'));
+                document.addEventListener('visibilitychange', () => {
+                    if (document.hidden) { liveHiddenAt = Date.now(); return; }
+                    if (liveDirty || (liveHiddenAt && Date.now() - liveHiddenAt > 20000)) liveSchedule(300, 'visible');
+                });
+            }
         }
 
         // Live-updates the Accountant Access card the instant a request is
@@ -5024,6 +5247,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         }
 
         async function performDbOp(op) {
+            liveNoteOwn(op);
             if (op.kind === 'insert') {
                 await withRetry(() => supabaseClient.from(op.table).insert(op.row));
             } else if (op.kind === 'update') {
@@ -5142,6 +5366,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
 
         function queueWrite(op) {
             if (op && !op._seq) op._seq = ++opSeq;
+            liveWriteSeq++;
             writeChain = writeChain.then(() => sendOrQueue(op)).catch(e => console.error('Write chain error:', e)); // one unexpected error must never stop all later saves
             return writeChain;
         }
@@ -10589,12 +10814,42 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         window.addEventListener('appinstalled', () => { installEvt = null; installLS('meleya_installed', '1'); refreshInstallUI(); if (appIsDesktop()) setTimeout(showPcTips, 800); });
 
         function refreshInstallUI() {
-            const can = !appIsStandalone() && (!!installEvt || appIsIOS());
+            const never = installLS('meleya_install_never') === '1'; // "I already installed it" (iPhone cannot tell us itself)
+            const can = !appIsStandalone() && !never && (!!installEvt || appIsIOS());
             const btn = document.getElementById('install-app-btn'); if (btn) btn.style.display = can ? 'flex' : 'none';
             const bar = document.getElementById('install-app-banner');
             const loggedIn = typeof currentTenantId !== 'undefined' && !!currentTenantId;
             const snoozed = Number(installLS('meleya_install_snooze') || 0) > Date.now();
             if (bar) bar.style.display = (can && loggedIn && !snoozed) ? 'flex' : 'none';
+            if (can && loggedIn && !snoozed) installAutoOnce();
+        }
+        // First time on a device that has not installed MELEYA yet (including people who already use the app in the browser):
+        // open the install prompt (Android / PC) or the how-to video (iPhone) by itself, once. After that only the banner and the
+        // Install button remain. A browser always needs one tap from the person, so this cannot install silently.
+        let installAutoTimer = null;
+        function installAutoOnce(tries) {
+            tries = tries || 0;
+            if (installLS('meleya_install_auto_shown') || installAutoTimer) return;
+            installAutoTimer = setTimeout(() => {
+                installAutoTimer = null;
+                try {
+                    if (appIsStandalone() || installLS('meleya_install_auto_shown') || installLS('meleya_install_never') === '1') return;
+                    if (!(installEvt || appIsIOS())) return;
+                    const am = document.getElementById('app-info-modal');
+                    const busy = document.querySelector('[id$="-modal"].active') || (am && am.style.display === 'flex');
+                    if (busy) { if (tries < 6) installAutoOnce(tries + 1); return; } // another window is open: try again in a few seconds
+                    installLS('meleya_install_auto_shown', String(Date.now()));
+                    if (installEvt) {
+                        showAppModal('Install MELEYA', `<p style="font-size:14px; line-height:1.6; margin:0 0 14px;">Put MELEYA on this device. It opens faster, works like an app and is always one tap away.</p>
+                            <div style="text-align:center;"><button type="button" class="btn" style="padding:10px 28px;" onclick="document.getElementById('app-info-modal').style.display='none'; installApp();">Install now</button></div>`, 440, 'Not now');
+                    } else if (appIsIOS()) installApp();
+                } catch (e) { console.warn(e); }
+            }, tries ? 8000 : 5000);
+        }
+        function installNever() {
+            installLS('meleya_install_never', '1');
+            const m = document.getElementById('app-info-modal'); if (m) { m.style.display = 'none'; m.innerHTML = ''; }
+            refreshInstallUI();
         }
         function installBannerLater() { installLS('meleya_install_snooze', String(Date.now() + 7 * 86400000)); refreshInstallUI(); }
         async function installApp() {
@@ -10603,22 +10858,27 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 try { await installEvt.userChoice; } catch (e) { }
                 installEvt = null; refreshInstallUI();
             } else if (appIsIOS()) {
-                showAppModal('Install MELEYA on your iPhone', `<ol style="padding-left:20px; margin:0; line-height:1.7; font-size:14px;">
+                showAppModal('Install MELEYA on your iPhone', installDemo('install-videos/install-iphone.mp4', '4 / 5', `<ol style="padding-left:20px; margin:0; line-height:1.7; font-size:14px;">
                     <li>Open this page in <b>Safari</b>.</li><li>Tap the <b>Share</b> button (the square with an arrow).</li>
-                    <li>Scroll and tap <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b>. MELEYA now opens like an app.</li></ol>`);
+                    <li>Scroll and tap <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b>. MELEYA now opens like an app.</li></ol>`, 'Open in Safari &rarr; Share &rarr; Add to Home Screen &rarr; Add<br><a href="#" onclick="installNever(); return false;" style="color:inherit; text-decoration:underline; display:inline-block; margin-top:8px;">I already installed it</a>'));
             }
         }
-        function showAppModal(title, html) {
+        function installDemo(src, ratio, fallbackHtml, caption) {
+            return `<div style="border-radius:10px; overflow:hidden; background:#eef0f4;"><video src="${src}" autoplay muted loop playsinline webkit-playsinline preload="auto" style="display:block; width:100%; aspect-ratio:${ratio}; max-height:62vh; object-fit:contain; background:#eef0f4;" onerror="this.parentNode.style.display='none'; this.parentNode.nextElementSibling.style.display='block';"></video></div>
+                <div style="display:none;">${fallbackHtml}</div>
+                ${caption ? `<p style="font-size:12px; color:var(--text-light); margin:10px 0 0; text-align:center;">${caption}</p>` : ''}`;
+        }
+        function showAppModal(title, html, maxW, okLabel) {
             let m = document.getElementById('app-info-modal');
             if (!m) {
                 m = document.createElement('div'); m.id = 'app-info-modal';
                 m.style.cssText = 'position:fixed; inset:0; z-index:10080; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; padding:16px;';
-                m.onclick = e => { if (e.target === m) m.style.display = 'none'; };
+                m.onclick = e => { if (e.target === m) { m.style.display = 'none'; m.innerHTML = ''; } };
                 document.body.appendChild(m);
             }
-            m.innerHTML = `<div style="background:var(--surface,#fff); color:var(--text); border-radius:10px; max-width:440px; width:100%; padding:20px; box-shadow:var(--shadow-lg);">
+            m.innerHTML = `<div style="background:var(--surface,#fff); color:var(--text); border-radius:10px; max-width:${maxW || 440}px; width:100%; max-height:94vh; overflow:auto; padding:20px; box-shadow:var(--shadow-lg);">
                 <h3 style="margin:0 0 12px;">${title}</h3>${html}
-                <div style="text-align:right; margin-top:16px;"><button type="button" class="btn" onclick="document.getElementById('app-info-modal').style.display='none'">OK</button></div></div>`;
+                <div style="text-align:right; margin-top:16px;"><button type="button" class="btn" onclick="var m=document.getElementById('app-info-modal'); m.style.display='none'; m.innerHTML='';">${okLabel || 'OK'}</button></div></div>`;
             m.style.display = 'flex';
         }
         function showPcTips() {
@@ -10626,11 +10886,13 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             const startup = edge
                 ? 'Open <b>edge://apps</b> in Edge, click the <b>&hellip;</b> next to MELEYA and choose <b>Auto-start on device login</b>.'
                 : 'Open <b>chrome://apps</b> in Chrome, right-click MELEYA and choose <b>Start app when you sign in</b>.';
-            showAppModal('MELEYA is installed', `<p style="font-size:14px; margin:0 0 10px;">Two optional settings for this PC:</p>
+            const fallback = `<p style="font-size:14px; margin:0 0 10px;">Two optional settings for this PC:</p>
                 <ol style="padding-left:20px; margin:0; line-height:1.7; font-size:14px;">
                     <li><b>Pin to the taskbar:</b> open MELEYA, then right-click its icon on the taskbar and choose <b>Pin to taskbar</b>.</li>
-                    <li><b>Open when the PC starts:</b> ${startup}</li></ol>
-                <p style="font-size:12px; color:var(--text-light); margin:12px 0 0;">These are your computer's own settings, so the browser asks you to switch them on yourself.</p>`);
+                    <li><b>Open when the PC starts:</b> ${startup}</li></ol>`;
+            showAppModal('MELEYA is installed', `<p style="font-size:14px; margin:0 0 10px;">Two optional settings for this PC &mdash; watch how:</p>`
+                + installDemo(edge ? 'install-videos/install-pc-edge.mp4' : 'install-videos/install-pc-chrome.mp4', '16 / 10', fallback, '')
+                + `<p style="font-size:12px; color:var(--text-light); margin:12px 0 0;">These are your computer's own settings, so the browser asks you to switch them on yourself.</p>`, 620);
             installLS('meleya_pc_tips_shown', '1');
         }
         // First time MELEYA opens as an installed app on a PC (even if it was installed from the browser menu)
