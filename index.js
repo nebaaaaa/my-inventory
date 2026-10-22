@@ -6,12 +6,13 @@
 // the network, since Supabase is the one true source of your data.
 //
 // IMPORTANT: whenever you replace index.html with a newer version,
-// bump CACHE_NAME below (e.g. 'v1' -> 'v2') so returning users get the
-// new version instead of a stuck old copy. If you forget, people may
-// keep seeing the old app until the cache naturally expires.
+// bump CACHE_NAME below (e.g. 'v29' -> 'v30'). That one change is what tells
+// every open copy of the app "a new version is ready" - the app then shows an
+// "Update now" bar, or reloads by itself at a safe moment (see the update
+// check at the bottom of index.html). If you forget, people keep the old app.
 // =====================================================================
 
-const CACHE_NAME = 'meleya-shell-v28';
+const CACHE_NAME = 'meleya-shell-v31';
 
 const ASSETS_TO_CACHE = [
   './',
@@ -28,14 +29,16 @@ const ASSETS_TO_CACHE = [
   './verticals/pharmacy.js',
   './verticals/appliance_rental.js',
   'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
-  'https://cdn.jsdelivr.net/npm/chart.js',
-  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
+  'https://cdn.jsdelivr.net/npm/chart.js@4.5.1',
+  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(ASSETS_TO_CACHE))
+      // cache:'reload' skips the browser's own HTTP cache, so a new release is always fetched fresh
+      // (otherwise the new service worker could quietly re-save the OLD index.html).
+      .then((cache) => Promise.all(ASSETS_TO_CACHE.map((u) => cache.add(new Request(u, { cache: 'reload' })).catch(() => { }))))
       .catch(() => { /* fine if a CDN asset fails to pre-cache; it'll be cached on first successful fetch instead */ })
   );
   self.skipWaiting();
@@ -60,6 +63,28 @@ self.addEventListener('fetch', (event) => {
   // POST requests anyway, which the Cache API can't store (cache.put() throws
   // on anything but GET).
   if (event.request.url.includes('/api/')) return;
+
+  // Opening the app (a "navigation"): always answer from the saved copy first, whatever the address looks like
+  // (/, /index.html, /?source=pwa ...), so the app opens instantly even with no internet or a very weak one.
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      caches.match(event.request, { ignoreSearch: true })
+        .then((hit) => hit || caches.match('./index.html'))
+        .then((hit) => hit || caches.match('./'))
+        .then((cached) => {
+          // Refresh the saved copy quietly for next time; never make the person wait for it.
+          const refresh = fetch(event.request).then((response) => {
+            if (response && response.status === 200) {
+              const clone = response.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', clone));
+            }
+            return response;
+          }).catch(() => cached);
+          return cached || refresh;
+        })
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(event.request).then((cached) => {

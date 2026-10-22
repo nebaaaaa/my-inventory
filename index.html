@@ -63,7 +63,20 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
     <meta name="apple-mobile-web-app-title" content="MELEYA">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+Ethiopic:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+Ethiopic:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <style>
+        /* Returning, still-signed-in visitors never see the login screen: it stays hidden while the saved login is used. */
+        html.mly-resume #auth-overlay { display:none !important; }
+        #mly-splash { position:fixed; inset:0; z-index:4999; display:none; align-items:center; justify-content:center; flex-direction:column; gap:14px; background:#fbfaf7; color:#171b34; font:700 22px/1 'Space Grotesk',Inter,Arial,sans-serif; letter-spacing:.14em; }
+        html.mly-resume #mly-splash { display:flex; }
+        #mly-splash i { width:26px; height:26px; border-radius:50%; border:3px solid #e6dfcf; border-top-color:#b8800f; animation:mlyspin .8s linear infinite; }
+        @keyframes mlyspin { to { transform:rotate(360deg); } }
+    </style>
+    <script>
+        // Runs before anything is drawn: is this a returning person with a saved login and a saved copy of their shop?
+        try { var mlyHas = false; for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (/^sb-.+-auth-token$/.test(k) && localStorage.getItem(k)) { mlyHas = true; break; } }
+            if (mlyHas && localStorage.getItem('neba_erp_last_identity')) document.documentElement.classList.add('mly-resume'); } catch (e) { }
+    </script>
     <style>
         :root {
             --primary: #171B34;
@@ -480,6 +493,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
     </style>
 </head>
 <body onclick="closeNotifPanelOutside(event)">
+    <div id="mly-splash"><span>MELEYA</span><i></i></div>
 
     <div id="impersonation-banner" style="display:none; position:fixed; top:0; left:0; width:100%; z-index:6000; background:var(--warning); color:white; padding:10px 16px; text-align:center; font-size:13px; font-weight:600; box-shadow:var(--shadow-md);">
         Viewing as <span id="impersonation-target-name"></span> —
@@ -4072,6 +4086,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             // Supabase before the session is invalidated and the page reloads.
             document.getElementById('cloud-sync-status') && (document.getElementById('cloud-sync-status').innerHTML = '<svg width="9" height="9" viewBox="0 0 24 24" style="vertical-align:1px;flex-shrink:0;"><circle cx="12" cy="12" r="10" fill="currentColor"></circle></svg> Saving last changes...');
             try { await writeChain; } catch (e) { console.error('Pending write failed during sign-out:', e); }
+            window.__mlySigningOut = true;
             await supabaseClient.auth.signOut();
             location.reload();
         }
@@ -4085,6 +4100,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 .from('business_members')
                 .select('id, business_id, username, display_name, is_owner, role_id, roles(key, label)')
                 .eq('user_id', user.id);
+            if (!navigator.onLine) return { member: null, error: { message: 'offline' } }; // no waiting: the saved copy on this device is used
             let { data: rows, error } = await run();
             if (error && navigator.onLine) {
                 await new Promise(r => setTimeout(r, 800));
@@ -4097,19 +4113,12 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             return { member, error: null };
         }
 
-        async function onLoginSuccess(user, isNewSignup) {
-            loadOfflineQueue();
-            loadFailedOps();
-            document.getElementById('auth-overlay').style.display = 'none';
-            setLanguage(currentLang);
-            setCalendarPref(currentCalendarPref);
-
-            const { member, error: memberErr } = await fetchMyMembership(user);
-
-            // ANY failed lookup (not only a lost connection) must never be mistaken for
-            // "this person has no shop", otherwise a working account is sent to the
-            // "One last step" setup screen.
-            if (memberErr) {
+        // Opens the app from the copy saved on this device (identity + shop data). Used when offline, on a slow
+        // connection, or when the server cannot be reached. Everything catches up by itself once the internet works.
+        let mlyEarlyBooted = false;
+        async function bootFromLocalCopy() {
+            if (mlyEarlyBooted) return true; // already opened from the saved copy
+            { const ao = document.getElementById('auth-overlay'); if (ao) ao.style.display = 'none'; }
                 const lastIdentity = loadLastIdentityLocally();
                 if (lastIdentity && lastIdentity.tenantId) {
                     currentTenantId = lastIdentity.tenantId;
@@ -4126,15 +4135,34 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 try { const f = localStorage.getItem('neba_erp_features_' + currentTenantId); currentPlanFeatures = f ? JSON.parse(f) : null; currentPlanName = localStorage.getItem('neba_erp_planname_' + currentTenantId) || ''; } catch (e) { }
                     if (window.scnShowNav) window.scnShowNav();
                 }
-                const cached = loadCachedStateLocally();
-                if (cached) {
-                    currentTenantName = cached.businessName || 'Your Shop';
-                    document.getElementById('shop-brand-name').innerText = currentTenantName.toUpperCase();
-                    state = cached.state;
-                    if (!state.saleTypes) state.saleTypes = [];
-                    rebuildChartOfAccounts();
-                    return bootApp(true);
-                }
+            if (!(lastIdentity && lastIdentity.tenantId)) return false;
+            loadOfflineQueue(); loadFailedOps(); // the tenant is known now, so changes saved earlier on this device are picked up
+            const cached = loadCachedStateLocally();
+            if (!cached) return false;
+            currentTenantName = cached.businessName || 'Your Shop';
+            document.getElementById('shop-brand-name').innerText = currentTenantName.toUpperCase();
+            state = cached.state;
+            if (!state.saleTypes) state.saleTypes = [];
+            rebuildChartOfAccounts();
+            await bootApp(true);
+            return true;
+        }
+
+        async function onLoginSuccess(user, isNewSignup) {
+            loadOfflineQueue();
+            loadFailedOps();
+            document.getElementById('auth-overlay').style.display = 'none';
+            setLanguage(currentLang);
+            setCalendarPref(currentCalendarPref);
+
+            const { member, error: memberErr } = await fetchMyMembership(user);
+            if (mlyEarlyBooted) return; // the app already opened from the saved copy while the server was slow
+
+            // ANY failed lookup (not only a lost connection) must never be mistaken for
+            // "this person has no shop", otherwise a working account is sent to the
+            // "One last step" setup screen.
+            if (memberErr) {
+                if (await bootFromLocalCopy()) return;
                 alert('Could not reach your shop account — check your connection and try again.');
                 return handleSignOut();
             }
@@ -4172,6 +4200,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             }
 
             currentTenantId = member.business_id;
+            loadOfflineQueue(); loadFailedOps(); // now that the shop is known, pick up changes saved on this device earlier
             currentMemberId = member.id;
             currentUsername = member.username;
             currentIsOwner = member.is_owner;
@@ -4195,6 +4224,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             if (window.scnShowNav) window.scnShowNav();
 
             const { data: biz, error: bizErr } = await supabaseClient.from('businesses').select('*').eq('id', currentTenantId).single();
+            if (mlyEarlyBooted) return;
             if (bizErr || !biz) {
                 const cached = loadCachedStateLocally();
                 if (looksLikeNetworkError(bizErr) && cached) {
@@ -4327,6 +4357,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             writeBranchId = (currentBranchId === 'all') ? (accessible.length ? accessible[0].id : null) : currentBranchId;
 
             const { count } = await supabaseClient.from('inventory_items').select('id', { count: 'exact', head: true }).eq('tenant_id', currentTenantId);
+            if (mlyEarlyBooted) return;
             const hasAnyData = (count || 0) > 0;
 
             if (isNewSignup && !hasAnyData) {
@@ -4538,7 +4569,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                     sellingPrice: c.sellingPrice ?? 0, lots: [], history: [],
                     dailyRate: c.dailyRate ?? null, weeklyRate: c.weeklyRate ?? null, monthlyRate: c.monthlyRate ?? null
                 };
-                const newLot = { id: rowId, qty: c.qty, cost: c.cost, branchId: targetBranchId, expiry: c.expiry || null };
+                const newLot = stampLot({ id: rowId, qty: c.qty, cost: c.cost, branchId: targetBranchId, expiry: c.expiry || null }, date);
                 newItem.lots.push(newLot);
                 state.inventory.push(newItem);
                 queueWrite({ kind: 'insert', table: 'inventory_items', row: toDbInventoryItem(newItem) });
@@ -4644,6 +4675,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
 
         // Fires automatically when the user arrives via a password-reset email link
         supabaseClient.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_OUT' && navigator.onLine) { const a = document.getElementById('app-shell'); if (a && a.style.display !== 'none' && !window.__mlySigningOut) setTimeout(() => location.reload(), 300); }
             if (event === 'PASSWORD_RECOVERY') {
                 document.getElementById('auth-overlay').style.display = 'none';
                 document.getElementById('reset-password-overlay').style.display = 'flex';
@@ -4679,6 +4711,11 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 // over to, so we use this to decide whether to show that nav item.
                 supabaseClient.from('business_members').select('id', { count: 'exact', head: true }).eq('business_id', tid).eq('is_owner', false)
             ]);
+            try { // does the database already keep purchase dates on stock layers? (fifo-fix.sql)
+                if ((lots.data || []).length) lotDatesOn = ('acquired_on' in lots.data[0]);
+                else { const pr = await supabaseClient.from('inventory_lots').select('acquired_on').limit(1); lotDatesOn = !pr.error; }
+                localStorage.setItem('meleya_lot_dates', lotDatesOn ? '1' : '0');
+            } catch (e) { }
             if (liveStrictLoad) { const bad = [items, lots, sales, purchases, expenses, journal, trash, notifs].find(r => r && r.error && looksLikeNetworkError(r.error)); if (bad) throw bad.error; }
 
             state.inventory = (items.data || []).map(i => ({
@@ -4691,7 +4728,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 // migration note in verticals/appliance_rental.js. Falls
                 // back to [] gracefully if the column doesn't exist yet.
                 rentalWriteOffs: i.rental_write_offs || [],
-                lots: (lots.data || []).filter(l => l.item_id === i.id).map(l => ({ id: l.id, qty: l.qty, cost: parseFloat(l.cost), branchId: l.branch_id, expiry: l.expiry_date || null }))
+                lots: sortLotsFifo((lots.data || []).filter(l => l.item_id === i.id).map(l => ({ id: l.id, qty: l.qty, cost: parseFloat(l.cost), branchId: l.branch_id, expiry: l.expiry_date || null, acquiredOn: l.acquired_on || null, createdAt: l.created_at || null })))
             }));
 
             state.salesLog = (sales.data || []).map(s => ({
@@ -4730,6 +4767,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
 
         async function bootApp(loadedFromCache) {
             document.getElementById('app-shell').style.display = 'flex';
+            document.documentElement.classList.remove('mly-resume'); // loading screen off as soon as the app is on screen
             updateOfflineBanner();
             checkImpersonationBanner();
             checkAdminImpersonationBanner();
@@ -5139,8 +5177,28 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         // restoring a backup file: each row keeps the branch it actually
         // belonged to, rather than everything landing in whichever branch
         // happens to be active on the device doing the restore.
+        // ---- FIFO order of stock layers ("lots") --------------------------------------------------------------
+        // Every stock layer remembers the DATE it was bought (acquiredOn) and the moment it was saved (createdAt).
+        // Sales always use the oldest layer first, judged by those two values - never by the order the database
+        // happens to hand rows back in (which changes after any update and differs between devices).
+        // lotDatesOn = the database already has the two columns (see fifo-fix.sql); until then nothing new is sent.
+        let lotDatesOn = false;
+        try { lotDatesOn = localStorage.getItem('meleya_lot_dates') === '1'; } catch (e) { }
+        const lotRank = l => (l.acquiredOn || '') + '|' + (l.createdAt || '');
+        function sortLotsFifo(lots) {
+            return lots.map((l, i) => ({ l, i })).sort((a, b) => { const x = lotRank(a.l), y = lotRank(b.l); return x < y ? -1 : x > y ? 1 : a.i - b.i; }).map(o => o.l);
+        }
+        function stampLot(lot, dateStr) {
+            lot.acquiredOn = /^\d{4}-\d{2}-\d{2}/.test(String(dateStr || '')) ? String(dateStr).slice(0, 10) : new Date().toISOString().slice(0, 10);
+            lot.createdAt = new Date().toISOString();
+            return lot;
+        }
+        const dbRowRank = r => (r.acquired_on || '') + '|' + (r.created_at || '');
+        const sortDbLotsFifo = rows => rows.map((r, i) => ({ r, i })).sort((a, b) => { const x = dbRowRank(a.r), y = dbRowRank(b.r); return x < y ? -1 : x > y ? 1 : a.i - b.i; }).map(o => o.r);
         function toDbLot(itemId, l) {
-            return { id: l.id, tenant_id: currentTenantId, branch_id: l.branchId || writeBranchId, item_id: itemId, qty: l.qty, cost: l.cost, expiry_date: l.expiry || null };
+            const row = { id: l.id, tenant_id: currentTenantId, branch_id: l.branchId || writeBranchId, item_id: itemId, qty: l.qty, cost: l.cost, expiry_date: l.expiry || null };
+            if (lotDatesOn) { row.acquired_on = l.acquiredOn || null; if (l.createdAt) row.created_at = l.createdAt; }
+            return row;
         }
 
         // Which lot gets sold from first. Every business type except
@@ -5154,14 +5212,15 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         // array of the same lot objects (not copies) in sell order —
         // mutating a lot's qty still updates the real item.lots entry.
         function orderLotsForSale(lots) {
-            if (currentBusinessType !== 'pharmacy') return lots;
-            return lots
+            const fifo = sortLotsFifo(lots); // oldest purchase first, always
+            if (currentBusinessType !== 'pharmacy') return fifo;
+            return fifo
                 .map((l, i) => ({ l, i }))
                 .sort((a, b) => {
-                    if (a.l.expiry && b.l.expiry) return a.l.expiry.localeCompare(b.l.expiry);
+                    if (a.l.expiry && b.l.expiry) return a.l.expiry.localeCompare(b.l.expiry) || (a.i - b.i);
                     if (a.l.expiry && !b.l.expiry) return -1;
                     if (!a.l.expiry && b.l.expiry) return 1;
-                    return a.i - b.i; // both undated — keep original purchase order
+                    return a.i - b.i; // both undated — oldest purchase first
                 })
                 .map(x => x.l);
         }
@@ -7485,6 +7544,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 const { data: sourceLots, error: fetchErr } = await supabaseClient
                     .from('inventory_lots').select('*').eq('item_id', item.id).eq('branch_id', fromBranchId).order('id');
                 if (fetchErr) throw new Error('Could not check source branch stock: ' + fetchErr.message);
+                if (sourceLots) sourceLots.splice(0, sourceLots.length, ...sortDbLotsFifo(sourceLots)); // oldest purchase first
 
                 const stock = (sourceLots || []).reduce((sum, l) => sum + l.qty, 0);
                 if (qty > stock) throw new Error(`Insufficient stock at the source branch. Only ${stock} available.`);
@@ -7496,7 +7556,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                     if (q <= 0) break;
                     if (lot.qty <= 0) continue;
                     const taken = Math.min(q, lot.qty);
-                    consumedLayers.push({ lotId: lot.id, qty: taken, cost: parseFloat(lot.cost) });
+                    consumedLayers.push({ lotId: lot.id, qty: taken, cost: parseFloat(lot.cost), acq: lot.acquired_on || null, crt: lot.created_at || null });
                     q -= taken;
                 }
 
@@ -7515,7 +7575,8 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                     }
                     const { error: insErr } = await supabaseClient.from('inventory_lots').insert({
                         id: `${transferId}-${layer.lotId}`, tenant_id: currentTenantId, branch_id: toBranchId,
-                        item_id: item.id, qty: layer.qty, cost: layer.cost
+                        item_id: item.id, qty: layer.qty, cost: layer.cost,
+                        ...(lotDatesOn ? { acquired_on: layer.acq || null, ...(layer.crt ? { created_at: layer.crt } : {}) } : {})
                     });
                     if (insErr) throw new Error('Could not add stock at the destination branch: ' + insErr.message);
                 }
@@ -7661,7 +7722,8 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                     } else {
                         const { error: restoreInsErr } = await supabaseClient.from('inventory_lots').insert({
                             id: origLotId, tenant_id: currentTenantId, branch_id: row.from_branch_id,
-                            item_id: row.item_id, qty: destLot.qty, cost: destLot.cost
+                            item_id: row.item_id, qty: destLot.qty, cost: destLot.cost,
+                            ...(lotDatesOn && 'acquired_on' in destLot ? { acquired_on: destLot.acquired_on || null, ...(destLot.created_at ? { created_at: destLot.created_at } : {}) } : {})
                         });
                         if (restoreInsErr) throw new Error('Could not restore stock to the source branch: ' + restoreInsErr.message);
                     }
@@ -7985,7 +8047,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 items.forEach((c, i) => {
                     const lotId = `PR-${Date.now().toString().slice(-5)}-${n}-${i}`;
                     const item = { id: crypto.randomUUID(), category: c.category, desc: c.desc, sellingPrice: c.sellingPrice || 0, lots: [], history: [], dailyRate: c.dailyRate ?? null, weeklyRate: c.weeklyRate ?? null, monthlyRate: c.monthlyRate ?? null };
-                    const lot = { id: lotId, qty: c.qty, cost: c.cost, branchId, expiry: null };
+                    const lot = stampLot({ id: lotId, qty: c.qty, cost: c.cost, branchId, expiry: null }, date);
                     item.lots.push(lot); state.inventory.push(item);
                     queueWrite({ kind: 'insert', table: 'inventory_items', row: toDbInventoryItem(item) });
                     queueWrite({ kind: 'insert', table: 'inventory_lots', row: toDbLot(item.id, lot) });
@@ -8639,7 +8701,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                             row.restorationLayers.forEach(layer => {
                                 let lot = item.lots.find(l => l.id === layer.id);
                                 if (lot) { lot.qty += layer.qty; }
-                                else { item.lots.splice(layer.index, 0, { id: layer.id, qty: layer.qty, cost: layer.cost }); }
+                                else { item.lots.splice(layer.index, 0, { id: layer.id, qty: layer.qty, cost: layer.cost, branchId: row.branchId || undefined, acquiredOn: layer.acquiredOn || null, createdAt: layer.createdAt || null }); }
                             });
                         } else {
                             item.lots.push({ id: 'LOT-'+Math.random().toString(36).substr(2,9), qty: row.qty, cost: row.cogs ? (row.cogs/row.qty) : 0 });
@@ -8674,7 +8736,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                     sale.restorationLayers.forEach(layer => {
                         let lot = item.lots.find(l => l.id === layer.id);
                         if (lot) { lot.qty += layer.qty; }
-                        else { item.lots.splice(layer.index, 0, { id: layer.id, qty: layer.qty, cost: layer.cost }); }
+                        else { item.lots.splice(layer.index, 0, { id: layer.id, qty: layer.qty, cost: layer.cost, branchId: sale.branchId || undefined, acquiredOn: layer.acquiredOn || null, createdAt: layer.createdAt || null }); }
                     });
                 } else {
                     item.lots.push({ id: 'LOT-'+Math.random().toString(36).substr(2,9), qty: sale.qty, cost: sale.cogs ? (sale.cogs/sale.qty) : 0 });
@@ -8759,7 +8821,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 let item = state.inventory.find(i => `[${i.category}] ${i.desc}` === t.data.desc || i.desc === t.data.desc);
                 if (!item) return alert("Original inventory profile deleted. Cannot safely restore.");
                 const beforeLots = item.lots.map(l => ({...l}));
-                item.lots.push({ id: t.data.id || 'LOT-'+Math.random().toString(36).substr(2,9), qty: t.data.qty, cost: t.data.cost, branchId: t.data.branchId });
+                item.lots.push(stampLot({ id: t.data.id || 'LOT-'+Math.random().toString(36).substr(2,9), qty: t.data.qty, cost: t.data.cost, branchId: t.data.branchId }, t.data.date));
                 syncItemLots(item, beforeLots);
                 state.purchaseLog.push(t.data);
                 queueWrite({ kind: 'insert', table: 'purchase_log', row: toDbPurchase(t.data) });
@@ -8818,7 +8880,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                         }
                         item.lots = item.lots.filter(l => l.qty > 0);
                     } else {
-                        item.lots.push({ id: row.id, qty: row.qty, cost: row.cost, branchId: row.branchId });
+                        item.lots.push(stampLot({ id: row.id, qty: row.qty, cost: row.cost, branchId: row.branchId }, row.date));
                     }
                     syncItemLots(item, beforeLots);
                     arr.push(row);
@@ -9175,7 +9237,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                     if (o.qty <= 0) continue;
                     let taken = Math.min(q, o.qty);
                     cogs += taken * o.cost;
-                    restorationLayers.push({ index: item.lots.indexOf(o), id: o.id, qty: taken, cost: o.cost });
+                    restorationLayers.push({ index: item.lots.indexOf(o), id: o.id, qty: taken, cost: o.cost, acquiredOn: o.acquiredOn || null, createdAt: o.createdAt || null });
                     o.qty -= taken;
                     q -= taken;
                 }
@@ -9274,7 +9336,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 if (o.qty <= 0) continue;
                 let taken = Math.min(q, o.qty);
                 cogs += taken * o.cost;
-                restorationLayers.push({ index: item.lots.indexOf(o), id: o.id, qty: taken, cost: o.cost });
+                restorationLayers.push({ index: item.lots.indexOf(o), id: o.id, qty: taken, cost: o.cost, acquiredOn: o.acquiredOn || null, createdAt: o.createdAt || null });
                 o.qty -= taken;
                 q -= taken;
             }
@@ -10881,6 +10943,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 <div style="text-align:right; margin-top:16px;"><button type="button" class="btn" onclick="var m=document.getElementById('app-info-modal'); m.style.display='none'; m.innerHTML='';">${okLabel || 'OK'}</button></div></div>`;
             m.style.display = 'flex';
         }
+
         function showPcTips() {
             const edge = appIsEdge();
             const startup = edge
@@ -11005,7 +11068,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
             purchaseCart.forEach((c, i) => {
                 const item = state.inventory.find(it => `[${it.category}] ${it.desc}` === c.comp);
                 const rowId = `PR-${Date.now().toString().slice(-5)}-${i}`;
-                const newLot = { id: rowId, qty: c.qty, cost: c.cost, branchId: targetBranchId, expiry: c.expiry || null };
+                const newLot = stampLot({ id: rowId, qty: c.qty, cost: c.cost, branchId: targetBranchId, expiry: c.expiry || null }, date);
                 item.lots.push(newLot);
                 if (c.sellingPrice !== null) {
                     item.sellingPrice = c.sellingPrice;
@@ -11092,7 +11155,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
 
             let id = `PR-${Date.now().toString().slice(-5)}`;
             const expiryInput = document.getElementById('pur-expiry');
-            const newLot = { id: id, qty: qty, cost: cost, branchId: targetBranchId, expiry: (expiryInput && expiryInput.value) ? expiryInput.value : null };
+            const newLot = stampLot({ id: id, qty: qty, cost: cost, branchId: targetBranchId, expiry: (expiryInput && expiryInput.value) ? expiryInput.value : null }, date);
             item.lots.push(newLot);
             let priceChanged = false;
             if (spInput !== "" && !isNaN(parseFloat(spInput))) { item.sellingPrice = parseFloat(spInput); priceChanged = true; }
@@ -11488,7 +11551,7 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                     id: i.id, category: i.category, desc: i.desc, sellingPrice: parseFloat(i.selling_price) || 0,
                     history: i.history || [],
                     rentalWriteOffs: i.rental_write_offs || [],
-                    lots: (lots.data || []).filter(l => l.item_id === i.id).map(l => ({ id: l.id, qty: l.qty, cost: parseFloat(l.cost), branchId: l.branch_id, expiry: l.expiry_date || null }))
+                    lots: sortLotsFifo((lots.data || []).filter(l => l.item_id === i.id).map(l => ({ id: l.id, qty: l.qty, cost: parseFloat(l.cost), branchId: l.branch_id, expiry: l.expiry_date || null, acquiredOn: l.acquired_on || null, createdAt: l.created_at || null })))
                 })),
                 salesLog: (sales.data || []).map(s => ({
                     id: s.id, date: s.date, customer: s.customer, desc: s.desc, qty: s.qty,
@@ -12855,26 +12918,117 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         // (returning visitor), skip straight past the login screen.
         // ---------------------------------------------------------------
         (async function initAuthGate() {
-            // Check for an admin-initiated "login as owner" handoff first —
-            // it always wins over any pre-existing session on this tab
-            // (there normally isn't one anyway, since admin.html opens this
-            // page in a brand-new tab).
-            const tookOverViaAdmin = await tryConsumeAdminImpersonationHandoff();
-            const { data: { session } } = await supabaseClient.auth.getSession();
-            if (session) {
-                await onLoginSuccess(session.user, false);
-            } else if (tookOverViaAdmin) {
-                // verifyOtp succeeded but getSession() raced ahead of the
-                // client persisting it — extremely unlikely, but don't leave
-                // the person stuck on a blank auth screen if it happens.
-                location.reload();
+            const root = document.documentElement;
+            const shellOpen = () => { const a = document.getElementById('app-shell'); return !!a && a.style.display !== 'none'; };
+            const stopResume = () => root.classList.remove('mly-resume');
+            // The login saved in this browser (supabase-js keeps it here). Reading it directly needs no internet.
+            const storedUser = () => {
+                try {
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const k = localStorage.key(i);
+                        if (/^sb-.+-auth-token$/.test(k)) { const v = JSON.parse(localStorage.getItem(k) || 'null'); if (v && v.user && v.user.id) return v.user; }
+                    }
+                } catch (e) { }
+                return null;
+            };
+            // Safety nets so nobody is ever stuck on a blank or login screen:
+            //  - after 4 seconds without the app open (slow connection), open it from the copy saved on this device;
+            //  - after 20 seconds with nothing open at all, drop the loading screen (the login shows).
+            const early = setTimeout(async () => {
+                if (shellOpen() || !loadLastIdentityLocally() || !storedUser()) return;
+                mlyEarlyBooted = true;
+                try { await bootFromLocalCopy(); } catch (e) { console.warn(e); mlyEarlyBooted = false; }
+            }, 4000);
+            setTimeout(() => { if (!shellOpen()) stopResume(); }, 20000);
+            try {
+                // Check for an admin-initiated "login as owner" handoff first —
+                // it always wins over any pre-existing session on this tab
+                // (there normally isn't one anyway, since admin.html opens this
+                // page in a brand-new tab).
+                const tookOverViaAdmin = await tryConsumeAdminImpersonationHandoff();
+                let user = null;
+                if (navigator.onLine) {
+                    // Asking the server can hang for a long time on a weak connection (an old login needs refreshing first),
+                    // so wait only a few seconds before using the login saved on this device.
+                    const r = await Promise.race([
+                        supabaseClient.auth.getSession().then(x => (x && x.data && x.data.session) || null).catch(() => null),
+                        new Promise(res => setTimeout(() => res('slow'), 3500))
+                    ]);
+                    if (r && r !== 'slow') user = r.user;
+                    else if (storedUser()) user = storedUser(); // slow, or could not refresh: the saved login is still there, so the person is still signed in
+                } else {
+                    user = storedUser(); // offline: never wait for the internet
+                }
+                if (user) {
+                    if (!navigator.onLine && !loadLastIdentityLocally()) { stopResume(); return; } // nothing saved to open offline: login screen
+                    await onLoginSuccess(user, false);
+                } else if (tookOverViaAdmin) {
+                    // verifyOtp succeeded but getSession() raced ahead of the
+                    // client persisting it — extremely unlikely, but don't leave
+                    // the person stuck on a blank auth screen if it happens.
+                    location.reload();
+                }
+            } finally {
+                clearTimeout(early);
+                stopResume(); // the login screen is hidden by onLoginSuccess when signed in, so this only reveals it when needed
             }
         })();
 
-        // Cache the app shell so it can still open with no internet connection.
+        // Cache the app shell so it can still open with no internet connection,
+        // and notice when a newer version of the app has been uploaded.
         if ('serviceWorker' in navigator) {
+            const hadController = !!navigator.serviceWorker.controller; // false on a very first visit: nothing to "update"
+            let updatePending = false, lastTouch = Date.now(), updBar = null;
+            ['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(ev => window.addEventListener(ev, () => { lastTouch = Date.now(); }, { passive: true, capture: true }));
+
+            const updAm = () => { try { return (typeof currentLang !== 'undefined' ? currentLang : localStorage.getItem('appLang')) === 'am'; } catch (e) { return false; } };
+            // Safe = nobody is in the middle of something. Reloading then loses nothing.
+            function updateIsSafe() {
+                try {
+                    const typing = document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+                    const modal = document.querySelector('.mly-overlay, .mly-ann-ov, .modal-overlay.active, [id$="-modal"].active, #neba-tour-tip');
+                    const info = document.getElementById('app-info-modal');
+                    const infoOpen = info && info.style.display && info.style.display !== 'none';
+                    const work = (typeof saleCart !== 'undefined' && saleCart.length) || (typeof purchaseCart !== 'undefined' && purchaseCart.length)
+                        || (typeof initialInventoryCart !== 'undefined' && initialInventoryCart.length)
+                        || (typeof offlineOpQueue !== 'undefined' && offlineOpQueue.length);
+                    if (typing || modal || infoOpen || work) return false;
+                    return document.hidden || (Date.now() - lastTouch > 120000); // app in the background, or untouched for 2 minutes
+                } catch (e) { return false; }
+            }
+            function showUpdateBar() {
+                if (updBar || !document.body) return;
+                const am = updAm();
+                updBar = document.createElement('div');
+                updBar.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:2147483000;max-width:92vw;background:#171b34;color:#fff;border-radius:14px;padding:10px 12px 10px 16px;box-shadow:0 6px 22px rgba(0,0,0,.35);display:flex;gap:12px;align-items:center;font:600 14px/1.3 Inter,-apple-system,Segoe UI,Arial,sans-serif;';
+                updBar.innerHTML = '<span>' + (am ? 'አዲስ የMELEYA ስሪት ዝግጁ ነው' : 'A new version of MELEYA is ready') + '</span>'
+                    + '<button type="button" style="background:#e0a21b;color:#171b34;border:0;border-radius:10px;padding:8px 14px;font:700 14px Inter,Arial,sans-serif;cursor:pointer;white-space:nowrap;">' + (am ? 'አሁን አድስ' : 'Update now') + '</button>';
+                updBar.querySelector('button').onclick = () => location.reload();
+                document.body.appendChild(updBar);
+            }
+            function checkUpdateApply() {
+                if (!updatePending) return;
+                if (updateIsSafe()) { location.reload(); return; }
+                showUpdateBar(); // not a safe moment: ask, and keep checking quietly
+            }
+            // A new service worker took over = a new release was uploaded and is already saved on this device.
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (!hadController || updatePending) return;
+                updatePending = true;
+                setTimeout(checkUpdateApply, 800);
+            });
+            setInterval(checkUpdateApply, 10000);
+            document.addEventListener('visibilitychange', () => { if (document.hidden) checkUpdateApply(); });
+
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./index.js').catch((err) => console.warn('Service worker registration failed:', err));
+                navigator.serviceWorker.register('./index.js').then((reg) => {
+                    // Ask the server "is there a newer version?" when the app comes back to the screen, when the
+                    // internet returns, and every 15 minutes while it stays open.
+                    const ask = () => { if (navigator.onLine) reg.update().catch(() => { }); };
+                    document.addEventListener('visibilitychange', () => { if (!document.hidden) ask(); });
+                    window.addEventListener('online', ask);
+                    setInterval(ask, 15 * 60 * 1000);
+                }).catch((err) => console.warn('Service worker registration failed:', err));
             });
         }
     </script>
