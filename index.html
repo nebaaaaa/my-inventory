@@ -8222,8 +8222,8 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         const BULK_FIELDS = [
             { k: 'category', label: 'Category', syn: ['category', 'cat', 'type', 'group', 'class', 'ምድብ'] },
             { k: 'desc', label: 'Product Name', req: 1, syn: ['product name', 'item name', 'product', 'item', 'name', 'description', 'goods', 'article', 'material', 'የምርት ስም', 'ምርት'] },
-            { k: 'qty', label: 'Quantity', req: 1, syn: ['quantity', 'qty', 'stock', 'on hand', 'units', 'count', 'pcs', 'balance', 'ብዛት'] },
-            { k: 'cost', label: 'Cost Price', req: 1, syn: ['cost price', 'buying price', 'purchase price', 'unit cost', 'unit price', 'cost', 'price', 'rate', 'ዋጋ'] },
+            { k: 'qty', label: 'Quantity (optional)', syn: ['quantity', 'qty', 'stock', 'on hand', 'units', 'count', 'pcs', 'balance', 'ብዛት'] },
+            { k: 'cost', label: 'Cost Price (optional)', syn: ['cost price', 'buying price', 'purchase price', 'unit cost', 'unit price', 'cost', 'price', 'rate', 'ዋጋ'] },
             { k: 'supplier', label: 'Supplier (optional)', syn: ['supplier', 'vendor', 'seller', 'supplied by', 'አቅራቢ'] },
             { k: 'sellingPrice', label: 'Selling Price (optional)', syn: ['selling price', 'sale price', 'sell price', 'retail price', 'retail', 'mrp'] }
         ];
@@ -8292,18 +8292,20 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
                 const qty = bulkNum(g(r, 'qty')), cost = bulkNum(g(r, 'cost')), supplier = String(g(r, 'supplier')).trim(), sp = bulkNum(g(r, 'sellingPrice'));
                 if (/^(grand |sub ?)?total\b/i.test(desc)) return;
                 let err = '';
-                if (bulkMap.desc === undefined || bulkMap.qty === undefined || bulkMap.cost === undefined) err = 'Match the required (*) columns first';
+                // A row with BOTH a quantity and a cost price becomes stock + a purchase record.
+                // A row missing either one is still added, as a product with 0 quantity and 0 cost (no purchase record).
+                const hasBoth = qty > 0 && cost > 0;
+                if (bulkMap.desc === undefined) err = 'Match the required (*) column first';
                 else if (!desc) err = 'No product name';
-                else if (!(qty > 0) || Math.abs(qty - Math.round(qty)) > 1e-9) err = 'Quantity must be a whole number above 0';
-                else if (!(cost > 0)) err = 'Cost price must be above 0';
+                else if (hasBoth && Math.abs(qty - Math.round(qty)) > 1e-9) err = 'Quantity must be a whole number';
                 else {
                     const key = category.toLowerCase() + '|' + desc.toLowerCase();
                     if (seen.has(key)) err = 'Repeated in this file';
                     else if (state.inventory.some(i => i.category.toLowerCase() + '|' + i.desc.toLowerCase() === key)) err = 'Already in your stock';
                     seen.add(key);
                 }
-                if (!err) bulkValid.push({ category, desc, qty: Math.round(qty), cost, supplier: supplier || 'N/A', sellingPrice: sp > 0 ? sp : 0 });
-                out.push(`<tr style="${err ? 'background:#FDECEA;' : ''}"><td>${ri + 1}</td><td>${bulkEsc(category)}</td><td>${bulkEsc(desc)}</td><td class="num">${bulkEsc(g(r, 'qty'))}</td><td class="num">${bulkEsc(g(r, 'cost'))}</td><td>${bulkEsc(supplier)}</td><td>${err ? '<span style="color:#c0392b;">Skipped: ' + err + '</span>' : '✓ Ready'}</td></tr>`);
+                if (!err) bulkValid.push({ category, desc, qty: hasBoth ? Math.round(qty) : 0, cost: hasBoth ? cost : 0, supplier: supplier || 'N/A', sellingPrice: sp > 0 ? sp : 0, noStock: !hasBoth });
+                out.push(`<tr style="${err ? 'background:#FDECEA;' : ''}"><td>${ri + 1}</td><td>${bulkEsc(category)}</td><td>${bulkEsc(desc)}</td><td class="num">${bulkEsc(g(r, 'qty'))}</td><td class="num">${bulkEsc(g(r, 'cost'))}</td><td>${bulkEsc(supplier)}</td><td>${err ? '<span style="color:#c0392b;">Skipped: ' + err + '</span>' : (hasBoth ? '✓ Ready' : '✓ Ready (no stock yet)')}</td></tr>`);
             });
             document.getElementById('bulk-preview').innerHTML = `<p style="font-size:13px;margin:0 0 6px;"><strong>${bulkValid.length}</strong> ready, <strong>${out.length - bulkValid.length}</strong> will be skipped.</p><table><thead><tr><th>#</th><th>Category</th><th>Product</th><th class="num">Qty</th><th class="num">Cost</th><th>Supplier</th><th>Status</th></tr></thead><tbody>${out.slice(0, 300).join('')}</tbody></table>${out.length > 300 ? '<p style="font-size:12px;">Showing the first 300 rows. All ready rows are imported.</p>' : ''}`;
             const go = document.getElementById('bulk-go'); go.style.display = bulkValid.length ? '' : 'none'; go.innerText = `Import ${bulkValid.length} products`;
@@ -8311,9 +8313,24 @@ Number.prototype.money2 = function () { return this.toLocaleString('en-US', { mi
         async function bulkCommit() {
             if (!bulkValid.length) return;
             const list = bulkValid.slice();
-            if (!(await addProductsWithStock(list))) return;
+            const withStock = list.filter(c => !c.noStock), noStock = list.filter(c => c.noStock);
+            // Products that have both quantity and cost: stock + purchase record (as before).
+            if (withStock.length && !(await addProductsWithStock(withStock))) return;
+            // Products missing quantity or cost: only the product itself, 0 stock, no purchase record.
+            if (noStock.length) {
+                let catsChanged = false;
+                noStock.forEach(c => { if (!state.categories.includes(c.category)) { state.categories.push(c.category); catsChanged = true; } });
+                if (catsChanged) { syncCategoriesDatalist(); queueWrite({ kind: 'tenant_update', patch: { categories: state.categories } }); }
+                noStock.forEach(c => {
+                    const newItem = { id: crypto.randomUUID(), category: c.category, desc: c.desc, sellingPrice: c.sellingPrice || 0, lots: [], history: [], dailyRate: null, weeklyRate: null, monthlyRate: null };
+                    state.inventory.push(newItem);
+                    queueWrite({ kind: 'insert', table: 'inventory_items', row: toDbInventoryItem(newItem) });
+                });
+                addNotification('Products Added', `Added ${noStock.length} product(s) with no stock (no quantity or cost in the file).`);
+                try { syncTransactionalProductDropdownOptions(); } catch (e) {}
+            }
             closeBulkImport(); renderPerpetualInventoryTable();
-            alert(`${list.length} products added.`);
+            alert(`${list.length} products added.` + (noStock.length ? ` ${noStock.length} of them have no stock yet (0 quantity, 0 cost).` : ''));
         }
 
         async function handleDefineProduct(e) {
