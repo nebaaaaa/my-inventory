@@ -423,8 +423,8 @@ export function mergeGroup(group) {
     const declared = Math.max(0, ...members.map((m) => m.pageCount || 0));
     if (declared > members.length) warns.push('This document has ' + declared + ' pages but only ' + members.length + ' photo' + (members.length > 1 ? 's were' : ' was') + ' found. Scan the missing page' + (declared - members.length > 1 ? 's' : '') + ' too.');
 
-    // VAT withholding receipt (layout W): the withheld VAT must be 15% of the amount paid
-    if (doc.layout === 'W' && doc.before_vat !== null && doc.vat !== null && Math.abs(doc.vat - doc.before_vat * VAT_RATE) > 1.5) warns.push('The VAT withheld (' + fmt(doc.vat) + ') is not 15% of the amount paid (' + fmt(doc.before_vat) + ' x 15% = ' + fmt(doc.before_vat * VAT_RATE) + '). The amount paid or the withheld amount may be misread - check both against the paper.');
+    // VAT withholding receipt (layout W): the withheld VAT is half of 15% (7.5%) of the amount paid
+    if (doc.layout === 'W' && doc.before_vat !== null && doc.vat !== null && Math.abs(doc.vat - doc.before_vat * VAT_RATE / 2) > 1.5) warns.push('The VAT withheld (' + fmt(doc.vat) + ') is not 7.5% (half of the printed 15%) of the amount paid (' + fmt(doc.before_vat) + ' x 7.5% = ' + fmt(doc.before_vat * VAT_RATE / 2) + '). The amount paid or the withheld amount may be misread - check both against the paper.');
 
     const nv = items.filter((it) => !it.taxable);
     if (ev.status === 'solved') infos.push(nv.length + ' line' + (nv.length > 1 ? 's' : '') + ' worth ' + fmt(doc.non_vat_total) + ' have no VAT (worked out from the VAT amount). They are kept separate from the taxable lines.');

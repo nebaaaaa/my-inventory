@@ -2546,7 +2546,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
                     </div>
                     <div class="grid-3" style="margin-bottom:12px;">
                         ${isW ? field('beforeVat', 'Amount paid (taxable amount)', true) : field('beforeVat', 'Before VAT', true)}
-                        ${isW ? field('vat', 'VAT withheld (15%)', true) : field('vat', 'VAT', true)}
+                        ${isW ? field('vat', 'VAT withheld (15% ÷ 2)', true) : field('vat', 'VAT', true)}
                         ${isW ? '' : field('total', 'Total', true)}
                     </div>
                     ${d.nonVatAmount > 0 ? `<div style="font-size:12px; margin:-6px 0 10px; color:var(--text-soft);">Total here = taxable lines + VAT. Non-VAT goods on this receipt: <strong class="mono">${money(d.nonVatAmount)}</strong> (kept separately).</div>` : ''}
@@ -2808,7 +2808,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
                         </div>
                         <div class="grid-3" style="margin-bottom:12px;">
                             ${isW ? field('beforeVat', 'Amount paid (taxable amount)', 'Taxable amount', true) : field('beforeVat', 'Before VAT', null, true)}
-                            ${isW ? field('vat', 'VAT withheld (15%)', null, true) : field('vat', 'VAT', null, true)}
+                            ${isW ? field('vat', 'VAT withheld (15% ÷ 2)', null, true) : field('vat', 'VAT', null, true)}
                             ${isW ? '' : field('total', 'Total', null, true)}
                         </div>
                         ${f.nonVatAmount > 0 ? `<div style="font-size:12px; margin:-6px 0 10px; color:var(--text-soft);">Total here = taxable lines + VAT. Non-VAT goods on this receipt: <strong class="mono">${money(f.nonVatAmount)}</strong> (kept separately).</div>` : ''}
