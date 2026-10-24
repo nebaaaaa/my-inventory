@@ -9,7 +9,7 @@
 
 const GC_YEAR = new Date().getFullYear(); // used inside the prompt to explain Ethiopian vs Gregorian years
 
-const RECEIPT_PROMPT = `You are reading a photo of an Ethiopian purchase document. The photo may be rotated sideways or upside down — read it the right way up in your mind. It will be ONE of four layouts — figure out which one you're looking at first and put its letter (A, B, C or D) in "layout":
+const RECEIPT_PROMPT = `You are reading a photo of an Ethiopian purchase document. The photo may be rotated sideways or upside down — read it the right way up in your mind. It will be ONE of six layouts — figure out which one you're looking at first and put its letter (A, B, C, D, E or W) in "layout":
 
 LAYOUT A — fiscal cash register receipt (ERCA-compliant, usually thin white/thermal paper):
 - The SELLER'S TIN is printed near the very top as "TIN: XXXXXXXXXX", immediately followed by the seller's business/owner name, then address/phone lines.
@@ -49,6 +49,24 @@ LAYOUT D — ethio telecom "CASH RECEIPT" (computer-printed, bilingual Amharic/E
 - There is no machine code (mrc = null) and no item table. Return exactly ONE item: description "ethio telecom bill - <Billing Month>" (for example "ethio telecom bill - Jul 2026"), quantity 1, measurement null, unit_price and amount both equal to before_vat.
 - Ignore the round stamp, the signature, "Received By", the social-media icons and the "Thank you" note. A fold or the paper edge can cover part of the page — read around it.
 
+LAYOUT E - computer-generated e-invoice "Cash Sales Invoice/VAT/Excise" (bilingual Amharic/English, a clean printed A4 page with a QR code at the top right, a long hex "IRN" line under the title, and "Business Management Suite by Marakisoft Technologies" in the footer; a variant such as "Credit Sales Invoice" has the same form):
+- The box headed "From" is the SELLER: seller_name = the big company name at the top (repeated in the From box), seller_tin = "Seller's TIN" in the From box (for example 0000177986), vat_reg_no = "Seller's VAT Reg. No" (for example 18023). "Sub TIN" is a secondary field - ignore it.
+- The box headed "To" is the BUYER: buyer_tin = "Buyer's TIN" (for example 0000390746). The "Code" line (for example P-100439) is the supplier's own customer code, NOT a TIN. "Buyer's VAT Reg. No" is often empty. Never swap seller and buyer.
+- receipt_no = the number after "Doc. No:" at the top right (for example 1957; the Amharic label next to it means "receipt number"). The "Reference" (CSI-...), "Ref Note" (JA-...), "System Number" and the long IRN are internal system references - NOT the receipt number. The tiny line at the very top edge, like "e2eb6e41-18ac-4020-8928-b1a5c7ea6070 | 04.08.2026 11:23:10", is the system stamp: copy it into "doc_stamp".
+- DATE: the top right prints TWO dates - an Ethiopian one after the Amharic "ቀን" (for example 28/11/2018) and a Gregorian one after "Date:" (for example 04/08/2026 11:23:05). Use the GREGORIAN "Date:" value, which is DAY first (DD/MM/YYYY): date_calendar "GC", copy it exactly into date_raw (04/08/2026 means day 4, month 8). Ignore the Ethiopian one.
+- The item table columns are: No., Product/Service Description, Nature of Supply (Goods/Service), UoM, Tax Code, Quantity, Unit Price, Discount, Excise Tax, Total Amount. The description is the product name; a small code printed under it (for example 1499-01) is the item code and is not part of the name. UoM (for example PCS) is the measurement. Unit prices and line totals are BEFORE VAT.
+- The totals box reads: "Total Amount", "Excise Tax", "Discount", "VAT15 Taxable Total" = before_vat, "VAT15 Tax (15%)" = vat, "Non Taxable Total", "Withheld Amount (3%)", "Total VAT Withheld Amount", then "Total Price Including Tax (ETB)" = total. Withheld amounts are NOT VAT. The amount in words ("... Cents Only") can be used to double-check the total.
+- There is no machine code on this layout: mrc = null. is_vat is true. Ignore the QR code, "Prepared by", the "Remark" line (a payment reference such as CBE ...) and the payment method.
+
+LAYOUT W - VAT WITHHOLDING RECEIPT ("Nagahee Kaffaltii Irraa Taaksii Dabalata Qabeenyaa Hir'ifamee Hafuuf Kennamu", in Amharic "ከክፍያ ላይ ለተቀነሰ የተጨማሪ እሴት ታክስ የተሰጠ ደረሰኝ"). A small printed pad form in Afaan Oromo and Amharic, filled in BY HAND, with a printed serial like "WAZF No. 013125". A government office or other withholding agent hands it to a SUPPLIER to prove that VAT was withheld from a payment. It has NO item table, no MRC and no VAT invoice figures.
+- receipt_no = the printed serial next to "ደረሰኝ ቁጥር ... No." (for example 013125). Keep the leading zeros, digits only. The letters before "No." (for example WAZF) are just the pad's prefix.
+- The date after "Guyyaa/ቀን" at the top is handwritten, ETHIOPIAN calendar, day/month/year (for example 14/10/2018): date_calendar "EC", date_year the full 4-digit year, copy it exactly into date_raw. Read the digits slowly: 1 and 4 and 7 look alike in handwriting. A small printed date near the bottom (for example 02/09/2014 or 0720/2014 next to "Printed by") is the press approval date, NOT the receipt date - ignore it.
+- The block under "Maqaa Mana Hojii / የመስሪያ ቤቱ ስም" is the WITHHOLDING AGENT (the office that paid and withheld VAT): seller_name = its name (copy the Latin-script Afaan Oromo name if there is one, otherwise the Amharic), seller_tin = the TIN printed right under it, "Lakkoofsa Eenyummaa Kaffalaa Gibiraa (TIN)". This is the party that ISSUED the receipt.
+- The block under "Maqaa Dhiyeessaa / የአቅራቢው ስም" is the SUPPLIER whose VAT was withheld (normally our client, handwritten): supplier_name = that name; buyer_tin = the handwritten TIN after "Dhiyeessaa (TIN)" / "የአቅራቢው የግብር ከፋይ መለያ ቁጥር" (this layout has no buyer, so buyer_tin carries the supplier's TIN); supplier_vat_no = the handwritten number after "(VAT) dhiyeessaa" / "የአቅራቢው የተጨማሪ እሴት ታክስ መለያ ቁጥር". Read handwritten digits carefully, TINs are 10 digits. vat_reg_no stays null. Never swap the agent and the supplier.
+- The address box (Naannoo/Godina/Aanaa/Ganda/Lakkoofsa Manaa) is ignored.
+- wh_amount_paid = the handwritten figure after "Hanga maallaqa kaffalamuu / የተከፈለ ገንዘብ መጠን" (the amount paid, which is the taxable transaction amount). wh_withheld = the handwritten figure after "Hanga maallaqa hir'ifamee lakkoofsaan (%15) / የተቀነሰው ገንዘብ ልክ (15%)" (the VAT withheld, in figures). The line below it, "... qubeen / በፊደል", is the same withheld amount WRITTEN IN WORDS in Amharic - use it only to double-check wh_withheld. The withheld amount should be 15% of the amount paid. If the amount paid is overwritten, crossed out or unclear, return exactly what you can read (or null) and add "Taxable amount" to missing_fields; never replace it with a figure calculated from the other one.
+- Also copy the same numbers into before_vat (= wh_amount_paid), vat (= wh_withheld) and total (= wh_amount_paid). is_vat is false. mrc is null. has_header and has_totals are true. items is an empty list. Ignore signatures, the two name-and-signature lines ("Kan qopheesse / Kan Mirkaneessee"), stamps, punched holes and the small print at the bottom.
+
 MULTI-PAGE DOCUMENTS: a long sheet is photographed one page per photo. Page 1 usually has the header (seller, buyer, FS No., date) and the first lines; later pages may show only more lines; the LAST page has the Subtotal / VAT / Grand Total. Report only what is visible in THIS photo: set "has_header" to true only if the seller name/TIN block is visible, and "has_totals" to true only if a Subtotal/TXBL1, VAT/TAX1 or Grand Total/TOTAL amount is visible. If the footer says "Page 1 of 2" (or similar) fill "page_no" and "page_count" (numbers), otherwise null. Most ERP sheets also print a small faint "system stamp" line at the very top or bottom edge, like "001-01-0000033133 | 09.04.2026 13:40:55" (it can look like a ghost or duplicate print); copy it exactly into "doc_stamp" (it is the same on every page of one document), otherwise null. List ONLY the lines visible in this photo - a line hidden under a fold or finger must not be invented; if its description is hidden but its numbers are visible, use "" as the description.
 
 FADED OR HARD-TO-READ PHOTOS: thermal paper fades, photos blur, and watermarks cover text. Read every character you reasonably can, including very pale ones. Then check yourself with arithmetic: quantity x unit price = line amount; the line amounts add up to the subtotal; subtotal x 15% = VAT; subtotal + VAT = total. If a single digit is unreadable, use these relationships to repair it. If you still cannot read a value with confidence, return null for it — never invent it.
@@ -57,12 +75,16 @@ Whichever layout it is, always try to extract BOTH seller_tin (from the Supplier
 
 Extract exactly these fields and return ONLY raw JSON, no markdown fences, no commentary:
 {
-  "layout": "A" or "B" or "C" or "D",
+  "layout": "A" or "B" or "C" or "D" or "E" or "W",
   "seller_name": string or null,
   "seller_tin": string or null,
   "vat_reg_no": string or null,
   "buyer_tin": string or null,
   "mrc": string or null,
+  "supplier_name": string or null,
+  "supplier_vat_no": string or null,
+  "wh_amount_paid": number or null,
+  "wh_withheld": number or null,
   "date_calendar": "GC" or "EC",
   "date_year": number or null,
   "date_month": number or null,
@@ -88,7 +110,7 @@ Extract exactly these fields and return ONLY raw JSON, no markdown fences, no co
 
 "items" lists EVERY line item visible in this photo, in order, in addition to the single-item fields above (do not skip, merge or summarise lines; do not include subtotal/VAT/total/payment lines). "description" copies the printed text exactly; "amount" is the line total as printed; "measurement" only if a unit is printed next to the line.
 
-If there are multiple line items, pick only the SINGLE item with the largest amount and use its description, quantity, and unit_price — do not combine or list multiple items together in "description". Set "measurement" to "Lot", "quantity" to 1, and "unit_price" equal to "before_vat" ONLY if you cannot identify a clear largest item; otherwise use that one item's own measurement/quantity/unit_price as printed (measurement only if a unit like PCS/KG/M is actually printed next to it — this receipt format usually does not print one, so leave it null rather than guess). If there is exactly ONE line item, fill "description", "quantity", and "measurement" from that single item, but set "unit_price" equal to "before_vat" (the receipt's taxable subtotal) regardless of what is printed next to that item — with only one item, its line amount and the subtotal are the same thing. The ONE exception: if that single item's quantity is greater than 1 (for example quantity 2 at 121,739.13 each), keep "unit_price" as the printed per-unit price so that quantity x unit_price equals before_vat. "before_vat", "vat", and "total" should always be the receipt-wide totals from the TXBL1/TAX1/TOTAL lines, never a per-item figure. A separate VAT registration number is normal to be absent on this receipt format — never include "VAT reg no" in "missing_fields". In "missing_fields", only list fields from this set that you could not confidently read: "Seller name", "Seller TIN", "MRC". Never list "MRC" for layouts B or D — those layouts have no machine code.`;
+If there are multiple line items, pick only the SINGLE item with the largest amount and use its description, quantity, and unit_price — do not combine or list multiple items together in "description". Set "measurement" to "Lot", "quantity" to 1, and "unit_price" equal to "before_vat" ONLY if you cannot identify a clear largest item; otherwise use that one item's own measurement/quantity/unit_price as printed (measurement only if a unit like PCS/KG/M is actually printed next to it — this receipt format usually does not print one, so leave it null rather than guess). If there is exactly ONE line item, fill "description", "quantity", and "measurement" from that single item, but set "unit_price" equal to "before_vat" (the receipt's taxable subtotal) regardless of what is printed next to that item — with only one item, its line amount and the subtotal are the same thing. The ONE exception: if that single item's quantity is greater than 1 (for example quantity 2 at 121,739.13 each), keep "unit_price" as the printed per-unit price so that quantity x unit_price equals before_vat. "before_vat", "vat", and "total" should always be the receipt-wide totals from the TXBL1/TAX1/TOTAL lines, never a per-item figure. A separate VAT registration number is normal to be absent on this receipt format — never include "VAT reg no" in "missing_fields". In "missing_fields", only list fields from this set that you could not confidently read: "Seller name", "Seller TIN", "MRC". Never list "MRC" for layouts B, D, E or W — those layouts have no machine code.`;
 
 // Ethiopian VAT-registered receipts charge a flat 15% VAT rate. Photos
 // sometimes cut off or blur one of the three money fields (before-VAT
@@ -142,12 +164,12 @@ function fixDate(parsed) {
     parsed.date_ambiguous = false;
     parsed.date_alt_day = null;
     parsed.date_alt_month = null;
-    if (parsed.date_calendar !== 'GC' || (parsed.layout !== 'C' && parsed.layout !== 'D')) return parsed;
+    if (parsed.date_calendar !== 'GC' || (parsed.layout !== 'C' && parsed.layout !== 'D' && parsed.layout !== 'E')) return parsed;
     const m = String(parsed.date_raw || '').match(/(\d{1,2})\s*[\/\-.]\s*(\d{1,2})\s*[\/\-.]\s*(\d{4})/);
     if (!m) return parsed;
     const a = Number(m[1]), b = Number(m[2]), y = Number(m[3]);
     parsed.date_year = y;
-    if (parsed.layout === 'D') { // ethio telecom always prints day first
+    if (parsed.layout === 'D' || parsed.layout === 'E') { // ethio telecom and the Marakisoft e-invoice always print day first
         if (b > 12 && a <= 12) { parsed.date_day = b; parsed.date_month = a; } else { parsed.date_day = a; parsed.date_month = b; }
         return parsed;
     }
@@ -166,6 +188,11 @@ function fixDate(parsed) {
 // (faded digits are the usual reason) — tell the user to double-check.
 function mathWarnings(parsed) {
     const w = [];
+    if (parsed.layout === 'W') { // withheld VAT must be 15% of the amount paid
+        const b = parsed.before_vat, v = parsed.vat, f2 = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        if (b !== null && v !== null && Math.abs(v - b * VAT_RATE) > 1.5) w.push('The VAT withheld (' + f2(v) + ') is not 15% of the amount paid (' + f2(b) + ' x 15% = ' + f2(b * VAT_RATE) + '). The amount paid or the withheld amount may be misread - check both against the paper.');
+        return w;
+    }
     if (isPartialPage(parsed)) return w; // checked after the pages are combined
     const items = parsed.items || [];
     const sum = items.reduce((s, i) => s + (i.amount || 0), 0);
@@ -178,6 +205,31 @@ function mathWarnings(parsed) {
         w.push('Quantity x unit price is more than the subtotal. The quantity or price may be misread.');
     }
     return w;
+}
+
+
+// ---- VAT withholding receipts (layout W) ----
+// The agent (seller_*) withheld VAT from a payment to the supplier (buyer_tin, normally our client).
+// before_vat = the taxable amount paid, vat = the VAT withheld, total = the amount paid. It is a record, not a
+// VAT invoice, so is_vat is false (no 15% repairs) and the single line is flagged as a service (never stock).
+function fixWithholding(parsed) {
+    if (parsed.layout !== 'W') return parsed;
+    const paid = toNumOrNull(parsed.wh_amount_paid != null ? parsed.wh_amount_paid : parsed.before_vat);
+    const withheld = toNumOrNull(parsed.wh_withheld != null ? parsed.wh_withheld : parsed.vat);
+    parsed.is_vat = false;
+    parsed.before_vat = paid; parsed.vat = withheld; parsed.total = paid;
+    parsed.wh_amount_paid = paid; parsed.wh_withheld = withheld;
+    parsed.mrc = null; parsed.vat_reg_no = null;
+    parsed.receipt_no = parsed.receipt_no ? String(parsed.receipt_no).replace(/\s+/g, '').slice(0, 30) : null;
+    parsed.supplier_name = parsed.supplier_name ? String(parsed.supplier_name).trim().slice(0, 120) : null;
+    parsed.supplier_vat_no = parsed.supplier_vat_no ? String(parsed.supplier_vat_no).replace(/\s+/g, '').slice(0, 30) : null;
+    parsed.description = 'VAT withholding receipt';
+    parsed.measurement = null; parsed.quantity = paid === null ? null : 1; parsed.unit_price = paid;
+    parsed.items = paid === null ? [] : [{ description: 'VAT withholding receipt', quantity: 1, measurement: null, unit_price: paid, amount: paid }];
+    parsed.has_header = true;
+    parsed.has_totals = paid !== null || withheld !== null;
+    parsed.page_no = null; parsed.page_count = null;
+    return parsed;
 }
 
 // ---- Page information (for documents photographed as several pages) ----
@@ -217,7 +269,7 @@ function cleanItems(raw) {
 // "4/11/2018" looks Gregorian but is Ethiopian. The Gregorian year is 7 or 8 higher than the
 // Ethiopian one, so on a hand-filled invoice a year this far behind today can only be Ethiopian.
 function fixEthiopianYear(parsed) {
-    if (parsed.layout !== 'B') return parsed;
+    if (parsed.layout !== 'B' && parsed.layout !== 'W') return parsed;
     let y = toNumOrNull(parsed.date_year);
     if (y === null) return parsed;
     if (y < 100) { y += 2000; parsed.date_year = y; parsed.date_calendar = 'EC'; }
@@ -252,7 +304,7 @@ function fixSingleItemUnitPrice(parsed) {
 // The ethio telecom bill (layout D) is a SERVICE, not goods: it must never be added to stock.
 // The reading carries is_service: true (on the document and on its item) so the screen can skip it.
 function markService(parsed) {
-    parsed.is_service = parsed.layout === 'D';
+    parsed.is_service = parsed.layout === 'D' || parsed.layout === 'W';
     if (parsed.is_service) parsed.items = (parsed.items || []).map((it) => ({ ...it, is_service: true }));
     return parsed;
 }
@@ -344,13 +396,14 @@ export default async function handler(req, res) {
     try {
         const cleaned = text.trim().replace(/^```json\s*|```$/g, '');
         let parsed = JSON.parse(cleaned);
+        parsed = fixWithholding(parsed);
         parsed = fillMissingVatFields(parsed);
         // Trust the model's own read of which calendar the date was written
         // in (layout A is always Gregorian; the manual yellow layout is
         // usually Ethiopian) — only fall back to Gregorian if it left this
         // blank or returned something unrecognized.
         parsed.date_calendar = parsed.date_calendar === 'EC' ? 'EC' : 'GC';
-        parsed.layout = ['A', 'B', 'C', 'D'].includes(parsed.layout) ? parsed.layout : 'A';
+        parsed.layout = ['A', 'B', 'C', 'D', 'E', 'W'].includes(parsed.layout) ? parsed.layout : 'A';
         parsed = fixEthiopianYear(parsed);
         parsed = fixDate(parsed);
         parsed = cleanPageFields(parsed);
@@ -361,7 +414,7 @@ export default async function handler(req, res) {
         parsed = fixTelecomItem(parsed);
         parsed = markService(parsed);
         parsed = fixSingleItemUnitPrice(parsed);
-        if (parsed.layout === 'B' || parsed.layout === 'D') parsed.missing_fields = (Array.isArray(parsed.missing_fields) ? parsed.missing_fields : []).filter((f) => f !== 'MRC');
+        if (parsed.layout === 'B' || parsed.layout === 'D' || parsed.layout === 'E' || parsed.layout === 'W') parsed.missing_fields = (Array.isArray(parsed.missing_fields) ? parsed.missing_fields : []).filter((f) => f !== 'MRC');
         parsed.warnings = mathWarnings(parsed);
         res.status(200).json(parsed);
     } catch (e) {

@@ -73,6 +73,7 @@
     .kind-pill.purchase { background: #f1f6f2; color: var(--ink); border-color: #d3e2d6; }
     .kind-pill.sale { background: #eef4fb; color: #1f4f86; border-color: #d0e0f2; }
     .kind-pill.expense { background: var(--amber-bg); color: var(--amber); border-color: #efd9b8; }
+    .kind-pill.withholding { background: #f4eefb; color: #5b3a8a; border-color: #e0d3f1; }
     .seg { display: inline-flex; border: 1px solid var(--paper-line); border-radius: 6px; overflow: hidden; background: #fff; flex-wrap: wrap; }
     .seg button { border: none; background: #fff; padding: 7px 12px; font-size: 12.5px; font-family: inherit; cursor: pointer; color: var(--text-soft); border-right: 1px solid var(--paper-line); }
     .seg button:last-child { border-right: none; }
@@ -396,7 +397,7 @@
         return { csv: toCsv([header, ...allRows]), nextCounter: counter };
     }
     function buildReceiptsCsv(client, fromKey, toKey) {
-        const entries = client.entries.filter((e) => e.type === 'receipt' && entryEcKey(e) >= fromKey && entryEcKey(e) <= toKey);
+        const entries = client.entries.filter((e) => (e.type === 'receipt' || (e.type === 'withholding' && !e.tinMismatch)) && entryEcKey(e) >= fromKey && entryEcKey(e) <= toKey);
         if (!entries.length) return null;
         const periods = Array.from(new Set(entries.map(entryEcKey))).sort();
         const rule = client.receiptsRule;
@@ -405,6 +406,7 @@
             const periodEntries = entries.filter((e) => entryEcKey(e) === periodKey);
             let sales = 0, nonVatSales = 0, vatPay = 0, vatWithholding = 0;
             periodEntries.forEach((e) => {
+                if (e.type === 'withholding') { vatWithholding += Number(e.vat) || 0; return; } // VAT the agents withheld from the client's payments
                 if (e.isVat) { sales += Number(e.beforeVat) || 0; vatPay += Number(e.vat) || 0; nonVatSales += Number(e.nonVatAmount) || 0; }
                 else { nonVatSales += Number(e.total ?? e.beforeVat) || 0; }
             });
@@ -619,6 +621,25 @@ This field is  mandatory.",Total value,vat,value after vat`;
         return { csv, skipped };
     }
 
+    // eTax VAT withholding upload file (the site's own VATWHFORVATTAX.csv): four columns, TAB-separated like the site's template.
+    const ETAX_WITHHOLDING_HEADER = ['VAT withholding receipt no. issued by  agent', 'VAT withholding receipt issued date', 'Total taxable transaction amount', 'VAT withheld amount'];
+    function buildEtaxWithholdingCsv(client, fromKey, toKey, calendar) {
+        const entries = client.entries.filter((e) => e.type === 'withholding' && !e.tinMismatch && entryEcKey(e) >= fromKey && entryEcKey(e) <= toKey);
+        const rows = [], skipped = [];
+        entries.forEach((e) => {
+            const missing = [];
+            if (!e.date) missing.push('date');
+            if (!e.receiptNo) missing.push('withholding receipt number');
+            if (!(Number(e.beforeVat) > 0)) missing.push('taxable amount');
+            if (!(Number(e.vat) > 0)) missing.push('VAT withheld amount');
+            if (missing.length) { skipped.push({ entry: e, reasons: missing }); return; }
+            let date = etaxDdMmYyyy(e.date);
+            if (calendar === 'E') { const ec = gcToEc(e.date); if (ec) date = `${String(ec.day).padStart(2, '0')}/${String(ec.month).padStart(2, '0')}/${ec.year}`; }
+            rows.push([String(e.receiptNo).replace(/[\t\r\n]+/g, ' ').trim(), date, etaxMoney(e.beforeVat), etaxMoney(e.vat)]);
+        });
+        if (!rows.length) return { csv: null, skipped };
+        return { csv: [ETAX_WITHHOLDING_HEADER, ...rows].map((r) => r.join('\t')).join('\r\n') + '\r\n', skipped };
+    }
     function buildVatWorkbook(client, fromKey, toKey) {
         const entries = client.entries
             .filter((e) => e.type === 'payment' && !e.tinMismatch) // hold back TIN mismatches until unflagged
@@ -837,6 +858,14 @@ This field is  mandatory.",Total value,vat,value after vat`;
         if (buyerIsClient && !sellerIsClient) return { type: 'payment', mismatch: false }; // client received it -> a Purchase
         if (!sellerIsClient && !buyerIsClient && (sellerTin || buyerTin)) return { type: null, mismatch: true }; // neither side is the client
         return { type: null, mismatch: false }; // not enough info printed to tell either way
+    }
+    // A VAT withholding receipt names the AGENT who withheld (seller_*) and the SUPPLIER whose VAT was withheld
+    // (read into buyer_tin). Our client is the supplier, so the supplier TIN must be the client's own TIN.
+    function evaluateWithholdingMatch(ex, client) {
+        const clientTin = normalizeTin(client && client.tin);
+        const supplierTin = normalizeTin(ex.buyer_tin);
+        if (!clientTin || !supplierTin) return { type: 'withholding', mismatch: false };
+        return { type: 'withholding', mismatch: supplierTin !== clientTin };
     }
 
     // ------------------------------------------------------------------------
@@ -1444,7 +1473,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
     function renderShareNotice(f) {
         const c = activeClient();
         const link = linkedApprovedShop(c);
-        if (!link || f.tinMismatch) return '';
+        if (!link || f.tinMismatch || f.type === 'withholding') return '';
         const shop = esc(link.business_name || c.name);
         if (f.type === 'payment') {
             const kind = f.entryKind === 'expense' ? 'expense' : 'purchase';
@@ -1463,9 +1492,9 @@ This field is  mandatory.",Total value,vat,value after vat`;
     // ------------------------------------------------------------------------
     // Helpers shared by the receipts list, the review windows and the live updates
     // ------------------------------------------------------------------------
-    // Purchase of goods / Expense (a service) / Sale. Sales are always type 'receipt'.
-    function entryKindOf(e) { return e.type === 'receipt' ? 'sale' : (e.entryKind === 'expense' ? 'expense' : 'purchase'); }
-    const KIND_LABEL = { purchase: 'Purchase', sale: 'Sale', expense: 'Expense' };
+    // Purchase of goods / Expense (a service) / Sale / VAT withholding receipt. Sales are always type 'receipt'; withholding receipts have their own type 'withholding'.
+    function entryKindOf(e) { return e.type === 'withholding' ? 'withholding' : (e.type === 'receipt' ? 'sale' : (e.entryKind === 'expense' ? 'expense' : 'purchase')); }
+    const KIND_LABEL = { purchase: 'Purchase', sale: 'Sale', expense: 'Expense', withholding: 'VAT withholding' };
     // A sale that came in from the shop is the shop's own record: the accountant can read it but not change it.
     function isShopSale(e) { return !!e && e.type === 'receipt' && e.syncedFrom === 'shop'; }
     function normKey(s) { return String(s ?? '').toLowerCase().replace(/[^a-z0-9\u1200-\u137f]+/g, ''); }
@@ -1798,7 +1827,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
     // every row in that download. Change it here if a given month's batch
     // is mostly a different category (e.g. capital assets instead of
     // general expenses); mismatched rows can still be moved on the site.
-    let etaxOptions = { purchaseType: '5', purchaseCategory: 'G', saleType: '1', saleCategory: 'G', nonTaxPurchaseCategory: 'G', nonTaxSaleCategory: 'G' };
+    let etaxOptions = { purchaseType: '5', purchaseCategory: 'G', saleType: '1', saleCategory: 'G', nonTaxPurchaseCategory: 'G', nonTaxSaleCategory: 'G', withholdingCalendar: 'G' };
     let addFlow = null; // { step, preview, error, form }
 
     function activeClient() { return clients.find((c) => c.id === activeClientId) || null; }
@@ -2022,6 +2051,12 @@ This field is  mandatory.",Total value,vat,value after vat`;
     function backToDashboard() { activeClientId = null; stopLive(); render(); }
     function setTab(key) { activeTab = key; addFlow = null; render(); }
 
+    // Saving a 'withholding' receipt needs the database to accept that value in the type column (migration_withholding.sql).
+    function entryDbError(error, entry) {
+        const msg = (error && error.message) || 'Could not save.';
+        if (entry && entry.type === 'withholding' && /check constraint|violates|invalid input value|enum/i.test(msg)) return msg + "\n\nThe database does not accept the 'withholding' receipt type yet. Run migration_withholding.sql once in Supabase (SQL editor), then save again.";
+        return msg;
+    }
     async function addEntry(entry) {
         const client = activeClient();
         let row = entryToDb(entry, client.id);
@@ -2032,7 +2067,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
             delete row.non_vat_amount; delete row.lines; delete row.entry_kind;
             ({ data, error } = await supabaseClient.from('accountant_entries').insert(row).select().single());
         }
-        if (error) { alert(error.message); return; }
+        if (error) { alert(entryDbError(error, entry)); return; }
         client.entries.unshift(mapEntryFromDb(data));
         client.entryCount = (client.entryCount || 0) + 1;
         rememberSeller(entry.sellerName, entry.sellerTin);
@@ -2251,7 +2286,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
     }
     function receiptsView(client) {
         const base = receiptsPeriodFiltered(client).filter((e) => entryMatchesQuery(e, receiptsFilter.query));
-        const counts = { all: base.length, purchase: 0, sale: 0, expense: 0 };
+        const counts = { all: base.length, purchase: 0, sale: 0, expense: 0, withholding: 0 };
         base.forEach((e) => { counts[entryKindOf(e)]++; });
         const shown = receiptsFilter.kind === 'all' ? base : base.filter((e) => entryKindOf(e) === receiptsFilter.kind);
         return { shown, counts };
@@ -2264,7 +2299,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
     }
     function renderKindFilter(client) {
         const { counts } = receiptsView(client);
-        const opts = [['all', 'All'], ['purchase', 'Purchase receipts'], ['sale', 'Sales receipts'], ['expense', 'Expense receipts']];
+        const opts = [['all', 'All'], ['purchase', 'Purchase receipts'], ['sale', 'Sales receipts'], ['expense', 'Expense receipts'], ['withholding', 'VAT withholding receipts']];
         return `<div class="seg">${opts.map(([k, label]) => `<button type="button" class="${receiptsFilter.kind === k ? 'on' : ''}" onclick="rfSetKind('${k}')">${label}<span class="cnt">${counts[k]}</span></button>`).join('')}</div>`;
     }
     function renderReceiptsList(client) {
@@ -2280,12 +2315,12 @@ This field is  mandatory.",Total value,vat,value after vat`;
             return `
             <tr class="entry-row${e.reviewed === false ? ' unreviewed' : ''}${e.tinMismatch ? ' tin-mismatch' : ''}" onclick="openEntryDetail('${e.id}')" style="cursor:pointer;">
                 <td class="mono" style="font-size:12px;">${esc(e.date) || '—'}</td>
-                <td>${esc(e.sellerName) || 'Unknown seller'}${e.missing && e.missing.length ? ` <span title="Needs review: ${esc(e.missing.join(', '))}" style="color:var(--amber);">${icon('alert-triangle', 12)}</span>` : ''}${e.reviewed === false ? `<span class="badge-new" title="Auto-saved from a batch upload — not reviewed yet">New</span>` : ''}${e.syncedFrom === 'shop' ? `<span class="badge-shop" title="${locked ? "This is the shop's own sales record, so it is view-only." : "Came from the shop's own records. Check the details and the FS number."}">${icon('store', 11)} From shop</span>` : ''}${e.tinMismatch ? `<span class="tin-mismatch-badge" title="Neither party's TIN on the document matches this client — excluded from exports">${icon('alert-triangle', 11)} TIN mismatch</span>` : ''}
-                    ${(e.receiptNo || e.mrc) ? `<div class="mono" style="font-size:11px; color:var(--text-soft); margin-top:2px;">${e.receiptNo ? `FS ${esc(e.receiptNo)}` : ''}${e.receiptNo && e.mrc ? ' · ' : ''}${e.mrc ? `MRC ${esc(e.mrc)}` : ''}</div>` : ''}</td>
+                <td>${esc(e.sellerName) || (e.type === 'withholding' ? 'Unknown agent' : 'Unknown seller')}${e.missing && e.missing.length ? ` <span title="Needs review: ${esc(e.missing.join(', '))}" style="color:var(--amber);">${icon('alert-triangle', 12)}</span>` : ''}${e.reviewed === false ? `<span class="badge-new" title="Auto-saved from a batch upload — not reviewed yet">New</span>` : ''}${e.syncedFrom === 'shop' ? `<span class="badge-shop" title="${locked ? "This is the shop's own sales record, so it is view-only." : "Came from the shop's own records. Check the details and the FS number."}">${icon('store', 11)} From shop</span>` : ''}${e.tinMismatch ? `<span class="tin-mismatch-badge" title="Neither party's TIN on the document matches this client — excluded from exports">${icon('alert-triangle', 11)} TIN mismatch</span>` : ''}
+                    ${(e.receiptNo || e.mrc) ? `<div class="mono" style="font-size:11px; color:var(--text-soft); margin-top:2px;">${e.receiptNo ? `${e.type === 'withholding' ? 'WH no.' : 'FS'} ${esc(e.receiptNo)}` : ''}${e.receiptNo && e.mrc ? ' · ' : ''}${e.mrc ? `MRC ${esc(e.mrc)}` : ''}</div>` : ''}</td>
                 <td><span class="kind-pill ${kind}" title="${kind === 'expense' ? 'Saved as a service' : ''}">${KIND_LABEL[kind]}</span></td>
                 <td class="mono num">${money(e.beforeVat)}</td>
-                <td class="mono num">${money(e.vat)}</td>
-                <td class="mono num" style="font-weight:600;">${money(e.total)}${e.nonVatAmount > 0 ? `<div style="font-size:10.5px; font-weight:400; color:var(--amber);" title="Goods on this receipt that carry no VAT">+ ${money(e.nonVatAmount)} non-VAT</div>` : ''}</td>
+                <td class="mono num">${e.type === 'withholding' ? `${money(e.vat)}<div style="font-size:10.5px; font-weight:400; color:var(--text-soft);" title="VAT the agent withheld from the payment">withheld</div>` : money(e.vat)}</td>
+                <td class="mono num" style="font-weight:600;">${e.type === 'withholding' ? '<span style="color:var(--text-soft); font-weight:400;">—</span>' : money(e.total)}${e.nonVatAmount > 0 ? `<div style="font-size:10.5px; font-weight:400; color:var(--amber);" title="Goods on this receipt that carry no VAT">+ ${money(e.nonVatAmount)} non-VAT</div>` : ''}</td>
                 <td style="text-align:right; white-space:nowrap;">
                     ${e.tinMismatch && !locked ? `<button class="btn-icon" title="Unflag — include in exports" onclick="event.stopPropagation(); toggleTinMismatch('${e.id}')">${icon('flag', 14)}</button>` : ''}
                     ${locked ? `<span class="btn-icon" style="cursor:default;" title="View-only: this sale came from the shop">${icon('lock', 14)}</span>` : `<button class="btn-icon" onclick="event.stopPropagation(); removeEntry('${e.id}')">${icon('trash-2', 14)}</button>`}
@@ -2399,8 +2434,8 @@ This field is  mandatory.",Total value,vat,value after vat`;
         const patch = {
             entryKind: d.type === 'payment' ? (d.entryKind === 'expense' ? 'expense' : 'purchase') : '',
             type: d.type, date: d.date, sellerName: d.sellerName, sellerTin: d.sellerTin, vatRegNo: d.vatRegNo,
-            mrc: d.mrc, receiptNo: d.receiptNo, isVat: !!d.isVat,
-            beforeVat: Number(d.beforeVat) || 0, vat: Number(d.vat) || 0, total: Number(d.total) || 0,
+            mrc: d.mrc, receiptNo: d.receiptNo, isVat: d.type === 'withholding' ? false : !!d.isVat,
+            beforeVat: Number(d.beforeVat) || 0, vat: Number(d.vat) || 0, total: d.type === 'withholding' ? (Number(d.beforeVat) || 0) : (Number(d.total) || 0),
             description: d.description, measurement: d.measurement,
             quantity: d.quantity === '' ? null : Number(d.quantity), unitPrice: d.unitPrice === '' ? null : Number(d.unitPrice),
             reviewed: true, tinMismatch: !!d.tinMismatch,
@@ -2414,7 +2449,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
             delete upd.non_vat_amount; delete upd.lines; delete upd.entry_kind;
             ({ error } = await supabaseClient.from('accountant_entries').update(upd).eq('id', entryModalId));
         }
-        if (error) { alert(error.message); return; }
+        if (error) { alert(entryDbError(error, patch)); return; }
         if (idx >= 0) client.entries[idx] = { ...client.entries[idx], ...patch };
         rememberSeller(patch.sellerName, patch.sellerTin);
         if (previous) {
@@ -2465,6 +2500,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
         const d = locked ? { ...entryModalDraft, description: cleanShopDescription(entryModalDraft) } : entryModalDraft;
         const ec = gcToEc(d.date);
         const ecLabel = ec ? `${EC_MONTHS[ec.month - 1]} ${ec.day}, ${ec.year} (EC)` : '';
+        const isW = d.type === 'withholding';
         const field = (key, label, mono) => `
             <div><label>${label}</label>
             <input value="${esc(d[key])}" style="${mono ? "font-family:'IBM Plex Mono',monospace;" : ''}" oninput="entryModalDraft.${key}=this.value"></div>`;
@@ -2484,13 +2520,14 @@ This field is  mandatory.",Total value,vat,value after vat`;
                     </div>
                     ${locked ? `<div class="ro-banner">${icon('lock', 14)}<div><strong>View only.</strong> This sale came from the shop, so only the shop can change it. If something looks wrong, ask them to correct it and it will update here.</div></div>` : ''}
                     ${d.reviewed === false && !locked ? `<div class="notice notice-warn">${icon('alert-triangle', 14)} Auto-saved from a batch upload, not reviewed yet. Check the fields below, then Save (or just move to the next one — that marks it reviewed too).</div>` : ''}
-                    ${d.tinMismatch ? `<div class="notice notice-danger">${icon('alert-triangle', 14)} <div>Neither party's TIN on this document matched this client's TIN, so it's excluded from filing exports. <button type="button" class="btn btn-ghost" style="margin-left:6px; padding:2px 8px; font-size:12px;" onclick="entryModalDraft.tinMismatch=false; render();">${icon('check', 12)} Confirm it's theirs — include it</button></div></div>` : ''}
+                    ${d.tinMismatch ? `<div class="notice notice-danger">${icon('alert-triangle', 14)} <div>${d.type === 'withholding' ? "The supplier TIN on this withholding receipt did not match this client's TIN, so it's excluded from filing exports." : "Neither party's TIN on this document matched this client's TIN, so it's excluded from filing exports."} <button type="button" class="btn btn-ghost" style="margin-left:6px; padding:2px 8px; font-size:12px;" onclick="entryModalDraft.tinMismatch=false; render();">${icon('check', 12)} Confirm it's theirs — include it</button></div></div>` : ''}
                     ${renderUndoBar('receipt')}
                     <fieldset class="ro" ${locked ? 'disabled' : ''}>
                     <div style="display:flex; gap:16px; margin-bottom:14px; flex-wrap:wrap;">
                         <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="edit-entry-type" style="width:auto;" ${d.type === 'payment' ? 'checked' : ''} onchange="entryModalDraft.type='payment'; render()"> Purchase (payment out)</label>
                         <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="edit-entry-type" style="width:auto;" ${d.type === 'receipt' ? 'checked' : ''} onchange="entryModalDraft.type='receipt'; render()"> Sale (receipt in)</label>
-                        <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; margin-left:auto;"><input type="checkbox" style="width:auto;" ${d.isVat ? 'checked' : ''} onchange="entryModalDraft.isVat=this.checked"> VAT receipt</label>
+                        <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="edit-entry-type" style="width:auto;" ${d.type === 'withholding' ? 'checked' : ''} onchange="entryModalDraft.type='withholding'; entryModalDraft.isVat=false; render()"> VAT withholding receipt</label>
+                        ${isW ? '' : `<label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; margin-left:auto;"><input type="checkbox" style="width:auto;" ${d.isVat ? 'checked' : ''} onchange="entryModalDraft.isVat=this.checked"> VAT receipt</label>`}
                     </div>
                     ${renderKindPicker(d, 'entryModalDraft')}
                     <div class="grid-2" style="margin-bottom:12px;">
@@ -2498,26 +2535,28 @@ This field is  mandatory.",Total value,vat,value after vat`;
                         <div><label>&nbsp;</label><div id="edit-ec-label" class="mono" style="font-size:12px; color:var(--text-soft); padding-top:8px;">${esc(ecLabel)}</div></div>
                     </div>
                     <div class="grid-3" style="margin-bottom:12px;">
-                        ${field('sellerName', 'Seller name')}
+                        ${isW ? `${field('sellerName', 'Withholding agent name')}
+                        ${field('sellerTin', 'Agent TIN', true)}
+                        ${field('receiptNo', 'Withholding receipt number')}` : `${field('sellerName', 'Seller name')}
                         ${field('sellerTin', 'Seller TIN', true)}
                         ${field('vatRegNo', 'VAT reg no', true)}
                         ${field('mrc', 'MRC code', true)}
                         ${field('receiptNo', 'Receipt / FS number')}
-                        <div></div>
+                        <div></div>`}
                     </div>
                     <div class="grid-3" style="margin-bottom:12px;">
-                        ${field('beforeVat', 'Before VAT', true)}
-                        ${field('vat', 'VAT', true)}
-                        ${field('total', 'Total', true)}
+                        ${isW ? field('beforeVat', 'Amount paid (taxable amount)', true) : field('beforeVat', 'Before VAT', true)}
+                        ${isW ? field('vat', 'VAT withheld (15%)', true) : field('vat', 'VAT', true)}
+                        ${isW ? '' : field('total', 'Total', true)}
                     </div>
                     ${d.nonVatAmount > 0 ? `<div style="font-size:12px; margin:-6px 0 10px; color:var(--text-soft);">Total here = taxable lines + VAT. Non-VAT goods on this receipt: <strong class="mono">${money(d.nonVatAmount)}</strong> (kept separately).</div>` : ''}
-                    ${renderLinesPanel(d, 'edit')}
-                    <div class="grid-4" style="margin-bottom:16px;">
+                    ${isW ? '' : renderLinesPanel(d, 'edit')}
+                    ${isW ? '' : `<div class="grid-4" style="margin-bottom:16px;">
                         ${field('description', 'Description')}
                         ${field('measurement', 'Measurement')}
                         ${field('quantity', 'Quantity', true)}
                         ${field('unitPrice', 'Unit price', true)}
-                    </div>
+                    </div>`}
                     </fieldset>
                     <div style="display:flex; gap:10px;">
                         ${locked ? `<button class="btn btn-ghost" onclick="closeEntryDetail()">Close</button>` : `
@@ -2640,8 +2679,9 @@ This field is  mandatory.",Total value,vat,value after vat`;
             // don't keep the scanned TINs around afterward, just the flag
             // and (when we could tell) the Purchase/Sale type.
             const client = activeClient();
-            const match = evaluateTinMatch(ex, client);
-            const entryType = match.type || 'payment';
+            const isW = ex.layout === 'W'; // VAT withholding receipt
+            const match = isW ? evaluateWithholdingMatch(ex, client) : evaluateTinMatch(ex, client);
+            const entryType = isW ? 'withholding' : (match.type || 'payment');
             addFlow.tinMismatchInfo = match.mismatch ? { seller: ex.seller_tin, buyer: ex.buyer_tin, expected: client.tin } : null;
             addFlow.form = {
                 type: entryType, calendar, ecYear: ex.date_year || '', ecMonth: ex.date_month || '', ecDay: ex.date_day || '', date: gcDate,
@@ -2657,6 +2697,10 @@ This field is  mandatory.",Total value,vat,value after vat`;
                 entryKind: 'purchase',
                 splitStatus: (ex.split && ex.split.status) || 'none',
             };
+            if (isW) {
+                // before VAT = taxable amount paid, VAT = VAT withheld. No lines, no MRC, not a VAT invoice.
+                Object.assign(addFlow.form, { isVat: false, vatRegNo: '', mrc: '', description: 'VAT withholding receipt', measurement: '', quantity: '', unitPrice: '', lines: [], nonVatAmount: 0, entryKind: '', total: ex.before_vat ?? '' });
+            }
             addFlow.step = 'review';
         } catch (e) {
             console.error(e);
@@ -2683,7 +2727,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
             return `
                 <div class="card" style="text-align:center;">
                     ${icon('upload', 26)}
-                    <div style="margin:10px 0 14px; color:var(--text-soft); font-size:13.5px;">Upload photos of the receipt or invoice, or take one with your camera</div>
+                    <div style="margin:10px 0 14px; color:var(--text-soft); font-size:13.5px;">Upload photos of the receipt, invoice or VAT withholding receipt, or take one with your camera</div>
                     <input type="file" accept="image/*" multiple style="display:none;" id="receipt-file-input" onchange="handleReceiptFile(this)">
                     <input type="file" accept="image/*" capture="environment" style="display:none;" id="receipt-camera-input" onchange="handleReceiptFile(this)">
                     <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
@@ -2706,6 +2750,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
                 </div>`;
         }
         const f = addFlow.form;
+        const isW = f.type === 'withholding';
         const missingSet = new Set(f.missing || []);
         const field = (key, label, flagName, mono) => `
             <div><label>${label}</label>
@@ -2722,25 +2767,29 @@ This field is  mandatory.",Total value,vat,value after vat`;
                         <div style="display:flex; gap:16px; margin-bottom:14px; flex-wrap:wrap;">
                             <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="entry-type" style="width:auto;" ${f.type === 'payment' ? 'checked' : ''} onchange="addFlow.form.type='payment'; render()"> Purchase (payment out)</label>
                             <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="entry-type" style="width:auto;" ${f.type === 'receipt' ? 'checked' : ''} onchange="addFlow.form.type='receipt'; render()"> Sale (receipt in)</label>
-                            <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; margin-left:auto;"><input type="checkbox" style="width:auto;" ${f.isVat ? 'checked' : ''} onchange="addFlow.form.isVat=this.checked"> VAT receipt</label>
+                            <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="entry-type" style="width:auto;" ${f.type === 'withholding' ? 'checked' : ''} onchange="addFlow.form.type='withholding'; addFlow.form.isVat=false; render()"> VAT withholding receipt</label>
+                            ${isW ? '' : `<label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; margin-left:auto;"><input type="checkbox" style="width:auto;" ${f.isVat ? 'checked' : ''} onchange="addFlow.form.isVat=this.checked"> VAT receipt</label>`}
                         </div>
                         ${renderKindPicker(f, 'addFlow.form')}
                         ${f.tinMismatch ? `
                         <div class="notice notice-danger">
                             ${icon('alert-triangle', 14)}
                             <div>
-                                <div><strong>Neither party's TIN matches this client.</strong> Seller TIN ${esc(addFlow.tinMismatchInfo ? (addFlow.tinMismatchInfo.seller || '—') : '')}, Buyer TIN ${esc(addFlow.tinMismatchInfo ? (addFlow.tinMismatchInfo.buyer || '—') : '')} — this client's TIN is ${esc(addFlow.tinMismatchInfo ? addFlow.tinMismatchInfo.expected : '')}.</div>
+                                <div><strong>${f.type === 'withholding' ? 'The supplier TIN on this withholding receipt does not match this client.' : "Neither party's TIN matches this client."}</strong> ${f.type === 'withholding' ? 'Agent TIN' : 'Seller TIN'} ${esc(addFlow.tinMismatchInfo ? (addFlow.tinMismatchInfo.seller || '—') : '')}, ${f.type === 'withholding' ? 'Supplier TIN' : 'Buyer TIN'} ${esc(addFlow.tinMismatchInfo ? (addFlow.tinMismatchInfo.buyer || '—') : '')} — this client's TIN is ${esc(addFlow.tinMismatchInfo ? addFlow.tinMismatchInfo.expected : '')}.</div>
                                 <div style="margin-top:4px; font-size:12px;">It will still be saved, but kept out of filing exports until you confirm it belongs to this client.</div>
                                 <button type="button" class="btn btn-ghost" style="margin-top:6px; padding:4px 10px; font-size:12px;" onclick="addFlow.form.tinMismatch=false; render();">${icon('check', 13)} This is correct — include it</button>
                             </div>
                         </div>` : ''}
                         <div class="grid-3" style="margin-bottom:12px;">
-                            ${field('sellerName', 'Seller name')}
+                            ${isW ? `${field('sellerName', 'Withholding agent name', 'Seller name')}
+                            ${field('sellerTin', 'Agent TIN', 'Seller TIN')}
+                            ${field('receiptNo', 'Withholding receipt number')}
+                            <div style="grid-column:1 / -1; font-size:12px; color:var(--text-soft);">VAT withholding receipts are kept apart from your purchases and sales. They go into the VAT withholding upload file.</div>` : `${field('sellerName', 'Seller name')}
                             ${field('sellerTin', 'Seller TIN', 'Seller TIN')}
                             ${field('vatRegNo', 'VAT reg no', 'VAT reg no')}
                             ${field('mrc', 'MRC code', 'MRC')}
                             ${field('receiptNo', 'Receipt / FS number')}
-                            <div></div>
+                            <div></div>`}
                         </div>
                         <div style="border:1px solid var(--paper-line); border-radius:5px; padding:12px; margin-bottom:12px; background:var(--paper);">
                             <div style="display:flex; gap:16px; margin-bottom:10px;">
@@ -2758,18 +2807,18 @@ This field is  mandatory.",Total value,vat,value after vat`;
                             </div>
                         </div>
                         <div class="grid-3" style="margin-bottom:12px;">
-                            ${field('beforeVat', 'Before VAT', null, true)}
-                            ${field('vat', 'VAT', null, true)}
-                            ${field('total', 'Total', null, true)}
+                            ${isW ? field('beforeVat', 'Amount paid (taxable amount)', 'Taxable amount', true) : field('beforeVat', 'Before VAT', null, true)}
+                            ${isW ? field('vat', 'VAT withheld (15%)', null, true) : field('vat', 'VAT', null, true)}
+                            ${isW ? '' : field('total', 'Total', null, true)}
                         </div>
                         ${f.nonVatAmount > 0 ? `<div style="font-size:12px; margin:-6px 0 10px; color:var(--text-soft);">Total here = taxable lines + VAT. Non-VAT goods on this receipt: <strong class="mono">${money(f.nonVatAmount)}</strong> (kept separately).</div>` : ''}
-                        ${renderLinesPanel(f, 'add')}
-                        <div class="grid-4" style="margin-bottom:16px;">
+                        ${isW ? '' : renderLinesPanel(f, 'add')}
+                        ${isW ? '' : `<div class="grid-4" style="margin-bottom:16px;">
                             ${field('description', 'Description')}
                             ${field('measurement', 'Measurement', 'Measurement')}
                             ${field('quantity', 'Quantity', 'Quantity', true)}
                             ${field('unitPrice', 'Unit price', 'Unit price', true)}
-                        </div>
+                        </div>`}
                         ${renderShareNotice(f)}
                         <div style="display:flex; gap:10px;">
                             <button class="btn btn-primary" id="save-receipt-btn" ${f.date ? '' : 'disabled'} onclick="saveReceiptForm()">${icon('check', 15)} Save receipt</button>
@@ -2885,7 +2934,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
         return addEntry({
             ...f,
             reviewed: reviewed !== false,
-            beforeVat: Number(f.beforeVat) || 0, vat: Number(f.vat) || 0, total: Number(f.total) || 0,
+            beforeVat: Number(f.beforeVat) || 0, vat: Number(f.vat) || 0, total: f.type === 'withholding' ? (Number(f.beforeVat) || 0) : (Number(f.total) || 0),
             quantity: f.quantity === '' ? null : Number(f.quantity), unitPrice: f.unitPrice === '' ? null : Number(f.unitPrice),
         });
     }
@@ -3083,6 +3132,20 @@ This field is  mandatory.",Total value,vat,value after vat`;
                         </div>
                         <button class="btn btn-ghost" onclick="downloadEtaxNonTax('sale')">${icon('download', 14)} Download</button>
                     </div>
+                    <div class="export-row">
+                        <div class="icon-box">${icon('upload', 16)}</div>
+                        <div class="info">
+                            <div class="title">VAT withholding upload CSV <span style="font-weight:400; color:var(--text-soft); font-size:12px;">(VAT withheld by agents)</span></div>
+                            <div style="font-size:11.5px; color:var(--text-soft); margin-top:2px;">One row per VAT withholding receipt: receipt number, date, taxable amount, VAT withheld. Same tab-separated layout as the site's own file.</div>
+                            <div style="display:flex; gap:8px; margin-top:6px; flex-wrap:wrap;">
+                                <select style="width:auto; font-size:12px;" onchange="etaxOptions.withholdingCalendar=this.value">
+                                    <option value="G" ${etaxOptions.withholdingCalendar === 'G' ? 'selected' : ''}>Dates as Gregorian</option>
+                                    <option value="E" ${etaxOptions.withholdingCalendar === 'E' ? 'selected' : ''}>Dates as Ethiopian</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button class="btn btn-ghost" onclick="downloadEtaxWithholding()">${icon('download', 14)} Download</button>
+                    </div>
                 </div>
             </div>`;
     }
@@ -3153,6 +3216,18 @@ This field is  mandatory.",Total value,vat,value after vat`;
             return;
         }
         downloadBlob(csv, `${client.name.replace(/\s+/g, '_')}_etax_nontax_${side}_${label}.csv`, 'text/csv');
+        warnEtaxSkipped(skipped);
+    }
+    function downloadEtaxWithholding() {
+        const client = activeClient();
+        const { fromKey, toKey, label } = exportRangeAndLabel(client);
+        const { csv, skipped } = buildEtaxWithholdingCsv(client, fromKey, toKey, etaxOptions.withholdingCalendar);
+        if (!csv) {
+            if (skipped.length) warnEtaxSkipped(skipped);
+            else alert('No VAT withholding receipts logged for this period.');
+            return;
+        }
+        downloadBlob(csv, `${client.name.replace(/\s+/g, '_')}_etax_vat_withholding_${label}.csv`, 'text/csv');
         warnEtaxSkipped(skipped);
     }
     function downloadEtaxSale() {
