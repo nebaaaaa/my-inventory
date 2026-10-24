@@ -2570,7 +2570,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
                         ${field('vatRegNo', 'VAT reg no', true)}
                         ${field('mrc', 'MRC code', true)}
                         ${field('receiptNo', 'Receipt / FS number')}
-                        ${renderReceiptFormPicker(f, 'addFlow.form')}`}
+                        ${renderReceiptFormPicker(d, 'entryModalDraft')}`}
                     </div>
                     <div class="grid-3" style="margin-bottom:12px;">
                         ${isW ? field('beforeVat', 'Amount paid (taxable amount)', true) : field('beforeVat', 'Before VAT', true)}
@@ -2819,7 +2819,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
                             ${field('vatRegNo', 'VAT reg no', 'VAT reg no')}
                             ${field('mrc', 'MRC code', 'MRC')}
                             ${field('receiptNo', 'Receipt / FS number')}
-                            ${renderReceiptFormPicker(d, 'entryModalDraft')}`}
+                            ${renderReceiptFormPicker(f, 'addFlow.form')}`}
                         </div>
                         <div style="border:1px solid var(--paper-line); border-radius:5px; padding:12px; margin-bottom:12px; background:var(--paper);">
                             <div style="display:flex; gap:16px; margin-bottom:10px;">
