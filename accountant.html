@@ -1826,8 +1826,8 @@ This field is  mandatory.",Total value,vat,value after vat`;
     // Which VAT line each eTax CSV export should file under — applies to
     // every row in that download. Change it here if a given month's batch
     // is mostly a different category (e.g. capital assets instead of
-    // general expenses); mismatched rows can still be moved on the site.
-    let etaxOptions = { purchaseType: '5', purchaseCategory: 'G', saleType: '1', saleCategory: 'G', nonTaxPurchaseCategory: 'G', nonTaxSaleCategory: 'G', withholdingCalendar: 'G' };
+    // capital assets); mismatched rows can still be moved on the site.
+    let etaxOptions = { purchaseType: '1', purchaseCategory: 'G', saleType: '1', saleCategory: 'G', nonTaxPurchaseCategory: 'G', nonTaxSaleCategory: 'G', withholdingCalendar: 'G' };
     let addFlow = null; // { step, preview, error, form }
 
     function activeClient() { return clients.find((c) => c.id === activeClientId) || null; }
