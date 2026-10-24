@@ -1,31 +1,25 @@
 // =====================================================================
 // MELEYA / Service Worker
-// Caches the app shell (this HTML file + its library files) so the app
-// can still OPEN with no internet connection. This does NOT cache your
-// actual shop data — every request to Supabase always goes straight to
-// the network, since Supabase is the one true source of your data.
+// Caches the app shell so the app OPENS instantly with no internet or a
+// very weak one. Supabase data is never cached (always straight to network).
 //
-// IMPORTANT: whenever you replace index.html with a newer version,
-// bump CACHE_NAME below (e.g. 'v29' -> 'v30'). That one change is what tells
-// every open copy of the app "a new version is ready" - the app then shows an
-// "Update now" bar, or reloads by itself at a safe moment (see the update
-// check at the bottom of index.html). If you forget, people keep the old app.
+// Whenever you replace index.html (or any file listed below), bump
+// CACHE_NAME ('v32' -> 'v33'). That is what tells every installed copy
+// "a new version is ready".
 // =====================================================================
 
-const CACHE_NAME = 'meleya-shell-v31';
+const CACHE_NAME = 'meleya-shell-v32';
 
-const ASSETS_TO_CACHE = [
-  './',
-  './index.html',
+// MUST all download successfully, or this version does NOT install and the
+// phone keeps running the previous working version (retrying later).
+// This is what prevents a half-saved release -> blank page.
+const CORE_ASSETS = [
   './business-types.config.js',
-  // Vertical modules (business-types.config.js -> loadVerticalModule) are
-  // fetched separately via a dynamic import() the first time a tenant of
-  // that business type logs in -- if that first login happens offline (or
-  // simply before this list existed), the file is never cached and that
-  // vertical's features silently never appear. Precaching them here up
-  // front means every business type works offline from the very first
-  // launch, not just after one lucky online login. Add a line here
-  // whenever a new vertical file is added to verticals/.
+  './vendor/supabase.js'
+];
+
+// Nice to have offline; a failure here does not block the install.
+const OPTIONAL_ASSETS = [
   './verticals/pharmacy.js',
   './verticals/appliance_rental.js',
   'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
@@ -33,14 +27,33 @@ const ASSETS_TO_CACHE = [
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2'
 ];
 
+// If the network has not even started answering after this long, give up
+// instead of leaving the page waiting forever (a blocking <script> that
+// never answers = blank white page).
+const NETWORK_TIMEOUT_MS = 8000;
+
+function fetchWithTimeout(request, ms) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  return fetch(request, { signal: ctrl.signal }).finally(() => clearTimeout(timer));
+}
+
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      // cache:'reload' skips the browser's own HTTP cache, so a new release is always fetched fresh
-      // (otherwise the new service worker could quietly re-save the OLD index.html).
-      .then((cache) => Promise.all(ASSETS_TO_CACHE.map((u) => cache.add(new Request(u, { cache: 'reload' })).catch(() => { }))))
-      .catch(() => { /* fine if a CDN asset fails to pre-cache; it'll be cached on first successful fetch instead */ })
-  );
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+
+    // index.html is big: download it ONCE and store it under both addresses.
+    const page = await fetch(new Request('./index.html', { cache: 'reload' }));
+    if (!page.ok) throw new Error('index.html not available');
+    await cache.put('./index.html', page.clone());
+    await cache.put('./', page);
+
+    // Core files: any failure rejects -> install aborts -> old version stays.
+    await Promise.all(CORE_ASSETS.map((u) => cache.add(new Request(u, { cache: 'reload' }))));
+
+    // Optional files: best effort.
+    await Promise.all(OPTIONAL_ASSETS.map((u) => cache.add(new Request(u, { cache: 'reload' })).catch(() => { })));
+  })());
   self.skipWaiting();
 });
 
@@ -54,53 +67,37 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Never cache Supabase API traffic — your shop data must always be
-  // fetched fresh, never served from a stale local cache.
-  if (event.request.url.includes('supabase.co')) return;
+  const req = event.request;
+  if (req.method !== 'GET') return;
+  if (req.url.includes('supabase.co')) return; // shop data: always live
+  if (req.url.includes('/api/')) return;       // serverless functions: always live
 
-  // Never cache calls to our own serverless functions (e.g. /api/extract-receipt)
-  // either — these must always hit the network fresh, and most of them are
-  // POST requests anyway, which the Cache API can't store (cache.put() throws
-  // on anything but GET).
-  if (event.request.url.includes('/api/')) return;
-
-  // Opening the app (a "navigation"): always answer from the saved copy first, whatever the address looks like
-  // (/, /index.html, /?source=pwa ...), so the app opens instantly even with no internet or a very weak one.
-  if (event.request.mode === 'navigate') {
+  // Opening the app: ALWAYS the saved copy, instantly. No background
+  // re-download of the 1.3 MB page on every launch (that fights for a weak
+  // connection and could mix versions). New versions arrive through the
+  // CACHE_NAME bump above.
+  if (req.mode === 'navigate') {
     event.respondWith(
-      caches.match(event.request, { ignoreSearch: true })
+      caches.match(req, { ignoreSearch: true })
         .then((hit) => hit || caches.match('./index.html'))
         .then((hit) => hit || caches.match('./'))
-        .then((cached) => {
-          // Refresh the saved copy quietly for next time; never make the person wait for it.
-          const refresh = fetch(event.request).then((response) => {
-            if (response && response.status === 200) {
-              const clone = response.clone();
-              caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', clone));
-            }
-            return response;
-          }).catch(() => cached);
-          return cached || refresh;
-        })
+        .then((hit) => hit || fetch(req)) // very first visit ever: nothing saved yet
     );
     return;
   }
 
+  // Everything else (scripts, styles, fonts, vertical modules): saved copy
+  // first; if not saved yet, try the network but never wait forever.
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const networkFetch = fetch(event.request)
-        .then((response) => {
-          if (response && response.status === 200) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          }
-          return response;
-        })
-        .catch(() => cached); // offline and not cached yet — nothing more we can do for this request
-
-      // Cache-first: show the saved copy instantly if we have one, while
-      // quietly checking the network in the background for next time.
-      return cached || networkFetch;
+    caches.match(req).then((cached) => {
+      if (cached) return cached;
+      return fetchWithTimeout(req, NETWORK_TIMEOUT_MS).then((response) => {
+        if (response && response.status === 200) {
+          const clone = response.clone();
+          event.waitUntil(caches.open(CACHE_NAME).then((c) => c.put(req, clone)).catch(() => { }));
+        }
+        return response;
+      });
     })
   );
 });
