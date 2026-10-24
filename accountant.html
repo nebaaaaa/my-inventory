@@ -522,6 +522,32 @@ This field is  mandatory.",Total value,vat,value after vat`;
     ];
     // eTax's own numeric unit codes (from the template's own legend).
     const ETAX_UNIT_CODE = { KG: '2', ML: '3', GM: '4', LIT: '5', MT: '6', PCS: '7', PC: '10', PIECE: '7', PIECES: '7', CT: '8', CARTON: '8' };
+    // How a receipt number is written in the exports: FS receipts as FS<number>, manual receipts as M<number>.
+    // receiptForm is 'fs', 'manual' or 'none'; when it was never set, a receipt with an MRC code (or one that came
+    // from the shop's own sales) counts as an FS receipt and anything else is left as typed.
+    function receiptFormOf(e) {
+        const f = e && e.receiptForm;
+        if (f === 'fs' || f === 'manual' || f === 'none') return f;
+        return (e && (e.syncedFrom === 'shop' || e.mrc)) ? 'fs' : 'none';
+    }
+    function exportReceiptNo(e) {
+        const n = String((e && e.receiptNo) || '').trim();
+        if (!n) return '';
+        const form = receiptFormOf(e);
+        if (form === 'fs') return 'FS' + n.replace(/^FS[\s\-:.]*/i, '');
+        if (form === 'manual') return 'M' + n.replace(/^M(?=[\s\-:.]*\d)[\s\-:.]*/i, '');
+        return n;
+    }
+    function renderReceiptFormPicker(d, ref) {
+        if (d.type === 'withholding') return '<div></div>';
+        const cur = receiptFormOf(d);
+        return `<div><label>Receipt number is</label>
+            <select onchange="${ref}.receiptForm=this.value">
+                <option value="fs" ${cur === 'fs' ? 'selected' : ''}>FS receipt (exports as FS…)</option>
+                <option value="manual" ${cur === 'manual' ? 'selected' : ''}>Manual receipt (exports as M…)</option>
+                <option value="none" ${cur === 'none' ? 'selected' : ''}>Other (exported as typed)</option>
+            </select></div>`;
+    }
     function etaxUnitCode(measurement) {
         const m = (measurement || '').trim().toUpperCase();
         if (!m) return '7'; // blank -> PCS, matching the site's own default
@@ -553,7 +579,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
             rows.push([
                 // an expense receipt (fuel, rent, a bill...) is a service, never goods
                 e.entryKind === 'expense' ? 'S' : vatCategory, 'G', typeCode, partyTin, partyName,
-                etaxDdMmYyyy(e.date), e.mrc || '', e.receiptNo, e.description,
+                etaxDdMmYyyy(e.date), e.mrc || '', exportReceiptNo(e), e.description,
                 etaxUnitCode(e.measurement), Number(e.quantity), etaxMoney(e.unitPrice),
                 etaxMoney(e.beforeVat), etaxMoney(e.vat), etaxMoney(e.total),
             ]);
@@ -589,7 +615,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
                 if (missingMandatory.length) { skipped.push({ entry: e, reasons: missingMandatory }); return; }
                 rows.push([
                     side === 'purchase' && e.entryKind === 'expense' ? 'S' : vatCategory, 'G', typeCode, side === 'purchase' ? (e.sellerTin || '') : '', side === 'purchase' ? (e.sellerName || '') : '',
-                    etaxDdMmYyyy(e.date), e.mrc || '', e.receiptNo, l.description,
+                    etaxDdMmYyyy(e.date), e.mrc || '', exportReceiptNo(e), l.description,
                     etaxUnitCode(l.measurement), qty, etaxMoney(unit),
                     etaxMoney(amount), etaxMoney(0), etaxMoney(amount),
                 ]);
@@ -684,7 +710,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
             ws[vatCellRef(r, 3)] = { v: e.vatRegNo || '', t: 's', s: dataStyle };
             ws[vatCellRef(r, 4)] = { v: e.mrc || '', t: 's', s: dataStyle };
             ws[vatCellRef(r, 5)] = { v: isoToDisplayDate(e.date), t: 's', s: dateStyle };
-            ws[vatCellRef(r, 6)] = { v: e.receiptNo || '', t: 's', s: dataStyle };
+            ws[vatCellRef(r, 6)] = { v: exportReceiptNo(e), t: 's', s: dataStyle };
             ws[vatCellRef(r, 7)] = { v: e.description || '', t: 's', s: dataStyle };
             ws[vatCellRef(r, 8)] = { v: e.measurement || '', t: 's', s: dataStyle };
             ws[vatCellRef(r, 9)] = e.quantity != null ? { v: e.quantity, t: 'n', s: numStyle } : { v: '', t: 's', s: numStyle };
@@ -814,7 +840,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
             measurement: row.measurement || '', quantity: row.quantity, unitPrice: row.unit_price, missing: row.missing || [],
             reviewed: row.reviewed !== false, tinMismatch: !!row.tin_mismatch,
             nonVatAmount: Number(row.non_vat_amount) || 0, lines: Array.isArray(row.lines) ? row.lines : [],
-            entryKind: row.entry_kind || '', syncedFrom: row.synced_from || '',
+            entryKind: row.entry_kind || '', receiptForm: row.receipt_form || '', syncedFrom: row.synced_from || '',
         };
     }
     function entryToDb(entry, clientId) {
@@ -831,6 +857,8 @@ This field is  mandatory.",Total value,vat,value after vat`;
             tin_mismatch: !!entry.tinMismatch,
             // purchase (goods, adds to the shop's stock) or expense (a service) - used when the client is linked to a shop
             ...(entry.entryKind && entry.type === 'payment' ? { entry_kind: entry.entryKind } : {}),
+            // fs / manual / none: how the receipt number is written in the exports (see exportReceiptNo)
+            ...(entry.receiptForm ? { receipt_form: entry.receiptForm } : {}),
             // only sent when there is something to store, so receipts without lines still save before the database update is run
             ...((Number(entry.nonVatAmount) > 0 || (entry.lines && entry.lines.length)) ? {
                 non_vat_amount: Number(entry.nonVatAmount) || 0,
@@ -1507,7 +1535,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
         return tokens.every((t) => hay.some((h) => h.includes(t)));
     }
     function entriesSignature(list) {
-        return JSON.stringify((list || []).map((e) => [e.id, e.date, e.type, e.entryKind, e.sellerName, e.sellerTin, e.vatRegNo, e.mrc, e.receiptNo, e.isVat, e.beforeVat, e.vat, e.total, e.nonVatAmount, e.description, e.measurement, e.quantity, e.unitPrice, e.reviewed, e.tinMismatch, (e.lines || []).length, e.syncedFrom]));
+        return JSON.stringify((list || []).map((e) => [e.id, e.date, e.type, e.entryKind, e.sellerName, e.sellerTin, e.vatRegNo, e.mrc, e.receiptNo, e.isVat, e.beforeVat, e.vat, e.total, e.nonVatAmount, e.description, e.measurement, e.quantity, e.unitPrice, e.reviewed, e.tinMismatch, (e.lines || []).length, e.syncedFrom, e.receiptForm]));
     }
     function visibleStock(list) { return (list || []).filter((i) => Math.abs(Number(i.qty) || 0) >= 1e-9); } // zero-quantity items are hidden, same as on the shop's page
     function stockSignature(list) { return JSON.stringify((list || []).map((i) => [i.id || i.name, i.qty, i.last_cost, i.base_unit])); }
@@ -2061,10 +2089,10 @@ This field is  mandatory.",Total value,vat,value after vat`;
         const client = activeClient();
         let row = entryToDb(entry, client.id);
         let { data, error } = await supabaseClient.from('accountant_entries').insert(row).select().single();
-        if (error && /non_vat_amount|lines|entry_kind/i.test(error.message || '')) {
+        if (error && /non_vat_amount|lines|entry_kind|receipt_form/i.test(error.message || '')) {
             // the two new columns are not in the database yet
             if (Number(entry.nonVatAmount) > 0) { alert('This receipt has non-VAT goods, but the database is missing the new columns (non_vat_amount, lines, entry_kind). Run migration_non_vat_lines.sql and migration_receipt_merge.sql once in Supabase, then save again.'); return; }
-            delete row.non_vat_amount; delete row.lines; delete row.entry_kind;
+            delete row.non_vat_amount; delete row.lines; delete row.entry_kind; delete row.receipt_form;
             ({ data, error } = await supabaseClient.from('accountant_entries').insert(row).select().single());
         }
         if (error) { alert(entryDbError(error, entry)); return; }
@@ -2316,7 +2344,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
             <tr class="entry-row${e.reviewed === false ? ' unreviewed' : ''}${e.tinMismatch ? ' tin-mismatch' : ''}" onclick="openEntryDetail('${e.id}')" style="cursor:pointer;">
                 <td class="mono" style="font-size:12px;">${esc(e.date) || '—'}</td>
                 <td>${esc(e.sellerName) || (e.type === 'withholding' ? 'Unknown agent' : 'Unknown seller')}${e.missing && e.missing.length ? ` <span title="Needs review: ${esc(e.missing.join(', '))}" style="color:var(--amber);">${icon('alert-triangle', 12)}</span>` : ''}${e.reviewed === false ? `<span class="badge-new" title="Auto-saved from a batch upload — not reviewed yet">New</span>` : ''}${e.syncedFrom === 'shop' ? `<span class="badge-shop" title="${locked ? "This is the shop's own sales record, so it is view-only." : "Came from the shop's own records. Check the details and the FS number."}">${icon('store', 11)} From shop</span>` : ''}${e.tinMismatch ? `<span class="tin-mismatch-badge" title="Neither party's TIN on the document matches this client — excluded from exports">${icon('alert-triangle', 11)} TIN mismatch</span>` : ''}
-                    ${(e.receiptNo || e.mrc) ? `<div class="mono" style="font-size:11px; color:var(--text-soft); margin-top:2px;">${e.receiptNo ? `${e.type === 'withholding' ? 'WH no.' : 'FS'} ${esc(e.receiptNo)}` : ''}${e.receiptNo && e.mrc ? ' · ' : ''}${e.mrc ? `MRC ${esc(e.mrc)}` : ''}</div>` : ''}</td>
+                    ${(e.receiptNo || e.mrc) ? `<div class="mono" style="font-size:11px; color:var(--text-soft); margin-top:2px;">${e.receiptNo ? `${e.type === 'withholding' ? 'WH no.' : (receiptFormOf(e) === 'manual' ? 'Manual' : 'FS')} ${esc(e.receiptNo)}` : ''}${e.receiptNo && e.mrc ? ' · ' : ''}${e.mrc ? `MRC ${esc(e.mrc)}` : ''}</div>` : ''}</td>
                 <td><span class="kind-pill ${kind}" title="${kind === 'expense' ? 'Saved as a service' : ''}">${KIND_LABEL[kind]}</span></td>
                 <td class="mono num">${money(e.beforeVat)}</td>
                 <td class="mono num">${e.type === 'withholding' ? `${money(e.vat)}<div style="font-size:10.5px; font-weight:400; color:var(--text-soft);" title="VAT the agent withheld from the payment">withheld</div>` : money(e.vat)}</td>
@@ -2434,7 +2462,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
         const patch = {
             entryKind: d.type === 'payment' ? (d.entryKind === 'expense' ? 'expense' : 'purchase') : '',
             type: d.type, date: d.date, sellerName: d.sellerName, sellerTin: d.sellerTin, vatRegNo: d.vatRegNo,
-            mrc: d.mrc, receiptNo: d.receiptNo, isVat: d.type === 'withholding' ? false : !!d.isVat,
+            mrc: d.mrc, receiptNo: d.receiptNo, receiptForm: d.receiptForm || '', isVat: d.type === 'withholding' ? false : !!d.isVat,
             beforeVat: Number(d.beforeVat) || 0, vat: Number(d.vat) || 0, total: d.type === 'withholding' ? (Number(d.beforeVat) || 0) : (Number(d.total) || 0),
             description: d.description, measurement: d.measurement,
             quantity: d.quantity === '' ? null : Number(d.quantity), unitPrice: d.unitPrice === '' ? null : Number(d.unitPrice),
@@ -2443,10 +2471,10 @@ This field is  mandatory.",Total value,vat,value after vat`;
         };
         let upd = entryToDb(patch, client.id);
         let { error } = await supabaseClient.from('accountant_entries').update(upd).eq('id', entryModalId);
-        if (error && /non_vat_amount|lines|entry_kind/i.test(error.message || '')) {
+        if (error && /non_vat_amount|lines|entry_kind|receipt_form/i.test(error.message || '')) {
             // the newer columns are not in the database yet: save everything else
             if (Number(patch.nonVatAmount) > 0) { alert('This receipt has non-VAT goods, but the database is missing the new columns (non_vat_amount, lines, entry_kind). Run migration_non_vat_lines.sql and migration_receipt_merge.sql once in Supabase, then save again.'); return; }
-            delete upd.non_vat_amount; delete upd.lines; delete upd.entry_kind;
+            delete upd.non_vat_amount; delete upd.lines; delete upd.entry_kind; delete upd.receipt_form;
             ({ error } = await supabaseClient.from('accountant_entries').update(upd).eq('id', entryModalId));
         }
         if (error) { alert(entryDbError(error, patch)); return; }
@@ -2542,7 +2570,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
                         ${field('vatRegNo', 'VAT reg no', true)}
                         ${field('mrc', 'MRC code', true)}
                         ${field('receiptNo', 'Receipt / FS number')}
-                        <div></div>`}
+                        ${renderReceiptFormPicker(f, 'addFlow.form')}`}
                     </div>
                     <div class="grid-3" style="margin-bottom:12px;">
                         ${isW ? field('beforeVat', 'Amount paid (taxable amount)', true) : field('beforeVat', 'Before VAT', true)}
@@ -2697,6 +2725,8 @@ This field is  mandatory.",Total value,vat,value after vat`;
                 entryKind: 'purchase',
                 splitStatus: (ex.split && ex.split.status) || 'none',
             };
+            // which kind of number the receipt carries: machine (FS) receipts, hand-filled (manual) forms, or other computer receipts
+            addFlow.form.receiptForm = isW ? '' : (({ A: 'fs', B: 'manual', D: 'none', E: 'none' })[ex.layout] || (ex.layout === 'C' ? (ex.mrc ? 'fs' : 'none') : ''));
             if (isW) {
                 // before VAT = taxable amount paid, VAT = VAT withheld. No lines, no MRC, not a VAT invoice.
                 Object.assign(addFlow.form, { isVat: false, vatRegNo: '', mrc: '', description: 'VAT withholding receipt', measurement: '', quantity: '', unitPrice: '', lines: [], nonVatAmount: 0, entryKind: '', total: ex.before_vat ?? '' });
@@ -2789,7 +2819,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
                             ${field('vatRegNo', 'VAT reg no', 'VAT reg no')}
                             ${field('mrc', 'MRC code', 'MRC')}
                             ${field('receiptNo', 'Receipt / FS number')}
-                            <div></div>`}
+                            ${renderReceiptFormPicker(d, 'entryModalDraft')}`}
                         </div>
                         <div style="border:1px solid var(--paper-line); border-radius:5px; padding:12px; margin-bottom:12px; background:var(--paper);">
                             <div style="display:flex; gap:16px; margin-bottom:10px;">
