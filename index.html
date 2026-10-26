@@ -120,7 +120,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         if (!touch) return;
         var ind = document.createElement('div'); ind.id = 'mly-ptr'; ind.setAttribute('aria-hidden', 'true');
         ind.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>';
-        document.body.appendChild(ind);
+        (document.body || document.documentElement).appendChild(ind); // this script runs in <head>: body does not exist yet
         var svg = ind.firstChild;
         var TH = 70, MAX = 120, sx = 0, sy = 0, tracking = false, pulling = false, dist = 0;
         var MODALS = '.mly-overlay, .mly-ann-ov, .modal-overlay.active, [id$="-modal"].active, #bulk-overlay';
@@ -132,6 +132,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         function blocked(t) {
             if (busy || document.querySelector(MODALS)) return true;
             if (!t || !t.closest) return true;
+            var sbx = document.getElementById('sidebar'); if (sbx && !sbx.classList.contains('collapsed') && window.innerWidth <= 768) return true; // sidebar open: touches only close it
             return !!t.closest('#sidebar, .notif-panel, input, textarea, select, [contenteditable="true"], #neba-tour-tip');
         }
         function show(d) {
@@ -154,10 +155,10 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             var dy = e.touches[0].clientY - sy, dx = e.touches[0].clientX - sx;
             if (!pulling) {
                 if (dy < -4 || Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy)) { tracking = false; return; } // scrolling down the page or sideways
-                if (dy < 10) return;
+                if (dy < 4) return; // take over early, while the browser still lets us cancel the scroll
                 pulling = true;
             }
-            dist = Math.min(MAX, (dy - 10) * 0.55);
+            dist = Math.min(MAX, (dy - 4) * 0.7);
             if (e.cancelable) e.preventDefault();
             show(dist);
         }, { passive: false });
@@ -462,7 +463,10 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         /* Sync Status UI */
         .sync-status { text-align: center; font-size: 11px; font-weight: bold; padding: 6px; border-radius: 6px; background: rgba(255,255,255,0.06); color: #4FC38A; }
         /* Refresh: pull-down-to-refresh on touch screens, and a Refresh button that only appears in the installed app */
-        html, body { overscroll-behavior-y: contain; }
+        html, body, .content-area { overscroll-behavior-y: contain; }
+        /* Back arrow (top-left): only shown on the Trash page */
+        .mly-back-btn { display: none; }
+        body.mly-on-trash .mly-back-btn { display: flex; }
         .brand-row { position: relative; }
         .mly-refresh-btn { display:none; position:absolute; right:10px; top:50%; transform:translateY(-50%); width:34px; height:34px; align-items:center; justify-content:center; padding:0; background:rgba(255,255,255,0.06); color:var(--accent-light); border:1px solid rgba(255,255,255,0.12); border-radius:8px; cursor:pointer; }
         .mly-refresh-btn:hover { background:rgba(255,255,255,0.14); }
@@ -894,6 +898,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         </div>
         <header>
             <div class="header-left">
+                <button class="menu-toggle-btn mly-back-btn" id="mly-back-btn" onclick="mlyBackFromTrash()" title="Back" aria-label="Back" data-i18n-title="ui2.back"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg></button>
                 <button class="menu-toggle-btn" onclick="toggleSidebar()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
                 <h1 id="page-title">Dashboard</h1>
             </div>
@@ -3101,6 +3106,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 "ui2.switch_language": "Switch language",
                 "ui2.show_guide": "Show guide",
                 "ui2.refresh_app": "Refresh",
+                "ui2.back": "Back",
                 "ui2.you_example_com_or_your_username": "you@example.com or your username",
                 "ui2.your_password": "Your password",
                 "ui2.e_g_kebede_electrical_supplies": "e.g. Kebede Electrical Supplies",
@@ -3469,6 +3475,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 "ui2.switch_language": "ቋንቋ ቀይር",
                 "ui2.show_guide": "መመሪያውን አሳይ",
                 "ui2.refresh_app": "አድስ",
+                "ui2.back": "ተመለስ",
                 "ui2.you_example_com_or_your_username": "you@example.com ወይም የተጠቃሚ ስምዎ",
                 "ui2.your_password": "የይለፍ ቃልዎ",
                 "ui2.e_g_kebede_electrical_supplies": "ለምሳሌ ከበደ ኤሌክትሪክ ዕቃዎች",
@@ -5897,15 +5904,87 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
         // --- UI ROUTING ---
         function toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed'); }
-        // Phone: tapping outside an open sidebar closes it.
-        document.addEventListener('click', function (e) {
-            if (window.innerWidth > 768) return;
-            const sb = document.getElementById('sidebar');
-            if (!sb || sb.classList.contains('collapsed')) return;
-            if (sb.contains(e.target)) return;
-            if (e.target.closest('.header-left .menu-toggle-btn')) return; // its own onclick handles it
-            sb.classList.add('collapsed');
-        });
+        // Trash page: back arrow (and swipe right in the installed app) returns to the page you were on.
+        function mlyBackFromTrash() {
+            const prev = window.mlyViewBeforeTrash;
+            switchView(prev && document.getElementById('view-' + prev) ? prev : 'dashboard');
+        }
+
+        // Phone: while the sidebar is open, a touch anywhere outside it ONLY closes it.
+        // The touch is swallowed (capture phase), so buttons, fields, dates, etc. underneath do nothing.
+        // Installed app: swipe right opens the sidebar (or, on Trash, goes back); swipe left closes the sidebar.
+        (function () {
+            const sbEl = () => document.getElementById('sidebar');
+            const sbOpen = () => { const sb = sbEl(); return !!sb && !sb.classList.contains('collapsed'); };
+            const closeSb = () => { const sb = sbEl(); if (sb) sb.classList.add('collapsed'); };
+            const isStandalone = () => document.documentElement.classList.contains('mly-standalone');
+            const isPhone = () => window.innerWidth <= 768;
+            const inSidebar = (t) => !!(t && t.closest && t.closest('#sidebar'));
+            const isHamburger = (t) => !!(t && t.closest && t.closest('.header-left .menu-toggle-btn:not(.mly-back-btn)')); // it toggles the sidebar by itself
+            const BLOCK = '.mly-overlay, .mly-ann-ov, .modal-overlay.active, [id$="-modal"].active, #bulk-overlay, #neba-tour-tip, .notif-panel.active, .notif-panel.show, .notif-panel.open';
+            const FULLSCREEN_IDS = ['auth-overlay', 'reset-password-overlay', 'business-setup-overlay', 'onboarding-overlay', 'initial-inventory-overlay', 'inactive-overlay'];
+
+            // Is this element (or a parent) something that scrolls sideways / is a field? Then a swipe on it is not a page swipe.
+            function swipeBlockedTarget(el) {
+                for (; el && el !== document.body && el !== document.documentElement; el = el.parentElement) {
+                    const tag = el.tagName;
+                    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable) return true;
+                    if (el.scrollWidth > el.clientWidth + 4) {
+                        const ox = getComputedStyle(el).overflowX;
+                        if (ox === 'auto' || ox === 'scroll') return true;
+                    }
+                }
+                return false;
+            }
+            function fullscreenShown() {
+                return FULLSCREEN_IDS.some(id => { const el = document.getElementById(id); return el && getComputedStyle(el).display !== 'none'; });
+            }
+
+            // ---- tap outside: swallow it and close ----
+            let tx = 0, ty = 0;
+            function shield(e) {
+                if (!isPhone() || !sbOpen()) return;
+                const t = e.target;
+                if (inSidebar(t) || isHamburger(t)) return;
+                e.preventDefault(); e.stopImmediatePropagation();
+                if (e.type === 'click') closeSb();               // mouse / non-touch
+            }
+            ['click', 'mousedown', 'mouseup', 'dblclick', 'contextmenu'].forEach(ev => document.addEventListener(ev, shield, { capture: true, passive: false }));
+
+            document.addEventListener('touchstart', function (e) {
+                if (e.touches.length === 1) { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }
+                sx0 = tx; sy0 = ty; st0 = Date.now(); sTarget = e.target; sMulti = e.touches.length > 1;
+            }, { capture: true, passive: true });
+
+            let sx0 = 0, sy0 = 0, st0 = 0, sTarget = null, sMulti = false;
+            document.addEventListener('touchend', function (e) {
+                const t = e.changedTouches && e.changedTouches[0]; if (!t) return;
+                const dx = t.clientX - sx0, dy = t.clientY - sy0, dt = Date.now() - st0;
+                const tapped = Math.abs(dx) < 10 && Math.abs(dy) < 10;
+
+                // Sidebar open (phone): outside touches never reach the page.
+                if (isPhone() && sbOpen() && !inSidebar(sTarget) && !isHamburger(sTarget)) {
+                    if (e.cancelable) e.preventDefault();
+                    e.stopImmediatePropagation();
+                    if (tapped || (dx < -50 && Math.abs(dx) > Math.abs(dy))) closeSb();
+                    return;
+                }
+
+                // ---- swipes (installed app only) ----
+                if (!isStandalone() || sMulti || dt > 800) return;
+                if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return; // not a clear sideways swipe
+                if (document.querySelector(BLOCK) || fullscreenShown()) return;
+                if (swipeBlockedTarget(sTarget)) return;
+
+                if (dx > 0) {   // swipe right
+                    if (sbOpen()) return;
+                    if (document.body.classList.contains('mly-on-trash')) mlyBackFromTrash();
+                    else { const sb = sbEl(); if (sb) sb.classList.remove('collapsed'); }
+                } else {        // swipe left
+                    if (sbOpen()) closeSb();
+                }
+            }, { capture: true, passive: false });
+        })();
 
         // Collapsible sidebar nav groups (currently just "Accounting": Chart
         // of Accounts / Journal Entries / General Ledger / Financial
@@ -5931,6 +6010,8 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         function switchView(viewId) {
             const lockedBy = ({ coa: 'accounting', journal: 'accounting', ledger: 'accounting', statements: 'accounting' })[viewId];
             if (lockedBy && planLocked(lockedBy)) { showUpgrade(lockedBy); return; }
+            { const cur = (document.querySelector('.view-panel.active') || {}).id; // remember the page we left, so Trash can go back to it
+              if (viewId === 'trash' && cur && cur !== 'view-trash') window.mlyViewBeforeTrash = cur.replace(/^view-/, ''); }
             document.querySelectorAll('.view-panel').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
             
@@ -5939,6 +6020,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             if(navBtn) navBtn.classList.add('active');
             
             document.getElementById('page-title').innerText = t(`pagetitle.${viewId}`);
+            document.body.classList.toggle('mly-on-trash', viewId === 'trash');
             if (window.innerWidth <= 768) document.getElementById('sidebar').classList.add('collapsed');
 
             if (viewId === 'dashboard') renderAnalyticalDashboards();
