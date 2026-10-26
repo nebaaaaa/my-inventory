@@ -120,7 +120,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         if (!touch) return;
         var ind = document.createElement('div'); ind.id = 'mly-ptr'; ind.setAttribute('aria-hidden', 'true');
         ind.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>';
-        (document.body || document.documentElement).appendChild(ind); // this script runs in <head>: body does not exist yet
+        document.documentElement.appendChild(ind); // this script runs in <head>: body does not exist yet
         var svg = ind.firstChild;
         var TH = 70, MAX = 120, sx = 0, sy = 0, tracking = false, pulling = false, dist = 0;
         var MODALS = '.mly-overlay, .mly-ann-ov, .modal-overlay.active, [id$="-modal"].active, #bulk-overlay';
@@ -135,15 +135,23 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             var sbx = document.getElementById('sidebar'); if (sbx && !sbx.classList.contains('collapsed') && window.innerWidth <= 768) return true; // sidebar open: touches only close it
             return !!t.closest('#sidebar, .notif-panel, input, textarea, select, [contenteditable="true"], #neba-tour-tip');
         }
+        // The WHOLE page (top bar included) slides down with the finger, like a browser. The icon sits in the gap above it
+        // and gets bolder and bolder (dim -> solid) the further you pull.
         function show(d) {
+            var b = document.body, p = Math.min(1, d / TH);
+            b.style.transition = 'none';
+            b.style.transform = 'translate3d(0,' + d + 'px,0)';
             ind.style.transition = 'none';
-            ind.style.opacity = Math.min(1, d / 35);
-            ind.style.transform = 'translateY(' + (d - 48) + 'px)';
-            svg.style.transform = 'rotate(' + Math.round(d / TH * 300) + 'deg)';
+            ind.style.opacity = String(0.15 + 0.85 * p);
+            ind.style.transform = 'translateY(' + Math.min(d - 48, d / 2 - 20) + 'px)';
+            svg.style.transform = 'rotate(' + Math.round(p * 300) + 'deg)';
         }
         function hide() {
-            ind.style.transition = 'transform .22s ease, opacity .22s ease';
+            var b = document.body;
+            b.style.transition = 'transform .25s cubic-bezier(.2,.8,.2,1)'; b.style.transform = 'translate3d(0,0,0)';
+            ind.style.transition = 'transform .25s ease, opacity .2s ease';
             ind.style.opacity = '0'; ind.style.transform = 'translateY(-60px)';
+            setTimeout(function () { b.style.transition = ''; b.style.transform = ''; }, 290);
         }
         document.addEventListener('touchstart', function (e) {
             tracking = pulling = false; dist = 0;
@@ -151,6 +159,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             tracking = atTop(e.target); sx = e.touches[0].clientX; sy = e.touches[0].clientY;
         }, { passive: true });
         document.addEventListener('touchmove', function (e) {
+            if (window.mlyHDrag) { tracking = false; return; } // a sideways swipe (sidebar / Trash) owns this touch
             if (!tracking) return;
             var dy = e.touches[0].clientY - sy, dx = e.touches[0].clientX - sx;
             if (!pulling) {
@@ -160,13 +169,16 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             }
             dist = Math.min(MAX, (dy - 4) * 0.7);
             if (e.cancelable) e.preventDefault();
-            show(dist);
+            show(dist); window.mlyPtrActive = true;
         }, { passive: false });
         function end() {
+            window.mlyPtrActive = false;
             if (!pulling) { tracking = false; return; }
             var go = dist >= TH; tracking = pulling = false;
             if (!go) { hide(); return; }
-            ind.style.transition = 'transform .18s ease'; ind.style.transform = 'translateY(22px)'; ind.style.opacity = '1';
+            var b = document.body;
+            b.style.transition = 'transform .18s ease'; b.style.transform = 'translate3d(0,56px,0)'; // hold the page open while refreshing
+            ind.style.transition = 'transform .18s ease, opacity .18s ease'; ind.style.opacity = '1'; ind.style.transform = 'translateY(8px)';
             window.mlyRefresh().then(function (started) { if (!started) hide(); });
         }
         document.addEventListener('touchend', end, { passive: true });
@@ -467,13 +479,17 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         /* Back arrow (top-left): only shown on the Trash page */
         .mly-back-btn { display: none; }
         body.mly-on-trash .mly-back-btn { display: flex; }
+        /* Trash page: the back arrow is the ONLY button on the left (no sidebar button) */
+        body.mly-on-trash .header-left > .menu-toggle-btn:not(.mly-back-btn) { display: none; }
+        /* Swipe back from Trash: the page we came from sits underneath while Trash follows the finger */
+        .view-panel.mly-peek-under { display: block; position: absolute; left: 0; right: 0; top: 0; z-index: 1; pointer-events: none; }
         .brand-row { position: relative; }
         .mly-refresh-btn { display:none; position:absolute; right:10px; top:50%; transform:translateY(-50%); width:34px; height:34px; align-items:center; justify-content:center; padding:0; background:rgba(255,255,255,0.06); color:var(--accent-light); border:1px solid rgba(255,255,255,0.12); border-radius:8px; cursor:pointer; }
         .mly-refresh-btn:hover { background:rgba(255,255,255,0.14); }
         html.mly-standalone .mly-refresh-btn { display:flex; }
         html.mly-standalone .brand-row .brand { padding-left:52px; padding-right:52px; }
         .mly-refresh-btn svg.mly-spin, #mly-ptr svg.mly-spin { animation: mlyspin .8s linear infinite; }
-        #mly-ptr { position:fixed; left:50%; top:env(safe-area-inset-top, 0px); width:40px; height:40px; margin-left:-20px; border-radius:50%; background:var(--surface, #fff); color:var(--primary, #171b34); box-shadow:0 2px 10px rgba(0,0,0,.28); display:flex; align-items:center; justify-content:center; z-index:6500; pointer-events:none; opacity:0; transform:translateY(-60px); }
+        #mly-ptr { position:fixed; left:50%; top:0; width:40px; height:40px; margin-left:-20px; border-radius:50%; background:var(--surface, #fff); color:var(--primary, #171b34); box-shadow:0 2px 10px rgba(0,0,0,.28); display:flex; align-items:center; justify-content:center; z-index:6500; pointer-events:none; opacity:0; transform:translateY(-60px); }
         
         /* Modern Scroll Buttons */
         .chart-scroll-wrap { position: relative; width: 100%; }
@@ -5913,12 +5929,16 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         // Phone: while the sidebar is open, a touch anywhere outside it ONLY closes it.
         // The touch is swallowed (capture phase), so buttons, fields, dates, etc. underneath do nothing.
         // Installed app: swipe right opens the sidebar (or, on Trash, goes back); swipe left closes the sidebar.
+        // The swipes FOLLOW THE FINGER 1:1 (no delay, no animation while the finger is down). Let go and it settles
+        // open/closed depending on how far it got and how fast you flicked.
         (function () {
+            const W = 280; // sidebar width
             const sbEl = () => document.getElementById('sidebar');
             const sbOpen = () => { const sb = sbEl(); return !!sb && !sb.classList.contains('collapsed'); };
             const closeSb = () => { const sb = sbEl(); if (sb) sb.classList.add('collapsed'); };
             const isStandalone = () => document.documentElement.classList.contains('mly-standalone');
             const isPhone = () => window.innerWidth <= 768;
+            const onTrash = () => document.body.classList.contains('mly-on-trash');
             const inSidebar = (t) => !!(t && t.closest && t.closest('#sidebar'));
             const isHamburger = (t) => !!(t && t.closest && t.closest('.header-left .menu-toggle-btn:not(.mly-back-btn)')); // it toggles the sidebar by itself
             const BLOCK = '.mly-overlay, .mly-ann-ov, .modal-overlay.active, [id$="-modal"].active, #bulk-overlay, #neba-tour-tip, .notif-panel.active, .notif-panel.show, .notif-panel.open';
@@ -5941,7 +5961,6 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             }
 
             // ---- tap outside: swallow it and close ----
-            let tx = 0, ty = 0;
             function shield(e) {
                 if (!isPhone() || !sbOpen()) return;
                 const t = e.target;
@@ -5951,15 +5970,120 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             }
             ['click', 'mousedown', 'mouseup', 'dblclick', 'contextmenu'].forEach(ev => document.addEventListener(ev, shield, { capture: true, passive: false }));
 
+            // ---- finger-following drag ----
+            let sx0 = 0, sy0 = 0, sTarget = null;
+            let mode = 'none';          // none | pending | sb | trash | dead
+            let lockX = 0, lastX = 0, lastT = 0, vel = 0, cur = 0, opening = false, busyAnim = false, tr = null;
+            const EASE = 'cubic-bezier(.2,.8,.2,1)';
+            const settle = (open, fraction) => open === null ? 0 : Math.round(110 + 190 * Math.min(1, fraction));
+            const decide = (progress) => vel > 0.35 ? true : vel < -0.35 ? false : progress > 0.5; // flick wins, otherwise nearest end
+
+            // Sidebar: margin-left goes -280 (closed) .. 0 (open); we write it straight from the finger.
+            function startSb(openIt) {
+                const sb = sbEl(); if (!sb) { mode = 'dead'; return; }
+                mode = 'sb'; opening = openIt; lockX = sx0; cur = openIt ? -W : 0; window.mlyHDrag = true;
+                sb.style.transition = 'none';
+            }
+            function sbMove(x) {
+                const sb = sbEl(), d = x - lockX;
+                cur = opening ? Math.min(0, -W + Math.max(0, d)) : Math.max(-W, Math.min(0, d));
+                sb.style.marginLeft = cur + 'px';
+            }
+            function sbFinish() {
+                const sb = sbEl(), open = decide((cur + W) / W), target = open ? 0 : -W;
+                const dur = settle(open, Math.abs(target - cur) / W);
+                sb.style.marginLeft = cur + 'px'; void sb.offsetWidth;          // lock in the exact finger position first
+                busyAnim = true;
+                sb.style.transition = 'margin-left ' + dur + 'ms ' + EASE;
+                sb.classList.toggle('collapsed', !open);
+                sb.style.marginLeft = '';
+                setTimeout(() => { sb.style.transition = ''; busyAnim = false; }, dur + 30);
+            }
+
+            // Trash: the Trash page slides right with the finger; the page you came from waits underneath.
+            function startTrash() {
+                const ca = document.querySelector('.content-area'), trashEl = document.getElementById('view-trash');
+                if (!ca || !trashEl) { mode = 'dead'; return; }
+                const pid = window.mlyViewBeforeTrash;
+                let prev = pid && document.getElementById('view-' + pid);
+                if (!prev || prev === trashEl) prev = document.getElementById('view-dashboard');
+                if (!prev) { mode = 'dead'; return; }
+                tr = { ca, trashEl, prev, w: ca.clientWidth || window.innerWidth, st: ca.scrollTop };
+                mode = 'trash'; lockX = sx0; cur = 0; window.mlyHDrag = true;
+                ca.style.position = 'relative'; ca.style.overflowY = 'hidden';
+                prev.style.top = tr.st + 'px'; prev.style.willChange = 'transform'; prev.classList.add('mly-peek-under');
+                const s = trashEl.style;
+                s.position = 'relative'; s.zIndex = '2'; s.background = 'var(--bg)'; s.minHeight = ca.clientHeight + 'px';
+                s.boxShadow = '-10px 0 28px rgba(0,0,0,.18)'; s.willChange = 'transform'; s.transition = 'none';
+                trApply(0);
+            }
+            function trApply(d) {
+                tr.trashEl.style.transform = 'translate3d(' + d + 'px,0,0)';
+                tr.prev.style.transform = 'translate3d(' + Math.round(-(1 - d / tr.w) * 70) + 'px,0,0)';
+            }
+            function trMove(x) { cur = Math.max(0, Math.min(tr.w, x - lockX)); trApply(cur); }
+            function trCleanup() {
+                const { ca, trashEl, prev, st } = tr;
+                prev.classList.remove('mly-peek-under');
+                ['top', 'transform', 'transition', 'willChange'].forEach(k => { prev.style[k] = ''; });
+                ['position', 'zIndex', 'background', 'minHeight', 'boxShadow', 'willChange', 'transition', 'transform'].forEach(k => { trashEl.style[k] = ''; });
+                ca.style.position = ''; ca.style.overflowY = ''; ca.scrollTop = st;
+            }
+            function trFinish() {
+                const commit = decide(cur / tr.w), target = commit ? tr.w : 0;
+                const dur = settle(commit, Math.abs(target - cur) / tr.w);
+                void tr.trashEl.offsetWidth;
+                busyAnim = true;
+                tr.trashEl.style.transition = tr.prev.style.transition = 'transform ' + dur + 'ms ' + EASE;
+                trApply(target);
+                setTimeout(() => { trCleanup(); tr = null; if (commit) mlyBackFromTrash(); busyAnim = false; }, dur + 30);
+            }
+
+            function finishDrag() {
+                if (mode === 'sb') sbFinish(); else if (mode === 'trash' && tr) trFinish();
+                window.mlyHDrag = false;
+            }
+
             document.addEventListener('touchstart', function (e) {
-                if (e.touches.length === 1) { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }
-                sx0 = tx; sy0 = ty; st0 = Date.now(); sTarget = e.target; sMulti = e.touches.length > 1;
+                if (e.touches.length > 1) { finishDrag(); mode = 'dead'; return; }
+                const p = e.touches[0];
+                sx0 = p.clientX; sy0 = p.clientY; sTarget = e.target;
+                vel = 0; lastX = sx0; lastT = performance.now(); mode = 'none';
+                if (busyAnim) return;
+                const allowed = isStandalone() || (isPhone() && sbOpen());
+                if (!allowed || document.querySelector(BLOCK) || fullscreenShown() || swipeBlockedTarget(sTarget)) return;
+                mode = 'pending';
             }, { capture: true, passive: true });
 
-            let sx0 = 0, sy0 = 0, st0 = 0, sTarget = null, sMulti = false;
-            document.addEventListener('touchend', function (e) {
+            document.addEventListener('touchmove', function (e) {
+                if (mode === 'none' || mode === 'dead') return;
+                if (e.touches.length > 1) { finishDrag(); mode = 'dead'; return; }
+                const p = e.touches[0], x = p.clientX, dx = x - sx0, dy = p.clientY - sy0;
+                const now = performance.now(), dt = now - lastT;
+                if (dt >= 1) { vel = vel * 0.5 + ((x - lastX) / dt) * 0.5; lastX = x; lastT = now; }   // px per ms, + = rightwards
+                if (mode === 'pending') {
+                    if (window.mlyPtrActive) { mode = 'dead'; return; }           // pull-to-refresh already owns this touch
+                    if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;              // not moved enough to tell yet
+                    if (Math.abs(dx) < Math.abs(dy) * 1.2) { mode = 'dead'; return; } // scrolling up/down
+                    if (sbOpen()) { if (dx < 0) startSb(false); else mode = 'dead'; }
+                    else if (onTrash()) { if (dx > 0) startTrash(); else mode = 'dead'; }
+                    else if (dx > 0) startSb(true);
+                    else mode = 'dead';
+                    if (mode === 'dead') return;
+                }
+                if (e.cancelable) e.preventDefault();
+                if (mode === 'sb') sbMove(x); else if (mode === 'trash' && tr) trMove(x);
+            }, { capture: true, passive: false });
+
+            function onEnd(e) {
+                if (mode === 'sb' || mode === 'trash') {
+                    if (e.type === 'touchend' && e.cancelable) e.preventDefault();
+                    finishDrag(); mode = 'none'; return;
+                }
+                mode = 'none'; window.mlyHDrag = false;
+                if (e.type === 'touchcancel') return;
                 const t = e.changedTouches && e.changedTouches[0]; if (!t) return;
-                const dx = t.clientX - sx0, dy = t.clientY - sy0, dt = Date.now() - st0;
+                const dx = t.clientX - sx0, dy = t.clientY - sy0;
                 const tapped = Math.abs(dx) < 10 && Math.abs(dy) < 10;
 
                 // Sidebar open (phone): outside touches never reach the page.
@@ -5967,23 +6091,10 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                     if (e.cancelable) e.preventDefault();
                     e.stopImmediatePropagation();
                     if (tapped || (dx < -50 && Math.abs(dx) > Math.abs(dy))) closeSb();
-                    return;
                 }
-
-                // ---- swipes (installed app only) ----
-                if (!isStandalone() || sMulti || dt > 800) return;
-                if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return; // not a clear sideways swipe
-                if (document.querySelector(BLOCK) || fullscreenShown()) return;
-                if (swipeBlockedTarget(sTarget)) return;
-
-                if (dx > 0) {   // swipe right
-                    if (sbOpen()) return;
-                    if (document.body.classList.contains('mly-on-trash')) mlyBackFromTrash();
-                    else { const sb = sbEl(); if (sb) sb.classList.remove('collapsed'); }
-                } else {        // swipe left
-                    if (sbOpen()) closeSb();
-                }
-            }, { capture: true, passive: false });
+            }
+            document.addEventListener('touchend', onEnd, { capture: true, passive: false });
+            document.addEventListener('touchcancel', onEnd, { capture: true, passive: false });
         })();
 
         // Collapsible sidebar nav groups (currently just "Accounting": Chart
