@@ -1054,7 +1054,6 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
             <div id="view-inventory" class="view-panel">
                 <div id="inventory-def-card" style="text-align:right; margin-bottom:12px;">
-                    <button type="button" class="btn btn-ghost" id="inv-scn-lock" style="display:none; align-items:center; gap:6px; margin-right:8px;" onclick="showUpgrade('scanned_stock')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Scanned Stock</button>
                     <button type="button" class="btn" id="inv-bulk-btn" onclick="openBulkImport()" data-i18n="ui2.add_in_bulk">Add in bulk</button>
                     <button type="button" class="btn" id="inv-open-add" onclick="openProductModal()" style="margin-left:8px;" data-i18n="ui2.add_product">+ Add Product</button>
                 </div>
@@ -2794,8 +2793,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             const acc = planLocked('accounting');
             ['nav-group-accounting-toggle', 'nav-coa', 'nav-journal', 'nav-ledger', 'nav-statements'].forEach(id => planBadge(id, acc));
             planBadge('btn-export-hub', planLocked('excel_export'));
-            const scn = document.getElementById('inv-scn-lock');
-            if (scn) scn.style.display = (planLocked('scanned_stock') && currentIsOwner) ? 'inline-flex' : 'none';
+            // Scanned Stock is completely hidden (no locked icon) for shops that are not on the Premium plan.
             planOverlay(document.getElementById('analytics-module'), 'plan-ov-analytics', 'deep_analytics');
             const card = sel => { const h = document.querySelector(sel); return h ? h.closest('.card') : null; };
             planOverlay(card('#view-team h2[data-i18n="team.members"]'), 'plan-ov-members', 'employees');
