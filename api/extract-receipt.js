@@ -6,6 +6,22 @@
 //
 // Frontend calls this as: POST /api/extract-receipt  with JSON body { image: "<base64 jpeg, no data: prefix>" }
 // Returns: the parsed receipt JSON (same shape the old client-side code produced).
+//
+// WHO MAY CALL IT (added for the free trial):
+//   1. A signed-in MELEYA user: sends "Authorization: Bearer <supabase access token>".
+//      The token is checked with Supabase. Signed-in users scan as normal.
+//   2. A free-trial visitor (no account): sends x-guest-device / x-guest-fp / x-guest-batch
+//      (and x-guest-retry: 1 on a silent re-read). The Supabase function claim_guest_scan()
+//      allows ONE batch of up to 5 photos per visitor, and rejects everyone else.
+//   3. Anyone else: rejected with 401 once the env var ENFORCE_AUTH is "true".
+//      While ENFORCE_AUTH is not "true" such calls are still allowed, so that pages which
+//      have not been updated to send a token yet (e.g. index.html) keep working.
+//
+// Environment variables (Vercel -> Project -> Settings -> Environment Variables):
+//   GEMINI_API_KEY             (already set)
+//   SUPABASE_SERVICE_ROLE_KEY  (new - Supabase -> Project Settings -> API -> service_role)
+//   SUPABASE_URL               (optional - defaults to the MELEYA project below)
+//   ENFORCE_AUTH               (optional - set to "true" once every page sends a token)
 
 const GC_YEAR = new Date().getFullYear(); // used inside the prompt to explain Ethiopian vs Gregorian years
 
@@ -350,6 +366,49 @@ async function callGeminiOnce(model, base64, apiKey) {
     return text;
 }
 
+// ---- Who is calling? (signed-in user, free-trial visitor, or neither) ----
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nwkrrcatdhppvlceuzwg.supabase.co';
+
+function headerText(req, name, max) {
+    const v = req.headers[name];
+    const t = Array.isArray(v) ? v[0] : v;
+    return (typeof t === 'string' ? t.trim() : '').slice(0, max || 120);
+}
+
+function callerIp(req) {
+    const fwd = headerText(req, 'x-forwarded-for', 200);
+    if (fwd) return fwd.split(',')[0].trim().slice(0, 64);
+    return (headerText(req, 'x-real-ip', 64) || (req.socket && req.socket.remoteAddress) || '').slice(0, 64);
+}
+
+// Asks Supabase whether this login token is real and still valid.
+async function verifySupabaseUser(token, serviceKey) {
+    try {
+        const r = await fetch(SUPABASE_URL + '/auth/v1/user', {
+            headers: { Authorization: 'Bearer ' + token, apikey: serviceKey },
+        });
+        if (!r.ok) return null;
+        const u = await r.json().catch(() => null);
+        return u && u.id ? u : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+// Asks the database whether this free-trial visitor may scan one more photo.
+// Returns { ok: true } or { ok: false, reason: 'trial_used' | 'busy' | 'bad_request' }.
+// Throws if the database itself cannot be reached.
+async function claimGuestScan(guest, serviceKey) {
+    const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/claim_guest_scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: serviceKey, Authorization: 'Bearer ' + serviceKey },
+        body: JSON.stringify({ p_device: guest.device, p_fp: guest.fp, p_ip: guest.ip, p_batch: guest.batch, p_retry: guest.retry }),
+    });
+    if (!r.ok) throw new Error('claim_guest_scan failed (' + r.status + ')');
+    const out = await r.json();
+    return out && typeof out === 'object' ? out : { ok: false, reason: 'bad_request' };
+}
+
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
         res.status(405).json({ error: 'Method not allowed' });
@@ -366,6 +425,56 @@ export default async function handler(req, res) {
     const { image } = req.body || {};
     if (!image || typeof image !== 'string') {
         res.status(400).json({ error: 'Request body must include an "image" field (base64 JPEG, no data: prefix).' });
+        return;
+    }
+
+    // ---- Gate: signed-in user, free-trial visitor, or (until ENFORCE_AUTH) legacy caller ----
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const authHeader = headerText(req, 'authorization', 4000);
+    const bearer = /^Bearer\s+(.+)$/i.test(authHeader) ? authHeader.replace(/^Bearer\s+/i, '') : '';
+    const guestDevice = headerText(req, 'x-guest-device', 80);
+    const guestBatch = headerText(req, 'x-guest-batch', 80);
+
+    if (bearer) {
+        if (!serviceKey) {
+            res.status(500).json({ error: 'Server is not configured with SUPABASE_SERVICE_ROLE_KEY.' });
+            return;
+        }
+        const user = await verifySupabaseUser(bearer, serviceKey);
+        if (!user) {
+            res.status(401).json({ code: 'auth_required', error: 'Your session has expired. Please sign in again.' });
+            return;
+        }
+    } else if (guestDevice && guestBatch) {
+        if (!serviceKey) {
+            res.status(500).json({ error: 'Server is not configured with SUPABASE_SERVICE_ROLE_KEY.' });
+            return;
+        }
+        let claim;
+        try {
+            claim = await claimGuestScan({
+                device: guestDevice,
+                batch: guestBatch,
+                fp: headerText(req, 'x-guest-fp', 80),
+                ip: callerIp(req),
+                retry: headerText(req, 'x-guest-retry', 4) === '1',
+            }, serviceKey);
+        } catch (e) {
+            res.status(503).json({ code: 'unavailable', error: 'The free trial is temporarily unavailable. Please try again in a few minutes.' });
+            return;
+        }
+        if (!claim.ok) {
+            if (claim.reason === 'busy') {
+                res.status(429).json({ code: 'busy', error: 'The free trial is very busy right now. Create a free account to keep going, or try again later.' });
+            } else if (claim.reason === 'trial_used') {
+                res.status(403).json({ code: 'trial_used', error: 'You have already used your free trial. Create a free account to keep scanning.' });
+            } else {
+                res.status(400).json({ code: 'bad_request', error: 'Could not start the free trial.' });
+            }
+            return;
+        }
+    } else if (process.env.ENFORCE_AUTH === 'true') {
+        res.status(401).json({ code: 'auth_required', error: 'Please sign in or start the free trial.' });
         return;
     }
 
