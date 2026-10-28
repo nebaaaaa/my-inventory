@@ -671,7 +671,8 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                         <button type="button" onclick="togglePasswordVisibility('signin-password', this)" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:16px; padding:4px;"><svg viewBox="0 0 576 512" width="18" height="18" style="display:block;"><path fill="#232849" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#ffffff"/><circle cx="288" cy="256" r="38" fill="#232849"/></svg></button>
                     </div>
                 </div>
-                <button class="btn" style="width:100%; margin-top:6px;" onclick="handleSignIn()" data-i18n="auth.sign_in">Sign In</button>
+                <button class="btn" style="width:100%; margin-top:6px;" onclick="handleSignIn()" data-i18n="auth.sign_in">Sign In</button><div style="text-align:center; font-size:12px; color:var(--text-light); margin:12px 0 8px;">or</div><button type="button" class="btn" onclick="signInWithGoogle()" style="width:100%; background:#fff; color:#3c4043; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; gap:10px; font-weight:600;"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.9 2.4 30.4 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.6 5.9c4.5-4.1 7-10.2 7-17.6z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.5-.8-3-.8-4.7s.3-3.2.8-4.7l-7.9-6.1C.9 16.4 0 20.1 0 24s.9 7.6 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.9 2.3-8.3 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>Continue with Google</button>
+                <button type="button" id="try-demo-btn" class="btn" onclick="startMeleyaDemo()" style="width:100%; margin-top:8px; background:linear-gradient(135deg,#7c3aed,#ec4899); border-color:transparent;">🎮 Try the demo shop (no sign-up)</button>
                 <p style="text-align:center; font-size:13px; margin-top:12px;"><a href="#" onclick="handleForgotPassword(); return false;" style="color:var(--text-light);" data-i18n="auth.forgot_password">Forgot password?</a></p>
                 <p style="text-align:center; font-size:13px; margin-top:4px; color:var(--text-light);"><span data-i18n="auth.no_account_yet">Don't have a shop account yet?</span> <a href="#" onclick="showAuthView('signup'); return false;" style="color:var(--primary); font-weight:600;" data-i18n="auth.create_one">Create one</a></p>
             </div>
@@ -679,43 +680,11 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             <!-- CREATE ACCOUNT VIEW -->
             <div id="auth-signup-view" style="display:none;">
                 <p style="font-size:13px; color:var(--text-light); margin-bottom:20px;" data-i18n="auth.signup_desc">Create a new shop account.</p>
-                <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                    <label data-i18n="auth.shop_name">Shop / Business Name</label>
-                    <input type="text" id="auth-business-name" style="width:100%;" placeholder="e.g. Kebede Electrical Supplies" data-i18n-placeholder="ui2.e_g_kebede_electrical_supplies">
-                </div>
+                <div style="margin:-10px 0 14px;"><div id="auth-su-step" style="font-size:12px; font-weight:700; color:var(--accent); margin-bottom:6px;">Step 1 of 2: your login details</div><div style="height:8px; background:var(--border,#ddd); border-radius:999px; overflow:hidden;"><div id="auth-su-bar" style="height:100%; width:50%; background:var(--accent,#7c3aed); border-radius:999px; transition:width .4s;"></div></div></div>
+                <div id="auth-su-p1">
                 <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                     <label data-i18n="auth.phone">Phone Number</label>
                     <input type="tel" id="auth-phone" style="width:100%;" placeholder="e.g. 0911 234 567">
-                </div>
-                <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                    <label data-i18n="auth.business_type">Business Type</label>
-                    <select id="auth-business-type" style="width:100%;" onchange="updateAuthVatDetailFields()"></select>
-                    <p style="font-size:12px; color:var(--text-light); margin-top:4px;" data-i18n="auth.business_type_hint">This can't be changed later, so pick the one that matches what you sell.</p>
-                </div>
-                <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                    <label data-i18n="auth.your_username">Your Username</label>
-                    <input type="text" id="auth-username" style="width:100%;" placeholder="e.g. kebede (used to log in later)" data-i18n-placeholder="ui2.e_g_kebede_used_to_log_in_later" autocomplete="off">
-                </div>
-                <div id="auth-vat-registered-group" class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                    <label data-i18n="auth.vat_registered">Is your shop VAT registered?</label>
-                    <select id="auth-vat-registered" style="width:100%;" onchange="updateAuthVatDetailFields()">
-                        <option value="no" data-i18n="common.no">No</option>
-                        <option value="yes" data-i18n="common.yes">Yes</option>
-                    </select>
-                    <p style="font-size:12px; color:var(--text-light); margin-top:4px;" data-i18n="auth.vat_registered_hint">You can change this anytime later from Team &amp; Branches.</p>
-                </div>
-                <div id="auth-vat-details-group" style="display:none;">
-                    <p style="font-size:12px; color:var(--text-light); margin:-6px 0 10px;" data-i18n="auth.vat_details_hint">Needed for VAT invoices — this goes on every receipt and invoice you print.</p>
-                    <div style="display:flex; gap:10px 14px; flex-wrap:wrap;">
-                        <div class="form-group" style="margin-bottom:14px; flex:1 1 160px;"><label data-i18n="auth.vat_tin">TIN Number</label><input type="text" id="auth-vat-tin" style="width:100%;"></div>
-                        <div class="form-group" style="margin-bottom:14px; flex:1 1 160px;"><label data-i18n="auth.vat_reg_no">VAT Registration No.</label><input type="text" id="auth-vat-reg-no" style="width:100%;"></div>
-                        <div class="form-group" style="margin-bottom:14px; flex:1 1 220px;"><label data-i18n="auth.owner_full_name">Owner's Full Name (with grandfather's name)</label><input type="text" id="auth-owner-full-name" style="width:100%;" placeholder="e.g. Dereje Eyasu Gebresilassie" data-i18n-placeholder="ui2.e_g_dereje_eyasu_gebresilassie"></div>
-                        <div class="form-group" style="margin-bottom:14px; flex:1 1 140px;"><label data-i18n="auth.vat_city">City</label><input type="text" id="auth-vat-city" style="width:100%;"></div>
-                        <div class="form-group" style="margin-bottom:14px; flex:1 1 140px;"><label data-i18n="auth.vat_sub_city">Sub City</label><input type="text" id="auth-vat-sub-city" style="width:100%;"></div>
-                        <div class="form-group" style="margin-bottom:14px; flex:1 1 140px;"><label data-i18n="auth.vat_kebele">Kebele</label><input type="text" id="auth-vat-kebele" style="width:100%;"></div>
-                        <div class="form-group" style="margin-bottom:14px; flex:1 1 140px;"><label data-i18n="auth.vat_tel">Tel</label><input type="tel" id="auth-vat-tel" style="width:100%;"></div>
-                        <div class="form-group" style="margin-bottom:14px; flex:1 1 220px;"><label data-i18n="auth.vat_address">Address</label><input type="text" id="auth-vat-address" style="width:100%;"></div>
-                    </div>
                 </div>
                 <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                     <label data-i18n="auth.email">Email</label>
@@ -735,7 +704,24 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                         <button type="button" onclick="togglePasswordVisibility('auth-password-confirm', this)" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:16px; padding:4px;"><svg viewBox="0 0 576 512" width="18" height="18" style="display:block;"><path fill="#232849" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#ffffff"/><circle cx="288" cy="256" r="38" fill="#232849"/></svg></button>
                     </div>
                 </div>
-                <button class="btn btn-success" style="width:100%; margin-top:6px;" onclick="handleSignUp()" data-i18n="auth.create_account">Create Account</button>
+                    <button type="button" class="btn" style="width:100%; margin-top:6px;" onclick="signupNextPage()">Next ▶</button><div style="text-align:center; font-size:12px; color:var(--text-light); margin:12px 0 8px;">or</div><button type="button" class="btn" onclick="signInWithGoogle()" style="width:100%; background:#fff; color:#3c4043; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; gap:10px; font-weight:600;"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.9 2.4 30.4 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.6 5.9c4.5-4.1 7-10.2 7-17.6z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.5-.8-3-.8-4.7s.3-3.2.8-4.7l-7.9-6.1C.9 16.4 0 20.1 0 24s.9 7.6 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.9 2.3-8.3 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>Continue with Google</button>
+                </div>
+                <div id="auth-su-p2" style="display:none;">
+                <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
+                    <label data-i18n="auth.shop_name">Shop / Business Name</label>
+                    <input type="text" id="auth-business-name" style="width:100%;" placeholder="e.g. Kebede Electrical Supplies" data-i18n-placeholder="ui2.e_g_kebede_electrical_supplies">
+                </div>
+                <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
+                    <label data-i18n="auth.your_username">Your Username</label>
+                    <input type="text" id="auth-username" style="width:100%;" placeholder="e.g. kebede (used to log in later)" data-i18n-placeholder="ui2.e_g_kebede_used_to_log_in_later" autocomplete="off">
+                </div>
+                <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
+                    <label data-i18n="auth.business_type">Business Type</label>
+                    <select id="auth-business-type" style="width:100%;" onchange="updateAuthVatDetailFields()"></select>
+                    <p style="font-size:12px; color:var(--text-light); margin-top:4px;" data-i18n="auth.business_type_hint">This can't be changed later, so pick the one that matches what you sell.</p>
+                </div>
+                    <div style="display:flex; gap:8px; margin-top:6px;"><button type="button" class="btn btn-ghost" onclick="signupGoPage(1)">◀ Back</button><button class="btn btn-success" style="flex:1;" onclick="handleSignUp()" data-i18n="auth.create_account">Create Account</button></div>
+                </div>
                 <p style="text-align:center; font-size:13px; margin-top:16px; color:var(--text-light);"><span data-i18n="auth.already_have_account">Already have an account?</span> <a href="#" onclick="showAuthView('signin'); return false;" style="color:var(--primary); font-weight:600;" data-i18n="auth.sign_in_link">Sign in</a></p>
             </div>
 
@@ -787,6 +773,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 <label data-i18n="auth.your_username">Your Username</label>
                 <input type="text" id="biz-setup-username" style="width:100%;" placeholder="e.g. kebede (used to log in later)" data-i18n-placeholder="ui2.e_g_kebede_used_to_log_in_later" autocomplete="off">
             </div>
+            <div class="form-group" style="display:block; width:100%; margin-bottom:14px;"><label data-i18n="auth.business_type">Business Type</label><select id="biz-setup-type" style="width:100%;"></select><p style="font-size:12px; color:var(--text-light); margin-top:4px;" data-i18n="auth.business_type_hint">This can't be changed later, so pick the one that matches what you sell.</p></div>
             <button class="btn btn-success" style="width:100%; margin-top:6px;" onclick="completeBusinessSetup()" data-i18n="auth.finish_setup">Finish Setup</button>
             <div id="biz-setup-loading" style="display:none; text-align:center; margin-top:14px; font-size:12px; color:var(--text-light);" data-i18n="ui2.setting_up_your_shop">Setting up your shop...</div>
             <div style="text-align:center; margin-top:16px;"><a href="#" onclick="event.preventDefault(); handleSignOut();" style="font-size:12px; color:var(--text-light);" data-i18n="ui2.not_you_sign_out">Not you? Sign out</a></div>
@@ -975,8 +962,8 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 <div class="card">
                     <h3 data-i18n="dash.liquid_positions">Liquid Capital Asset Positions</h3>
                     <p style="margin-top: 10px; font-size: 14px; color: var(--text-light);">
-                        <span onclick="launchLiquidVaultDrillDown()" style="cursor:pointer; text-decoration:underline dotted;" title="Click for a breakdown by channel" data-i18n-title="ui2.click_for_a_breakdown_by_channel" data-i18n="dash.liquid_vault">Money In (Cash and Banks)</span>: <strong id="dash-cash-sum" style="color: var(--primary);">ETB 0.00</strong> | 
-                        <span data-i18n="dash.inventory_assets">Inventory/Stock Value</span>: <strong id="dash-stock-sum" style="color: var(--primary);">ETB 0.00</strong>
+                        <span id="dash-cash-box"><span onclick="launchLiquidVaultDrillDown()" style="cursor:pointer; text-decoration:underline dotted;" title="Click for a breakdown by channel" data-i18n-title="ui2.click_for_a_breakdown_by_channel" data-i18n="dash.liquid_vault">Money In (Cash and Banks)</span>: <strong id="dash-cash-sum" style="color: var(--primary);">ETB 0.00</strong></span> | 
+                        <span id="dash-stock-box"><span data-i18n="dash.inventory_assets">Inventory/Stock Value</span>: <strong id="dash-stock-sum" style="color: var(--primary);">ETB 0.00</strong></span>
                     </p>
                 </div>
                 
@@ -1829,6 +1816,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                         <div class="form-group" id="p-daily-rate-group" style="display:none;"><label data-i18n="ui2.daily_rate_etb">Daily Rate (ETB)</label><input type="number" id="p-daily-rate" step="0.01" min="0"></div>
                         <div class="form-group" id="p-weekly-rate-group" style="display:none;"><label data-i18n="ui2.weekly_rate_etb_optional">Weekly Rate (ETB, optional)</label><input type="number" id="p-weekly-rate" step="0.01" min="0"></div>
                         <div class="form-group" id="p-monthly-rate-group" style="display:none;"><label data-i18n="ui2.monthly_rate_etb_optional">Monthly Rate (ETB, optional)</label><input type="number" id="p-monthly-rate" step="0.01" min="0"></div>
+                <div id="p-bulk-hint" style="font-size:12px;color:var(--text-light);margin:2px 0 10px;display:none;">Need to add quantity, cost price, selling price or supplier? Use <a href="#" onclick="event.preventDefault();resetProductForm();openBulkImport();setTimeout(function(){var i=document.querySelector('#bulk-man-body .bm-d');if(i)i.focus();},60);" style="font-weight:700;">Add in bulk</a>. You can type them in there.</div>
                 <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:6px;">
                     <button type="button" class="btn btn-warning" id="inv-cancel" onclick="resetProductForm()" data-i18n="common.cancel">Cancel</button>
                     <button type="submit" class="btn" id="inv-btn">Add Product</button>
@@ -3585,6 +3573,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             if (!sel || typeof BUSINESS_TYPES === 'undefined') return;
             const keys = Object.keys(BUSINESS_TYPES).sort((a, b) => (a === 'retail' ? -1 : b === 'retail' ? 1 : 0));
             sel.innerHTML = keys.map(k => `<option value="${escHtml(k)}">${BUSINESS_TYPES[k].label}</option>`).join('');
+            const bsType = document.getElementById('biz-setup-type'); if (bsType) bsType.innerHTML = sel.innerHTML;
             updateAuthVatDetailFields();
         }
         // Appliance rental has no VAT registration option at all (the whole
@@ -4113,7 +4102,30 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             document.getElementById('auth-loading').style.display = on ? 'block' : 'none';
         }
 
+        function signupGoPage(n) {
+            document.getElementById('auth-su-p1').style.display = n === 1 ? 'block' : 'none';
+            document.getElementById('auth-su-p2').style.display = n === 2 ? 'block' : 'none';
+            const s = document.getElementById('auth-su-step'); if (s) s.textContent = n === 1 ? 'Step 1 of 2: your login details' : 'Step 2 of 2: about your shop';
+            const bar = document.getElementById('auth-su-bar'); if (bar) bar.style.width = n === 1 ? '50%' : '100%';
+            document.getElementById('auth-error').style.display = 'none';
+        }
+        async function signInWithGoogle() {
+            // Needs the Google provider switched on in Supabase (Authentication > Providers) and this site's address in its redirect URLs.
+            if (location.protocol === 'file:') return showAuthError('Google sign-in only works on the online site (https), not from a file on this computer.');
+            setAuthLoading(true);
+            const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname } });
+            if (error) { setAuthLoading(false); showAuthError(error.message); }
+        }
+        function signupNextPage() {
+            const v = id => document.getElementById(id).value;
+            if (!v('auth-phone').trim()) return showAuthError('Please enter a phone number.');
+            if (!v('auth-email').trim() || !v('auth-password')) return showAuthError('Please enter an email and password.');
+            if (v('auth-password').length < 6) return showAuthError('Password must be at least 6 characters.');
+            if (v('auth-password') !== v('auth-password-confirm')) return showAuthError('Passwords do not match. Please re-type them.');
+            signupGoPage(2);
+        }
         function showAuthView(view) {
+            if (view === 'signup') signupGoPage(1);
             document.getElementById('auth-error').style.display = 'none';
             document.getElementById('auth-signin-view').style.display = view === 'signin' ? 'block' : 'none';
             document.getElementById('auth-signup-view').style.display = view === 'signup' ? 'block' : 'none';
@@ -4154,18 +4166,9 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             const email = document.getElementById('auth-email').value.trim();
             const password = document.getElementById('auth-password').value;
             const passwordConfirm = document.getElementById('auth-password-confirm').value;
-            const vatRegistered = document.getElementById('auth-vat-registered').value === 'yes';
+            const vatRegistered = false; // asked later, when the owner finishes setup in Settings
             const businessType = document.getElementById('auth-business-type').value || 'retail';
-            const vatDetails = {
-                tin: document.getElementById('auth-vat-tin').value.trim(),
-                regNo: document.getElementById('auth-vat-reg-no').value.trim(),
-                ownerFullName: document.getElementById('auth-owner-full-name').value.trim(),
-                city: document.getElementById('auth-vat-city').value.trim(),
-                subCity: document.getElementById('auth-vat-sub-city').value.trim(),
-                kebele: document.getElementById('auth-vat-kebele').value.trim(),
-                tel: document.getElementById('auth-vat-tel').value.trim(),
-                address: document.getElementById('auth-vat-address').value.trim()
-            };
+            const vatDetails = { tin: '', regNo: '', ownerFullName: '', city: '', subCity: '', kebele: '', tel: '', address: '' };
             document.getElementById('auth-error').style.display = 'none';
             if (!bizName) return showAuthError('Please enter your shop / business name.');
             if (!phone) return showAuthError('Please enter a phone number.');
@@ -4183,7 +4186,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             setAuthLoading(true);
             const { data, error } = await supabaseClient.auth.signUp({ email, password });
             setAuthLoading(false);
-            if (error) return showAuthError(error.message);
+            if (error) { signupGoPage(1); return showAuthError(error.message); }
 
             savePendingSignupInfo(bizName, phone, username, vatRegistered, businessType, vatDetails);
 
@@ -4518,6 +4521,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             });
             document.getElementById('biz-setup-loading').style.display = 'none';
             if (error) { errEl.innerText = error.message; errEl.style.display = 'block'; return; }
+            try { sessionStorage.setItem('neba_pending_vat_registered', '0'); sessionStorage.setItem('neba_pending_business_type', document.getElementById('biz-setup-type').value || 'retail'); } catch (e) {}
 
             document.getElementById('business-setup-overlay').style.display = 'none';
             const { data: { user } } = await supabaseClient.auth.getUser();
@@ -4600,12 +4604,10 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         }
 
         function showInitialInventorySetup() {
+            // New shops go straight into the app; products are added from the Inventory page.
             document.getElementById('onboarding-overlay').style.display = 'none';
             initialInventoryCart = [];
-            applyInitialInventoryFieldVisibility();
-            renderInitialInventoryCartTable();
-            syncCategoriesDatalist();
-            document.getElementById('initial-inventory-overlay').style.display = 'flex';
+            return bootApp();
         }
 
         function addToInitialInventoryCart() {
@@ -8342,11 +8344,12 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         // Same accounting as the opening-inventory screen: stock goes in at cost,
         // funded as owner capital (no cash/bank balance changes).
         function setProductFormMode(isEdit) {
-            const show = !isEdit && hasPerm('inventory.view_cost');
+            const show = !isEdit && hasPerm('inventory.view_cost') && currentBusinessType === 'appliance_rental'; // other businesses: quantity, cost and supplier now live in Add in bulk
             document.querySelectorAll('.p-stock-group').forEach(g => g.style.display = show ? '' : 'none');
             ['p-qty', 'p-cost'].forEach(id => { document.getElementById(id).required = false; });
-            const showSell = !isEdit && hasPerm('inventory.adjust_price') && currentBusinessType !== 'appliance_rental';
+            const showSell = false; // selling price now lives in Add in bulk
             document.querySelectorAll('.p-sell-group').forEach(g => g.style.display = showSell ? '' : 'none');
+            const bh = document.getElementById('p-bulk-hint'); if (bh) bh.style.display = (!isEdit && currentBusinessType !== 'appliance_rental' && hasPerm('inventory.view_cost')) ? '' : 'none';
             document.getElementById('inv-title').innerText = isEdit ? 'Edit Product' : t('inv.add_product');
             const bulk = document.getElementById('inv-bulk-btn');
             if (bulk) bulk.style.display = (currentBusinessType === 'appliance_rental' || !hasPerm('inventory.view_cost')) ? 'none' : '';
@@ -8560,27 +8563,100 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             { k: 'supplier', label: 'Supplier (optional)', syn: ['supplier', 'vendor', 'seller', 'supplied by', 'አቅራቢ'] },
             { k: 'sellingPrice', label: 'Selling Price (optional)', syn: ['selling price', 'sale price', 'sell price', 'retail price', 'retail', 'mrp'] }
         ];
-        let bulkWb = null, bulkHeaders = [], bulkData = [], bulkMap = {}, bulkValid = [];
+        let bulkWb = null, bulkHeaders = [], bulkData = [], bulkMap = {}, bulkValid = [], bulkMode = 'file';
         const bulkEsc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
         const bulkNorm = s => String(s ?? '').toLowerCase().replace(/[^a-z0-9\u1200-\u137F ]+/g, ' ').replace(/\s+/g, ' ').trim();
         const bulkNum = v => { if (typeof v === 'number') return v; const m = String(v ?? '').replace(/,/g, '').match(/-?\d+(\.\d+)?/); return m ? parseFloat(m[0]) : NaN; };
 
         function closeBulkImport() { document.getElementById('bulk-overlay')?.remove(); bulkWb = null; }
         function openBulkImport() {
-            closeBulkImport();
+            closeBulkImport(); bulkData = []; bulkMap = {}; bulkValid = [];
             const o = document.createElement('div'); o.id = 'bulk-overlay';
             o.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:6000;display:flex;align-items:flex-start;justify-content:center;padding:20px 12px;overflow-y:auto;';
             o.innerHTML = `<div class="card" style="max-width:900px;width:100%;margin:0;">
                 <h2>Add in bulk</h2>
-                <p style="font-size:13px;color:var(--text-light);">Choose any Excel or CSV file with your stock. You will match its columns to ours and check everything before anything is saved.</p>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
-                    <input type="file" id="bulk-file" accept=".xlsx,.xls,.csv" onchange="bulkLoadFile(this.files[0])">
-                    <button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="bulkDownloadTemplate()">Download template</button>
+                <p style="font-size:13px;color:var(--text-light);">Add many products at once: choose an Excel or CSV file, type them in below it, or use both together. You check everything before anything is saved.</p>
+                <div id="bulk-file-section" style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px;">
+                    <h3 style="margin:0 0 8px;font-size:15px;">📁 Upload a file</h3>
+                    <div id="bulk-file-wrap" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+                        <input type="file" id="bulk-file" accept=".xlsx,.xls,.csv" onchange="bulkLoadFile(this.files[0])">
+                        <button type="button" class="btn btn-small" style="background:#4a4e63;" onclick="bulkDownloadTemplate()">Download template</button>
+                        <button type="button" class="btn btn-small" id="bulk-guide-btn" style="background:#7c3aed;" onclick="openTemplateGuide()">▶ Watch how</button>
+                    </div>
+                    <div id="bulk-body"></div>
                 </div>
-                <div id="bulk-body"></div>
+                <div id="bulk-manual" style="border:1px solid var(--border);border-radius:10px;padding:12px;">
+                    <h3 style="margin:0 0 8px;font-size:15px;">✍️ Or type them in</h3>
+                    <p style="font-size:12px;color:var(--text-light);margin:0 0 8px;">One row per product. Only <b>Product Name</b> is required. Fill quantity <b>and</b> cost price together to also record the stock.</p>
+                    <div class="table-scroll" style="max-height:260px;overflow:auto;"><table><thead><tr><th>Category</th><th>Product Name *</th><th class="num">Quantity</th><th class="num">Cost Price</th><th class="num">Selling Price</th><th>Supplier</th><th></th></tr></thead><tbody id="bulk-man-body"></tbody></table></div>
+                    <button type="button" class="btn btn-small" style="margin-top:8px;" onclick="bulkManAdd()">+ Add row</button>
+                    <div id="bulk-man-preview" class="table-scroll" style="max-height:260px;overflow:auto;margin-top:10px;"></div>
+                </div>
                 <div style="text-align:right;margin-top:12px;"><button type="button" class="btn btn-warning" onclick="closeBulkImport()">Cancel</button> <button type="button" class="btn" id="bulk-go" style="display:none;" onclick="bulkCommit()">Import</button></div>
             </div>`;
             document.body.appendChild(o);
+            for (let k = 0; k < 3; k++) bulkManAdd();
+        }
+        /* Animated how-to for the stock template (PC / iPhone / Android). Plays inside the app, no video file needed. */
+        function openTemplateGuide() {
+            if (document.getElementById('tpl-guide')) return;
+            if (!document.getElementById('tpl-guide-css')) { const s = document.createElement('style'); s.id = 'tpl-guide-css'; s.textContent = `
+#tpl-guide{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:7900;display:flex;align-items:flex-start;justify-content:center;padding:14px 10px;overflow-y:auto}
+#tpl-guide .tg-card{background:var(--surface,#fff);color:var(--text,#222);border-radius:14px;max-width:640px;width:100%;padding:14px;box-shadow:0 12px 40px rgba(0,0,0,.4)}
+.tg-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}.tg-tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tg-tab{border:1px solid var(--border,#ccc);background:transparent;color:inherit;border-radius:999px;padding:5px 12px;font-weight:700;font-size:12px;cursor:pointer}.tg-tab.on{background:var(--accent,#7c3aed);color:#fff;border-color:transparent}
+.tg-stage{background:#0f1226;border-radius:12px;padding:12px;min-height:250px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.tg-dev{background:#fff;color:#222;border-radius:8px;width:100%;max-width:560px;overflow:hidden;font-size:12px;box-shadow:0 6px 20px rgba(0,0,0,.5)}
+.tg-dev.ph{max-width:230px;border-radius:24px;border:5px solid #333}.tg-bar{background:#e6e8ef;padding:6px 10px;font-size:11px;color:#555;display:flex;gap:6px;align-items:center}.tg-bar i{width:9px;height:9px;border-radius:50%;background:#bbb;display:inline-block}
+.tg-body{padding:12px;min-height:170px;position:relative}.tg-btn{display:inline-block;background:#1f7a54;color:#fff;border-radius:6px;padding:6px 10px;font-weight:700;font-size:11px;animation:tgP 1s infinite}
+@keyframes tgP{50%{box-shadow:0 0 0 7px rgba(251,191,36,.6)}}@keyframes tgIn{to{opacity:1}}
+.tg-g{display:grid;grid-template-columns:repeat(6,1fr);border:1px solid #ccc;font-size:9px}.tg-g b,.tg-g span{border:1px solid #ddd;padding:3px 2px;min-height:18px;overflow:hidden;white-space:nowrap}.tg-g b{background:#e8f1ea}.tg-g .tg-c{opacity:0;animation:tgIn .4s forwards}
+.tg-chip{display:inline-block;border:2px solid #fbbf24;border-radius:8px;padding:6px 10px;font-weight:700;animation:tgP 1s infinite;background:#fffbe6}.tg-cap{margin:10px 2px 6px;font-size:14px;line-height:1.4;min-height:60px}
+.tg-ctl{display:flex;align-items:center;gap:8px;justify-content:space-between}.tg-dots{display:flex;gap:5px}.tg-dots i{width:8px;height:8px;border-radius:50%;background:#c8cbd8}.tg-dots i.on{background:var(--accent,#7c3aed)}`; document.head.appendChild(s); }
+            const ua = navigator.userAgent; let plat = /iPhone|iPad|iPod/.test(ua) ? 'ios' : /Android/.test(ua) ? 'and' : 'pc', n = 0, timer = null, playing = true;
+            const APP = { pc: 'Excel', ios: 'Excel or Numbers', and: 'Google Sheets' }, NM = { pc: '💻 PC', ios: '📱 iPhone', and: '📱 Android' };
+            const CAP = {
+                pc: ['In <b>Add in bulk</b>, click <b>Download template</b>. A file called <b>stock-template.xlsx</b> is saved.', 'Your browser shows the file in its <b>downloads</b> list (top right, or the bar at the bottom). Click it to open it.', 'It opens in <b>Excel</b> (or LibreOffice / Google Sheets). Row 1 holds the column names. Do not change them.', 'Delete the example row, then type <b>one product per row</b>: category, name, quantity, cost price, supplier, selling price.', 'Press <b>Ctrl + S</b> to save, then close Excel.', 'Back in the app, click <b>Choose file</b> and pick <b>stock-template.xlsx</b> from your <b>Downloads</b> folder.', 'The list fills in and the columns match by themselves. Check it, then click <b>Import</b>.'],
+                ios: ['In <b>Add in bulk</b>, tap <b>Download template</b>. If Safari asks, tap <b>Download</b>.', 'Tap the <b>↓ download icon</b> in the address bar, then the file. It is saved in the <b>Files</b> app, in <b>Downloads</b>.', 'Tap the file, then <b>Share</b> and choose <b>Excel</b> or <b>Numbers</b> (free apps from the App Store) to open it.', 'Delete the example row and type <b>one product per row</b>. Keep the column names in row 1.', 'Excel saves by itself. In Numbers use <b>Share → Export → Excel</b> and save it in <b>Files</b>.', 'Back in the app tap <b>Choose file</b> → <b>Browse</b> → <b>Downloads</b> and pick <b>stock-template.xlsx</b>.', 'The list fills in by itself. Check it, then tap <b>Import</b>.'],
+                and: ['In <b>Add in bulk</b>, tap <b>Download template</b>. Chrome saves <b>stock-template.xlsx</b>.', 'Tap <b>Open</b> on the “Downloaded” message at the bottom, or find the file in <b>Files → Downloads</b>.', 'Choose <b>Google Sheets</b> (or Excel) to open it. Row 1 holds the column names. Do not change them.', 'Delete the example row and type <b>one product per row</b>.', 'Sheets saves by itself. Just press the back arrow when you finish.', 'Back in the app tap <b>Choose file</b> and pick <b>stock-template.xlsx</b> from <b>Downloads</b>.', 'The list fills in by itself. Check it, then tap <b>Import</b>.']
+            };
+            const KIND = ['btn', 'dl', 'open', 'sheet', 'save', 'pick', 'done'];
+            const HD = ['Category', 'Product Name', 'Quantity', 'Cost Price', 'Supplier', 'Selling Price'], ROWS = [['Drinks', 'Orange Juice 1L', '24', '52', 'Abebe Traders', '70'], ['Snacks', 'Biscuit Pack', '48', '12', 'Sidama Supplies', '18'], ['Groceries', 'Rice 5kg', '15', '420', 'Hawassa', '480']];
+            const grid = (rows, anim) => `<div class="tg-g">${HD.map(h => `<b>${h}</b>`).join('')}${rows.map((r, i) => r.map((c, j) => `<span ${anim ? `class="tg-c" style="animation-delay:${(i * 6 + j) * .3}s"` : ''}>${c}</span>`).join('')).join('')}</div>`;
+            const frame = body => `<div class="tg-dev ${plat === 'pc' ? '' : 'ph'}"><div class="tg-bar">${plat === 'pc' ? '<i></i><i></i><i></i> &nbsp;your app' : '&nbsp;'.repeat(2) + '●●● &nbsp; your app'}</div><div class="tg-body">${body}</div></div>`;
+            const scene = k => {
+                if (k === 'btn') return frame(`<b style="font-size:14px">Add in bulk</b><p style="margin:8px 0">📁 Upload a file</p><span class="tg-btn">Download template</span> 👆`);
+                if (k === 'dl') return frame(plat === 'pc' ? `<p style="color:#777;margin:0 0 8px">Downloads ⬇</p><span class="tg-chip">📄 stock-template.xlsx</span> 👆` : plat === 'ios' ? `<p style="color:#777;margin:0 0 8px">Files › Downloads</p><span class="tg-chip">📄 stock-template.xlsx</span> 👆` : `<p style="color:#777;margin:0 0 8px">Chrome</p><div style="background:#333;color:#fff;border-radius:6px;padding:8px;margin-top:60px">Downloaded stock-template.xlsx &nbsp; <b class="tg-chip" style="padding:2px 8px;color:#222">Open</b></div>`);
+                if (k === 'open') return frame(`<b>${APP[plat]}</b>${grid([ROWS[0].map(c => c)], false)}`);
+                if (k === 'sheet') return frame(`<b>${APP[plat]}</b>${grid(ROWS, true)}`);
+                if (k === 'save') return frame(`<div style="text-align:center;padding-top:40px"><span class="tg-chip">${plat === 'pc' ? '💾 Ctrl + S' : '✓ Saved'}</span></div>`);
+                if (k === 'pick') return frame(`<p style="color:#777;margin:0 0 8px">${plat === 'pc' ? 'Open' : 'Browse › Downloads'}</p><div style="padding:4px 0">📄 my-photo.jpg</div><div class="tg-chip" style="display:block;margin:4px 0">📄 stock-template.xlsx</div> 👆`);
+                return frame(`<b>Check the matches</b><div style="margin:8px 0">${grid(ROWS, false).replace(/class="tg-c"/g, '')}</div><span class="tg-btn">Import 3 products</span>`);
+            };
+            const o = document.createElement('div'); o.id = 'tpl-guide'; document.body.appendChild(o);
+            const draw = () => {
+                o.innerHTML = `<div class="tg-card"><div class="tg-top"><div class="tg-tabs">${['pc', 'ios', 'and'].map(p => `<button class="tg-tab ${p === plat ? 'on' : ''}" data-p="${p}">${NM[p]}</button>`).join('')}</div><button class="btn btn-small btn-warning" id="tg-x">✕ Close</button></div>
+                <div class="tg-stage">${scene(KIND[n])}</div><div class="tg-cap">${CAP[plat][n]}</div>
+                <div class="tg-ctl"><div><button class="btn btn-small" id="tg-pv">◀</button> <button class="btn btn-small" id="tg-pl">${playing ? '⏸' : '▶'}</button> <button class="btn btn-small" id="tg-nx">▶▶</button></div><div class="tg-dots">${KIND.map((_, i) => `<i class="${i === n ? 'on' : ''}"></i>`).join('')}</div><span style="font-size:11px;color:var(--text-light)">Step ${n + 1} of ${KIND.length}</span></div></div>`;
+                o.querySelectorAll('.tg-tab').forEach(b => b.onclick = () => { plat = b.dataset.p; n = 0; draw(); });
+                o.querySelector('#tg-x').onclick = () => { clearInterval(timer); o.remove(); };
+                o.querySelector('#tg-pv').onclick = () => { n = (n + KIND.length - 1) % KIND.length; draw(); };
+                o.querySelector('#tg-nx').onclick = () => { n = (n + 1) % KIND.length; draw(); };
+                o.querySelector('#tg-pl').onclick = () => { playing = !playing; draw(); };
+            };
+            draw(); timer = setInterval(() => { if (!document.getElementById('tpl-guide')) return clearInterval(timer); if (playing) { n = (n + 1) % KIND.length; draw(); } }, 6000);
+        }
+        function bulkManAdd() {
+            const tr = document.createElement('tr');
+            const f = (cls, ph, list, mode) => `<td><input class="${cls}" type="text" ${mode ? `inputmode="${mode}"` : ''} ${list ? `list="${list}"` : ''} placeholder="${ph}" autocomplete="off" oninput="bulkManSync()" onkeydown="bulkManKey(event)" style="width:100%;min-width:90px;"></td>`;
+            tr.innerHTML = f('bm-c', 'Category', 'category-list') + f('bm-d', 'Product name') + f('bm-q', '0', '', 'numeric') + f('bm-p', '0.00', '', 'decimal') + f('bm-r', '0.00', '', 'decimal') + f('bm-s', 'Supplier', 'supplier-list') + `<td><button type="button" class="btn btn-small btn-warning" title="Remove row" onclick="this.closest('tr').remove();bulkManSync()">✕</button></td>`;
+            document.getElementById('bulk-man-body').appendChild(tr);
+        }
+        function bulkManSync() { bulkPreview(); }
+        function bulkManKey(e) {
+            if (e.key !== 'Enter') return; e.preventDefault();
+            const tr = e.target.closest('tr'); if (!tr.nextElementSibling) bulkManAdd();
+            const nx = tr.nextElementSibling; if (nx) nx.querySelector('.' + e.target.className.split(' ')[0]).focus();
         }
         function bulkDownloadTemplate() {
             if (typeof XLSX === 'undefined') return alert('Excel tools are still loading. Try again in a moment.');
@@ -8617,30 +8693,35 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             bulkPreview();
         }
         function bulkPreview() {
-            const g = (r, k) => bulkMap[k] === undefined ? '' : r[bulkMap[k]];
-            const defCat = (document.getElementById('bulk-defcat').value || 'General').trim();
-            const seen = new Set(), out = []; bulkValid = [];
-            bulkData.forEach((r, ri) => {
-                const desc = String(g(r, 'desc')).trim(), category = String(g(r, 'category')).trim() || defCat;
-                const qty = bulkNum(g(r, 'qty')), cost = bulkNum(g(r, 'cost')), supplier = String(g(r, 'supplier')).trim(), sp = bulkNum(g(r, 'sellingPrice'));
-                if (/^(grand |sub ?)?total\b/i.test(desc)) return;
-                let err = '';
-                // A row with BOTH a quantity and a cost price becomes stock + a purchase record.
-                // A row missing either one is still added, as a product with 0 quantity and 0 cost (no purchase record).
-                const hasBoth = qty > 0 && cost > 0;
-                if (bulkMap.desc === undefined) err = 'Match the required (*) column first';
-                else if (!desc) err = 'No product name';
-                else if (hasBoth && Math.abs(qty - Math.round(qty)) > 1e-9) err = 'Quantity must be a whole number';
-                else {
-                    const key = category.toLowerCase() + '|' + desc.toLowerCase();
-                    if (seen.has(key)) err = 'Repeated in this file';
-                    else if (state.inventory.some(i => i.category.toLowerCase() + '|' + i.desc.toLowerCase() === key)) err = 'Already in your stock';
-                    seen.add(key);
-                }
-                if (!err) bulkValid.push({ category, desc, qty: hasBoth ? Math.round(qty) : 0, cost: hasBoth ? cost : 0, supplier: supplier || 'N/A', sellingPrice: sp > 0 ? sp : 0, noStock: !hasBoth });
-                out.push(`<tr style="${err ? 'background:#FDECEA;' : ''}"><td>${ri + 1}</td><td>${bulkEsc(category)}</td><td>${bulkEsc(desc)}</td><td class="num">${bulkEsc(g(r, 'qty'))}</td><td class="num">${bulkEsc(g(r, 'cost'))}</td><td>${bulkEsc(supplier)}</td><td>${err ? '<span style="color:#c0392b;">Skipped: ' + err + '</span>' : (hasBoth ? '✓ Ready' : '✓ Ready (no stock yet)')}</td></tr>`);
-            });
-            document.getElementById('bulk-preview').innerHTML = `<p style="font-size:13px;margin:0 0 6px;"><strong>${bulkValid.length}</strong> ready, <strong>${out.length - bulkValid.length}</strong> will be skipped.</p><table><thead><tr><th>#</th><th>Category</th><th>Product</th><th class="num">Qty</th><th class="num">Cost</th><th>Supplier</th><th>Status</th></tr></thead><tbody>${out.slice(0, 300).join('')}</tbody></table>${out.length > 300 ? '<p style="font-size:12px;">Showing the first 300 rows. All ready rows are imported.</p>' : ''}`;
+            const defEl = document.getElementById('bulk-defcat'); const defCat = ((defEl && defEl.value) || 'General').trim();
+            const manMap = { category: 0, desc: 1, qty: 2, cost: 3, sellingPrice: 4, supplier: 5 };
+            const manData = Array.from(document.querySelectorAll('#bulk-man-body tr')).map(tr => ['bm-c', 'bm-d', 'bm-q', 'bm-p', 'bm-r', 'bm-s'].map(c => tr.querySelector('.' + c).value.trim())).filter(r => r.some(c => c !== ''));
+            const seen = new Set(); bulkValid = [];
+            // The file rows and the typed rows are checked together and imported together.
+            const run = (data, map, manual, boxId) => {
+                const g = (r, k) => map[k] === undefined ? '' : r[map[k]]; const out = []; let ok = 0;
+                data.forEach((r, ri) => {
+                    const desc = String(g(r, 'desc')).trim(), category = String(g(r, 'category')).trim() || defCat;
+                    const qty = bulkNum(g(r, 'qty')), cost = bulkNum(g(r, 'cost')), supplier = String(g(r, 'supplier')).trim(), sp = bulkNum(g(r, 'sellingPrice'));
+                    if (/^(grand |sub ?)?total\b/i.test(desc)) return;
+                    let err = ''; const hasBoth = qty > 0 && cost > 0;
+                    if (map.desc === undefined) err = 'Match the required (*) column first';
+                    else if (!desc) err = 'No product name';
+                    else if (hasBoth && Math.abs(qty - Math.round(qty)) > 1e-9) err = 'Quantity must be a whole number';
+                    else if (manual && ((qty > 0) !== (cost > 0))) err = 'Quantity and cost price go together';
+                    else {
+                        const key = category.toLowerCase() + '|' + desc.toLowerCase();
+                        if (seen.has(key)) err = 'Repeated in this list';
+                        else if (state.inventory.some(i => i.category.toLowerCase() + '|' + i.desc.toLowerCase() === key)) err = 'Already in your stock';
+                        seen.add(key);
+                    }
+                    if (!err) { bulkValid.push({ category, desc, qty: hasBoth ? Math.round(qty) : 0, cost: hasBoth ? cost : 0, supplier: supplier || 'N/A', sellingPrice: sp > 0 ? sp : 0, noStock: !hasBoth }); ok++; }
+                    out.push(`<tr style="${err ? 'background:#FDECEA;' : ''}"><td>${ri + 1}</td><td>${bulkEsc(category)}</td><td>${bulkEsc(desc)}</td><td class="num">${bulkEsc(g(r, 'qty'))}</td><td class="num">${bulkEsc(g(r, 'cost'))}</td><td>${bulkEsc(supplier)}</td><td>${err ? '<span style="color:#c0392b;">Skipped: ' + err + '</span>' : (hasBoth ? '✓ Ready' : '✓ Ready (no stock yet)')}</td></tr>`);
+                });
+                const box = document.getElementById(boxId);
+                if (box) box.innerHTML = out.length ? `<p style="font-size:13px;margin:0 0 6px;"><strong>${ok}</strong> ready, <strong>${out.length - ok}</strong> will be skipped.</p><table><thead><tr><th>#</th><th>Category</th><th>Product</th><th class="num">Qty</th><th class="num">Cost</th><th>Supplier</th><th>Status</th></tr></thead><tbody>${out.slice(0, 300).join('')}</tbody></table>${out.length > 300 ? '<p style="font-size:12px;">Showing the first 300 rows. All ready rows are imported.</p>' : ''}` : '';
+            };
+            run(bulkData, bulkMap, false, 'bulk-preview'); run(manData, manMap, true, 'bulk-man-preview');
             const go = document.getElementById('bulk-go'); go.style.display = bulkValid.length ? '' : 'none'; go.innerText = `Import ${bulkValid.length} products`;
         }
         async function bulkCommit() {
@@ -13293,7 +13374,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 if (shellOpen()) return;
                 stopResume();
                 // Nothing opened at all (no saved copy on this device): never leave a blank page, show the login.
-                const ao = document.getElementById('auth-overlay'); if (ao) ao.style.display = '';
+                const ao = document.getElementById('auth-overlay'); if (ao) ao.style.display = 'flex';
             }, 20000);
             try {
                 // Check for an admin-initiated "login as owner" handoff first —
@@ -13447,6 +13528,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 email: "Type an email address.",
                 password: "Choose a password. Use at least 6 letters or numbers.",
                 confirm_password: "Type the same password again.",
+                signup_next: "Phone, email and password done? Tap \"Next\" for the last page.",
                 create_account: "Everything filled in? Tap \"Create Account\" to continue.",
 
                 bizsetup_name: "Type the name of your shop.",
@@ -13587,6 +13669,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 email: "ኢሜይል አድራሻ ይጻፉ።",
                 password: "የይለፍ ቃል ይምረጡ። ቢያንስ 6 ፊደላት ወይም ቁጥሮች ይኑረው።",
                 confirm_password: "ተመሳሳዩን የይለፍ ቃል እንደገና ይጻፉ።",
+                signup_next: "ስልክ፣ ኢሜይል እና የይለፍ ቃል ጨርሰዋል? ለመጨረሻው ገጽ \"Next\" ይንኩ።",
                 create_account: "ሁሉንም ሞልተዋል? ለመቀጠል \"Create Account\" ይንኩ።",
 
                 bizsetup_name: "የሱቅዎን ስም ይጻፉ።",
@@ -13716,28 +13799,21 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             auth: [
                 LANG_STEP,
                 { id: 'signup-link', sel: '#auth-signin-view a[onclick*="signup"]', key: 'signup_link' },
-                { id: 'biz-name', sel: '#auth-business-name', key: 'biz_name' },
                 { id: 'phone', sel: '#auth-phone', key: 'phone' },
-                { id: 'biz-type', sel: '#auth-business-type', key: 'biz_type' },
-                { id: 'username', sel: '#auth-username', key: 'username' },
-                { id: 'vat-registered', sel: '#auth-vat-registered', key: 'vat_registered' },
-                { id: 'vat-tin', sel: '#auth-vat-tin', key: 'vat_tin' },
-                { id: 'vat-reg-no', sel: '#auth-vat-reg-no', key: 'vat_reg_no' },
-                { id: 'owner-name', sel: '#auth-owner-full-name', key: 'owner_name' },
-                { id: 'vat-city', sel: '#auth-vat-city', key: 'vat_city' },
-                { id: 'vat-subcity', sel: '#auth-vat-sub-city', key: 'vat_subcity' },
-                { id: 'vat-kebele', sel: '#auth-vat-kebele', key: 'vat_kebele' },
-                { id: 'vat-tel', sel: '#auth-vat-tel', key: 'vat_tel' },
-                { id: 'vat-address', sel: '#auth-vat-address', key: 'vat_address' },
                 { id: 'email', sel: '#auth-email', key: 'email' },
                 { id: 'password', sel: '#auth-password', key: 'password' },
                 { id: 'confirm-password', sel: '#auth-password-confirm', key: 'confirm_password' },
+                { id: 'signup-next', sel: '#auth-su-p1 button[onclick*="signupNextPage"]', key: 'signup_next' },
+                { id: 'biz-name', sel: '#auth-business-name', key: 'biz_name' },
+                { id: 'username', sel: '#auth-username', key: 'username' },
+                { id: 'biz-type', sel: '#auth-business-type', key: 'biz_type' },
                 { id: 'create-account', sel: '#auth-signup-view button[onclick*="handleSignUp"]', key: 'create_account' }
             ],
             bizsetup: [
                 { id: 'bizsetup-name', sel: '#biz-setup-name', key: 'bizsetup_name' },
                 { id: 'bizsetup-phone', sel: '#biz-setup-phone', key: 'bizsetup_phone' },
                 { id: 'bizsetup-username', sel: '#biz-setup-username', key: 'bizsetup_username' },
+                { id: 'bizsetup-type', sel: '#biz-setup-type', key: 'biz_type' },
                 { id: 'bizsetup-finish', sel: '#business-setup-overlay button[onclick*="completeBusinessSetup"]', key: 'bizsetup_finish' }
             ],
             onboarding: [
@@ -16189,5 +16265,344 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 })();
     </script>
 
+<script>
+/* MELEYA DEMO SHOP — local-only guided game tour. Nothing here is ever saved to Supabase. */
+(function () {
+'use strict';
+const $ = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const iso = d => { const x = new Date(d); return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); };
+const T = { on: false, i: -1, steps: [], xp: 0, token: 0, cur: null, tgt: null, muted: false, fin: { x: -80, y: -80 } };
+window.MLY_DEMO = false;
+
+/* ---------- CSS ---------- */
+const css = document.createElement('style');
+css.textContent = `
+.dm-b{position:fixed;background:rgba(10,12,34,.66);z-index:8000;}
+#dm-ring{position:fixed;z-index:8001;pointer-events:none;border:3px solid #fbbf24;border-radius:12px;box-shadow:0 0 0 4px rgba(251,191,36,.25),0 0 26px 6px rgba(251,191,36,.55);animation:dmPulse 1.2s ease-in-out infinite;display:none}
+@keyframes dmPulse{50%{box-shadow:0 0 0 9px rgba(251,191,36,.12),0 0 38px 12px rgba(251,191,36,.7)}}
+#dm-finger{position:fixed;z-index:8005;pointer-events:none;width:46px;height:46px;transition:left .9s cubic-bezier(.45,.05,.2,1),top .9s cubic-bezier(.45,.05,.2,1),transform .16s;transform-origin:33% 8%;left:-80px;top:-80px}
+#dm-finger svg{position:absolute;left:0;top:0;overflow:visible;filter:drop-shadow(0 6px 10px rgba(10,10,40,.5))}
+#dm-finger .orb{position:absolute;left:-2px;top:-13px;width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 30% 25%,rgba(255,255,255,.8),rgba(255,255,255,.2) 55%,rgba(255,255,255,.07));border:1.5px solid rgba(255,255,255,.75);-webkit-backdrop-filter:blur(6px) saturate(1.7);backdrop-filter:blur(6px) saturate(1.7);box-shadow:0 4px 18px rgba(124,58,237,.5),inset 0 1px 3px rgba(255,255,255,.9);transition:transform .16s}
+#dm-finger.press .orb{transform:scale(.7)}
+#dm-finger.press{transform:scale(.86) translateY(4px)}
+.dm-rip{position:fixed;z-index:8004;pointer-events:none;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;border:2px solid rgba(255,255,255,.9);background:rgba(255,255,255,.28);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);box-shadow:0 0 14px rgba(167,139,250,.8);animation:dmRip .7s ease-out forwards}
+@keyframes dmRip{to{transform:scale(5);opacity:0}}
+#dm-svg{position:fixed;inset:0;width:100%;height:100%;z-index:8002;pointer-events:none}
+#dm-svg ellipse{fill:none;stroke:#ef4444;stroke-width:5;stroke-linecap:round;stroke-dasharray:1400;stroke-dashoffset:1400;animation:dmDraw 1.1s ease-out forwards;filter:drop-shadow(0 0 6px rgba(239,68,68,.8))}
+@keyframes dmDraw{to{stroke-dashoffset:0}}
+#dm-card{position:fixed;z-index:8010;background:linear-gradient(160deg,rgba(30,35,71,.8),rgba(52,45,120,.68));-webkit-backdrop-filter:blur(14px) saturate(1.5);backdrop-filter:blur(14px) saturate(1.5);color:#fff;border-radius:14px;padding:8px 11px 8px;box-shadow:0 12px 34px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.28);font-family:inherit;transition:left .45s cubic-bezier(.3,.7,.2,1),top .45s cubic-bezier(.3,.7,.2,1),opacity .3s,transform .3s}
+#dm-card.dm-hide{opacity:0;transform:translateY(8px) scale(.97);pointer-events:none}
+.dm-b{transition:opacity .45s}#dm-ring{transition:opacity .45s}
+@keyframes dmPop{from{transform:scale(.85);opacity:0}}
+#dm-card .dm-h{display:flex;align-items:center;gap:8px;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:#fbbf24;font-weight:700;margin-bottom:3px}
+#dm-card .dm-m{font-size:18px;line-height:1;animation:dmBob 1.6s ease-in-out infinite}
+@keyframes dmBob{50%{transform:translateY(-4px) rotate(-6deg)}}
+#dm-card .dm-t{font-size:12px;line-height:1.35;margin:1px 0 6px}
+#dm-card .dm-t b{color:#fde68a}
+#dm-card .dm-r{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.dm-btn{border:0;border-radius:10px;padding:4px 10px;font-weight:700;font-size:11.5px;cursor:pointer;background:#fbbf24;color:#1e1b4b;font-family:inherit}
+.dm-btn.g{background:rgba(255,255,255,.14);color:#fff}
+.dm-btn.p{background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff}
+.dm-link{background:none;border:0;color:#a5b4fc;font-size:10.5px;cursor:pointer;text-decoration:underline;font-family:inherit}
+#dm-hud{position:fixed;z-index:8020;top:4px;left:50%;transform:translateX(-50%);display:flex;gap:8px;align-items:center;background:rgba(30,35,71,.72);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);color:#fff;border-radius:999px;padding:4px 6px 4px 12px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.35);border:1px solid #fbbf24;max-width:96vw;white-space:nowrap}
+#dm-hud .bar{width:70px;height:7px;background:rgba(255,255,255,.2);border-radius:9px;overflow:hidden}
+#dm-hud .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#fbbf24,#f472b6);transition:width .5s}
+#dm-hud .dm-btn{padding:4px 10px;font-size:11px;border-radius:999px}
+.dm-xp{position:fixed;z-index:8040;color:#fbbf24;font-weight:800;font-size:22px;text-shadow:0 2px 6px #000;pointer-events:none;animation:dmUp 1.2s ease-out forwards}
+@keyframes dmUp{to{transform:translateY(-60px);opacity:0}}
+.dm-cf{position:fixed;z-index:8030;top:-20px;width:10px;height:14px;pointer-events:none;animation:dmFall linear forwards}
+@keyframes dmFall{to{transform:translateY(110vh) rotate(720deg)}}
+.dm-star{display:inline-block;font-size:24px;opacity:0;animation:dmStar .5s forwards}
+@keyframes dmStar{from{transform:scale(3) rotate(-40deg);opacity:0}to{transform:scale(1);opacity:1}}
+#dm-toast{position:fixed;z-index:8050;left:50%;bottom:90px;transform:translateX(-50%);background:#16a34a;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;box-shadow:0 6px 18px rgba(0,0,0,.4);max-width:90vw;animation:dmPop .3s}
+#dm-demo-cta{margin:8px 0 0;width:100%}
+body.dm-demo #neba-tour-tip,body.dm-demo #neba-tour-spotlight,body.dm-demo #neba-tour-help-btn{display:none!important}
+`;
+document.head.appendChild(css);
+
+/* ---------- sound ---------- */
+let AC = null;
+function beep(f, d, type) { if (T.muted) return; try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); const o = AC.createOscillator(), g = AC.createGain(); o.type = type || 'triangle'; o.frequency.value = f; g.gain.value = .06; o.connect(g); g.connect(AC.destination); o.start(); g.gain.exponentialRampToValueAtTime(.0001, AC.currentTime + d); o.stop(AC.currentTime + d); } catch (e) { } }
+const jingle = () => [523, 659, 784, 1047].forEach((f, k) => setTimeout(() => beep(f, .25), k * 110));
+
+/* ---------- toast (replaces blocking alert() while in demo) ---------- */
+function toast(m) { const t = document.createElement('div'); t.id = 'dm-toast'; t.textContent = String(m).replace(/<[^>]+>/g, ''); $('#dm-toast') && $('#dm-toast').remove(); document.body.appendChild(t); setTimeout(() => t.remove(), 3500); }
+
+/* ---------- sample shop data (same record shapes the real app builds) ---------- */
+function seed() {
+  const B = 'demo-main', today = new Date();
+  const prods = [['Drinks', 'Mineral Water 1L', 18, 25, 'Abebe Traders'], ['Drinks', 'Coca-Cola 300ml', 14, 20, 'Abebe Traders'], ['Groceries', 'Sugar 1kg', 85, 100, 'Hawassa Wholesale'], ['Groceries', 'Cooking Oil 1L', 190, 220, 'Hawassa Wholesale'], ['Groceries', 'Pasta 500g', 42, 55, 'Hawassa Wholesale'], ['Household', 'Laundry Soap', 28, 38, 'Sidama Supplies']];
+  let sd = 11; const rnd = () => { sd = (sd * 9301 + 49297) % 233280; return sd / 233280; };
+  const items = prods.map(p => ({ id: 'demo-' + p[1].replace(/\W/g, ''), category: p[0], desc: p[1], sellingPrice: p[3], lots: [], history: [], dailyRate: null, weeklyRate: null, monthlyRate: null, _c: p[2], _s: p[4], _sold: 0 }));
+  const sales = [], journal = [], purchases = [], types = ['Retail', 'Wholesale'];
+  for (let d = 80; d >= 0; d--) {
+    const dt = new Date(today); dt.setDate(dt.getDate() - d); const date = iso(dt);
+    const n = 1 + Math.floor(rnd() * 3);
+    for (let k = 0; k < n; k++) {
+      const it = items[Math.floor(rnd() * items.length)], qty = 1 + Math.floor(rnd() * 5);
+      const total = qty * it.sellingPrice, cogs = qty * it._c, r = rnd();
+      const paid = r < .06 ? 0 : r < .11 ? Math.round(total / 2) : total;
+      const chan = paid > 0 ? (rnd() < .55 ? 'Cash' : 'Mobile banking') : 'Accounts receivable';
+      const id = 'SL-D' + String(sales.length + 1).padStart(4, '0'), full = paid >= total;
+      const customers = ['Walk-in', 'Walk-in', 'Walk-in', 'Almaz', 'Kebede', 'Tigist'];
+      const cust = customers[Math.floor(rnd() * customers.length)];
+      sales.push({ id, date, customer: cust, desc: `[${it.category}] ${it.desc}`, qty, price: it.sellingPrice, total, cogs, channel: chan, type: types[rnd() < .8 ? 0 : 1], paid: full, paidChannel: full ? chan : null, amountPaid: paid, payments: paid > 0 ? [{ date, amount: paid, channel: chan }] : [], restorationLayers: [], branchId: B, vatIncluded: false });
+      const lines = []; if (paid > 0) lines.push({ account: CHANNEL_ACCOUNT_CODES[chan], dr: paid, cr: 0 }); if (total - paid > 0) lines.push({ account: '1300', dr: total - paid, cr: 0 });
+      lines.push({ account: '4010', cr: total, dr: 0 }, { account: '5010', dr: cogs, cr: 0 }, { account: '1200', cr: cogs, dr: 0 });
+      journal.push({ id, date, desc: `Sale: ${qty}x ${it.desc} / Cust: ${cust}`, lines, branchId: B }); it._sold += qty;
+    }
+  }
+  const d0 = iso(new Date(today.getTime() - 85 * 864e5));
+  items.forEach((it, k) => {
+    const qty = it._sold + 40 + Math.floor(rnd() * 50), lotId = 'PR-D' + k, total = qty * it._c;
+    let lot = { id: lotId, qty: qty - it._sold, cost: it._c, branchId: B, expiry: null }; try { lot = stampLot(lot, d0) || lot; } catch (e) { }
+    it.lots.push(lot);
+    purchases.push({ id: lotId, date: d0, supplier: it._s, desc: `[${it.category}] ${it.desc}`, qty, cost: it._c, total, channel: 'Mobile banking', paid: true, paidChannel: 'Mobile banking', amountPaid: total, payments: [{ date: d0, amount: total, channel: 'Mobile banking' }], branchId: B });
+    journal.push({ id: lotId, date: d0, desc: `Purchase: ${qty}x ${it.desc} / Supp: ${it._s}`, lines: [{ account: '1200', dr: total, cr: 0 }, { account: '1020', cr: total, dr: 0 }], branchId: B });
+    journal.push({ id: 'CAP-D' + k, date: d0, desc: 'Owner Capital Injection: New Stock Funding', lines: [{ account: '1020', dr: total, cr: 0 }, { account: '3010', cr: total, dr: 0 }], branchId: B });
+    delete it._c; delete it._s; delete it._sold;
+  });
+  state = Object.assign({}, state, { currentFilter: 'all', customStart: '', customEnd: '', categories: ['Drinks', 'Groceries', 'Household'], saleTypes: types, inventory: items, journal, salesLog: sales, purchaseLog: purchases, expenseLog: [], trash: [], notifications: [], vatRegistered: false, hasEmployees: false });
+}
+
+const safe = fn => { try { return fn(); } catch (e) { console.warn('demo:', e); } };
+function renderAll() {
+  safe(syncCategoriesDatalist); safe(syncSaleTypesDropdown); safe(populateSaleTypeFilterDropdown); safe(syncChannelDropdowns);
+  safe(renderPerpetualInventoryTable); safe(syncTransactionalProductDropdownOptions); safe(renderSalesLogTable); safe(renderAnalyticalDashboards);
+}
+
+/* ---------- start / stop the demo ---------- */
+window.startMeleyaDemo = function () {
+  if (T.on) return; T.on = true; window.MLY_DEMO = true;
+  window.alert = toast; document.body.classList.add('dm-demo');
+  queueWrite = () => Promise.resolve();            // NOTHING is ever saved or sent
+  cacheStateLocally = () => { };                   // no local copy either
+  currentTenantId = 'demo-shop'; currentTenantName = 'Demo Shop'; currentBusinessType = 'retail';
+  currentBranchId = 'demo-main'; writeBranchId = 'demo-main'; accessibleBranches = [{ id: 'demo-main', name: 'Main shop' }];
+  currentPermissions = new Set(['*']); currentPlanFeatures = null; currentPlanPremium = false;
+  seed(); rebuildChartOfAccounts();
+  $('#app-shell').style.display = 'flex'; const ao = $('#auth-overlay'); if (ao) ao.style.display = 'none';
+  document.documentElement.classList.remove('mly-resume');
+  const sb = $('#shop-brand-name'); if (sb) sb.textContent = 'DEMO SHOP';
+  [populateEthiopianDropdowns, populateExpenseAccountDropdown, populateExpenseAccountFilterDropdown, initEthiopianDatePickers, applyBusinessTypeLabels, applyPermissionGating, applyPlanLocks, applyVatUIVisibility, applyEmployeeGatedUI, populateBranchSwitcher, updateBranchColumnVisibility].forEach(f => safe(f));
+  ['sale-date', 'cart-sale-date'].forEach(id => { const e = document.getElementById(id); if (e && !e.value) e.value = iso(new Date()); });
+  $('#sidebar').classList.remove('collapsed');
+  const ft = $('.aside-footer .footer-buttons'); if (ft) ft.style.display = 'none';
+  const eb = $('#btn-export-hub'); if (eb) eb.style.display = 'none';
+  if (!$('#dm-demo-cta')) { const b = document.createElement('button'); b.id = 'dm-demo-cta'; b.className = 'dm-btn p'; b.textContent = '✨ Create my real account'; b.onclick = () => exit(true); $('.aside-footer').appendChild(b); }
+  safe(() => switchView('dashboard')); renderAll(); buildHud(); safe(() => $('#cloud-sync-status').innerHTML = '🎮 Demo mode, nothing is saved');
+  setTimeout(startTour, 700);
+};
+function exit(signup) { if (signup) sessionStorage.setItem('mly_demo_signup', '1'); location.reload(); }
+window.addEventListener('load', () => { if (sessionStorage.getItem('mly_demo_signup')) { sessionStorage.removeItem('mly_demo_signup'); setTimeout(() => safe(() => showAuthView('signup')), 900); } });
+
+/* ---------- HUD ---------- */
+function buildHud() {
+  if ($('#dm-hud')) return; const h = document.createElement('div'); h.id = 'dm-hud';
+  h.innerHTML = `<span>🎮 DEMO</span><span id="dm-xp">⭐ 0 XP · Lv 1</span><span class="bar"><i id="dm-bar"></i></span><button class="dm-btn g" id="dm-mute" title="Sound">🔊</button><button class="dm-btn g" id="dm-replay">↻ Replay</button><button class="dm-btn" id="dm-signup">Sign up</button>`;
+  document.body.appendChild(h);
+  $('#dm-mute').onclick = e => { T.muted = !T.muted; e.target.textContent = T.muted ? '🔇' : '🔊'; };
+  $('#dm-replay').onclick = () => { stopTour(); closeModals(); seed(); renderAll(); safe(() => switchView('dashboard')); startTour(); };
+  $('#dm-signup').onclick = () => exit(true);
+}
+const LV = 120, START_XP = 150;
+function popup(t, big) { const e = document.createElement('div'); e.className = 'dm-xp'; e.textContent = t; e.style.cssText += `left:${Math.max(8, innerWidth / 2 - 140)}px;top:54px;width:280px;text-align:center;font-size:${big ? 19 : 15}px`; document.body.appendChild(e); setTimeout(() => e.remove(), 1700); }
+function levelUp(lv) { popup('🎉 Level ' + (lv - 1) + ' complete!  Now Lv ' + lv, true); jingle(); confetti(); }
+function hud() { const lv = Math.floor(T.xp / LV) + 1; $('#dm-xp').textContent = `⭐ ${T.xp} XP · Lv ${lv}`; $('#dm-bar').style.width = Math.round((T.xp % LV) / LV * 100) + '%'; if (T.lv && lv > T.lv) levelUp(lv); T.lv = lv; }
+function award(n, at) { T.xp += n; hud(); beep(880, .12); const r = at || { left: innerWidth / 2, top: innerHeight / 2 }; const e = document.createElement('div'); e.className = 'dm-xp'; e.textContent = '+' + n + ' XP'; e.style.left = (r.left + (r.width || 0) / 2 - 30) + 'px'; e.style.top = (r.top) + 'px'; document.body.appendChild(e); setTimeout(() => e.remove(), 1300); }
+
+/* ---------- overlay layers ---------- */
+let L = null;
+function layers() {
+  if (L) return L; L = { b: [0, 1, 2, 3].map(() => { const d = document.createElement('div'); d.className = 'dm-b'; document.body.appendChild(d); return d; }) };
+  L.ring = document.createElement('div'); L.ring.id = 'dm-ring'; L.fin = document.createElement('div'); L.fin.id = 'dm-finger'; L.fin.innerHTML = '<span class="orb"></span><svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke-linecap="round" stroke-linejoin="round"><g stroke="rgba(15,20,55,.55)" stroke-width="3.8"><path d="M22 14a8 8 0 0 1-8 8M18 11v-1a2 2 0 0 0-2-2a2 2 0 0 0-2 2M14 10V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1M10 9.5V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v10"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></g><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15V4a2 2 0 0 1 4 0v5.5V9a2 2 0 0 1 4 0v3a2 2 0 0 1 4 0z" fill="rgba(255,255,255,.3)" stroke="none"/><g stroke="#fff" stroke-width="1.7"><path d="M22 14a8 8 0 0 1-8 8M18 11v-1a2 2 0 0 0-2-2a2 2 0 0 0-2 2M14 10V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1M10 9.5V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v10"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></g></svg>';
+  L.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); L.svg.id = 'dm-svg'; L.card = document.createElement('div'); L.card.id = 'dm-card';
+  [L.ring, L.svg, L.fin, L.card].forEach(e => document.body.appendChild(e)); requestAnimationFrame(tick); return L;
+}
+function tick() {
+  if (!L) return; const e = T.tgt && T.tgt.isConnected ? T.tgt : null; let r = e ? e.getBoundingClientRect() : null; if (r && !r.width && !r.height) r = null;
+  const vw = innerWidth, vh = innerHeight, P = 7;
+  const goal = r ? { x: r.left - P, y: r.top - P, w: r.width + P * 2, h: r.height + P * 2 } : { x: vw / 2, y: vh / 2, w: 0, h: 0 };
+  const c = T.cur = T.cur || Object.assign({}, goal); ['x', 'y', 'w', 'h'].forEach(k => c[k] += (goal[k] - c[k]) * .16);
+  const x = Math.max(0, c.x), y = Math.max(0, c.y), x2 = Math.min(vw, c.x + c.w), y2 = Math.min(vh, c.y + c.h), has = !!r;
+  const set = (d, l, t, w, h) => { d.style.left = l + 'px'; d.style.top = t + 'px'; d.style.width = Math.max(0, w) + 'px'; d.style.height = Math.max(0, h) + 'px'; };
+  set(L.b[0], 0, 0, vw, y); set(L.b[1], 0, y2, vw, vh - y2); set(L.b[2], 0, y, x, y2 - y); set(L.b[3], x2, y, vw - x2, y2 - y);
+  if (!has) set(L.b[0], 0, 0, vw, vh), set(L.b[1], 0, 0, 0, 0), set(L.b[2], 0, 0, 0, 0), set(L.b[3], 0, 0, 0, 0);
+  L.ring.style.display = has && !T.noRing ? 'block' : 'none'; if (has) { L.ring.style.left = c.x + 'px'; L.ring.style.top = c.y + 'px'; L.ring.style.width = c.w + 'px'; L.ring.style.height = c.h + 'px'; }
+  requestAnimationFrame(tick);
+}
+function placeCard() {
+  const c = L.card, vw = innerWidth, vh = innerHeight, w = Math.min(270, vw - 24); c.style.width = w + 'px'; const h = c.offsetHeight, r = T.tgt && T.tgt.isConnected ? T.tgt.getBoundingClientRect() : null; let top, left;
+  if (!r) { top = (vh - h) / 2; left = (vw - w) / 2; } else { left = Math.min(Math.max(12, r.left + r.width / 2 - w / 2), vw - w - 12); if (vh - r.bottom >= h + 28) top = r.bottom + 16; else if (r.top >= h + 60) top = r.top - h - 16; else top = (r.top + r.height / 2 < vh / 2) ? vh - h - 12 : 44; }
+  c.style.left = left + 'px'; c.style.top = Math.max(40, top) + 'px';
+}
+setInterval(() => { if (L && T.on && T.i >= 0) placeCard(); }, 250);
+
+/* ---------- finger ---------- */
+function fingerTo(x, y) { if (T.noFinger) return; L.fin.style.left = (x - 15) + 'px'; L.fin.style.top = (y - 4) + 'px'; T.fin = { x, y }; }
+const mid = e => { const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + Math.min(r.height / 2, 120) }; };
+async function tap(e, tk) { if (!e) return; if (T.noFinger) { await sleep(350); return; } const p = mid(e); fingerTo(p.x, p.y); await sleep(850); if (tk !== T.token) return; L.fin.classList.add('press'); beep(520, .08); const rp = document.createElement('div'); rp.className = 'dm-rip'; rp.style.left = p.x + 'px'; rp.style.top = p.y + 'px'; document.body.appendChild(rp); setTimeout(() => rp.remove(), 700); await sleep(220); L.fin.classList.remove('press'); }
+async function swipe(e, dx, dy, tk) { const p = mid(e); fingerTo(p.x - dx / 2, p.y - dy / 2); await sleep(850); for (let k = 0; k < 2 && tk === T.token; k++) { L.fin.classList.add('press'); fingerTo(p.x + dx / 2, p.y + dy / 2); await sleep(900); fingerTo(p.x - dx / 2, p.y - dy / 2); await sleep(900); } L.fin.classList.remove('press'); }
+async function circle(e, tk) { const r = e.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, rx = r.width / 2 + 24, ry = r.height / 2 + 16; L.svg.innerHTML = ''; const el = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse'); [['cx', cx], ['cy', cy], ['rx', rx], ['ry', ry]].forEach(a => el.setAttribute(a[0], a[1])); L.svg.appendChild(el); for (let k = 0; k <= 12 && tk === T.token; k++) { const a = -Math.PI / 2 + k / 12 * Math.PI * 2.1; fingerTo(cx + rx * Math.cos(a), cy + ry * Math.sin(a)); await sleep(90); } beep(700, .15); }
+async function typeInto(e, text, tk) { e.focus(); e.value = ''; for (const ch of String(text)) { if (tk !== T.token) return; e.value += ch; e.dispatchEvent(new Event('input', { bubbles: true })); await sleep(28); } e.dispatchEvent(new Event('change', { bubbles: true })); }
+function scroller(e) { for (let n = e.parentElement; n; n = n.parentElement) { const o = getComputedStyle(n).overflowY; if ((o === 'auto' || o === 'scroll') && n.scrollHeight > n.clientHeight + 4) return n; } return document.scrollingElement; }
+function closeModals() { safe(closeBulkImport); safe(closeAuditModal); safe(closeRecordPaymentModal); $$('.modal.active,.modal-overlay.active').forEach(m => { const b = $('[onclick*="lose"]', m); b ? b.click() : m.classList.remove('active'); }); }
+
+/* ---------- step runner ---------- */
+const res = s => typeof s === 'function' ? s() : (s ? $(s) : null);
+function say(t) { const e = $('.dm-t', L.card); if (e) e.innerHTML = t; }
+async function go(i) {
+  const tk = ++T.token; T.i = i; const s = T.steps[i]; L.svg.innerHTML = ''; L.fin.classList.remove('press'); hud(); L.card.classList.add('dm-hide');
+  if (!s) return finish();
+  if (s.v && !$('#view-' + s.v).classList.contains('active')) { closeModals(); safe(() => switchView(s.v)); await sleep(500); }
+  if (!s.keepBulk) safe(closeBulkImport);
+  if (s.nav) $('#sidebar').classList.remove('collapsed');
+  if (s.pre) await s.pre(tk); if (tk !== T.token) return;
+  let e = null; for (let k = 0; k < 30 && s.t && !(e = res(s.t)); k++) await sleep(100);
+  if (e && s.t && s.scroll !== false) await bring(e, s.big);
+  T.tgt = e; T.noRing = !!s.stage; if (!e) T.cur = null;
+  { const quiet = s.stage ? 500 : 1400; if (!s.stage) { L.b.forEach(b => b.style.opacity = 0); L.ring.style.opacity = 0; } await sleep(quiet); if (tk !== T.token) return; L.b.forEach(b => b.style.opacity = ''); L.ring.style.opacity = ''; }
+  const click = s.wait === 'click', until = s.wait === 'until', next = !click && !until && s.wait !== 'auto';
+  T.noFinger = next && s.wait !== 'scroll'; if (T.noFinger) L.fin.style.left = '-80px';
+  L.card.style.display = 'block'; L.card.style.animation = 'none'; void L.card.offsetWidth; L.card.style.animation = '';
+  L.card.innerHTML = s.stage ? stageHtml(s) : `<div class="dm-h"><span class="dm-m">🦉</span><span>${s.w || 'Mission'} · ${i + 1}/${T.steps.length}</span></div><div class="dm-t">${s.say}</div><div class="dm-r"><button class="dm-link" id="dm-skip">Skip tour</button><span>${click || (until && s.fill) ? '<button class="dm-btn g" id="dm-do">Do it for me</button>' : ''}${next ? '<button class="dm-btn" id="dm-next">Next ▶</button>' : ''}</span></div>`;
+  placeCard(); requestAnimationFrame(() => requestAnimationFrame(() => L.card.classList.remove('dm-hide'))); if (s.stage) { confetti(); jingle(); }
+  const adv = async (ms) => { if (tk !== T.token) return; cleanup(); if (s.autoClose) safe(closeModals); await sleep(ms == null ? 450 : ms); if (tk !== T.token) return; if (!s.stage) award(s.xp || 10, e && e.getBoundingClientRect()); go(i + 1); };
+  const offs = []; const on = (t, ev, f, o) => { t.addEventListener(ev, f, o); offs.push(() => t.removeEventListener(ev, f, o)); }; T.off = () => offs.forEach(f => f());
+  const sk = $('#dm-skip', L.card); if (sk) sk.onclick = () => stopTour(true);
+  const nb = $('#dm-next', L.card) || $('#dm-go', L.card); if (nb) nb.onclick = () => adv(150);
+  $$('#dm-finish,#dm-keep', L.card).forEach(b => b.onclick = () => stopTour(false)); const fs = $('#dm-signup2', L.card); if (fs) fs.onclick = () => exit(true);
+  if (click && e) {
+    const done = ev => { if (s.intercept) { ev.preventDefault(); ev.stopPropagation(); s.intercept(); } adv(s.delay || 700); };
+    on(e, 'click', done, true);
+    const d = $('#dm-do', L.card); if (d) d.onclick = () => { cleanup(false); done({ preventDefault() { }, stopPropagation() { } }); if (!s.intercept) e.click(); };
+    (async () => { while (tk === T.token) { await tap(e, tk); await sleep(900); } })();
+  } else if (until && e) {
+    const v0 = e.value; tap(e, tk);
+    const iv = setInterval(() => { if (tk !== T.token) return clearInterval(iv); let ok = false; try { ok = s.until(e, v0); } catch (er) { } if (ok) { clearInterval(iv); adv(1000); } }, 400); offs.push(() => clearInterval(iv));
+    const d = $('#dm-do', L.card); if (d) d.onclick = async () => { clearInterval(iv); if (s.fill) await s.fill(tk); adv(600); };
+  } else if (s.wait === 'change' && e) { on(document, 'change', ev => { if (e.contains(ev.target)) adv(900); }, true); on(document, 'input', ev => { if (e.contains(ev.target)) adv(1200); }, true); (async () => { while (tk === T.token) { await tap(e, tk); await sleep(900); } })(); }
+  else if (s.run) { try { await s.run(tk, e); } catch (er) { console.warn('demo step:', er); } if (tk === T.token && s.wait === 'auto') adv(300); if (tk === T.token && s.wait === 'scroll') { const sc = scroller(e), y0 = sc.scrollTop, x0 = e.scrollLeft; on(document, 'scroll', () => { if (Math.abs(sc.scrollTop - y0) > 40 || Math.abs(e.scrollLeft - x0) > 30) adv(500); }, true); } }
+  else if (s.stage) { /* buttons only */ } else if (e && !s.still) (async () => { while (tk === T.token) { await tap(e, tk); await sleep(1200); } })();
+}
+async function bring(e, big) {
+  let r = e.getBoundingClientRect(); const vh = innerHeight;
+  if (r.top >= 70 && r.bottom <= vh - 30 && r.left >= 0 && r.right <= innerWidth) return;
+  e.style.scrollMarginTop = '80px'; e.style.scrollMarginBottom = '30px';
+  e.scrollIntoView({ block: (big || r.height > vh * .7) ? 'start' : 'center', inline: 'center', behavior: 'smooth' });
+  let last = -9999, still = 0; for (let k = 0; k < 45; k++) { await sleep(60); const y = e.getBoundingClientRect().top; if (Math.abs(y - last) < 1) { if (++still >= 4) break; } else still = 0; last = y; }
+  r = e.getBoundingClientRect(); if (r.bottom < 40 || r.top > vh - 40) e.scrollIntoView({ block: 'center', behavior: 'auto' });
+}
+function cleanup() { if (T.off) T.off(); T.off = null; }
+function stageHtml(s) { return `<div style="text-align:center"><div style="font-size:36px">${s.emoji}</div><div style="font-size:12px;letter-spacing:.1em;color:#fbbf24;font-weight:800">${s.kicker || 'STAGE CLEAR'}</div><div style="font-size:15px;font-weight:800;margin:2px 0">${s.title}</div><div id="dm-stars" style="margin:6px 0;${s.nostars?'display:none':''}">${[0, 1, 2].map(k => `<span class="dm-star" style="animation-delay:${.3 + k * .3}s">⭐</span>`).join('')}</div><div class="dm-t">${s.say}</div>${s.badge ? `<div style="margin:4px 0 10px;font-weight:700;color:#fde68a">🏅 Badge unlocked: ${s.badge}</div>` : ''}<div class="dm-r" style="justify-content:center;gap:10px">${s.final ? '<button class="dm-btn p" id="dm-signup2">Create my free account</button>' : `<button class="dm-btn" id="dm-go">${s.btn||'Next stage ▶'}</button>`}</div></div>`; }
+function confetti() { const cs = ['#fbbf24', '#f472b6', '#60a5fa', '#34d399', '#a78bfa']; for (let k = 0; k < 60; k++) { const d = document.createElement('div'); d.className = 'dm-cf'; d.style.left = Math.random() * 100 + 'vw'; d.style.background = cs[k % 5]; d.style.animationDuration = (1.6 + Math.random() * 1.8) + 's'; d.style.animationDelay = Math.random() * .5 + 's'; document.body.appendChild(d); setTimeout(() => d.remove(), 4200); } }
+function finish() { stopTour(false); }
+function stopTour() { T.token++; cleanup(); T.tgt = null; T.cur = null; T.i = -1; closeModals(); if (L) { L.card.style.display = 'none'; L.svg.innerHTML = ''; L.fin.style.left = '-80px'; L.b.forEach(b => b.style.cssText = 'display:none'); L.ring.style.display = 'none'; L.b.forEach(b => b.style.display = 'none'); } T.over = true; }
+function startTour() { layers(); L.b.forEach(b => b.style.display = 'block'); T.i = 0; T.over = false; T.xp = START_XP; T.lv = 0; hud(); setTimeout(() => { popup('🎉 Level 1 complete!  +' + START_XP + ' XP', true); jingle(); }, 1500); buildSteps(); go(0); window.__mlyDemo = { jump: i => go(i), n: () => T.steps.length, tgt: () => T.tgt, steps: () => T.steps.map(x => x.say || x.title) }; }
+
+/* ---------- the game script ---------- */
+const DEMO_CSV = 'Category,Product Name,Quantity,Cost Price,Supplier,Selling Price\nSnacks,Biscuit Pack,48,12,Sidama Supplies,18\nSnacks,Peanuts 200g,30,25,Abebe Traders,35\nDrinks,Orange Juice 1L,24,52,Abebe Traders,70\nDrinks,Bottled Water 500ml,60,8,Abebe Traders,12\nGroceries,Rice 5kg,15,420,Hawassa Wholesale,480\nGroceries,Teff Flour 1kg,20,95,Hawassa Wholesale,115\nGroceries,Tomato Paste,36,22,Hawassa Wholesale,30\nHousehold,Dish Soap 500ml,25,45,Sidama Supplies,60\nPersonal Care,Toothpaste,40,35,Sidama Supplies,50\nPersonal Care,Bath Soap,50,18,Sidama Supplies,25';
+async function loadDemoFile() { for (let k = 0; k < 50 && typeof XLSX === 'undefined'; k++) await sleep(100); await bulkLoadFile(new File([DEMO_CSV], 'my-shop-stock.csv', { type: 'text/csv' })); }
+const tableOf = id => () => { const e = $(id); return e && (e.closest('.table-scroll') || e.closest('table') || e); };
+const boxOf = id => () => { const e = $(id); return e && e.parentElement; };
+async function fill(tk, item, qty, paid, cust) {
+  const it = $('#sale-item'); await tap(it, tk); await typeInto(it, item, tk); const q = $('#sale-qty'); await tap(q, tk); await typeInto(q, qty, tk);
+  if (cust) await setField('#sale-customer', cust, tk);
+  if (paid != null) { const pr = parseFloat($('#sale-price').value) || 0, a = $('#sale-amount-paid'); await tap(a, tk); await typeInto(a, paid === 'half' ? Math.round(qty * pr / 2) : paid, tk); }
+}
+async function setField(sel, val, tk) { const e = $(sel); if (!e) return; await tap(e, tk); await typeInto(e, val, tk); }
+async function cartAdd(tk, n, q) { await setField('#cart-sale-item', n, tk); await setField('#cart-sale-qty', q, tk); const add = $('[onclick="addToSaleCart()"]'); await tap(add, tk); if (tk === T.token) add.click(); await sleep(400); }
+const fire = e => { e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true })); };
+function buildSteps() {
+  const st = T.steps = [], S = o => st.push(o), post = '#sales-form button[type="submit"],#sales-form .btn[type="submit"]';
+  const nav = (id, w, say) => S({ v: null, nav: true, t: '#nav-' + id, wait: 'click', w, say });
+  S({ stage: true, emoji: '🦉', kicker: 'WELCOME, SHOPKEEPER', title: 'Run a shop in 5 minutes', say: 'I\'m <b>Meli</b>. Follow my glowing finger, tap the highlighted things and earn <b>XP</b>. This is a <b>practice shop</b>: nothing you do here is saved.', btn: 'Let\'s go! ▶', nostars: true, v: 'dashboard' });
+  /* STAGE 1 – stock */
+  S({ v: 'dashboard', nav: true, t: '#nav-inventory', wait: 'click', w: 'Stage 1 · Stock', say: 'This is your <b>dashboard</b> and the menu on the left. Tap <b>Inventory</b> to see your stock.' });
+  S({ v: 'inventory', t: '#inv-bulk-btn', wait: 'click', w: 'Stage 1 · Stock', say: 'Typing 100 products one by one is slow. Tap <b>Add in bulk</b>.', delay: 800 });
+  S({ v: 'inventory', keepBulk: true, t: '#bulk-file-section', wait: 'next', w: 'Stage 1 · Stock', say: 'One window, two ways. <b>On top:</b> upload an Excel or CSV list. <b>Below it:</b> type products by hand. Use one, or both together.', still: true });
+  S({ v: 'inventory', keepBulk: true, t: '#bulk-guide-btn', wait: 'click', w: 'Stage 1 · Stock', say: 'Not sure how to make the Excel list? Tap <b>Watch how</b>.', delay: 700 });
+  S({ v: 'inventory', keepBulk: true, t: '#tpl-guide .tg-card', wait: 'until', w: 'Stage 1 · Stock', say: 'A short guide: pick <b>PC, iPhone or Android</b> and watch how to <b>download</b> the template, <b>fill it</b> and <b>upload</b> it. Close it when you are done.', until: () => !document.getElementById('tpl-guide'), fill: async () => { const g = document.getElementById('tpl-guide'); if (g) g.remove(); } });
+  S({ v: 'inventory', keepBulk: true, t: '#bulk-file', wait: 'click', w: 'Stage 1 · Stock', say: 'Tap <b>Choose file</b> and pick your Excel or CSV. I prepared one for you: <b>my-shop-stock.csv</b>.', intercept: loadDemoFile, delay: 1200, pre: async () => { for (let k = 0; k < 30 && !$('#bulk-file'); k++) await sleep(100); } });
+  S({ v: 'inventory', keepBulk: true, t: '#bulk-body', wait: 'next', w: 'Stage 1 · Stock', say: 'Look! The list is already <b>filled in</b> and every column matched itself. You can check it before anything is saved.', still: true });
+  S({ v: 'inventory', keepBulk: true, t: '#bulk-manual', wait: 'next', w: 'Stage 1 · Stock', say: '<b>Or type products by hand, right below the upload.</b> One row per product: category, name, quantity, cost, selling price, supplier. I typed the first row. <b>+ Add row</b> gives you more.', still: true, run: async tk => { const r = $('#bulk-man-body tr'); if (!r) return; const v = ['Snacks', 'Chocolate Bar', '20', '8', '12', 'Sidama Supplies'], c = ['bm-c', 'bm-d', 'bm-q', 'bm-p', 'bm-r', 'bm-s']; for (let k = 0; k < 6; k++) { const i = $('.' + c[k], r); await tap(i, tk); await typeInto(i, v[k], tk); } } });
+  S({ v: 'inventory', keepBulk: true, t: '#bulk-go', wait: 'click', w: 'Stage 1 · Stock', say: 'Happy? Tap <b>Import</b> and the file\'s 10 products and the one you typed all join your shop.', delay: 1000 });
+  S({ v: 'inventory', t: tableOf('#inventory-table-body'), wait: 'scroll', w: 'Stage 1 · Stock', say: 'Your stock list is long. <b>Swipe up and down</b> 👆 to see every product. Try it!', run: async (tk, e) => { const sc = scroller(e); sc.scrollBy({ top: 120, behavior: 'smooth' }); await swipe(e, 0, -90, tk); sc.scrollBy({ top: -120, behavior: 'smooth' }); } });
+  S({ v: 'inventory', t: tableOf('#inventory-table-body'), wait: 'scroll', w: 'Stage 1 · Stock', say: 'There are more columns (cost, price, value). <b>Swipe left and right</b> 👆 to see them. On a phone this is how you read wide tables.', run: async (tk, e) => { e.scrollBy({ left: 220, behavior: 'smooth' }); await swipe(e, -110, 0, tk); e.scrollBy({ left: -220, behavior: 'smooth' }); } });
+  S({ stage: true, v: 'inventory', emoji: '📦', title: 'Stage 1 clear!', say: 'Brilliant! You imported a whole shop in seconds and learned to scroll like a pro.', badge: 'Stock Master' });
+  /* STAGE 2 – sales */
+  S({ v: 'inventory', nav: true, t: '#nav-sales', wait: 'click', w: 'Stage 2 · Sales', say: 'Time to sell! Tap <b>Sales</b>.' });
+  const W2 = 'Stage 2 · Sales', valid = v => state.inventory.some(i => `[${i.category}] ${i.desc}` === v), X = o => S(Object.assign({ v: 'sales', w: W2 }, o));
+  const tot = () => (parseFloat($('#sale-price').value) || 0) * (parseFloat($('#sale-qty').value) || 0);
+  const fPanel = () => $('#sale-log-filter-item').parentElement;
+  const E = (t, say, big) => X({ t, wait: 'next', still: true, big, xp: 5, say });
+  const grp = id => () => $(id).parentElement, fp = () => $('#sale-log-filter-item').closest('.filter-panel');
+  const closeBtn = () => { const m = $('.modal.active,.modal-overlay.active'); return m && $('[onclick*="lose"]', m); };
+  const rowBtn = name => () => { const r = $$('#sales-log-table-body tr').find(tr => tr.textContent.includes(name) && $('[onclick*="openRecordPaymentModal"]', tr)); return r && $('[onclick*="openRecordPaymentModal"]', r); };
+  const only = c => async () => { const e = $('#sale-log-filter-customer'); e.value = c; fire(e); const h = $('#sale-log-filter-channel'); h.value = 'Accounts receivable'; fire(h); };
+  const clr = say => X({ t: fp, wait: 'until', say, until: () => !$('#sale-log-filter-item').value && !$('#sale-log-filter-customer').value && $('#sale-log-filter-channel').selectedIndex === 0, fill: async () => { ['#sale-log-filter-item', '#sale-log-filter-customer'].forEach(q => { $(q).value = ''; fire($(q)); }); const c = $('#sale-log-filter-channel'); c.selectedIndex = 0; fire(c); } });
+  const modalPay = '#record-payment-modal .btn-success', owedMax = () => parseFloat($('#record-payment-amount').max) || 0;
+  E('#sales-entry-card', '<b>Lesson 1: a normal sale, paid in full.</b> Pick the item, type how many, then post. The customer pays everything now. Tap <b>Next</b>.', true);
+  X({ t: '#sale-item', wait: 'until', big: true, say: '<b>Single item sale.</b> Tap <b>Item</b> and pick or type <b>Mineral Water</b>.', until: e => valid(e.value), fill: tk => setField('#sale-item', '[Drinks] Mineral Water 1L', tk) });
+  X({ t: '#sale-qty', wait: 'until', say: 'How many? Type a <b>quantity</b>. The price is already filled in.', until: (e, v0) => e.value !== '' && e.value !== v0, fill: tk => setField('#sale-qty', '6', tk) });
+  X({ t: post, wait: 'click', say: 'Customer paid in full. Tap <b>Post sale</b>!', delay: 900 });
+  E('#sales-entry-card', '<b>Lesson 2: a half-paid sale.</b> The customer takes the goods and pays <b>only part</b> now. The rest becomes <b>money owed to you</b>. I will fill the item, quantity and the <b>customer name</b> (always write the name, so you know who owes you).', true);
+  X({ t: '#sales-entry-card', wait: 'auto', big: true, say: '<b>Half payment.</b> I fill the item and quantity…', run: async tk => { await fill(tk, '[Groceries] Cooking Oil 1L', '2', null, 'Hana'); await sleep(400); } });
+  X({ t: '#sale-amount-paid', wait: 'until', say: 'The customer pays only part now. In <b>Amount paid now</b> type <b>less than the total</b> (half is fine). The rest is owed to you.', until: e => { const v = parseFloat(e.value); return e.value !== '' && v > 0 && v < tot(); }, fill: tk => setField('#sale-amount-paid', Math.round(tot() / 2), tk) });
+  X({ t: post, wait: 'click', say: 'Tap <b>Post sale</b>. Half is paid, half is owed.', delay: 900 });
+  E('#sales-entry-card', '<b>Lesson 3: a credit sale (0 payment).</b> A trusted customer takes the goods and pays <b>nothing</b> today. The whole amount is owed to you. Again I fill in the customer name first.', true);
+  X({ t: '#sales-entry-card', wait: 'auto', big: true, say: '<b>No payment.</b> A trusted customer takes goods and pays later. I fill the item…', run: async tk => { await fill(tk, '[Groceries] Sugar 1kg', '1', null, 'Dawit'); await sleep(400); } });
+  X({ t: '#sale-amount-paid', wait: 'until', say: 'Type <b>0</b> in <b>Amount paid now</b>.', until: e => e.value !== '' && parseFloat(e.value) === 0, fill: tk => setField('#sale-amount-paid', '0', tk) });
+  X({ t: post, wait: 'click', say: 'Tap <b>Post sale</b> once more.', delay: 900 });
+  E('#sales-entry-card', '<b>Lesson 4: many items, one customer.</b> Instead of posting one item at a time, put them all in a <b>basket</b> and post once. The customer gets one total.', true);
+  X({ t: '#sales-entry-card [onclick*="toggleSaleCartMode"]', wait: 'click', big: true, say: 'Many items for one customer? Tap to switch to the <b>multi-item basket</b>.', delay: 700 });
+  X({ t: '#sale-cart-card', wait: 'auto', big: true, say: 'Basket mode. I add the first item…', run: async tk => { await cartAdd(tk, '[Groceries] Sugar 1kg', '2'); } });
+  X({ t: '#cart-sale-item', wait: 'until', say: 'Now <b>you</b> add another item. Pick or type <b>Laundry Soap</b>.', until: e => valid(e.value), fill: tk => setField('#cart-sale-item', '[Household] Laundry Soap', tk) });
+  X({ t: '#cart-sale-qty', wait: 'until', say: 'Type a quantity.', until: (e, v0) => e.value !== '' && e.value !== v0, fill: tk => setField('#cart-sale-qty', '3', tk) });
+  X({ t: '[onclick="addToSaleCart()"]', wait: 'click', say: 'Tap <b>Add</b> to put it in the basket.', delay: 600 });
+  X({ t: '#sale-cart-total', wait: 'next', say: 'This is the <b>basket total</b>. Always check it before charging.', run: async (tk, e) => { await circle(e, tk); await sleep(900); } });
+  X({ t: '[onclick="submitSaleCart()"]', wait: 'click', say: 'Tap to <b>post the whole basket</b>.', delay: 1000 });
+  X({ t: '#sale-log-total-display', wait: 'next', say: 'This <b>total</b> adds up whatever the table shows right now.', run: async (tk, e) => { await circle(e, tk); await sleep(3500); } });
+  E(fp, '<b>Lesson 5: filters.</b> Your sales list keeps growing. Filters find things fast, and they work <b>together</b>: each one you add narrows the list more. The total above the table always matches what you see.', true);
+  X({ t: grp('#sale-log-filter-item'), wait: 'until', say: 'Type <b>Sugar</b> in the <b>Product</b> box and watch the total change.', until: () => $('#sale-log-filter-item').value.trim() !== '', fill: async tk => { const e = $('#sale-log-filter-item'); await tap(e, tk); e.value = 'Sugar'; fire(e); } });
+  X({ t: grp('#sale-log-filter-customer'), wait: 'until', say: 'Now <b>add</b> a customer on top of it. Type <b>Walk</b> in the <b>Customer</b> box. Both filters are working together.', until: () => $('#sale-log-filter-customer').value.trim() !== '', fill: async tk => { const e = $('#sale-log-filter-customer'); await tap(e, tk); e.value = 'Walk'; fire(e); } });
+  X({ t: grp('#sale-log-filter-channel'), wait: 'until', say: 'One more: pick a <b>Channel</b> (how it was paid), for example <b>Cash</b>.', until: () => $('#sale-log-filter-channel').selectedIndex > 0, fill: async tk => { const e = $('#sale-log-filter-channel'); await tap(e, tk); e.selectedIndex = 1; fire(e); } });
+  clr('Now <b>clear</b> all three filters (empty the boxes, set Channel back to All) to see everything again.');
+  E(grp('#sale-log-filter-channel'), '<b>Lesson 6: who has not paid me?</b> Use the <b>Channel</b> filter set to <b>Accounts receivable</b>. It shows every sale that still has money owed: half-paid sales and 0-paid sales.', true);
+  X({ t: grp('#sale-log-filter-channel'), wait: 'until', say: 'Set <b>Channel</b> to <b>Accounts receivable</b> to see only the unpaid sales.', until: e => $('#sale-log-filter-channel').value === 'Accounts receivable', fill: async tk => { const e = $('#sale-log-filter-channel'); await tap(e, tk); e.value = 'Accounts receivable'; fire(e); } });
+  X({ t: '#sale-log-total-display', wait: 'next', say: 'Look at this <b>total</b>: it is the money your customers <b>have not paid yet</b>, still to collect.', run: async (tk, e) => { await circle(e, tk); await sleep(4500); } });
+  E(tableOf('#sales-log-table-body'), 'Every row here still owes money. <b>[Owes ETB …]</b> means part was paid (half-paid). <b>[Pending]</b> means nothing was paid yet (0 payment).', true);
+  X({ t: rowBtn('Hana'), pre: only('Hana'), wait: 'click', say: '<b>Lesson 7: record a late payment.</b> Hana paid half earlier and is back with the rest. Tap <b>Record payment</b> on her row.', delay: 800 });
+  X({ t: '#record-payment-modal .modal-box', wait: 'next', still: true, say: 'It shows how much is <b>still owed</b>. The amount is already filled with the full balance. Choose <b>how she paid</b> (cash or bank) below.' });
+  X({ t: modalPay, wait: 'click', say: 'Tap <b>Record Payment</b>. Hana is now <b>paid in full</b> and leaves the unpaid list.', delay: 900 });
+  X({ t: rowBtn('Dawit'), pre: only('Dawit'), wait: 'click', say: 'Now the <b>0-paid</b> sale. Dawit took goods and paid nothing, so his row says <b>[Pending]</b>. Tap <b>Record payment</b>.', delay: 800 });
+  X({ t: '#record-payment-amount', wait: 'until', say: 'Today Dawit pays only <b>part</b>. Type an amount <b>smaller</b> than the balance.', until: e => { const v = parseFloat(String(e.value).replace(/,/g, '')); return v > 0 && v < owedMax(); }, fill: tk => setField('#record-payment-amount', Math.round(owedMax() / 2), tk) });
+  X({ t: modalPay, wait: 'click', say: 'Tap <b>Record Payment</b>. His row now shows <b>[Owes ETB …]</b> for the rest. Repeat any time until it is paid in full.', delay: 900 });
+  clr('Finally, <b>clear</b> the Customer box and set Channel back to <b>All</b> to see every sale again.');
+  S({ stage: true, v: 'sales', emoji: '💰', title: 'Stage 2 clear!', say: 'Awesome! Single, basket, half-paid and credit sales. You can now run a counter.', badge: 'Sales Pro', pre: async () => { ['#sale-log-filter-item', '#sale-log-filter-customer'].forEach(s => { const e = $(s); if (e) { e.value = ''; e.dispatchEvent(new Event('input', { bubbles: true })); } }); } });
+  /* STAGE 3 – dashboard */
+  S({ v: 'sales', nav: true, t: '#nav-dashboard', wait: 'click', w: 'Stage 3 · Dashboard', say: 'Last stage: see how your shop is doing. Tap <b>Dashboard</b>.' });
+  S({ v: 'dashboard', t: '#f-month', wait: 'click', w: 'Stage 3 · Dashboard', say: 'Pick a <b>period</b>. Tap <b>Month</b> and every number below changes.', delay: 900 });
+  S({ v: 'dashboard', t: '#f-all', wait: 'click', w: 'Stage 3 · Dashboard', say: 'Now tap <b>All</b> to see the whole story. (There is also <b>Custom</b> for any dates.)', delay: 900 });
+  [['revenue', 'Revenue = everything you sold. Tap it to see where it comes from.'], ['gross', 'Gross profit = sales minus the cost of the goods. Tap it.'], ['net', 'Net profit = what is really left for you. Tap it.']].forEach(([k, t]) => { S({ v: 'dashboard', t: `[onclick="launchDrillDown('${k}')"]`, wait: 'click', w: 'Stage 3 · Dashboard', say: t, delay: 900, pre: async () => closeModals() }); S({ v: 'dashboard', t: () => ($('#audit-modal').style.display === 'flex' ? $('#audit-modal .modal-box') : null) || $('#view-dashboard'), wait: 'next', autoClose: true, w: 'Stage 3 · Dashboard', say: 'This is the <b>detail</b> behind the number. Every box opens a story like this.', still: true }); });
+  S({ v: 'dashboard', t: '#dash-cash-box', wait: 'click', w: 'Stage 3 · Dashboard', say: 'Here is the money you hold, <b>cash and bank</b>, with the amount. Tap it.', delay: 900, pre: async () => closeModals(), intercept: () => safe(launchLiquidVaultDrillDown) });
+  S({ v: 'dashboard', t: () => ($('#audit-modal').style.display === 'flex' ? $('#audit-modal .modal-box') : null) || $('#view-dashboard'), wait: 'next', autoClose: true, w: 'Stage 3 · Dashboard', say: 'This window splits your money by <b>channel</b>: how much is in cash and how much is in each bank or mobile-money account.', still: true });
+ 
+  S({ v: 'dashboard', t: '#dash-stock-box', wait: 'click', w: 'Stage 3 · Dashboard', delay: 900, say: 'And the <b>value of the stock</b> on your shelves, with the amount. Tap it too.', pre: async () => closeModals() });
+  S({ v: 'dashboard', t: boxOf('#chart-top-items'), wait: 'click', w: 'Graphs · 1/4', big: true, say: '📊 <b>Best sellers.</b> Tap a bar to see its exact number.', pre: async () => closeModals() });
+  S({ v: 'dashboard', t: boxOf('#chart-bottom-items'), wait: 'click', w: 'Graphs · 2/4', big: true, say: '🐌 <b>Slow movers.</b> Items that sit on your shelf. Tap the chart.' });
+  S({ v: 'dashboard', t: '#container-revprof', wait: 'click', w: 'Graphs · 3/4', big: true, say: '📈 <b>Revenue vs profit</b> over time. Tap the chart.' });
+  S({ v: 'dashboard', t: '#history-group-by', wait: 'change', w: 'Graphs · 3/4', say: 'Change <b>how it groups</b> (day, week, month…). Pick another option.' });
+  S({ v: 'dashboard', t: boxOf('#chart-sales-type'), wait: 'click', w: 'Graphs · 4/4', big: true, say: '🥧 <b>Sales by type</b>: retail vs wholesale. Tap the chart.' });
+  S({ v: 'dashboard', t: tableOf('#item-performance-tbody'), wait: 'next', w: 'Stage 3 · Dashboard', big: true, say: 'The <b>performance table</b> ranks every product. Scroll it sideways to see all columns.', still: true });
+  S({ v: 'dashboard', t: '[onclick="sortAnalysisTable(\'profit\')"]', wait: 'click', w: 'Stage 3 · Dashboard', say: 'Tap <b>Profit</b> to sort. Your most profitable products jump to the top.' });
+  S({ v: 'dashboard', t: '[onclick="sortAnalysisTable(\'margin\')"]', wait: 'click', w: 'Stage 3 · Dashboard', say: 'Now tap <b>Margin</b>: which products earn the most per sale.' });
+  S({ stage: true, final: true, v: 'dashboard', emoji: '🏆', kicker: 'ALL STAGES CLEAR', title: 'You are a MELEYA champion!', say: 'You imported stock, sold in every way and read your whole business. Ready to do it for <b>your own shop</b>?', badge: 'Data Detective', pre: async () => { closeModals(); } });
+}
+})();
+
+</script>
 </body>
 </html>
