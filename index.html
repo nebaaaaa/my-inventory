@@ -681,6 +681,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             <div id="auth-signup-view" style="display:none;">
                 <p style="font-size:13px; color:var(--text-light); margin-bottom:20px;" data-i18n="auth.signup_desc">Create a new shop account.</p>
                 <div style="margin:-10px 0 14px;"><div id="auth-su-step" style="font-size:12px; font-weight:700; color:var(--accent); margin-bottom:6px;">Step 1 of 2: your login details</div><div style="height:8px; background:var(--border,#ddd); border-radius:999px; overflow:hidden;"><div id="auth-su-bar" style="height:100%; width:50%; background:var(--accent,#7c3aed); border-radius:999px; transition:width .4s;"></div></div></div>
+                <p id="auth-su-signout" style="display:none; text-align:center; font-size:12px; margin:-4px 0 12px;"><a href="#" onclick="event.preventDefault(); signupProfileMode = false; applySignupProfileMode(); handleSignOut();" style="color:var(--text-light);">Use a different account</a></p>
                 <div id="auth-su-p1">
                 <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                     <label data-i18n="auth.phone">Phone Number</label>
@@ -752,31 +753,6 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             </div>
             <button class="btn btn-success" style="width:100%; margin-top:6px;" onclick="handleSetNewPassword()" data-i18n="auth.set_new_password">Set New Password</button>
             <div id="reset-loading" style="display:none; text-align:center; margin-top:14px; font-size:12px; color:var(--text-light);" data-i18n="ui2.working_please_wait">Working, please wait...</div>
-        </div>
-    </div>
-
-    <!-- ===================== FINISH SHOP SETUP (only shown if a confirmed user has no business yet) ===================== -->
-    <div id="business-setup-overlay" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:5000; align-items:center; justify-content:center; padding:40px 16px; overflow-y:auto;">
-        <div class="modal-box" style="max-width:420px; width:100%;">
-            <h2 style="color:var(--primary); margin-bottom:12px;" data-i18n="misc.one_last_step">One last step</h2>
-            <p style="font-size:13px; color:var(--text-light); margin-bottom:20px;" data-i18n="ui2.your_email_is_confirmed_let_s_fini">Your email is confirmed — let's finish setting up your shop.</p>
-            <div id="biz-setup-error" style="display:none; background:#F1DCD8; color:var(--danger); font-size:13px; padding:10px; border-radius:4px; margin-bottom:14px;"></div>
-            <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                <label data-i18n="auth.shop_name">Shop / Business Name</label>
-                <input type="text" id="biz-setup-name" style="width:100%;" placeholder="e.g. Kebede Electrical Supplies" data-i18n-placeholder="ui2.e_g_kebede_electrical_supplies">
-            </div>
-            <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                <label data-i18n="auth.phone">Phone Number</label>
-                <input type="tel" id="biz-setup-phone" style="width:100%;" placeholder="e.g. 0911 234 567">
-            </div>
-            <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
-                <label data-i18n="auth.your_username">Your Username</label>
-                <input type="text" id="biz-setup-username" style="width:100%;" placeholder="e.g. kebede (used to log in later)" data-i18n-placeholder="ui2.e_g_kebede_used_to_log_in_later" autocomplete="off">
-            </div>
-            <div class="form-group" style="display:block; width:100%; margin-bottom:14px;"><label data-i18n="auth.business_type">Business Type</label><select id="biz-setup-type" style="width:100%;"></select><p style="font-size:12px; color:var(--text-light); margin-top:4px;" data-i18n="auth.business_type_hint">This can't be changed later, so pick the one that matches what you sell.</p></div>
-            <button class="btn btn-success" style="width:100%; margin-top:6px;" onclick="completeBusinessSetup()" data-i18n="auth.finish_setup">Finish Setup</button>
-            <div id="biz-setup-loading" style="display:none; text-align:center; margin-top:14px; font-size:12px; color:var(--text-light);" data-i18n="ui2.setting_up_your_shop">Setting up your shop...</div>
-            <div style="text-align:center; margin-top:16px;"><a href="#" onclick="event.preventDefault(); handleSignOut();" style="font-size:12px; color:var(--text-light);" data-i18n="ui2.not_you_sign_out">Not you? Sign out</a></div>
         </div>
     </div>
 
@@ -2652,7 +2628,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
          'handlePostSale', 'handleStockTransfer', 'submitCashHandover', 'submitSaleCart',
          'submitPurchaseCart', 'submitFundTransfer', 'submitRecordPayment', 'submitAddBranch',
          'submitAddMember', 'submitAddRole', 'saveVatDetails', 'saveRolePermissions',
-         'completeInitialInventorySetup', 'completeBusinessSetup', 'handleSetNewPassword']
+         'completeInitialInventorySetup', 'completeProfileSetup', 'handleSetNewPassword']
             .forEach(function (n) { mlyUI.guardSaving(n, function () { return mlyUI_label('ui.saving', 'Saving\u2026'); }); });
         mlyUI.guardSaving('handleSignIn', function () { return mlyUI_label('ui.signing_in', 'Signing in\u2026'); });
         mlyUI.guardSaving('handleSignUp', function () { return mlyUI_label('ui.creating', 'Creating account\u2026'); });
@@ -3573,7 +3549,6 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             if (!sel || typeof BUSINESS_TYPES === 'undefined') return;
             const keys = Object.keys(BUSINESS_TYPES).sort((a, b) => (a === 'retail' ? -1 : b === 'retail' ? 1 : 0));
             sel.innerHTML = keys.map(k => `<option value="${escHtml(k)}">${BUSINESS_TYPES[k].label}</option>`).join('');
-            const bsType = document.getElementById('biz-setup-type'); if (bsType) bsType.innerHTML = sel.innerHTML;
             updateAuthVatDetailFields();
         }
         // Appliance rental has no VAT registration option at all (the whole
@@ -4102,10 +4077,24 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             document.getElementById('auth-loading').style.display = on ? 'block' : 'none';
         }
 
+        let signupProfileMode = false;
+        function startProfileSetup() {
+            signupProfileMode = true;
+            document.getElementById('auth-overlay').style.display = 'flex';
+            showAuthView('signup'); applySignupProfileMode();
+        }
+        function applySignupProfileMode() {
+            const on = signupProfileMode;
+            ['auth-email', 'auth-password', 'auth-password-confirm'].forEach(id => { const g = document.getElementById(id).closest('.form-group'); if (g) g.style.display = on ? 'none' : 'block'; });
+            document.querySelectorAll('#auth-su-p1 > div:not(.form-group), #auth-su-p1 > button[onclick*="signInWithGoogle"]').forEach(e => e.style.display = on ? 'none' : '');
+            const l = document.querySelector('#auth-signup-view a[onclick*="signin"]'); if (l) l.parentElement.style.display = on ? 'none' : '';
+            const so = document.getElementById('auth-su-signout'); if (so) so.style.display = on ? 'block' : 'none';
+            signupGoPage(1);
+        }
         function signupGoPage(n) {
             document.getElementById('auth-su-p1').style.display = n === 1 ? 'block' : 'none';
             document.getElementById('auth-su-p2').style.display = n === 2 ? 'block' : 'none';
-            const s = document.getElementById('auth-su-step'); if (s) s.textContent = n === 1 ? 'Step 1 of 2: your login details' : 'Step 2 of 2: about your shop';
+            const s = document.getElementById('auth-su-step'); if (s) s.textContent = n === 1 ? (signupProfileMode ? 'Step 1 of 2: your phone number' : 'Step 1 of 2: your login details') : 'Step 2 of 2: about your shop';
             const bar = document.getElementById('auth-su-bar'); if (bar) bar.style.width = n === 1 ? '50%' : '100%';
             document.getElementById('auth-error').style.display = 'none';
         }
@@ -4117,6 +4106,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             if (error) { setAuthLoading(false); showAuthError(error.message); }
         }
         function signupNextPage() {
+            if (signupProfileMode) { if (!document.getElementById('auth-phone').value.trim()) return showAuthError('Please enter your phone number.'); return signupGoPage(2); }
             const v = id => document.getElementById(id).value;
             if (!v('auth-phone').trim()) return showAuthError('Please enter a phone number.');
             if (!v('auth-email').trim() || !v('auth-password')) return showAuthError('Please enter an email and password.');
@@ -4160,6 +4150,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         }
 
         async function handleSignUp() {
+            if (signupProfileMode) return completeProfileSetup();
             const bizName = document.getElementById('auth-business-name').value.trim();
             const phone = document.getElementById('auth-phone').value.trim();
             const username = document.getElementById('auth-username').value.trim();
@@ -4335,7 +4326,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 // Genuine edge case: no pending info to work with (e.g. this
                 // session started on a different device than the signup did).
                 // Only here do we actually ask.
-                document.getElementById('business-setup-overlay').style.display = 'flex';
+                startProfileSetup();
                 return;
             }
 
@@ -4507,23 +4498,18 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             await bootApp();
         }
 
-        async function completeBusinessSetup() {
-            const bizName = document.getElementById('biz-setup-name').value.trim();
-            const phone = document.getElementById('biz-setup-phone').value.trim();
-            const username = document.getElementById('biz-setup-username').value.trim();
-            const errEl = document.getElementById('biz-setup-error');
-            errEl.style.display = 'none';
-            if (!bizName || !phone || !username) { errEl.innerText = 'Please fill in all three fields.'; errEl.style.display = 'block'; return; }
-
-            document.getElementById('biz-setup-loading').style.display = 'block';
-            const { data: businessId, error } = await supabaseClient.rpc('create_business_with_owner', {
-                p_business_name: bizName, p_phone: phone, p_username: username, p_display_name: bizName
-            });
-            document.getElementById('biz-setup-loading').style.display = 'none';
-            if (error) { errEl.innerText = error.message; errEl.style.display = 'block'; return; }
-            try { sessionStorage.setItem('neba_pending_vat_registered', '0'); sessionStorage.setItem('neba_pending_business_type', document.getElementById('biz-setup-type').value || 'retail'); } catch (e) {}
-
-            document.getElementById('business-setup-overlay').style.display = 'none';
+        async function completeProfileSetup() {
+            // Signed in (e.g. with Google) but no shop yet: the signup pages collect phone, then shop details.
+            const g = id => document.getElementById(id);
+            const bizName = g('auth-business-name').value.trim(), phone = g('auth-phone').value.trim(), username = g('auth-username').value.trim();
+            if (!bizName || !phone || !username) return showAuthError('Please fill in your shop name and username.');
+            setAuthLoading(true);
+            const { error } = await supabaseClient.rpc('create_business_with_owner', { p_business_name: bizName, p_phone: phone, p_username: username, p_display_name: bizName });
+            setAuthLoading(false);
+            if (error) return showAuthError(error.message);
+            try { sessionStorage.setItem('neba_pending_vat_registered', '0'); sessionStorage.setItem('neba_pending_business_type', g('auth-business-type').value || 'retail'); } catch (e) {}
+            signupProfileMode = false; applySignupProfileMode();
+            g('auth-overlay').style.display = 'none';
             const { data: { user } } = await supabaseClient.auth.getUser();
             await onLoginSuccess(user, true);
         }
@@ -5942,7 +5928,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             const inSidebar = (t) => !!(t && t.closest && t.closest('#sidebar'));
             const isHamburger = (t) => !!(t && t.closest && t.closest('.header-left .menu-toggle-btn:not(.mly-back-btn)')); // it toggles the sidebar by itself
             const BLOCK = '.mly-overlay, .mly-ann-ov, .modal-overlay.active, [id$="-modal"].active, #bulk-overlay, #neba-tour-tip, .notif-panel.active, .notif-panel.show, .notif-panel.open';
-            const FULLSCREEN_IDS = ['auth-overlay', 'reset-password-overlay', 'business-setup-overlay', 'onboarding-overlay', 'initial-inventory-overlay', 'inactive-overlay'];
+            const FULLSCREEN_IDS = ['auth-overlay', 'reset-password-overlay', 'onboarding-overlay', 'initial-inventory-overlay', 'inactive-overlay'];
 
             // Is this element (or a parent) something that scrolls sideways / is a field? Then a swipe on it is not a page swipe.
             function swipeBlockedTarget(el) {
@@ -13810,11 +13796,6 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 { id: 'create-account', sel: '#auth-signup-view button[onclick*="handleSignUp"]', key: 'create_account' }
             ],
             bizsetup: [
-                { id: 'bizsetup-name', sel: '#biz-setup-name', key: 'bizsetup_name' },
-                { id: 'bizsetup-phone', sel: '#biz-setup-phone', key: 'bizsetup_phone' },
-                { id: 'bizsetup-username', sel: '#biz-setup-username', key: 'bizsetup_username' },
-                { id: 'bizsetup-type', sel: '#biz-setup-type', key: 'biz_type' },
-                { id: 'bizsetup-finish', sel: '#business-setup-overlay button[onclick*="completeBusinessSetup"]', key: 'bizsetup_finish' }
             ],
             onboarding: [
                 { id: 'onboarding-file', sel: '#onboarding-file', key: 'onboarding_file' },
@@ -13963,7 +13944,6 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
         function computePhase() {
             if (overlayShown('auth-overlay')) return 'auth';
-            if (overlayShown('business-setup-overlay')) return 'bizsetup';
             if (overlayShown('onboarding-overlay')) return 'onboarding';
             if (overlayShown('initial-inventory-overlay')) return 'invsetup';
             if (overlayShown('reset-password-overlay')) return null; // nothing to teach on this screen
