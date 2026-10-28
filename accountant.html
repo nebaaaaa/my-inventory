@@ -197,7 +197,7 @@
                     <button type="button" class="pw-toggle" onclick="togglePasswordVisibility('signin-password', this)"><svg viewBox="0 0 576 512" width="17" height="17"><path fill="#6B6B5F" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#6B6B5F"/></svg></button>
                 </div>
             </div>
-            <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="handleSignIn()">Sign In</button>
+            <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="handleSignIn()">Sign In</button><div style="display:flex; align-items:center; gap:10px; margin:14px 0 10px; color:var(--text-soft); font-size:12px;" class="acct-google"><div style="flex:1; height:1px; background:var(--paper-line);"></div>or<div style="flex:1; height:1px; background:var(--paper-line);"></div></div><button type="button" class="btn btn-ghost acct-google" onclick="signInWithGoogle()" style="width:100%; justify-content:center; gap:10px;"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.9 2.4 30.4 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.6 5.9c4.5-4.1 7-10.2 7-17.6z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.5-.8-3-.8-4.7s.3-3.2.8-4.7l-7.9-6.1C.9 16.4 0 20.1 0 24s.9 7.6 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.9 2.3-8.3 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>Continue with Google</button>
             <p style="text-align:center; font-size:13px; margin-top:12px;"><a href="#" onclick="handleForgotPassword(); return false;" style="color:var(--text-soft);">Forgot password?</a></p>
             <p style="text-align:center; font-size:13px; margin-top:4px; color:var(--text-soft);">Don't have an account yet? <a href="#" onclick="showAuthView('signup'); return false;" style="color:var(--amber); font-weight:600;">Create one</a></p>
             <div style="display:flex; align-items:center; gap:10px; margin:18px 0 12px; color:var(--text-soft); font-size:12px;"><div style="flex:1; height:1px; background:var(--paper-line);"></div>or<div style="flex:1; height:1px; background:var(--paper-line);"></div></div>
@@ -214,7 +214,14 @@
                     <button type="button" class="pw-toggle" onclick="togglePasswordVisibility('auth-password', this)"><svg viewBox="0 0 576 512" width="17" height="17"><path fill="#6B6B5F" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#6B6B5F"/></svg></button>
                 </div>
             </div>
-            <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="handleSignUp()">Create Account</button>
+            <div class="form-group">
+                <label>Confirm Password</label>
+                <div style="position:relative;">
+                    <input type="password" id="auth-password-confirm" autocomplete="new-password" style="padding-right:38px;">
+                    <button type="button" class="pw-toggle" onclick="togglePasswordVisibility('auth-password-confirm', this)"><svg viewBox="0 0 576 512" width="17" height="17"><path fill="#6B6B5F" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#6B6B5F"/></svg></button>
+                </div>
+            </div>
+            <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="handleSignUp()">Create Account</button><div style="display:flex; align-items:center; gap:10px; margin:14px 0 10px; color:var(--text-soft); font-size:12px;" class="acct-google"><div style="flex:1; height:1px; background:var(--paper-line);"></div>or<div style="flex:1; height:1px; background:var(--paper-line);"></div></div><button type="button" class="btn btn-ghost acct-google" onclick="signInWithGoogle()" style="width:100%; justify-content:center; gap:10px;"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.9 2.4 30.4 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.6 5.9c4.5-4.1 7-10.2 7-17.6z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.5-.8-3-.8-4.7s.3-3.2.8-4.7l-7.9-6.1C.9 16.4 0 20.1 0 24s.9 7.6 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.9 2.3-8.3 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>Continue with Google</button><p id="auth-gp-signout" style="display:none; text-align:center; font-size:12px; margin-top:12px;"><a href="#" onclick="event.preventDefault(); setGooglePhoneMode(false); handleSignOut();" style="color:var(--text-soft);">Use a different account</a></p>
             <p style="text-align:center; font-size:13px; margin-top:16px; color:var(--text-soft);">Already have an account? <a href="#" onclick="showAuthView('signin'); return false;" style="color:var(--amber); font-weight:600;">Sign in</a></p>
         </div>
 
@@ -910,6 +917,43 @@ This field is  mandatory.",Total value,vat,value after vat`;
         input.type = showing ? 'password' : 'text';
         btn.innerHTML = showing ? EYE_OPEN_SVG : EYE_CLOSED_SVG;
     }
+    async function signInWithGoogle() {
+        // Needs the Google provider switched on in Supabase and this site's address in its redirect URLs.
+        if (location.protocol === 'file:') return showAuthError('Google sign-in only works on the online site (https), not from a file on this computer.');
+        setAuthLoading(true);
+        const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname } });
+        if (error) { setAuthLoading(false); showAuthError(error.message); }
+    }
+    // Google users have no phone number yet: ask for it on its own page, then continue into the app.
+    let googlePhoneMode = false;
+    function needsGooglePhone(user) {
+        return !!(user && user.app_metadata && user.app_metadata.provider === 'google' && !(accountantProfile && accountantProfile.phone));
+    }
+    function setGooglePhoneMode(on) {
+        googlePhoneMode = on;
+        ['auth-email', 'auth-password', 'auth-password-confirm'].forEach(id => { const g = document.getElementById(id).closest('.form-group'); if (g) g.style.display = on ? 'none' : ''; });
+        document.querySelectorAll('#auth-signup-view .acct-google').forEach(e => e.style.display = on ? 'none' : '');
+        const l = document.querySelector('#auth-signup-view a[onclick*="signin"]'); if (l) l.parentElement.style.display = on ? 'none' : '';
+        document.getElementById('auth-gp-signout').style.display = on ? 'block' : 'none';
+        document.getElementById('auth-subtitle').textContent = on ? 'Almost there. What is your phone number?' : 'Create your free account. It takes a few seconds.';
+    }
+    function showGooglePhonePage() {
+        document.getElementById('app').style.display = 'none';
+        document.getElementById('auth-overlay').style.display = 'flex';
+        showAuthView('signup'); setGooglePhoneMode(true);
+    }
+    async function saveGooglePhone() {
+        const phone = document.getElementById('auth-phone').value.trim();
+        if (!phone) return showAuthError('Please enter your phone number.');
+        setAuthLoading(true);
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        const md = (user && user.user_metadata) || {};
+        const { error } = await supabaseClient.from('accountant_profiles').upsert({ user_id: user.id, full_name: md.full_name || md.name || '', phone });
+        setAuthLoading(false);
+        if (error) return showAuthError(error.message);
+        setGooglePhoneMode(false);
+        await afterSignIn();
+    }
     async function handleSignIn() {
         clearAuthError();
         const email = document.getElementById('signin-email').value.trim();
@@ -923,12 +967,15 @@ This field is  mandatory.",Total value,vat,value after vat`;
     }
     async function handleSignUp() {
         clearAuthError();
+        if (googlePhoneMode) return saveGooglePhone();
         const phone = document.getElementById('auth-phone').value.trim();
         const email = document.getElementById('auth-email').value.trim();
         const password = document.getElementById('auth-password').value;
+        const passwordConfirm = document.getElementById('auth-password-confirm').value;
         if (!phone) return showAuthError('Please enter your phone number.');
         if (!email || !password) return showAuthError('Please enter an email and password.');
         if (password.length < 6) return showAuthError('Password must be at least 6 characters.');
+        if (password !== passwordConfirm) return showAuthError('Passwords do not match. Please re-type them.');
         setAuthLoading(true);
         const { data, error } = await supabaseClient.auth.signUp({ email, password });
         setAuthLoading(false);
@@ -963,13 +1010,15 @@ This field is  mandatory.",Total value,vat,value after vat`;
         document.getElementById('auth-overlay').style.display = 'flex';
     }
     async function afterSignIn() {
-        document.getElementById('auth-overlay').style.display = 'none';
-        document.getElementById('app').style.display = 'block';
+        guestStorage('meleya_acct_auth_seen', '1');
         checkAdminAccountantImpersonationBanner();
         const { data: { user } } = await supabaseClient.auth.getUser();
         currentUserId = user ? user.id : null;
         await applyPendingAccountantProfile();
         await loadAccountantProfile();
+        if (needsGooglePhone(user)) return showGooglePhonePage();
+        document.getElementById('auth-overlay').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
         await loadClients();
         await refreshMyLinks();
         await loadNotifications();
@@ -1142,7 +1191,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
         const { data: { session } } = await supabaseClient.auth.getSession();
         if (session) {
             await afterSignIn();
-        } else if (/[?&]trial(=|&|$)/.test(location.search) && !tookOverViaAdmin) {
+        } else if (!tookOverViaAdmin && (/[?&]trial(=|&|$)/.test(location.search) || guestStorage('meleya_acct_auth_seen') !== '1')) {
             openGuestTrial();
         } else if (tookOverViaAdmin) {
             // verifyOtp succeeded but getSession() raced ahead of the client
@@ -1914,6 +1963,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
     }
 
     function showAuthScreen(view) {
+        guestStorage('meleya_acct_auth_seen', '1');
         document.getElementById('guest-overlay').style.display = 'none';
         document.getElementById('auth-overlay').style.display = 'flex';
         showAuthView(view);
