@@ -8583,7 +8583,8 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             document.body.appendChild(o);
             for (let k = 0; k < 3; k++) bulkManAdd();
         }
-        /* Animated how-to for the stock template (PC / iPhone / Android). Plays inside the app, no video file needed. */
+        /* "Watch how" for the stock template: a real screen recording per device (PC / iPhone / Android).
+           Video files live in the install-videos folder next to index.html. */
         function openTemplateGuide() {
             if (document.getElementById('tpl-guide')) return;
             if (!document.getElementById('tpl-guide-css')) { const s = document.createElement('style'); s.id = 'tpl-guide-css'; s.textContent = `
@@ -8591,46 +8592,26 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 #tpl-guide .tg-card{background:var(--surface,#fff);color:var(--text,#222);border-radius:14px;max-width:640px;width:100%;padding:14px;box-shadow:0 12px 40px rgba(0,0,0,.4)}
 .tg-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}.tg-tabs{display:flex;gap:6px;flex-wrap:wrap}
 .tg-tab{border:1px solid var(--border,#ccc);background:transparent;color:inherit;border-radius:999px;padding:5px 12px;font-weight:700;font-size:12px;cursor:pointer}.tg-tab.on{background:var(--accent,#7c3aed);color:#fff;border-color:transparent}
-.tg-stage{background:#0f1226;border-radius:12px;padding:12px;min-height:250px;display:flex;align-items:center;justify-content:center;overflow:hidden}
-.tg-dev{background:#fff;color:#222;border-radius:8px;width:100%;max-width:560px;overflow:hidden;font-size:12px;box-shadow:0 6px 20px rgba(0,0,0,.5)}
-.tg-dev.ph{max-width:230px;border-radius:24px;border:5px solid #333}.tg-bar{background:#e6e8ef;padding:6px 10px;font-size:11px;color:#555;display:flex;gap:6px;align-items:center}.tg-bar i{width:9px;height:9px;border-radius:50%;background:#bbb;display:inline-block}
-.tg-body{padding:12px;min-height:170px;position:relative}.tg-btn{display:inline-block;background:#1f7a54;color:#fff;border-radius:6px;padding:6px 10px;font-weight:700;font-size:11px;animation:tgP 1s infinite}
-@keyframes tgP{50%{box-shadow:0 0 0 7px rgba(251,191,36,.6)}}@keyframes tgIn{to{opacity:1}}
-.tg-g{display:grid;grid-template-columns:repeat(6,1fr);border:1px solid #ccc;font-size:9px}.tg-g b,.tg-g span{border:1px solid #ddd;padding:3px 2px;min-height:18px;overflow:hidden;white-space:nowrap}.tg-g b{background:#e8f1ea}.tg-g .tg-c{opacity:0;animation:tgIn .4s forwards}
-.tg-chip{display:inline-block;border:2px solid #fbbf24;border-radius:8px;padding:6px 10px;font-weight:700;animation:tgP 1s infinite;background:#fffbe6}.tg-cap{margin:10px 2px 6px;font-size:14px;line-height:1.4;min-height:60px}
-.tg-ctl{display:flex;align-items:center;gap:8px;justify-content:space-between}.tg-dots{display:flex;gap:5px}.tg-dots i{width:8px;height:8px;border-radius:50%;background:#c8cbd8}.tg-dots i.on{background:var(--accent,#7c3aed)}`; document.head.appendChild(s); }
-            const ua = navigator.userAgent; let plat = /iPhone|iPad|iPod/.test(ua) ? 'ios' : /Android/.test(ua) ? 'and' : 'pc', n = 0, timer = null, playing = true;
-            const APP = { pc: 'Excel', ios: 'Excel or Numbers', and: 'Google Sheets' }, NM = { pc: '💻 PC', ios: '📱 iPhone', and: '📱 Android' };
+.tg-vid{border-radius:10px;overflow:hidden;background:#eef0f4;text-align:center}.tg-vid video{display:block;margin:0 auto;width:100%;max-height:68vh;object-fit:contain;background:#eef0f4}
+.tg-steps{margin:12px 0 2px;padding-left:22px;font-size:13.5px;line-height:1.6}.tg-steps li{margin-bottom:4px}`; document.head.appendChild(s); }
+            const ua = navigator.userAgent; let plat = /iPhone|iPad|iPod/.test(ua) ? 'ios' : /Android/.test(ua) ? 'and' : 'pc';
+            const NM = { pc: '💻 PC', ios: '📱 iPhone', and: '📱 Android' };
+            const VID = { pc: ['add bulk guide/bulk-demo.mp4', '16 / 10'], ios: ['add bulk guide/bulk-demo-iphone.mp4', '4 / 5'], and: ['add bulk guide/bulk-demo-android.mp4', '4 / 5'] };
             const CAP = {
-                pc: ['In <b>Add in bulk</b>, click <b>Download template</b>. A file called <b>stock-template.xlsx</b> is saved.', 'Your browser shows the file in its <b>downloads</b> list (top right, or the bar at the bottom). Click it to open it.', 'It opens in <b>Excel</b> (or LibreOffice / Google Sheets). Row 1 holds the column names. Do not change them.', 'Delete the example row, then type <b>one product per row</b>: category, name, quantity, cost price, supplier, selling price.', 'Press <b>Ctrl + S</b> to save, then close Excel.', 'Back in the app, click <b>Choose file</b> and pick <b>stock-template.xlsx</b> from your <b>Downloads</b> folder.', 'The list fills in and the columns match by themselves. Check it, then click <b>Import</b>.'],
-                ios: ['In <b>Add in bulk</b>, tap <b>Download template</b>. If Safari asks, tap <b>Download</b>.', 'Tap the <b>↓ download icon</b> in the address bar, then the file. It is saved in the <b>Files</b> app, in <b>Downloads</b>.', 'Tap the file, then <b>Share</b> and choose <b>Excel</b> or <b>Numbers</b> (free apps from the App Store) to open it.', 'Delete the example row and type <b>one product per row</b>. Keep the column names in row 1.', 'Excel saves by itself. In Numbers use <b>Share → Export → Excel</b> and save it in <b>Files</b>.', 'Back in the app tap <b>Choose file</b> → <b>Browse</b> → <b>Downloads</b> and pick <b>stock-template.xlsx</b>.', 'The list fills in by itself. Check it, then tap <b>Import</b>.'],
-                and: ['In <b>Add in bulk</b>, tap <b>Download template</b>. Chrome saves <b>stock-template.xlsx</b>.', 'Tap <b>Open</b> on the “Downloaded” message at the bottom, or find the file in <b>Files → Downloads</b>.', 'Choose <b>Google Sheets</b> (or Excel) to open it. Row 1 holds the column names. Do not change them.', 'Delete the example row and type <b>one product per row</b>.', 'Sheets saves by itself. Just press the back arrow when you finish.', 'Back in the app tap <b>Choose file</b> and pick <b>stock-template.xlsx</b> from <b>Downloads</b>.', 'The list fills in by itself. Check it, then tap <b>Import</b>.']
-            };
-            const KIND = ['btn', 'dl', 'open', 'sheet', 'save', 'pick', 'done'];
-            const HD = ['Category', 'Product Name', 'Quantity', 'Cost Price', 'Supplier', 'Selling Price'], ROWS = [['Drinks', 'Orange Juice 1L', '24', '52', 'Abebe Traders', '70'], ['Snacks', 'Biscuit Pack', '48', '12', 'Sidama Supplies', '18'], ['Groceries', 'Rice 5kg', '15', '420', 'Hawassa', '480']];
-            const grid = (rows, anim) => `<div class="tg-g">${HD.map(h => `<b>${h}</b>`).join('')}${rows.map((r, i) => r.map((c, j) => `<span ${anim ? `class="tg-c" style="animation-delay:${(i * 6 + j) * .3}s"` : ''}>${c}</span>`).join('')).join('')}</div>`;
-            const frame = body => `<div class="tg-dev ${plat === 'pc' ? '' : 'ph'}"><div class="tg-bar">${plat === 'pc' ? '<i></i><i></i><i></i> &nbsp;your app' : '&nbsp;'.repeat(2) + '●●● &nbsp; your app'}</div><div class="tg-body">${body}</div></div>`;
-            const scene = k => {
-                if (k === 'btn') return frame(`<b style="font-size:14px">Add in bulk</b><p style="margin:8px 0">📁 Upload a file</p><span class="tg-btn">Download template</span> 👆`);
-                if (k === 'dl') return frame(plat === 'pc' ? `<p style="color:#777;margin:0 0 8px">Downloads ⬇</p><span class="tg-chip">📄 stock-template.xlsx</span> 👆` : plat === 'ios' ? `<p style="color:#777;margin:0 0 8px">Files › Downloads</p><span class="tg-chip">📄 stock-template.xlsx</span> 👆` : `<p style="color:#777;margin:0 0 8px">Chrome</p><div style="background:#333;color:#fff;border-radius:6px;padding:8px;margin-top:60px">Downloaded stock-template.xlsx &nbsp; <b class="tg-chip" style="padding:2px 8px;color:#222">Open</b></div>`);
-                if (k === 'open') return frame(`<b>${APP[plat]}</b>${grid([ROWS[0].map(c => c)], false)}`);
-                if (k === 'sheet') return frame(`<b>${APP[plat]}</b>${grid(ROWS, true)}`);
-                if (k === 'save') return frame(`<div style="text-align:center;padding-top:40px"><span class="tg-chip">${plat === 'pc' ? '💾 Ctrl + S' : '✓ Saved'}</span></div>`);
-                if (k === 'pick') return frame(`<p style="color:#777;margin:0 0 8px">${plat === 'pc' ? 'Open' : 'Browse › Downloads'}</p><div style="padding:4px 0">📄 my-photo.jpg</div><div class="tg-chip" style="display:block;margin:4px 0">📄 stock-template.xlsx</div> 👆`);
-                return frame(`<b>Check the matches</b><div style="margin:8px 0">${grid(ROWS, false).replace(/class="tg-c"/g, '')}</div><span class="tg-btn">Import 3 products</span>`);
+                pc: ['In <b>Add in bulk</b>, click <b>Download template</b>. A file called <b>stock-template.xlsx</b> is saved.', 'Click the file in your browser’s <b>downloads</b> list. It opens in <b>Excel</b>. Row 1 holds the column names. Do not change them.', 'Delete the example row, then type <b>one product per row</b>.', 'Press <b>Ctrl + S</b> to save, then close Excel.', 'Back in the app, click <b>Choose file</b> and pick <b>stock-template.xlsx</b> from <b>Downloads</b>.', 'The list fills in and the columns match by themselves. Check it, then click <b>Import</b>.'],
+                ios: ['In <b>Add in bulk</b>, tap <b>Download template</b>. When Safari asks, tap <b>Download</b>.', 'Tap the <b>↓</b> icon in the address bar, then the file. Tap <b>Share</b> and choose <b>Excel</b>.', 'Delete the example row and type <b>one product per row</b>. Keep the column names in row 1.', 'Excel saves by itself. Tap <b>‹</b> when you finish.', 'Back in the app tap <b>Choose file</b> → <b>Choose File</b>, then pick <b>stock-template.xlsx</b> in <b>Downloads</b>.', 'The list fills in by itself. Check it, then tap <b>Import</b>.'],
+                and: ['In <b>Add in bulk</b>, tap <b>Download template</b>. Chrome saves <b>stock-template.xlsx</b>.', 'Tap <b>Open</b> on the “Downloaded” message and choose <b>Google Sheets</b>. Row 1 holds the column names. Do not change them.', 'Delete the example row and type <b>one product per row</b>.', 'Sheets saves by itself. Tap the back arrow when you finish.', 'Back in the app tap <b>Choose file</b> and pick <b>stock-template.xlsx</b> in <b>Downloads</b>.', 'The list fills in by itself. Check it, then tap <b>Import</b>.']
             };
             const o = document.createElement('div'); o.id = 'tpl-guide'; document.body.appendChild(o);
             const draw = () => {
+                const v = VID[plat];
                 o.innerHTML = `<div class="tg-card"><div class="tg-top"><div class="tg-tabs">${['pc', 'ios', 'and'].map(p => `<button class="tg-tab ${p === plat ? 'on' : ''}" data-p="${p}">${NM[p]}</button>`).join('')}</div><button class="btn btn-small btn-warning" id="tg-x">✕ Close</button></div>
-                <div class="tg-stage">${scene(KIND[n])}</div><div class="tg-cap">${CAP[plat][n]}</div>
-                <div class="tg-ctl"><div><button class="btn btn-small" id="tg-pv">◀</button> <button class="btn btn-small" id="tg-pl">${playing ? '⏸' : '▶'}</button> <button class="btn btn-small" id="tg-nx">▶▶</button></div><div class="tg-dots">${KIND.map((_, i) => `<i class="${i === n ? 'on' : ''}"></i>`).join('')}</div><span style="font-size:11px;color:var(--text-light)">Step ${n + 1} of ${KIND.length}</span></div></div>`;
-                o.querySelectorAll('.tg-tab').forEach(b => b.onclick = () => { plat = b.dataset.p; n = 0; draw(); });
-                o.querySelector('#tg-x').onclick = () => { clearInterval(timer); o.remove(); };
-                o.querySelector('#tg-pv').onclick = () => { n = (n + KIND.length - 1) % KIND.length; draw(); };
-                o.querySelector('#tg-nx').onclick = () => { n = (n + 1) % KIND.length; draw(); };
-                o.querySelector('#tg-pl').onclick = () => { playing = !playing; draw(); };
+                <div class="tg-vid"><video src="${v[0]}" autoplay muted loop playsinline webkit-playsinline controls preload="auto" style="aspect-ratio:${v[1]}" onerror="this.parentNode.style.display='none'"></video></div>
+                <ol class="tg-steps">${CAP[plat].map(c => `<li>${c}</li>`).join('')}</ol></div>`;
+                o.querySelectorAll('.tg-tab').forEach(b => b.onclick = () => { plat = b.dataset.p; draw(); });
+                o.querySelector('#tg-x').onclick = () => o.remove();
             };
-            draw(); timer = setInterval(() => { if (!document.getElementById('tpl-guide')) return clearInterval(timer); if (playing) { n = (n + 1) % KIND.length; draw(); } }, 6000);
+            draw();
         }
         function bulkManAdd() {
             const tr = document.createElement('tr');
@@ -13389,6 +13370,10 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                     // client persisting it — extremely unlikely, but don't leave
                     // the person stuck on a blank auth screen if it happens.
                     location.reload();
+                } else {
+                    // Brand-new visitor (no login, never used this app here): open the demo shop first.
+                    const goDemo = () => { try { if (typeof window.mlyMaybeAutoDemo === 'function') window.mlyMaybeAutoDemo(); } catch (e) { } };
+                    if (document.readyState === 'complete') goDemo(); else window.addEventListener('load', goDemo, { once: true });
                 }
             } finally {
                 clearTimeout(early);
@@ -16374,6 +16359,15 @@ window.startMeleyaDemo = function () {
   if (!$('#dm-demo-cta')) { const b = document.createElement('button'); b.id = 'dm-demo-cta'; b.className = 'dm-btn p'; b.textContent = '✨ Create my real account'; b.onclick = () => exit(true); $('.aside-footer').appendChild(b); }
   safe(() => switchView('dashboard')); renderAll(); buildHud(); safe(() => $('#cloud-sync-status').innerHTML = '🎮 Demo mode, nothing is saved');
   setTimeout(startTour, 700);
+};
+/* New visitors land on the demo shop once. Anyone who has a saved login, has used the app here before, or has already seen the demo goes straight to sign-in as usual. */
+window.mlyMaybeAutoDemo = function () {
+  try {
+    if (localStorage.getItem('neba_seen_demo') || localStorage.getItem('neba_erp_last_identity')) return;
+    if (sessionStorage.getItem('mly_demo_signup')) return;   // they just tapped "Create my real account"
+    localStorage.setItem('neba_seen_demo', '1');
+    window.startMeleyaDemo();
+  } catch (e) { console.warn('auto demo:', e); }
 };
 function exit(signup) { if (signup) sessionStorage.setItem('mly_demo_signup', '1'); location.reload(); }
 window.addEventListener('load', () => { if (sessionStorage.getItem('mly_demo_signup')) { sessionStorage.removeItem('mly_demo_signup'); setTimeout(() => safe(() => showAuthView('signup')), 900); } });
