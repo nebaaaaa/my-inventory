@@ -756,25 +756,9 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         </div>
     </div>
 
-    <!-- ===================== FIRST-TIME ONBOARDING SCREEN ===================== -->
-    <div id="onboarding-overlay" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:5000; align-items:center; justify-content:center; padding:40px 16px; overflow-y:auto;">
-        <div class="modal-box" style="max-width:480px; width:100%;">
-            <h2 style="color:var(--primary); margin-bottom:12px;" data-i18n="ui2.welcome_let_s_set_up_your_shop">Welcome! Let's set up your shop.</h2>
-            <p style="font-size:13px; color:var(--text-light); margin-bottom:16px;">If you already have a MELEYA backup file (a <code>.json</code> file exported using the "Backup" button), upload it now to bring your existing data over. Otherwise, just start fresh with an empty shop.</p>
-            <div class="form-group" style="display:block; width:100%; margin-bottom:16px;">
-                <label data-i18n="misc.upload_backup">Upload Backup File (optional)</label>
-                <input type="file" id="onboarding-file" accept=".meleya,.json" style="width:100%;">
-            </div>
-            <div style="display:flex; gap:10px;">
-                <button class="btn" style="flex:1;" onclick="finishOnboarding(true)" data-i18n="misc.import_file">Import This File</button>
-                <button class="btn" style="flex:1; background:#4a4e63;" onclick="showInitialInventorySetup()" data-i18n="misc.start_fresh">Start Fresh (Skip)</button>
-            </div>
-            <div id="onboarding-loading" style="display:none; text-align:center; margin-top:14px; font-size:12px; color:var(--text-light);" data-i18n="ui2.importing_your_data_please_wait">Importing your data, please wait...</div>
-        </div>
-    </div>
-
     <!-- ===================== INITIAL INVENTORY SETUP SCREEN =====================
-         Shown right after "Start Fresh (Skip)" on a brand-new shop. Lets the
+         Opens by itself only when someone had started an opening-stock list and the app
+         closed before it was finished (see checkUnfinishedOpeningStock()). Lets the
          owner list out everything they're opening with -- one basket-style
          entry at a time -- then registers the whole batch in one shot as an
          opening-stock Multi-Item Purchase (Supp: N/A, paid by Mobile banking),
@@ -819,7 +803,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         <div>
             <h2 style="color:var(--primary);" data-i18n="auth.account_inactive">Account Inactive</h2>
             <p style="margin-top:12px; color:var(--text-light); max-width:360px;" data-i18n="ui2.your_subscription_is_currently_ina">Your subscription is currently inactive. Please contact your provider to renew access.</p>
-            <button class="btn" style="margin-top:20px;" onclick="handleSignOut()" data-i18n="auth.sign_out">Sign Out</button>
+            <button class="btn" style="margin-top:20px;" onclick="handleSignOut(true)" data-i18n="auth.sign_out">Sign Out</button>
         </div>
     </div>
 
@@ -859,7 +843,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 <span data-i18n="ui2.download_excel_report">Download Excel Report</span>
             </button>
             <div class="footer-buttons">
-                <button class="btn" onclick="handleSignOut()" style="padding: 8px; font-size: 11px; flex:1; background:#A9752F; color:white;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> <span data-i18n="auth.sign_out">Sign Out</span></button>
+                <button class="btn" onclick="handleSignOut(true)" style="padding: 8px; font-size: 11px; flex:1; background:#A9752F; color:white;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> <span data-i18n="auth.sign_out">Sign Out</span></button>
                 <button class="btn btn-warning" id="btn-backup" onclick="exportBackupData()" style="padding: 8px; font-size: 11px; flex:1;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> <span data-i18n="ui2.backup">Backup</span></button>
                 <button class="btn" id="btn-restore" onclick="importBackupData()" style="padding: 8px; font-size: 11px; flex:1; background:#4a4e63;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg> <span data-i18n="ui2.restore">Restore</span></button>
                 <button class="btn btn-danger" id="btn-factory-reset" onclick="factoryReset()" style="padding: 8px; font-size: 11px; flex:1; background:#B23A2E;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> <span data-i18n="ui2.reset">Reset</span></button>
@@ -2888,7 +2872,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 'auth.confirm_password': 'Confirm Password', 'auth.create_account': 'Create Account',
                 'auth.reset_desc': 'Choose a new password for your account.', 'auth.new_password': 'New Password',
                 'auth.confirm_new_password': 'Confirm New Password', 'auth.set_new_password': 'Set New Password',
-                'auth.finish_setup': 'Finish Setup', 'auth.account_inactive': 'Account Inactive', 'auth.sign_out': 'Sign Out',
+                'auth.account_inactive': 'Account Inactive', 'auth.sign_out': 'Sign Out',
                 'auth.forgot_password': 'Forgot password?', 'auth.no_account_yet': "Don't have a shop account yet?",
                 'auth.create_one': 'Create one', 'auth.already_have_account': 'Already have an account?', 'auth.sign_in_link': 'Sign in',
                 'auth.vat_registered': 'Is your shop VAT registered?',
@@ -2901,9 +2885,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
                 'misc.restore_data': 'Restore Data', 'misc.delete_role': 'Delete Role', 'misc.clear_all': 'Clear All',
                 'misc.logs': 'Logs', 'misc.record_customer_payment': 'Record Customer Payment', 'misc.record_supplier_payment': 'Record Supplier Payment',
-                'misc.welcome': 'Welcome', 'misc.one_last_step': 'One last step', 'misc.upload_backup': 'Upload Backup File (optional)',
-                'misc.import_file': 'Import This File', 'misc.start_fresh': 'Start Fresh (Skip)',
-                'misc.selling_price_optional': 'Selling Price (Optional)', 'misc.selling_price': 'Selling Price',
+                'misc.welcome': 'Welcome', 'misc.selling_price_optional': 'Selling Price (Optional)', 'misc.selling_price': 'Selling Price',
                 'misc.dismiss': 'Dismiss Frame', 'misc.approve': 'Approve', 'misc.reject': 'Reject',
                 'misc.save_permissions': 'Save Permissions', 'misc.return_to_owner': 'Return to my account',
                 'misc.total_shown': 'Total shown',
@@ -3043,11 +3025,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 'rental.remove': 'Remove',
                 "ui2.working_please_wait": "Working, please wait...",
                 "ui2.2026_meleya_all_rights_reserved": "© 2026 MELEYA. All rights reserved.",
-                "ui2.your_email_is_confirmed_let_s_fini": "Your email is confirmed — let's finish setting up your shop.",
-                "ui2.setting_up_your_shop": "Setting up your shop...",
                 "ui2.not_you_sign_out": "Not you? Sign out",
-                "ui2.welcome_let_s_set_up_your_shop": "Welcome! Let's set up your shop.",
-                "ui2.importing_your_data_please_wait": "Importing your data, please wait...",
                 "ui2.set_up_your_opening_inventory": "Set up your opening inventory",
                 "ui2.add_everything_you_re_stocking_up": "Add everything you're stocking up with right now. Each item you add below gets listed in the basket -- once the list looks right, click \"Complete Setup\" and it'll all be registered at once, funded as owner capital.",
                 "ui2.expiry_date": "Expiry Date",
@@ -3260,7 +3238,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 'auth.confirm_password': 'የይለፍ ቃል ያረጋግጡ', 'auth.create_account': 'አካውንት ፍጠር',
                 'auth.reset_desc': 'ለአካውንትዎ አዲስ የይለፍ ቃል ይምረጡ።', 'auth.new_password': 'አዲስ የይለፍ ቃል',
                 'auth.confirm_new_password': 'አዲስ የይለፍ ቃል ያረጋግጡ', 'auth.set_new_password': 'አዲስ የይለፍ ቃል አስቀምጥ',
-                'auth.finish_setup': 'ማዋቀር ጨርስ', 'auth.account_inactive': 'አካውንት ንቁ አይደለም', 'auth.sign_out': 'ውጣ',
+                'auth.account_inactive': 'አካውንት ንቁ አይደለም', 'auth.sign_out': 'ውጣ',
                 'auth.forgot_password': 'የይለፍ ቃል ረሱ?', 'auth.no_account_yet': 'የሱቅ አካውንት እስካሁን የለዎትም?',
                 'auth.create_one': 'አንድ ይፍጠሩ', 'auth.already_have_account': 'አካውንት አለዎት?', 'auth.sign_in_link': 'ግባ',
                 'auth.vat_registered': 'ሱቅዎ በቫት ተመዝግቧል?',
@@ -3273,9 +3251,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
                 'misc.restore_data': 'ውሂብ መልስ', 'misc.delete_role': 'ሚና አጥፋ', 'misc.clear_all': 'ሁሉንም አጽዳ',
                 'misc.logs': 'ታሪክ', 'misc.record_customer_payment': 'የደንበኛ ክፍያ መዝግብ', 'misc.record_supplier_payment': 'የአቅራቢ ክፍያ መዝግብ',
-                'misc.welcome': 'እንኳን ደህና መጡ', 'misc.one_last_step': 'የመጨረሻ እርምጃ', 'misc.upload_backup': 'የመጠባበቂያ ፋይል ስቀል (አማራጭ)',
-                'misc.import_file': 'ይህን ፋይል አስመዝግብ', 'misc.start_fresh': 'አዲስ ጀምር (ዝለል)',
-                'misc.selling_price_optional': 'የሽያጭ ዋጋ (አማራጭ)', 'misc.selling_price': 'የሽያጭ ዋጋ',
+                'misc.welcome': 'እንኳን ደህና መጡ', 'misc.selling_price_optional': 'የሽያጭ ዋጋ (አማራጭ)', 'misc.selling_price': 'የሽያጭ ዋጋ',
                 'misc.dismiss': 'ዝጋ', 'misc.approve': 'አጽድቅ', 'misc.reject': 'ውድቅ አድርግ',
                 'misc.save_permissions': 'ፍቃዶችን አስቀምጥ', 'misc.return_to_owner': 'ወደ አካውንቴ ተመለስ',
                 'misc.total_shown': 'የሚታየው ድምር',
@@ -3412,11 +3388,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 'rental.remove': 'አስወግድ',
                 "ui2.working_please_wait": "በመስራት ላይ፣ እባክዎ ይጠብቁ...",
                 "ui2.2026_meleya_all_rights_reserved": "© 2026 MELEYA። መብቱ በህግ የተጠበቀ ነው።",
-                "ui2.your_email_is_confirmed_let_s_fini": "ኢሜይልዎ ተረጋግጧል — የሱቅዎን ዝግጅት እንጨርስ።",
-                "ui2.setting_up_your_shop": "ሱቅዎን በማዘጋጀት ላይ...",
                 "ui2.not_you_sign_out": "እርስዎ አይደሉም? ውጣ",
-                "ui2.welcome_let_s_set_up_your_shop": "እንኳን ደህና መጡ! ሱቅዎን እናዘጋጅ።",
-                "ui2.importing_your_data_please_wait": "መረጃዎን በማስገባት ላይ፣ እባክዎ ይጠብቁ...",
                 "ui2.set_up_your_opening_inventory": "የመክፈቻ ዕቃዎን ያዘጋጁ",
                 "ui2.add_everything_you_re_stocking_up": "አሁን የሚያስቀምጡትን ዕቃ ሁሉ ይጨምሩ። ከታች የሚጨምሩት እያንዳንዱ ዕቃ በቅርጫቱ ውስጥ ይዘረዘራል። ዝርዝሩ ትክክል ሲሆን \"ማዘጋጀቱን ጨርስ\" ይጫኑ፤ ሁሉም በአንድ ጊዜ ይመዘገባል፣ በባለቤቱ ካፒታል ይሸፈናል።",
                 "ui2.expiry_date": "የሚያልፍበት ቀን",
@@ -4080,6 +4052,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         let signupProfileMode = false;
         function startProfileSetup() {
             signupProfileMode = true;
+            document.documentElement.classList.remove('mly-resume'); // never hide these pages behind the loading screen
             document.getElementById('auth-overlay').style.display = 'flex';
             showAuthView('signup'); applySignupProfileMode();
         }
@@ -4135,8 +4108,8 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         // we necessarily have a logged-in session (Supabase may require email
         // confirmation first). We stash them here so the very next successful
         // login on this device can finish creating the business automatically.
-        // If they confirm on a different device, completeBusinessSetup() below
-        // asks for these same three fields again.
+        // If they confirm on a different device, the signup pages (startProfileSetup)
+        // ask for these same fields again.
         function savePendingSignupInfo(bizName, phone, username, vatRegistered, businessType, vatDetails) {
             try { sessionStorage.setItem('neba_pending_signup', JSON.stringify({ bizName, phone, username, vatRegistered, businessType, vatDetails })); } catch (e) {}
         }
@@ -4206,7 +4179,9 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             await onLoginSuccess(data.user, false);
         }
 
-        async function handleSignOut() {
+        async function handleSignOut(deliberate) {
+            // Only when the person chose to sign out: nothing they were in the middle of comes back at the next sign-in.
+            if (deliberate === true) { try { mlyResumeForget(); } catch (e) { } }
             sessionStorage.removeItem('neba_owner_session_backup');
             sessionStorage.removeItem('neba_impersonation_target_name');
             // Every write in the app is queued onto writeChain and often not
@@ -4290,8 +4265,8 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             if (mlyEarlyBooted) return; // the app already opened from the saved copy while the server was slow
 
             // ANY failed lookup (not only a lost connection) must never be mistaken for
-            // "this person has no shop", otherwise a working account is sent to the
-            // "One last step" setup screen.
+            // "this person has no shop", otherwise a working account is sent back to
+            // the signup pages.
             if (memberErr) {
                 if (await bootFromLocalCopy()) return;
                 alert('Could not reach your shop account — check your connection and try again.');
@@ -4487,14 +4462,9 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             currentBranchId = rememberedStillValid ? rememberedBranchId : (accessible.length ? accessible[0].id : null);
             writeBranchId = (currentBranchId === 'all') ? (accessible.length ? accessible[0].id : null) : currentBranchId;
 
-            const { count } = await supabaseClient.from('inventory_items').select('id', { count: 'exact', head: true }).eq('tenant_id', currentTenantId);
             if (mlyEarlyBooted) return;
-            const hasAnyData = (count || 0) > 0;
-
-            if (isNewSignup && !hasAnyData) {
-                document.getElementById('onboarding-overlay').style.display = 'flex';
-                return;
-            }
+            // A brand-new shop goes straight into the app after signup (no extra setup page);
+            // products are added from the Inventory page.
             await bootApp();
         }
 
@@ -4514,34 +4484,12 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             await onLoginSuccess(user, true);
         }
 
-        async function finishOnboarding(doImport) {
-            if (doImport) {
-                const fileInput = document.getElementById('onboarding-file');
-                const file = fileInput.files[0];
-                if (!file) { alert('Please choose a file first, or click "Start Fresh" instead.'); return; }
-                document.getElementById('onboarding-loading').style.display = 'block';
-                try {
-                    const text = await file.text();
-                    const imported = await readBackupFileText(text);
-                    applyImportedState(imported);
-                    await bulkReplaceAllData();
-                } catch (err) {
-                    document.getElementById('onboarding-loading').style.display = 'none';
-                    alert(err && err.message && backupIsEncrypted(await file.text().catch(() => '')) ? err.message : 'That file could not be read. Please check it is a valid MELEYA backup file.');
-                    return;
-                }
-                document.getElementById('onboarding-loading').style.display = 'none';
-            }
-            document.getElementById('onboarding-overlay').style.display = 'none';
-            await bootApp();
-        }
-
         // ---------------------------------------------------------------
         // INITIAL INVENTORY SETUP (opening stock for a brand-new shop)
         // ---------------------------------------------------------------
         let initialInventoryCart = [];
         // The opening-stock list is kept on this device while it is being typed, so a refresh or a closed app
-        // never loses it. The next time the app opens (and the shop still has no products) the person is asked.
+        // never loses it. The next time the app opens (and the shop still has no products) it is put straight back.
         let initResume = false, initStockChecked = false;
         const initKey = () => 'meleya_initstock_' + currentTenantId + '_' + (currentUsername || 'user');
         function initCartSave() {
@@ -4554,7 +4502,6 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 if (!raw || !Array.isArray(raw.items) || !raw.items.length) return;
                 if (state.inventory.length) { localStorage.removeItem(initKey()); return; } // the shop already has products: this list is out of date
                 if (initialInventoryCart.length) return;
-                if (!confirm('Unfinished work: you have an opening stock list with ' + raw.items.length + ' item' + (raw.items.length === 1 ? '' : 's') + ' saved on this device.\n\nOK = continue it.\nCancel = ask me again next time.')) return;
                 initialInventoryCart = raw.items; initResume = true;
                 applyInitialInventoryFieldVisibility(); renderInitialInventoryCartTable(); syncCategoriesDatalist();
                 document.getElementById('initial-inventory-overlay').style.display = 'flex';
@@ -4587,13 +4534,6 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             cols = cols.concat(isRental ? ['Daily Rate', 'Weekly Rate', 'Monthly Rate'] : ['Selling Price']);
             cols.push('Line Total');
             head.innerHTML = `<tr>${cols.map(c => `<th${c !== 'Category' && c !== 'Product Name' ? ' class="num"' : ''}>${c}</th>`).join('')}<th style="text-align:center;">Remove</th></tr>`;
-        }
-
-        function showInitialInventorySetup() {
-            // New shops go straight into the app; products are added from the Inventory page.
-            document.getElementById('onboarding-overlay').style.display = 'none';
-            initialInventoryCart = [];
-            return bootApp();
         }
 
         function addToInitialInventoryCart() {
@@ -4990,7 +4930,8 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             try { startLiveSync(loadedFromCache); } catch (e) { console.warn('Live sync not started:', e); }
             if (window.scnLoginAlert) window.scnLoginAlert(); // owners: tell them about VAT sales that have not been printed
             try { if (window.mlyAnnounce) window.mlyAnnounce(); } catch (e) { console.warn(e); } // new-feature / announcement popup (content comes from the announcements table)
-            try { updateDraftsBadge(); checkUnfinishedBaskets(); checkUnfinishedOpeningStock(); refreshInstallUI(); } catch (e) { console.warn(e); }
+            try { updateDraftsBadge(); refreshInstallUI(); } catch (e) { console.warn(e); }
+            try { mlyResumeWhereLeftOff(); } catch (e) { console.warn('Resume failed:', e); } // back to the page, typed fields, pop-ups and baskets the person left
         }
 
         // ---------------------------------------------------------------
@@ -5928,7 +5869,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             const inSidebar = (t) => !!(t && t.closest && t.closest('#sidebar'));
             const isHamburger = (t) => !!(t && t.closest && t.closest('.header-left .menu-toggle-btn:not(.mly-back-btn)')); // it toggles the sidebar by itself
             const BLOCK = '.mly-overlay, .mly-ann-ov, .modal-overlay.active, [id$="-modal"].active, #bulk-overlay, #neba-tour-tip, .notif-panel.active, .notif-panel.show, .notif-panel.open';
-            const FULLSCREEN_IDS = ['auth-overlay', 'reset-password-overlay', 'onboarding-overlay', 'initial-inventory-overlay', 'inactive-overlay'];
+            const FULLSCREEN_IDS = ['auth-overlay', 'reset-password-overlay', 'initial-inventory-overlay', 'inactive-overlay'];
 
             // Is this element (or a parent) something that scrolls sideways / is a field? Then a swipe on it is not a page swipe.
             function swipeBlockedTarget(el) {
@@ -11188,7 +11129,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
         // ---------------------------------------------------------------
         // UNFINISHED BASKET: kept on this device, so a refresh or a closed app never loses it.
-        // At the next sign-in the person is asked whether to continue. Stored per business + user.
+        // At the next sign-in it is put straight back, no question asked. Stored per business + user.
         // ---------------------------------------------------------------
         let basketReady = false;               // nothing is written until the sign-in check has run
         let basketChecked = false;
@@ -11207,56 +11148,333 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             if (e.target && e.target.id === 'cart-sale-customer') basketAutosave('sale');
         });
 
+        // Puts any saved basket straight back (no question asked). Returns which kinds were restored.
         function checkUnfinishedBaskets() {
-            if (basketChecked) return; basketChecked = true;
+            const restored = [];
+            if (basketChecked) return restored; basketChecked = true;
             const all = basketRead();
-            const kinds = ['purchase', 'sale'].filter(k => all[k] && Array.isArray(all[k].items) && all[k].items.length && draftKindAllowed(k) && !draftCart(k).length);
-            kinds.forEach(k => basketPending.add(k));
+            let dropped = 0, changed = false;
+            ['purchase', 'sale'].forEach(kind => {
+                const rec = all[kind];
+                if (!rec || !Array.isArray(rec.items) || !rec.items.length) return;
+                if (!draftKindAllowed(kind) || draftCart(kind).length) return;
+                const items = rec.items.filter(c => state.inventory.find(i => `[${i.category}] ${i.desc}` === c.comp));
+                dropped += rec.items.length - items.length;
+                if (!items.length) { delete all[kind]; changed = true; return; }
+                if (kind === 'purchase') {
+                    togglePurchaseCartMode(true); purchaseCart = items;
+                    document.getElementById('cart-pur-supplier').value = rec.party || '';
+                    renderPurchaseCartTable();
+                } else {
+                    toggleSaleCartMode(true); saleCart = items;
+                    document.getElementById('cart-sale-customer').value = rec.party || '';
+                    renderSaleCartTable();
+                }
+                restored.push(kind);
+            });
+            if (changed) basketWrite(all);
             basketReady = true;
-            if (!kinds.length) return;
-            let m = document.getElementById('basket-resume-modal');
-            if (!m) {
-                m = document.createElement('div'); m.id = 'basket-resume-modal';
-                m.style.cssText = 'position:fixed; inset:0; z-index:10060; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; padding:16px;';
-                document.body.appendChild(m);
+            restored.forEach(k => { try { basketAutosave(k); } catch (e) { } });
+            if (dropped) { try { showToast(`${draftPlural(dropped)} no longer in the catalog ${dropped === 1 ? 'was' : 'were'} left out of the basket.`, 'info'); } catch (e) { } }
+            return restored;
+        }
+
+        // ---------------------------------------------------------------
+        // RESUME WHERE YOU LEFT OFF.
+        // If the app is closed, refreshed or killed by the phone while someone is in the middle of something, the next
+        // time it opens it puts them straight back: same page, same typed-in fields, same open pop-up, same basket,
+        // same rows in "Add in bulk". No question is asked. Only a deliberate Sign Out wipes it.
+        //
+        // How it works (all on this device, per shop + user):
+        //  - Every ~1.5 seconds (and the moment the app goes to the background) a small snapshot is saved:
+        //    which page is open, what the person TYPED OR PICKED in the forms, which pop-up is open, the bulk rows.
+        //  - Only fields the person changed themselves are saved. A field the app fills in or clears by itself
+        //    (for example after a sale is completed) is not, so finished work never comes back.
+        //  - Passwords and file pickers are never saved.
+        //  - Baskets (purchase / sale) keep using their own saved copy; they are put back by checkUnfinishedBaskets().
+        // ---------------------------------------------------------------
+        const mlyResume = (function () {
+            const SKIP_TYPES = { password: 1, file: 1, hidden: 1, button: 1, submit: 1, reset: 1, image: 1 };
+            const SKIP_ID = /(^|[-_])(pass(word)?|pin|otp|token|secret)([-_]|$)/i;
+            const SKIP_ZONE = '#auth-overlay, #reset-password-overlay, #inactive-overlay, #bulk-overlay, #tpl-guide';
+            const MODAL_IDS = ['product-modal', 'add-member-modal', 'add-role-modal', 'add-branch-modal', 'fund-transfer-modal', 'record-payment-modal'];
+            const DEFAULT_OPENERS = { 'product-modal': 'openProductModal()', 'add-member-modal': 'openAddMemberModal()', 'add-role-modal': 'openAddRoleModal()', 'add-branch-modal': 'openAddBranchModal()', 'fund-transfer-modal': 'openFundTransferModal()' };
+            const OPENER_OK = /^(?:close|open|show|edit|view|initiate)[A-Za-z0-9_]*$/;
+            const OPENER_BAD = /delete|remove|reset|logout|signout|loginas|complete|submit|save|print|pay\b/i;
+            const BULK_COLS = ['bm-c', 'bm-d', 'bm-q', 'bm-p', 'bm-r', 'bm-s'];
+
+            let started = false, armed = false, restoring = false, listening = false;
+            let lastSig = '', timer = null, lastClick = null;
+            const touched = new Set(), seen = Object.create(null), editedDuringRestore = new Set(), openerOf = {};
+
+            const key = () => 'meleya_resume_v1_' + currentTenantId + '_' + (currentUsername || 'user');
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+            const activeViewId = () => ((document.querySelector('.view-panel.active') || {}).id || '').replace(/^view-/, '');
+            const isBox = el => el.type === 'checkbox' || el.type === 'radio';
+            const val = el => isBox(el) ? (el.checked ? '1' : '0') : (el.multiple ? Array.from(el.selectedOptions).map(o => o.value).join('\u0001') : el.value);
+            const modalOpen = el => !!el && getComputedStyle(el).display !== 'none';
+            const fire = (el, types) => types.forEach(t => { try { el.dispatchEvent(new Event(t, { bubbles: true })); } catch (e) { } });
+
+            function trackable(el) {
+                if (!el || !el.id || SKIP_TYPES[el.type] || SKIP_ID.test(el.id)) return false;
+                if (el.closest(SKIP_ZONE)) return false;
+                if (isBox(el) && el.closest('#view-settings')) return false; // these save the moment they are clicked
+                return true;
             }
-            const when = iso => { try { return new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return ''; } };
-            m.innerHTML = `<div style="background:var(--surface,#fff); color:var(--text); border-radius:10px; max-width:460px; width:100%; padding:18px; box-shadow:var(--shadow-lg);">
-                <h3 style="margin:0 0 10px;">Unfinished work</h3>
-                ${kinds.map(k => { const r = all[k], w = draftWord(k); return `<div data-basket-row="${k}" style="border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:10px;">
-                    <div style="font-size:14px; margin-bottom:10px;">You have an unfinished <b>${k === 'purchase' ? 'purchase' : 'sale'}</b> basket: <b>${draftPlural(r.items.length)}</b>${r.party ? ` for <b>${escHtml(r.party)}</b>` : ''} <span style="color:var(--text-light);">(${escHtml(when(r.savedAt))})</span>. Would you like to continue?</div>
-                    <div style="display:flex; gap:8px; justify-content:flex-end;"><button type="button" class="btn btn-ghost" onclick="basketDiscard('${k}')">Discard</button><button type="button" class="btn" onclick="basketResume('${k}')">Continue</button></div></div>`; }).join('')}
-            </div>`;
-            m.style.display = 'flex';
-        }
-        function basketRowDone(kind) {
-            basketPending.delete(kind);
-            const m = document.getElementById('basket-resume-modal'); if (!m) return;
-            const row = m.querySelector(`[data-basket-row="${kind}"]`); if (row) row.remove();
-            if (!m.querySelector('[data-basket-row]')) m.style.display = 'none';
-        }
-        function basketDiscard(kind) {
-            const all = basketRead(); delete all[kind]; basketWrite(all);
-            basketRowDone(kind);
-        }
-        function basketResume(kind) {
-            const rec = basketRead()[kind]; if (!rec) return basketRowDone(kind);
-            const items = rec.items.filter(c => state.inventory.find(i => `[${i.category}] ${i.desc}` === c.comp));
-            const dropped = rec.items.length - items.length;
-            basketRowDone(kind);
-            if (dropped) alert(`${draftPlural(dropped)} no longer in the catalog ${dropped === 1 ? 'was' : 'were'} left out of the basket.`);
-            if (!items.length) { basketAutosave(kind); return; }
-            switchView(kind === 'purchase' ? 'purchase' : 'sales');
-            if (kind === 'purchase') {
-                togglePurchaseCartMode(true); purchaseCart = items;
-                document.getElementById('cart-pur-supplier').value = rec.party || '';
-                renderPurchaseCartTable();
-            } else {
-                toggleSaleCartMode(true); saleCart = items;
-                document.getElementById('cart-sale-customer').value = rec.party || '';
-                renderSaleCartTable();
+            function fieldEls() { return Array.from(document.querySelectorAll('input[id], select[id], textarea[id]')).filter(trackable); }
+
+            // Looks at every field: a change that came from the person marks the field as theirs; a change the app made by itself un-marks it.
+            function reconcile(userDriven) {
+                fieldEls().forEach(el => {
+                    const v = val(el);
+                    if (!(el.id in seen)) { seen[el.id] = v; return; }
+                    if (seen[el.id] !== v) { seen[el.id] = v; if (userDriven) touched.add(el.id); else touched.delete(el.id); }
+                });
             }
-        }
+
+            // ---- reading a pop-up's "how was I opened" recipe: only plain open/show/edit/view calls with plain values ----
+            const unesc = s => s.replace(/\\(.)/g, '$1');
+            function parseCall(stmt) {
+                const m = /^([A-Za-z_$][\w$]*)\(([\s\S]*)\)$/.exec(String(stmt).trim()); if (!m) return null;
+                const name = m[1]; if (!OPENER_OK.test(name) || OPENER_BAD.test(name)) return null;
+                const rest = m[2].trim(), args = [];
+                if (rest) {
+                    const tok = /\s*(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"|(-?\d+(?:\.\d+)?)|(true|false|null))\s*(,|$)/y;
+                    let pos = 0;
+                    while (pos < rest.length) {
+                        tok.lastIndex = pos; const t = tok.exec(rest); if (!t) return null;
+                        args.push(t[1] !== undefined ? unesc(t[1]) : t[2] !== undefined ? unesc(t[2]) : t[3] !== undefined ? Number(t[3]) : t[4] === 'true' ? true : t[4] === 'false' ? false : null);
+                        pos = tok.lastIndex; if (t[5] === '') break;
+                    }
+                    if (pos < rest.length) return null;
+                }
+                return { name, args };
+            }
+            function parseOpener(code) {
+                if (!code) return null; const calls = [];
+                for (const part of String(code).split(';')) { if (!part.trim()) continue; const c = parseCall(part); if (!c) return null; calls.push(c); }
+                return calls.some(c => !/^close/.test(c.name)) ? calls : null;
+            }
+            function cleanCalls(calls) { // stored recipes are re-checked before use
+                if (!Array.isArray(calls) || !calls.length || calls.length > 4) return null;
+                for (const c of calls) {
+                    if (!c || typeof c.name !== 'string' || !OPENER_OK.test(c.name) || OPENER_BAD.test(c.name) || !Array.isArray(c.args)) return null;
+                    if (c.args.some(a => a !== null && ['string', 'number', 'boolean'].indexOf(typeof a) < 0)) return null;
+                }
+                return calls;
+            }
+            function runCalls(calls) {
+                for (const c of calls) {
+                    const f = window[c.name];
+                    if (typeof f !== 'function') { if (/^close/.test(c.name)) continue; return false; } // a missing "close" step is harmless; a missing "open" step is not
+                    f.apply(null, c.args);
+                }
+                return true;
+            }
+
+            function watchModals() {
+                MODAL_IDS.forEach(id => {
+                    const el = document.getElementById(id); if (!el || el.__mlyWatch) return; el.__mlyWatch = true;
+                    let was = modalOpen(el);
+                    new MutationObserver(() => {
+                        const now = modalOpen(el); if (now === was) return; was = now;
+                        if (now) openerOf[id] = (lastClick && Date.now() - lastClick.at < 2000) ? parseOpener(lastClick.code) : null; else delete openerOf[id];
+                        schedule();
+                    }).observe(el, { attributes: true, attributeFilter: ['class', 'style'] });
+                });
+            }
+
+            function captureBulk() {
+                const o = document.getElementById('bulk-overlay'); if (!o) return null;
+                const rows = Array.from(o.querySelectorAll('#bulk-man-body tr')).slice(0, 500).map(tr => BULK_COLS.map(c => { const i = tr.querySelector('.' + c); return i ? i.value : ''; }));
+                return { rows };
+            }
+
+            function snapshot() {
+                reconcile(false);
+                const fields = {};
+                fieldEls().forEach(el => {
+                    if (!touched.has(el.id)) return;
+                    const v = val(el);
+                    if (isBox(el) || v !== '') fields[el.id] = v;
+                });
+                const modals = [];
+                MODAL_IDS.forEach(id => {
+                    const el = document.getElementById(id); if (!modalOpen(el)) return;
+                    const m = { id };
+                    if (id === 'product-modal') {
+                        const ei = document.getElementById('edit-index'), idx = ei ? ei.value : '';
+                        if (idx !== '') { const it = state.inventory[Number(idx)]; if (!it) return; m.edit = it.category + '|' + it.desc; } // who is being edited, so it is never put onto the wrong product
+                    } else if (openerOf[id]) m.open = openerOf[id];
+                    modals.push(m);
+                });
+                const vis = id => { const e = document.getElementById(id); return !!e && e.style.display === 'block'; };
+                const bulk = captureBulk();
+                const view = activeViewId(), ca = document.querySelector('.content-area');
+                const snap = {
+                    v: 1, at: new Date().toISOString(), day: today(), view, fields, modals, bulk,
+                    cartMode: { purchase: vis('purchase-cart-card'), sale: vis('sale-cart-card') },
+                    scroll: ca ? Math.round(ca.scrollTop / 50) * 50 : 0
+                };
+                const nothing = (!view || view === 'dashboard') && !Object.keys(fields).length && !modals.length && !bulk && !snap.cartMode.purchase && !snap.cartMode.sale;
+                return nothing ? null : snap;
+            }
+
+            function save(force) {
+                if (!armed || restoring || window.__mlySigningOut) return;
+                try {
+                    const s = snapshot();
+                    if (!s) { if (lastSig !== '') { localStorage.removeItem(key()); lastSig = ''; } return; }
+                    const sig = JSON.stringify(Object.assign({}, s, { at: 0 }));
+                    if (sig === lastSig && !force) return;
+                    lastSig = sig; localStorage.setItem(key(), JSON.stringify(s));
+                } catch (e) { }
+            }
+            function schedule() { if (timer) return; timer = setTimeout(() => { timer = null; save(); }, 500); }
+
+            function listen() {
+                if (listening) return; listening = true;
+                const onUser = e => {
+                    if (!e.isTrusted) return;
+                    const el = e.target;
+                    if (el && el.id) {
+                        if (restoring) editedDuringRestore.add(el.id);
+                        if (trackable(el)) { touched.add(el.id); seen[el.id] = val(el); }
+                    }
+                    setTimeout(() => reconcile(true), 0); // anything the app filled in as a result of this action counts as the person's too
+                    schedule();
+                };
+                document.addEventListener('input', onUser, true);
+                document.addEventListener('change', onUser, true);
+                document.addEventListener('click', e => {
+                    const t = e.target && e.target.closest ? e.target.closest('[onclick]') : null;
+                    if (t) lastClick = { code: t.getAttribute('onclick'), at: Date.now() };
+                    schedule();
+                }, true);
+                document.addEventListener('visibilitychange', () => { if (document.hidden) save(true); });
+                window.addEventListener('pagehide', () => save(true));
+                setInterval(() => { if (!document.hidden) save(); }, 1500);
+            }
+
+            async function waitFor(cond, ms) {
+                const end = Date.now() + ms;
+                while (Date.now() < end) { try { if (cond()) return true; } catch (e) { } await sleep(150); }
+                try { return !!cond(); } catch (e) { return false; }
+            }
+
+            async function reopen(m) {
+                const el = document.getElementById(m.id); if (!el || modalOpen(el)) return;
+                if (m.id === 'add-member-modal') await waitFor(() => teamRolesCache.length > 0, 8000);
+                if (m.id === 'add-branch-modal') await waitFor(() => teamBranchesCache.length > 0, 8000);
+                if (m.id === 'product-modal') {
+                    if (typeof m.edit === 'string') {
+                        const idx = state.inventory.findIndex(i => (i.category + '|' + i.desc) === m.edit);
+                        if (idx >= 0) initiateEditProductDefinition(idx);
+                    } else openProductModal();
+                    return;
+                }
+                const calls = cleanCalls(m.open) || parseOpener(DEFAULT_OPENERS[m.id]);
+                if (calls) runCalls(calls);
+            }
+
+            function reopenBulk(b) {
+                if (document.getElementById('bulk-overlay')) return;
+                openBulkImport();
+                const body = document.getElementById('bulk-man-body'); if (!body) return;
+                const rows = Array.isArray(b.rows) ? b.rows.slice(0, 500) : [];
+                if (rows.length) {
+                    body.innerHTML = '';
+                    rows.forEach(r => { bulkManAdd(); const tr = body.lastElementChild; BULK_COLS.forEach((c, i) => { const inp = tr.querySelector('.' + c); if (inp) inp.value = String((r && r[i]) || ''); }); });
+                }
+                try { bulkPreview(); } catch (e) { }
+            }
+
+            function setField(el, v, doFire) {
+                if (isBox(el)) { const want = v === '1'; if (el.checked !== want) { el.checked = want; if (doFire) fire(el, ['change']); } return; }
+                if (el.tagName === 'SELECT') {
+                    if (el.multiple) return;
+                    if (el.value !== v) { el.value = v; if (el.value !== v) return false; if (doFire) fire(el, ['change']); }
+                    return;
+                }
+                if (el.readOnly || el.disabled) return;
+                if (el.value !== v) { el.value = v; if (doFire) fire(el, ['input', 'change']); }
+            }
+
+            function fieldPass(snap) {
+                const allowed = new Set(fieldEls().map(e => e.id));
+                let missing = 0;
+                Object.keys(snap.fields || {}).forEach(id => {
+                    if (editedDuringRestore.has(id) || !allowed.has(id)) return;
+                    const el = document.getElementById(id), v = snap.fields[id];
+                    if (typeof v !== 'string') return;
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(v) && (el.type === 'date' || /date/i.test(id)) && v === snap.day && snap.day !== today()) return; // yesterday's "today" is not a choice worth keeping
+                    if (setField(el, v, true) === false) missing++;
+                    touched.add(id); seen[id] = val(el);
+                });
+                try { if (typeof syncAllEthiopianDatePickers === 'function') syncAllEthiopianDatePickers(); } catch (e) { }
+                return missing;
+            }
+
+            async function apply(snap) {
+                restoring = true;
+                try {
+                    // 1. the page
+                    const view = snap.view;
+                    let landed = true;
+                    if (view && view !== 'dashboard' && view !== activeViewId()) {
+                        const nav = document.getElementById('nav-' + view);
+                        if (document.getElementById('view-' + view) && !(nav && nav.style.display === 'none')) { try { switchView(view); } catch (e) { console.warn(e); } }
+                        landed = activeViewId() === view;
+                    }
+                    if (!landed) return;
+                    // 2. basket / cart screens that were showing (even with nothing in them yet)
+                    const cm = snap.cartMode || {};
+                    const vis = id => { const e = document.getElementById(id); return !!e && e.style.display === 'block'; };
+                    try { if (cm.purchase && !vis('purchase-cart-card') && draftKindAllowed('purchase')) togglePurchaseCartMode(true); } catch (e) { }
+                    try { if (cm.sale && !vis('sale-cart-card') && draftKindAllowed('sale')) toggleSaleCartMode(true); } catch (e) { }
+                    // 3. pop-ups that were open
+                    for (const m of (snap.modals || [])) { try { await reopen(m); } catch (e) { console.warn('Could not reopen', m && m.id, e); } }
+                    if (snap.bulk) { try { reopenBulk(snap.bulk); } catch (e) { console.warn(e); } }
+                    // 4. what was typed (twice more shortly after, in case a page fills its own fields in late)
+                    fieldPass(snap);
+                    const ca = document.querySelector('.content-area');
+                    const scrollBack = () => { if (ca && snap.scroll > 0 && activeViewId() === (view || 'dashboard')) ca.scrollTop = snap.scroll; };
+                    requestAnimationFrame(scrollBack);
+                    await sleep(700); if (activeViewId() === (view || 'dashboard')) { fieldPass(snap); scrollBack(); }
+                    await sleep(1300); if (activeViewId() === (view || 'dashboard')) fieldPass(snap);
+                } finally {
+                    editedDuringRestore.clear();
+                    restoring = false;
+                }
+            }
+
+            async function start() {
+                if (started) return; started = true;
+                // A NEBA admin looking at a shop (support session) must never replay, or overwrite, the owner's own place.
+                try { if (sessionStorage.getItem('neba_admin_impersonation_active')) return; } catch (e) { }
+                let snap = null;
+                try { snap = JSON.parse(localStorage.getItem(key()) || 'null'); } catch (e) { }
+                if (snap && snap.v !== 1) snap = null;
+                watchModals(); listen();
+                try { checkUnfinishedOpeningStock(); } catch (e) { console.warn(e); }
+                let kinds = [];
+                try { kinds = checkUnfinishedBaskets() || []; } catch (e) { console.warn(e); }
+                if (snap) { try { await apply(snap); } catch (e) { console.warn('Resume failed', e); } }
+                else if (kinds.length) { try { switchView(kinds[0] === 'purchase' ? 'purchase' : 'sales'); } catch (e) { } }
+                reconcile(false); armed = true; save(true);
+            }
+
+            // A deliberate Sign Out: nothing from this session comes back.
+            function forget() {
+                armed = false;
+                try { localStorage.removeItem(key()); localStorage.removeItem(basketKey()); localStorage.removeItem(initKey()); } catch (e) { }
+            }
+
+            return { start, forget, _t: { parseOpener, cleanCalls, snapshot, apply, reconcile, touched, seen } };
+        })();
+        function mlyResumeWhereLeftOff() { return mlyResume.start().catch(e => console.warn('Resume failed:', e)); }
+        function mlyResumeForget() { return mlyResume.forget(); }
 
         // ---------------------------------------------------------------
         // INSTALL AS AN APP (PWA). Browsers never allow a site to install itself silently, so the app offers a
@@ -13502,14 +13720,6 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 signup_next: "Phone, email and password done? Tap \"Next\" for the last page.",
                 create_account: "Everything filled in? Tap \"Create Account\" to continue.",
 
-                bizsetup_name: "Type the name of your shop.",
-                bizsetup_phone: "Type a phone number for your shop.",
-                bizsetup_username: "Choose a username.",
-                bizsetup_finish: "Tap \"Finish Setup\" to continue.",
-
-                onboarding_file: "If you already have a MELEYA backup file, choose it here.",
-                onboarding_start_fresh: "Starting a brand new shop with no backup? Tap \"Start Fresh\" here.",
-
                 invsetup_category: "Type a category for this item, like \"Cables\".",
                 invsetup_name: "Type the name of this item.",
                 invsetup_qty: "Type how many of this item you have right now.",
@@ -13643,14 +13853,6 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 signup_next: "ስልክ፣ ኢሜይል እና የይለፍ ቃል ጨርሰዋል? ለመጨረሻው ገጽ \"Next\" ይንኩ።",
                 create_account: "ሁሉንም ሞልተዋል? ለመቀጠል \"Create Account\" ይንኩ።",
 
-                bizsetup_name: "የሱቅዎን ስም ይጻፉ።",
-                bizsetup_phone: "የሱቅዎን ስልክ ቁጥር ይጻፉ።",
-                bizsetup_username: "የተጠቃሚ ስም ይምረጡ።",
-                bizsetup_finish: "ለመቀጠል \"Finish Setup\" ይንኩ።",
-
-                onboarding_file: "የMELEYA ባክአፕ ፋይል ካለዎት እዚህ ይምረጡት።",
-                onboarding_start_fresh: "ያለ ባክአፕ አዲስ ሱቅ እየጀመሩ ነው? እዚህ \"Start Fresh\" ይንኩ።",
-
                 invsetup_category: "ለዚህ እቃ ምድብ ይጻፉ፣ ለምሳሌ \"ኬብሎች\"።",
                 invsetup_name: "የዚህን እቃ ስም ይጻፉ።",
                 invsetup_qty: "ከዚህ እቃ ስንት እንዳለዎት ይጻፉ።",
@@ -13779,12 +13981,6 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 { id: 'username', sel: '#auth-username', key: 'username' },
                 { id: 'biz-type', sel: '#auth-business-type', key: 'biz_type' },
                 { id: 'create-account', sel: '#auth-signup-view button[onclick*="handleSignUp"]', key: 'create_account' }
-            ],
-            bizsetup: [
-            ],
-            onboarding: [
-                { id: 'onboarding-file', sel: '#onboarding-file', key: 'onboarding_file' },
-                { id: 'onboarding-start-fresh', sel: '#onboarding-overlay button[onclick*="showInitialInventorySetup"]', key: 'onboarding_start_fresh' }
             ],
             invsetup: [
                 { id: 'init-category', sel: '#init-inv-category', key: 'invsetup_category' },
@@ -13929,7 +14125,6 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
         function computePhase() {
             if (overlayShown('auth-overlay')) return 'auth';
-            if (overlayShown('onboarding-overlay')) return 'onboarding';
             if (overlayShown('initial-inventory-overlay')) return 'invsetup';
             if (overlayShown('reset-password-overlay')) return null; // nothing to teach on this screen
             return 'app';
