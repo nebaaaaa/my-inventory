@@ -90,6 +90,8 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         html.mly-resume #mly-splash { display:flex; }
         #mly-splash i { width:26px; height:26px; border-radius:50%; border:3px solid #e6dfcf; border-top-color:#b8800f; animation:mlyspin .8s linear infinite; }
         @keyframes mlyspin { to { transform:rotate(360deg); } }
+        /* Existing users never see the demo-shop button */
+        html.mly-existing-user #try-demo-btn { display: none !important; }
     </style>
     <script>
     // ---------- Refresh: pull down to refresh (touch screens) + Refresh button (installed app only) ----------
@@ -189,7 +191,8 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
     <script>
         // Runs before anything is drawn: is this a returning person with a saved login and a saved copy of their shop?
         try { var mlyHas = false; for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (/^sb-.+-auth-token$/.test(k) && localStorage.getItem(k)) { mlyHas = true; break; } }
-            if (mlyHas && localStorage.getItem('neba_erp_last_identity')) document.documentElement.classList.add('mly-resume'); } catch (e) { }
+            if (mlyHas && localStorage.getItem('neba_erp_last_identity')) document.documentElement.classList.add('mly-resume');
+            if (mlyHas || localStorage.getItem('neba_erp_last_identity')) document.documentElement.classList.add('mly-existing-user'); } catch (e) { }
     </script>
     <style>
         :root {
@@ -16535,7 +16538,7 @@ function renderAll() {
 
 /* ---------- start / stop the demo ---------- */
 window.startMeleyaDemo = function () {
-  if (T.on) return; T.on = true; window.MLY_DEMO = true;
+  if (T.on || document.documentElement.classList.contains('mly-existing-user')) return; T.on = true; window.MLY_DEMO = true;
   window.alert = toast; document.body.classList.add('dm-demo');
   queueWrite = () => Promise.resolve();            // NOTHING is ever saved or sent
   cacheStateLocally = () => { };                   // no local copy either
@@ -16558,6 +16561,7 @@ window.startMeleyaDemo = function () {
 /* New visitors land on the demo shop once. Anyone who has a saved login, has used the app here before, or has already seen the demo goes straight to sign-in as usual. */
 window.mlyMaybeAutoDemo = function () {
   try {
+    if (document.documentElement.classList.contains('mly-existing-user')) return;
     if (localStorage.getItem('neba_seen_demo') || localStorage.getItem('neba_erp_last_identity')) return;
     if (sessionStorage.getItem('mly_demo_signup')) return;   // they just tapped "Create my real account"
     localStorage.setItem('neba_seen_demo', '1');
