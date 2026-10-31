@@ -8,7 +8,7 @@
 // "a new version is ready".
 // =====================================================================
 
-const CACHE_NAME = 'meleya-shell-v33';
+const CACHE_NAME = 'meleya-shell-v43';
 
 // MUST all download successfully, or this version does NOT install and the
 // phone keeps running the previous working version (retrying later).
@@ -43,7 +43,9 @@ self.addEventListener('install', (event) => {
     const cache = await caches.open(CACHE_NAME);
 
     // index.html is big: download it ONCE and store it under both addresses.
-    const page = await fetch(new Request('./index.html', { cache: 'reload' }));
+    // 'no-cache' = ask the server "changed?" and reuse the copy the browser just downloaded if not,
+    // so a first visit on a slow connection does not have to download the big page twice.
+    const page = await fetch(new Request('./index.html', { cache: 'no-cache' }));
     if (!page.ok) throw new Error('index.html not available');
     await cache.put('./index.html', page.clone());
     await cache.put('./', page);
@@ -81,7 +83,15 @@ self.addEventListener('fetch', (event) => {
       caches.match(req, { ignoreSearch: true })
         .then((hit) => hit || caches.match('./index.html'))
         .then((hit) => hit || caches.match('./'))
-        .then((hit) => hit || fetch(req)) // very first visit ever: nothing saved yet
+        .then((hit) => hit || fetch(req).then((response) => {
+          // Nothing saved yet (first visit, or an install that has not finished): keep this copy
+          // so the next opening is instant even on a very weak connection.
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            event.waitUntil(caches.open(CACHE_NAME).then((c) => c.put('./index.html', clone)).catch(() => { }));
+          }
+          return response;
+        }))
     );
     return;
   }

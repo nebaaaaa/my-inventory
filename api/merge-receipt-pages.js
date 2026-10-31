@@ -220,7 +220,8 @@ function strongLink(a, b) {
 }
 
 function itemsSignature(d) {
-    return d.items.map((it) => `${String(it.description || '').trim().toLowerCase()}|${num(it.quantity)}|${num(it.amount)}`).join(';');
+    // description left out on purpose: two photos of the same page often read a blurry name differently
+    return d.items.map((it) => `${num(it.quantity)}|${num(it.amount)}`).join(';');
 }
 
 // the group's combined lines and printed totals, used to test the arithmetic
@@ -338,6 +339,7 @@ export function mergeGroup(group) {
         seller_name: pick('seller_name'), seller_tin: pick('seller_tin'), buyer_tin: pick('buyer_tin'),
         vat_reg_no: pick('vat_reg_no'), receipt_no: pick('receipt_no'), fs_no: pick('fs_no'), mrc: pick('mrc'),
         voucher_no: pick('voucher_no'), doc_stamp: pick('doc_stamp'),
+        supplier_name: pick('supplier_name'), supplier_vat_no: pick('supplier_vat_no'),
         date_calendar: pick('date_calendar') || 'GC',
         date_year: null, date_month: null, date_day: null, date_raw: null,
         date_ambiguous: false, date_alt_day: null, date_alt_month: null,
@@ -421,6 +423,9 @@ export function mergeGroup(group) {
     const declared = Math.max(0, ...members.map((m) => m.pageCount || 0));
     if (declared > members.length) warns.push('This document has ' + declared + ' pages but only ' + members.length + ' photo' + (members.length > 1 ? 's were' : ' was') + ' found. Scan the missing page' + (declared - members.length > 1 ? 's' : '') + ' too.');
 
+    // VAT withholding receipt (layout W): the withheld VAT is half of 15% (7.5%) of the amount paid
+    if (doc.layout === 'W' && doc.before_vat !== null && doc.vat !== null && Math.abs(doc.vat - doc.before_vat * VAT_RATE / 2) > 1.5) warns.push('The VAT withheld (' + fmt(doc.vat) + ') is not 7.5% (half of the printed 15%) of the amount paid (' + fmt(doc.before_vat) + ' x 7.5% = ' + fmt(doc.before_vat * VAT_RATE / 2) + '). The amount paid or the withheld amount may be misread - check both against the paper.');
+
     const nv = items.filter((it) => !it.taxable);
     if (ev.status === 'solved') infos.push(nv.length + ' line' + (nv.length > 1 ? 's' : '') + ' worth ' + fmt(doc.non_vat_total) + ' have no VAT (worked out from the VAT amount). They are kept separate from the taxable lines.');
     if (ev.status === 'approx') warns.push(nv.length + ' non-VAT line' + (nv.length > 1 ? 's' : '') + ' found (' + fmt(doc.non_vat_total) + '), but with a small rounding difference. Check the Non-VAT ticks.');
@@ -447,6 +452,10 @@ export function mergeGroup(group) {
         if (f === 'Total') return doc.total === null;
         return false;
     });
+    if (doc.layout === 'W') { // no item table and no VAT invoice totals on this layout
+        doc.missing_fields = doc.missing_fields.filter((f) => f !== 'Items' && f !== 'Total');
+        if (doc.before_vat === null && !doc.missing_fields.includes('Taxable amount')) doc.missing_fields.push('Taxable amount');
+    }
     doc.warnings = warns.slice(0, 6);
     doc.infos = infos;
     doc.source_idx = members.map((m) => m.i).concat((group.dupes || []).map((m) => m.i));

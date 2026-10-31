@@ -52,6 +52,25 @@
     #auth-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
     .error-box { background: #F1DCD8; color: var(--danger); font-size: 13px; padding: 10px; border-radius: 6px; margin-bottom: 14px; display: none; }
     .truncate { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .row3 { display: grid; grid-template-columns: 2fr 1fr auto; gap: 10px; align-items: end; }
+    @media (max-width: 600px) { .row2, .row3 { grid-template-columns: 1fr; } }
+    .subcard { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-top: 14px; }
+    .chk { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; color: var(--primary); margin: 0 14px 6px 0; width: auto; font-size: 13px; }
+    .chk input { width: auto; margin: 0; }
+    .section-title { font-family: 'Space Grotesk', sans-serif; font-size: 13px; font-weight: 700; margin: 18px 0 8px; padding-top: 12px; border-top: 1px solid var(--border); }
+    details.ver { border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; background: white; }
+    details.ver summary { cursor: pointer; font-weight: 600; font-size: 13px; }
+    .hint { font-size: 11px; color: var(--text-light); margin: 2px 0 8px; }
+    .badge-paused { background: #E4E1D8; color: var(--text-light); }
+    .badge-live { background: #DCEFE5; color: var(--success); }
+    .badge-soon { background: #EFE4D0; color: var(--accent); }
+    .notice-box { background: #EFE4D0; color: #5E4310; font-size: 13px; padding: 10px 12px; border-radius: 6px; margin-bottom: 14px; display: none; line-height: 1.5; }
+    .feat-head { display: flex; justify-content: space-between; align-items: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; color: var(--accent); padding: 12px 0 4px; }
+    .feat-head a { font-family: 'IBM Plex Sans', sans-serif; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--text-light); text-decoration: underline; cursor: pointer; margin-left: 8px; }
+    .feat-row { display: flex; align-items: flex-start; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); cursor: pointer; margin: 0; width: auto; font-weight: 500; color: var(--primary); }
+    .feat-row input { width: auto; margin: 3px 0 0; flex-shrink: 0; }
+    .feat-row small { display: block; color: var(--text-light); font-weight: 400; font-size: 12px; }
 </style>
 </head>
 <body>
@@ -82,6 +101,7 @@
         <div style="display:flex; gap:8px; margin-bottom:16px;">
             <button class="btn" id="nav-tab-businesses" onclick="switchAdminPage('businesses')">Businesses</button>
             <button class="btn btn-outline" id="nav-tab-accountants" onclick="switchAdminPage('accountants')">Accountants</button>
+            <button class="btn btn-outline" id="nav-tab-announcements" onclick="switchAdminPage('announcements')">Announcements</button>
         </div>
 
         <div id="page-businesses">
@@ -105,6 +125,28 @@
             </div>
         </div>
 
+                <div id="page-announcements" style="display:none;">
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 14px; flex-wrap:wrap; gap:10px;">
+                    <div>
+                        <h2 style="border:none; margin-bottom:2px;">Announcements, Ads &amp; Tutorials</h2>
+                        <div class="hint" style="margin:0;">Decide what users see, who sees it, when, and how often.</div>
+                    </div>
+                    <button class="btn btn-success" onclick="openAnnouncementModal(null)">+ New</button>
+                </div>
+                <div id="ann-error" class="error-box"></div>
+                <div id="ann-notice" class="notice-box"></div>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead><tr>
+                            <th>Type</th><th>Content</th><th>Who sees it</th><th>When it shows</th><th>Repeat</th><th>Dates</th><th>Status</th><th style="text-align:center;">Actions</th>
+                        </tr></thead>
+                        <tbody id="ann-table-body"><tr><td colspan="8" style="text-align:center; color:var(--text-light);">Loading…</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <div id="page-accountants" style="display:none;">
             <div class="card">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 14px;">
@@ -114,9 +156,9 @@
                 <div style="overflow-x:auto;">
                     <table>
                         <thead><tr>
-                            <th>Name</th><th>Email</th><th>Phone</th><th>Signed Up</th><th>Linked Businesses</th><th style="text-align:center;">Actions</th>
+                            <th>Name</th><th>Email</th><th>Phone</th><th>Signed Up</th><th>Linked Businesses</th><th>Plan</th><th style="text-align:center;">Actions</th>
                         </tr></thead>
-                        <tbody id="accountant-table-body"><tr><td colspan="6" style="text-align:center; color:var(--text-light);">Loading…</td></tr></tbody>
+                        <tbody id="accountant-table-body"><tr><td colspan="7" style="text-align:center; color:var(--text-light);">Loading…</td></tr></tbody>
                     </table>
                 </div>
             </div>
@@ -176,22 +218,193 @@
 </div>
 
 <div id="plans-modal" class="modal-overlay" onclick="closePlansModal()">
-    <div class="modal-box" style="max-width:680px;" onclick="event.stopPropagation()">
+    <div class="modal-box" style="max-width:820px;" onclick="event.stopPropagation()">
         <h3>Manage Subscription Plans</h3>
         <div id="plans-modal-error" class="error-box"></div>
-        <table style="margin-bottom:16px;">
-            <thead><tr><th>Name</th><th>Branches</th><th>Employees</th><th>Price (ETB)</th><th>Premium</th><th></th></tr></thead>
-            <tbody id="plans-table-body"></tbody>
-        </table>
-        <h3 style="font-size:14px;">Add New Plan</h3>
-        <div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap:8px; align-items:end;">
-            <div class="form-group" style="margin-bottom:0;"><label>Name</label><input type="text" id="new-plan-name" placeholder="e.g. Pro"></div>
-            <div class="form-group" style="margin-bottom:0;"><label>Max Branches</label><input type="number" id="new-plan-branches" placeholder="Blank = &#8734;"></div>
-            <div class="form-group" style="margin-bottom:0;"><label>Max Employees</label><input type="number" id="new-plan-employees" placeholder="Blank = &#8734;"></div>
-            <div class="form-group" style="margin-bottom:0;"><label>Price (ETB)</label><input type="number" id="new-plan-price" placeholder="0"></div>
+        <div style="overflow-x:auto;">
+            <table style="margin-bottom:12px;">
+                <thead><tr><th>Name</th><th>For</th><th>Branches</th><th>Employees</th><th>Price (ETB)</th><th>Features</th><th></th></tr></thead>
+                <tbody id="plans-table-body"></tbody>
+            </table>
         </div>
-        <button class="btn btn-success btn-small" style="margin-top:10px;" onclick="submitCreatePlan()">+ Add Plan</button>
+        <button class="btn btn-success btn-small" onclick="startPlanEdit(null)">+ New Plan</button>
+
+        <div id="plan-editor" class="subcard" style="display:none;">
+            <h3 id="plan-ed-title" style="font-size:14px;">New plan</h3>
+            <div class="row2">
+                <div class="form-group"><label>Name</label><input type="text" id="plan-ed-name" placeholder="e.g. Pro"></div>
+                <div class="form-group"><label>Plan is for</label>
+                    <select id="plan-ed-type" onchange="onPlanTypeChange()">
+                        <option value="business">Business</option>
+                        <option value="accountant">Accountant</option>
+                    </select>
+                </div>
+            </div>
+            <div id="plan-ed-limits" class="row2">
+                <div class="form-group"><label>Max branches</label><input type="number" min="0" id="plan-ed-branches" placeholder="Blank = unlimited"></div>
+                <div class="form-group"><label>Max employees</label><input type="number" min="0" id="plan-ed-employees" placeholder="Blank = unlimited"></div>
+            </div>
+            <div class="form-group"><label>Price (ETB)</label><input type="number" min="0" id="plan-ed-price" placeholder="0"></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:6px;">
+                <label style="margin:0;">Features included in this plan <span id="plan-ed-count" style="font-weight:500;"></span></label>
+                <span><button type="button" class="btn btn-outline btn-small" onclick="setAllPlanFeatures(true)">Select all</button><button type="button" class="btn btn-outline btn-small" onclick="setAllPlanFeatures(false)">Clear all</button></span>
+            </div>
+            <div id="plan-ed-features" style="margin-bottom:12px; max-height:340px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; background:white; padding:0 12px 6px;"></div>
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button class="btn btn-outline btn-small" onclick="document.getElementById('plan-editor').style.display='none'">Cancel</button>
+                <button class="btn btn-success btn-small" onclick="savePlan()">Save plan</button>
+            </div>
+        </div>
+
+        <div class="section-title">Features you can give to plans</div>
+        <div class="hint">Add a feature here, then tick it inside any plan. A feature is only a name for now; the apps decide what it unlocks.</div>
+        <div id="features-list" style="margin-bottom:10px; max-height:230px; overflow-y:auto;"></div>
+        <div class="row2">
+            <div class="form-group" style="margin-bottom:0;"><label>New feature name</label><input type="text" id="new-feature-label" placeholder="e.g. Reports export"></div>
+            <div class="form-group" style="margin-bottom:0;"><label>For</label>
+                <select id="new-feature-applies"><option value="business">Business</option><option value="accountant">Accountant</option><option value="both">Both</option></select>
+            </div>
+        </div>
+        <div class="row2" style="margin-top:8px;">
+            <div class="form-group" style="margin-bottom:0;"><label>Group (optional)</label><input type="text" id="new-feature-category" list="feature-categories" placeholder="e.g. Accounting"><datalist id="feature-categories"></datalist></div>
+            <div class="form-group" style="margin-bottom:0;"><label>Short description (optional)</label><input type="text" id="new-feature-desc"></div>
+        </div>
+        <button class="btn btn-success btn-small" style="margin-top:8px;" onclick="addFeature()">+ Add feature</button>
         <div style="text-align:right; margin-top:16px;"><button class="btn btn-outline" onclick="closePlansModal()">Close</button></div>
+    </div>
+</div>
+
+<div id="acc-sub-modal" class="modal-overlay" onclick="closeAccSubModal()">
+    <div class="modal-box" onclick="event.stopPropagation()">
+        <h3>Accountant plan — <span id="acc-sub-name"></span></h3>
+        <div id="acc-sub-error" class="error-box"></div>
+        <div class="form-group"><label>Plan</label><select id="acc-sub-plan"></select></div>
+        <div class="form-group"><label>Status</label>
+            <select id="acc-sub-status"><option value="trial">Trial</option><option value="active">Active</option><option value="inactive">Inactive</option></select>
+        </div>
+        <div class="form-group"><label>Expires On</label><input type="date" id="acc-sub-expiry"></div>
+        <div class="form-group"><label>Internal notes (not visible to the accountant)</label><textarea id="acc-sub-notes" rows="3"></textarea></div>
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px;">
+            <button class="btn btn-outline" onclick="closeAccSubModal()">Cancel</button>
+            <button class="btn btn-success" onclick="submitAccSub()">Save</button>
+        </div>
+    </div>
+</div>
+
+<div id="ann-modal" class="modal-overlay" onclick="closeAnnouncementModal()">
+    <div class="modal-box" style="max-width:760px;" onclick="event.stopPropagation()">
+        <h3 id="ann-modal-title">New announcement</h3>
+        <div id="ann-modal-error" class="error-box"></div>
+
+        <div class="row2">
+            <div class="form-group"><label>Type</label>
+                <select id="ann-kind">
+                    <option value="announcement">Announcement</option>
+                    <option value="ad">Ad</option>
+                    <option value="tutorial">Tutorial</option>
+                    <option value="feature">New feature</option>
+                </select>
+            </div>
+            <div class="form-group"><label>Priority</label><input type="number" id="ann-priority" value="0">
+                <div class="hint">Only matters when two items are ready for the same person at the same time. The app shows one at a time, the higher number first. 0 = normal, 10 = important, 100 = show before everything.</div>
+            </div>
+        </div>
+
+        <div class="section-title" style="margin-top:4px; border-top:none; padding-top:0;">Content (all optional, but add at least one)</div>
+        <div class="form-group"><label>Title</label><input type="text" id="ann-title"></div>
+        <div class="form-group"><label>Text</label><textarea id="ann-body" rows="4"></textarea></div>
+        <div class="form-group"><label>Image or video path / link</label><input type="text" id="ann-media" placeholder="announcements/my-video.mp4  or  https://...">
+            <div class="hint">Put the file in your announcements folder on your host, then paste its path here. Nothing is stored in Supabase.</div>
+        </div>
+        <div class="row2">
+            <div class="form-group"><label>Link (optional)</label><input type="text" id="ann-link" placeholder="https://..."></div>
+            <div class="form-group"><label>Button opens app page (optional)</label><select id="ann-cta-action"></select></div>
+        </div>
+        <div class="form-group"><label>Button text</label><input type="text" id="ann-cta-label" placeholder="Try it"></div>
+
+        <details class="ver"><summary>Amharic text (optional)</summary>
+            <div class="form-group" style="margin-top:8px;"><label>Title (Amharic)</label><input type="text" id="ann-am-title"></div>
+            <div class="form-group"><label>Text (Amharic)</label><textarea id="ann-am-body" rows="3"></textarea></div>
+            <div class="form-group"><label>Image or video path / link (Amharic)</label><input type="text" id="ann-am-media" placeholder="announcements/my-video-am.mp4  or  https://...">
+                <div class="hint">Leave empty to use the main image or video.</div>
+            </div>
+            <div class="form-group"><label>Button text (Amharic)</label><input type="text" id="ann-am-cta"></div>
+        </details>
+
+        <div class="section-title">Different versions for different devices (optional)</div>
+        <div class="hint">If a device has no version, users on it see the content above.</div>
+        <div id="ann-versions"></div>
+
+        <div class="section-title">Who sees it</div>
+        <div class="form-group"><label>Audience</label>
+            <select id="ann-audience" onchange="renderAnnPlanChecks(); renderAnnPeople()">
+                <option value="all">Everyone</option>
+                <option value="business">Businesses only</option>
+                <option value="accountant">Accountants only</option>
+            </select>
+        </div>
+        <label>Only these plans (leave all unticked = every plan)</label>
+        <div id="ann-plans" style="margin-bottom:10px;"></div>
+        <label>Only these devices (leave all unticked = every device)</label>
+        <div id="ann-devices" style="margin-bottom:10px;">
+            <label class="chk"><input type="checkbox" value="ios"> iPhone</label>
+            <label class="chk"><input type="checkbox" value="android"> Android</label>
+            <label class="chk"><input type="checkbox" value="pc"> PC</label>
+        </div>
+        <label>Only these people (optional)</label>
+        <div class="hint">Leave empty to show it to the whole audience chosen above. If you pick people here, only they will see it.</div>
+        <input type="text" id="ann-people-search" placeholder="Search by business, owner, accountant or email..." oninput="renderAnnPeople()">
+        <div id="ann-people" style="max-height:210px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; background:white; padding:2px 10px; margin:6px 0 4px;"></div>
+        <div class="hint" id="ann-people-count"></div>
+
+        <div class="section-title">When it shows</div>
+        <div class="row2">
+            <div class="form-group"><label>Show it</label>
+                <select id="ann-trigger" onchange="onAnnTriggerChange()">
+                    <option value="next_open">Next time the user opens the app</option>
+                    <option value="new_user">To new users (first login ever)</option>
+                    <option value="new_device">On a new device (first time on that device)</option>
+                    <option value="page_open">Next time the user opens a page</option>
+                    <option value="after_install">Right after the app is installed</option>
+                </select>
+            </div>
+            <div class="form-group" id="ann-page-wrap" style="display:none;"><label>Which page</label><select id="ann-trigger-page"></select></div>
+        </div>
+
+        <div class="row2">
+            <div class="form-group"><label>Repeat</label>
+                <select id="ann-repeat" onchange="onAnnRepeatChange()">
+                    <option value="once">One time only</option>
+                    <option value="daily">Every day</option>
+                    <option value="every_n_days">Every N days</option>
+                    <option value="weekdays">On chosen days of the week</option>
+                </select>
+            </div>
+            <div class="form-group" id="ann-every-wrap" style="display:none;"><label>Every how many days?</label><input type="number" min="1" id="ann-every-n" value="2"></div>
+        </div>
+        <div id="ann-weekdays-wrap" style="display:none; margin-bottom:10px;">
+            <label>Days of the week</label>
+            <div id="ann-weekdays">
+                <label class="chk"><input type="checkbox" value="1"> Mon</label>
+                <label class="chk"><input type="checkbox" value="2"> Tue</label>
+                <label class="chk"><input type="checkbox" value="3"> Wed</label>
+                <label class="chk"><input type="checkbox" value="4"> Thu</label>
+                <label class="chk"><input type="checkbox" value="5"> Fri</label>
+                <label class="chk"><input type="checkbox" value="6"> Sat</label>
+                <label class="chk"><input type="checkbox" value="0"> Sun</label>
+            </div>
+        </div>
+
+        <div class="row2">
+            <div class="form-group"><label>Start date</label><input type="date" id="ann-starts"></div>
+            <div class="form-group"><label>End date (blank = never ends)</label><input type="date" id="ann-ends"></div>
+        </div>
+        <label class="chk"><input type="checkbox" id="ann-active" checked> Active (untick to pause)</label>
+
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px;">
+            <button class="btn btn-outline" onclick="closeAnnouncementModal()">Cancel</button>
+            <button class="btn btn-success" onclick="saveAnnouncement()">Save</button>
+        </div>
     </div>
 </div>
 
@@ -265,6 +478,7 @@
             callAdminFunction('admin-list-businesses'),
         ]);
         plans = planRows || [];
+        await loadFeatureData();
         businesses = listResult.businesses || [];
         renderPlatformStats();
         renderBusinessTable();
@@ -272,14 +486,12 @@
 
     // --- PAGE SWITCHING (Businesses vs Accountants) ---
     async function switchAdminPage(page) {
-        const isBusinesses = page === 'businesses';
-        document.getElementById('page-businesses').style.display = isBusinesses ? 'block' : 'none';
-        document.getElementById('page-accountants').style.display = isBusinesses ? 'none' : 'block';
-        document.getElementById('nav-tab-businesses').className = isBusinesses ? 'btn' : 'btn btn-outline';
-        document.getElementById('nav-tab-accountants').className = isBusinesses ? 'btn btn-outline' : 'btn';
-        if (!isBusinesses && !accountantsLoaded) {
-            await loadAccountants();
-        }
+        ['businesses', 'accountants', 'announcements'].forEach(p => {
+            document.getElementById('page-' + p).style.display = p === page ? 'block' : 'none';
+            document.getElementById('nav-tab-' + p).className = p === page ? 'btn' : 'btn btn-outline';
+        });
+        if (page === 'accountants' && !accountantsLoaded) await loadAccountants();
+        if (page === 'announcements' && !annLoaded) await loadAnnouncements();
     }
 
     async function loadAccountants() {
@@ -287,10 +499,11 @@
         try {
             const data = await callAdminFunction('admin-list-accountants');
             accountants = data.accountants || [];
+            await loadAccountantSubs();
             accountantsLoaded = true;
             renderAccountantTable();
         } catch (err) {
-            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--danger);">Could not load accountants: ${escHtml(err.message)}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--danger);">Could not load accountants: ${escHtml(err.message)}</td></tr>`;
         }
     }
 
@@ -302,7 +515,7 @@
             (a.phone || '').toLowerCase().includes(q));
 
         const tbody = document.getElementById('accountant-table-body');
-        if (!filtered.length) { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-light);">No accountants found.</td></tr>`; return; }
+        if (!filtered.length) { tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-light);">No accountants found.</td></tr>`; return; }
 
         tbody.innerHTML = filtered.map(a => `<tr>
             <td><strong>${escHtml(a.fullName) || '—'}</strong></td>
@@ -310,7 +523,9 @@
             <td><small>${escHtml(a.phone) || '—'}</small></td>
             <td><small>${a.createdAt ? new Date(a.createdAt).toLocaleDateString() : '—'}</small></td>
             <td>${a.linkedBusinessCount ?? 0}</td>
+            <td>${accPlanCell(a)}</td>
             <td style="text-align:center; white-space:nowrap;">
+                <button class="btn btn-warning btn-small" onclick="openAccSubModal('${a.userId}')">Plan</button>
                 <button class="btn btn-outline btn-small" onclick="openAccountantDetailModal('${a.userId}')">View</button>
                 <button class="btn btn-outline btn-small" onclick="loginAsAccountant('${a.userId}')">Login as Accountant</button>
                 <button class="btn btn-danger btn-small" onclick="openAccountantDeleteModal('${a.userId}')">Delete</button>
@@ -371,61 +586,163 @@
         }
     }
 
+    // =====================================================================
+    // PLANS & FEATURES
+    // =====================================================================
+    let features = [];
+    let featureLinks = [];
+    let featureLoadError = null;
+    let accSubs = {};
+    let editingPlanId = null;
+    // The shop app still reads the old "Premium" flag until Step 3, so we keep it in step with the features.
+    const LEGACY_PREMIUM_KEYS = ['scanned_receipts', 'stock_matching', 'printed_price_editing'];
+
+    async function loadFeatureData() {
+        const [f, l] = await Promise.all([
+            supabaseClient.from('plan_features').select('*').order('created_at'),
+            supabaseClient.from('plan_feature_links').select('*'),
+        ]);
+        featureLoadError = f.error ? f.error.message : (l.error ? l.error.message : null);
+        features = f.error ? [] : (f.data || []);
+        featureLinks = l.error ? [] : (l.data || []);
+    }
+
+    function planType(p) { return p.plan_type || 'business'; }
+    function planFeatureKeys(planId) { return featureLinks.filter(x => x.plan_id === planId).map(x => x.feature_key); }
+    function featuresForType(type) { return features.filter(f => f.applies_to === 'both' || f.applies_to === type); }
+    function showPlansError(msg) {
+        const box = document.getElementById('plans-modal-error');
+        box.innerText = msg; box.style.display = 'block';
+    }
+
     function openPlansModal() {
         document.getElementById('plans-modal-error').style.display = 'none';
-        document.getElementById('new-plan-name').value = '';
-        document.getElementById('new-plan-branches').value = '';
-        document.getElementById('new-plan-employees').value = '';
-        document.getElementById('new-plan-price').value = '';
+        if (featureLoadError) showPlansError('Features could not be loaded: ' + featureLoadError + ' (run step1-plans-and-announcements.sql and step2-admin-permissions.sql in Supabase first)');
+        document.getElementById('plan-editor').style.display = 'none';
+        document.getElementById('new-feature-label').value = '';
         renderPlansTable();
+        renderFeaturesList();
         document.getElementById('plans-modal').classList.add('active');
     }
     function closePlansModal() { document.getElementById('plans-modal').classList.remove('active'); }
 
     function renderPlansTable() {
-        document.getElementById('plans-table-body').innerHTML = plans.map(p => `<tr style="${p.is_active ? '' : 'opacity:0.5;'}">
-            <td>${escHtml(p.name)}${p.is_active ? '' : ' <small>(inactive)</small>'}</td>
-            <td>${p.max_branches ?? '&#8734;'}</td>
-            <td>${p.max_employees ?? '&#8734;'}</td>
-            <td>${p.price_etb}</td>
-            <td><button class="btn btn-small ${p.is_premium ? 'btn-success' : 'btn-outline'}" title="Premium plans get scanned receipts, stock matching and printed-price editing" onclick="togglePlanPremium('${p.id}', ${!p.is_premium})">${(p.is_premium || /premium/i.test(p.name)) ? 'Premium ✓' : 'Standard'}</button></td>
-            <td style="text-align:center;"><button class="btn btn-small ${p.is_active ? 'btn-outline' : 'btn-success'}" onclick="togglePlanActive('${p.id}', ${!p.is_active})">${p.is_active ? 'Deactivate' : 'Reactivate'}</button></td>
-        </tr>`).join('');
+        document.getElementById('plans-table-body').innerHTML = plans.map(p => {
+            const isAcc = planType(p) === 'accountant';
+            return `<tr style="${p.is_active ? '' : 'opacity:0.5;'}">
+                <td>${escHtml(p.name)}${p.is_active ? '' : ' <small>(inactive)</small>'}</td>
+                <td><span class="badge ${isAcc ? 'badge-trial' : 'badge-active'}">${isAcc ? 'Accountant' : 'Business'}</span></td>
+                <td>${isAcc ? '—' : (p.max_branches ?? '&#8734;')}</td>
+                <td>${isAcc ? '—' : (p.max_employees ?? '&#8734;')}</td>
+                <td>${escHtml(p.price_etb)}</td>
+                <td>${planFeatureKeys(p.id).length}</td>
+                <td style="text-align:right; white-space:nowrap;">
+                    <button class="btn btn-small btn-outline" onclick="startPlanEdit('${p.id}')">Edit</button>
+                    <button class="btn btn-small ${p.is_active ? 'btn-outline' : 'btn-success'}" onclick="togglePlanActive('${p.id}', ${!p.is_active})">${p.is_active ? 'Deactivate' : 'Reactivate'}</button>
+                </td>
+            </tr>`;
+        }).join('') || '<tr><td colspan="7" style="text-align:center; color:var(--text-light);">No plans yet.</td></tr>';
     }
 
-    async function submitCreatePlan() {
-        const errBox = document.getElementById('plans-modal-error');
-        errBox.style.display = 'none';
-        const name = document.getElementById('new-plan-name').value.trim();
-        if (!name) { errBox.innerText = 'Plan name is required.'; errBox.style.display = 'block'; return; }
-        try {
-            await callAdminFunction('admin-manage-plans', {
-                action: 'create',
-                name,
-                maxBranches: document.getElementById('new-plan-branches').value ? Number(document.getElementById('new-plan-branches').value) : null,
-                maxEmployees: document.getElementById('new-plan-employees').value ? Number(document.getElementById('new-plan-employees').value) : null,
-                priceEtb: document.getElementById('new-plan-price').value ? Number(document.getElementById('new-plan-price').value) : 0,
-            });
-            await loadEverything();
-            openPlansModal();
-        } catch (err) {
-            errBox.innerText = err.message;
-            errBox.style.display = 'block';
-        }
+    function startPlanEdit(planId) {
+        editingPlanId = planId;
+        const p = planId ? plans.find(x => x.id === planId) : null;
+        document.getElementById('plan-ed-title').innerText = p ? 'Edit plan: ' + p.name : 'New plan';
+        document.getElementById('plan-ed-name').value = p ? p.name : '';
+        const typeSel = document.getElementById('plan-ed-type');
+        typeSel.value = p ? planType(p) : 'business';
+        typeSel.disabled = !!p; // a plan that already exists keeps its type
+        document.getElementById('plan-ed-branches').value = p && p.max_branches != null ? p.max_branches : '';
+        document.getElementById('plan-ed-employees').value = p && p.max_employees != null ? p.max_employees : '';
+        document.getElementById('plan-ed-price').value = p ? p.price_etb : '';
+        onPlanTypeChange(p ? planFeatureKeys(p.id) : []);
+        const ed = document.getElementById('plan-editor');
+        ed.style.display = 'block';
+        ed.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
-    // Premium plans unlock scanned receipts, stock matching and printed-price editing in the shop app.
-    async function togglePlanPremium(planId, makePremium) {
+    function checkedFeatureKeys() {
+        return Array.from(document.querySelectorAll('#plan-ed-features input:checked')).map(i => i.value);
+    }
+
+    function sortedFeatures(list) {
+        return list.slice().sort((a, b) => ((a.sort_order ?? 9999) - (b.sort_order ?? 9999)) || String(a.created_at || '').localeCompare(String(b.created_at || '')));
+    }
+    function featureGroupsFor(type) {
+        const groups = [], idx = {};
+        sortedFeatures(featuresForType(type)).forEach(f => {
+            const c = f.category || 'Other';
+            if (!(c in idx)) { idx[c] = groups.length; groups.push({ name: c, items: [] }); }
+            groups[idx[c]].items.push(f);
+        });
+        groups.sort((a, b) => (a.name === 'Other') - (b.name === 'Other'));
+        return groups;
+    }
+
+    function onPlanTypeChange(keepKeys) {
+        const type = document.getElementById('plan-ed-type').value;
+        document.getElementById('plan-ed-limits').style.display = type === 'business' ? 'grid' : 'none';
+        const selected = Array.isArray(keepKeys) ? keepKeys : checkedFeatureKeys();
+        const groups = featureGroupsFor(type);
+        document.getElementById('plan-ed-features').innerHTML = groups.length
+            ? groups.map((g, gi) => `<div class="feat-group" data-g="${gi}">
+                    <div class="feat-head"><span>${escHtml(g.name)}</span><span><a onclick="setGroupFeatures(${gi}, true)">all</a><a onclick="setGroupFeatures(${gi}, false)">none</a></span></div>
+                    ${g.items.map(f => `<label class="feat-row"><input type="checkbox" value="${escHtml(f.key)}" ${selected.includes(f.key) ? 'checked' : ''} onchange="updatePlanFeatureCount()"><span><strong>${escHtml(f.label)}</strong>${f.description ? `<small>${escHtml(f.description)}</small>` : ''}</span></label>`).join('')}
+                </div>`).join('')
+            : '<small style="display:block; padding:10px 0; color:var(--text-light);">No features for this type yet. Add some in the Features section below.</small>';
+        updatePlanFeatureCount();
+    }
+    function updatePlanFeatureCount() {
+        const all = document.querySelectorAll('#plan-ed-features input').length;
+        const on = document.querySelectorAll('#plan-ed-features input:checked').length;
+        document.getElementById('plan-ed-count').innerText = all ? '(' + on + ' of ' + all + ' selected)' : '';
+    }
+    function setAllPlanFeatures(on) {
+        document.querySelectorAll('#plan-ed-features input').forEach(i => { i.checked = on; });
+        updatePlanFeatureCount();
+    }
+    function setGroupFeatures(gi, on) {
+        document.querySelectorAll('#plan-ed-features .feat-group[data-g="' + gi + '"] input').forEach(i => { i.checked = on; });
+        updatePlanFeatureCount();
+    }
+
+    async function savePlan() {
         const errBox = document.getElementById('plans-modal-error');
         errBox.style.display = 'none';
+        const name = document.getElementById('plan-ed-name').value.trim();
+        if (!name) return showPlansError('Plan name is required.');
+        const type = document.getElementById('plan-ed-type').value;
+        const num = id => { const v = document.getElementById(id).value; return v === '' ? null : Number(v); };
+        const keys = checkedFeatureKeys();
+        const row = {
+            name,
+            plan_type: type,
+            max_branches: type === 'business' ? num('plan-ed-branches') : null,
+            max_employees: type === 'business' ? num('plan-ed-employees') : null,
+            price_etb: num('plan-ed-price') ?? 0,
+            is_premium: keys.some(k => LEGACY_PREMIUM_KEYS.includes(k)),
+        };
         try {
-            const { error } = await supabaseClient.from('subscription_plans').update({ is_premium: makePremium }).eq('id', planId);
-            if (error) throw error;
+            let planId = editingPlanId;
+            if (planId) {
+                const { error } = await supabaseClient.from('subscription_plans').update(row).eq('id', planId);
+                if (error) throw error;
+            } else {
+                const { data, error } = await supabaseClient.from('subscription_plans').insert(row).select('id').single();
+                if (error) throw error;
+                planId = data.id;
+            }
+            const del = await supabaseClient.from('plan_feature_links').delete().eq('plan_id', planId);
+            if (del.error) throw del.error;
+            if (keys.length) {
+                const ins = await supabaseClient.from('plan_feature_links').insert(keys.map(k => ({ plan_id: planId, feature_key: k })));
+                if (ins.error) throw ins.error;
+            }
             await loadEverything();
+            document.getElementById('plan-editor').style.display = 'none';
             renderPlansTable();
         } catch (err) {
-            errBox.innerText = 'Could not change Premium: ' + err.message + ' (run premium-and-sales-receipts.sql in Supabase first)';
-            errBox.style.display = 'block';
+            showPlansError('Could not save the plan: ' + err.message + ' (have you run both SQL files in Supabase?)');
         }
     }
 
@@ -435,10 +752,429 @@
             await loadEverything();
             renderPlansTable();
         } catch (err) {
-            const errBox = document.getElementById('plans-modal-error');
-            errBox.innerText = err.message;
-            errBox.style.display = 'block';
+            showPlansError(err.message);
         }
+    }
+
+    function renderFeaturesList() {
+        const labels = { business: 'Business', accountant: 'Accountant', both: 'Both' };
+        document.getElementById('feature-categories').innerHTML = Array.from(new Set(features.map(f => f.category).filter(Boolean))).map(c => `<option value="${escHtml(c)}">`).join('');
+        document.getElementById('features-list').innerHTML = features.length
+            ? sortedFeatures(features).map(f =>`<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--border); font-size:13px;">
+                    <span><strong>${escHtml(f.label)}</strong> <small style="color:var(--text-light);">${escHtml(f.category || 'Other')} · ${labels[f.applies_to] || ''}</small></span>
+                    <button class="btn btn-small btn-danger" onclick="removeFeature('${escHtml(f.key)}')">Remove</button>
+                </div>`).join('')
+            : '<small style="color:var(--text-light);">No features yet.</small>';
+    }
+
+    async function addFeature() {
+        const label = document.getElementById('new-feature-label').value.trim();
+        if (!label) return showPlansError('Type a name for the feature.');
+        document.getElementById('plans-modal-error').style.display = 'none';
+        let key = label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+        if (!key) key = 'feature';
+        let unique = key, n = 2;
+        while (features.some(f => f.key === unique)) unique = key + '_' + (n++);
+        const newRow = { key: unique, label, applies_to: document.getElementById('new-feature-applies').value };
+        const cat = document.getElementById('new-feature-category').value.trim();
+        const desc = document.getElementById('new-feature-desc').value.trim();
+        if (cat) newRow.category = cat;
+        if (desc) newRow.description = desc;
+        const { error } = await supabaseClient.from('plan_features').insert(newRow);
+        if (error) return showPlansError('Could not add the feature: ' + error.message + (/category/.test(error.message) ? ' (run step2b-features-and-people.sql in Supabase first)' : ''));
+        document.getElementById('new-feature-label').value = '';
+        document.getElementById('new-feature-category').value = '';
+        document.getElementById('new-feature-desc').value = '';
+        await loadFeatureData();
+        renderFeaturesList();
+        renderPlansTable();
+        if (document.getElementById('plan-editor').style.display !== 'none') onPlanTypeChange();
+    }
+
+    async function removeFeature(key) {
+        if (!confirm('Remove this feature? It will be taken out of every plan that has it.')) return;
+        const { error } = await supabaseClient.from('plan_features').delete().eq('key', key);
+        if (error) return showPlansError('Could not remove the feature: ' + error.message);
+        await loadFeatureData();
+        renderFeaturesList();
+        renderPlansTable();
+        if (document.getElementById('plan-editor').style.display !== 'none') onPlanTypeChange();
+    }
+
+    // =====================================================================
+    // ACCOUNTANT PLANS
+    // =====================================================================
+    let currentAccSubUserId = null;
+
+    async function loadAccountantSubs() {
+        const { data } = await supabaseClient.from('accountant_subscriptions').select('*');
+        accSubs = {};
+        (data || []).forEach(r => { accSubs[r.user_id] = r; });
+    }
+
+    function accPlanCell(a) {
+        const s = accSubs[a.userId];
+        if (!s) return '<small style="color:var(--text-light);">No plan</small>';
+        const p = plans.find(x => x.id === s.plan_id);
+        const exp = s.expires_at ? ' · ' + new Date(s.expires_at).toLocaleDateString() : '';
+        return `${escHtml(p ? p.name : '—')} <span class="badge badge-${escHtml(s.status)}">${escHtml(s.status)}</span><br><small style="color:var(--text-light);">${exp.replace(' · ', 'Expires ')}</small>`;
+    }
+
+    function openAccSubModal(userId) {
+        const a = accountants.find(x => x.userId === userId);
+        if (!a) return;
+        currentAccSubUserId = userId;
+        const s = accSubs[userId] || {};
+        document.getElementById('acc-sub-error').style.display = 'none';
+        document.getElementById('acc-sub-name').innerText = a.fullName || a.email || '';
+        const list = plans.filter(p => planType(p) === 'accountant' && (p.is_active || p.id === s.plan_id));
+        document.getElementById('acc-sub-plan').innerHTML = '<option value="">— No plan —</option>' + list.map(p =>
+            `<option value="${p.id}" ${p.id === s.plan_id ? 'selected' : ''}>${escHtml(p.name)} — ETB ${escHtml(p.price_etb)}${p.is_active ? '' : ' (inactive)'}</option>`).join('');
+        document.getElementById('acc-sub-status').value = s.status || 'active';
+        document.getElementById('acc-sub-expiry').value = s.expires_at ? s.expires_at.split('T')[0] : '';
+        document.getElementById('acc-sub-notes').value = s.notes || '';
+        document.getElementById('acc-sub-modal').classList.add('active');
+    }
+    function closeAccSubModal() { document.getElementById('acc-sub-modal').classList.remove('active'); }
+
+    async function submitAccSub() {
+        const errBox = document.getElementById('acc-sub-error');
+        errBox.style.display = 'none';
+        const exp = document.getElementById('acc-sub-expiry').value;
+        const { error } = await supabaseClient.from('accountant_subscriptions').upsert({
+            user_id: currentAccSubUserId,
+            plan_id: document.getElementById('acc-sub-plan').value || null,
+            status: document.getElementById('acc-sub-status').value,
+            expires_at: exp ? exp + 'T23:59:59' : null,
+            notes: document.getElementById('acc-sub-notes').value || null,
+            updated_at: new Date().toISOString(),
+        });
+        if (error) { errBox.innerText = error.message + ' (have you run both SQL files in Supabase?)'; errBox.style.display = 'block'; return; }
+        closeAccSubModal();
+        await loadAccountantSubs();
+        renderAccountantTable();
+    }
+
+    // =====================================================================
+    // ANNOUNCEMENTS, ADS & TUTORIALS
+    // =====================================================================
+    let announcements = [];
+    let annLoaded = false;
+    let editingAnnSlug = null;
+    let editingAnn = null;
+    let annPickBiz = new Set();   // specific businesses chosen for an item
+    let annPickAcc = new Set();   // specific accountants (user ids) chosen for an item
+
+    // The two install tutorials your app already has (same videos, same steps as the built-in install windows).
+    const INSTALL_TUTORIALS = [
+        { slug: 'install-iphone', kind: 'tutorial', title: 'Install MELEYA on your iPhone',
+          body: '1. Open this page in Safari.\n2. Tap the Share button (the square with an arrow).\n3. Scroll and tap Add to Home Screen.\n4. Tap Add. MELEYA now opens like an app.',
+          media_url: 'install-videos/install-iphone.mp4', devices: ['ios'], trigger_type: 'new_device', repeat_mode: 'once', is_active: false, priority: 100, variants: {} },
+        { slug: 'install-pc-tips', kind: 'tutorial', title: 'MELEYA is installed',
+          body: 'Two optional settings for this PC. Watch how: pin MELEYA to the taskbar, and open it when the PC starts.',
+          media_url: 'install-videos/install-pc-chrome.mp4', devices: ['pc'], trigger_type: 'after_install', repeat_mode: 'once', is_active: false, priority: 100,
+          variants: { pc_edge: { media_url: 'install-videos/install-pc-edge.mp4' } } },
+    ];
+
+    const DEVICE_VERSIONS = [['ios', 'iPhone'], ['android', 'Android'], ['pc', 'PC (any browser)'], ['pc_chrome', 'PC, Chrome'], ['pc_edge', 'PC, Edge']];
+    const APP_PAGES = [['dashboard', 'Dashboard'], ['sales', 'Sales'], ['purchase', 'Purchases'], ['drafts', 'Drafts'], ['inventory', 'Inventory'],
+        ['transfer', 'Transfer'], ['cash_handover', 'Cash handover'], ['expenses', 'Expenses'], ['scanned', 'Scanned receipts'], ['journal', 'Journal'],
+        ['ledger', 'Ledger'], ['coa', 'Chart of accounts'], ['statements', 'Statements'], ['trash', 'Trash'], ['team', 'Team'], ['settings', 'Settings']];
+    const KIND_LABELS = { feature: 'New feature', announcement: 'Announcement', ad: 'Ad', tutorial: 'Tutorial' };
+    const TRIGGER_LABELS = { new_user: 'New users', new_device: 'New devices', next_open: 'Next app open', page_open: 'Next time a page opens', after_install: 'After install' };
+    const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    async function loadAnnouncements() {
+        const errBox = document.getElementById('ann-error');
+        errBox.style.display = 'none';
+        const { data, error } = await supabaseClient.from('announcements').select('*').order('priority', { ascending: false }).order('created_at', { ascending: false });
+        if (error) {
+            errBox.innerText = 'Could not load announcements: ' + error.message + ' (run step1 and step2 SQL files in Supabase first)';
+            errBox.style.display = 'block';
+            announcements = [];
+        } else {
+            announcements = data || [];
+            annLoaded = true;
+        }
+        renderAnnouncementTable();
+        await updateAnnNotice();
+    }
+
+    // Tells the admin why the install tutorials may be missing, and lets them add them with one click.
+    async function updateAnnNotice() {
+        const box = document.getElementById('ann-notice');
+        box.style.display = 'none';
+        const missing = INSTALL_TUTORIALS.filter(t => !announcements.some(a => a.slug === t.slug));
+        if (!missing.length) return;
+        const r = await supabaseClient.rpc('is_platform_admin');
+        if (r.error || r.data !== true) {
+            box.innerHTML = '<b>Some items may be hidden.</b> Paused items (like the install tutorials) only show up here after you run <b>step2-admin-permissions.sql</b> in Supabase. Run it, then reload this page.';
+        } else {
+            box.innerHTML = '<b>The install tutorials (iPhone and PC) are not in the list yet.</b> <button class="btn btn-small btn-success" style="margin-left:8px;" onclick="addInstallTutorials()">Add them now</button>';
+        }
+        box.style.display = 'block';
+    }
+    async function addInstallTutorials() {
+        const missing = INSTALL_TUTORIALS.filter(t => !announcements.some(a => a.slug === t.slug));
+        const { error } = await supabaseClient.from('announcements').upsert(missing, { onConflict: 'slug', ignoreDuplicates: true });
+        if (error) { const b = document.getElementById('ann-error'); b.innerText = 'Could not add them: ' + error.message; b.style.display = 'block'; return; }
+        await loadAnnouncements();
+    }
+
+    function annStatus(a) {
+        const now = Date.now();
+        if (!a.is_active) return ['Paused', 'paused'];
+        if (a.ends_at && new Date(a.ends_at).getTime() < now) return ['Ended', 'inactive'];
+        if (a.starts_at && new Date(a.starts_at).getTime() > now) return ['Scheduled', 'soon'];
+        return ['Live', 'live'];
+    }
+    function repeatLabel(a) {
+        if (a.repeat_mode === 'daily') return 'Every day';
+        if (a.repeat_mode === 'every_n_days') return 'Every ' + (a.repeat_every_days || 1) + ' days';
+        if (a.repeat_mode === 'weekdays') return (a.repeat_weekdays || []).slice().sort((x, y) => ((x + 6) % 7) - ((y + 6) % 7)).map(d => DAY_NAMES[d]).join(', ') || 'Chosen days';
+        return 'One time';
+    }
+    function audienceLabel(a) {
+        let t = a.audience === 'business' ? 'Businesses' : a.audience === 'accountant' ? 'Accountants' : 'Everyone';
+        const nPeople = (a.audience_user_ids || []).length + (a.audience_business_ids || []).length;
+        if (nPeople) t = 'Only ' + nPeople + ' chosen ' + (nPeople === 1 ? 'person' : 'people');
+        else if ((a.audience_plan_ids || []).length) t += ' · ' + a.audience_plan_ids.length + ' plan(s)';
+        if ((a.devices || []).length) t += ' · ' + a.devices.map(d => d === 'ios' ? 'iPhone' : d === 'android' ? 'Android' : 'PC').join('/');
+        return t;
+    }
+    function localDateStr(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+
+    function renderAnnouncementTable() {
+        const tbody = document.getElementById('ann-table-body');
+        if (!announcements.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--text-light);">Nothing here yet. Press “+ New”.</td></tr>'; return; }
+        tbody.innerHTML = announcements.map(a => {
+            const [st, cls] = annStatus(a);
+            const content = a.title || (a.body ? a.body.slice(0, 50) + (a.body.length > 50 ? '…' : '') : '(media only)');
+            const variants = Object.keys(a.variants || {}).length;
+            const dates = (a.starts_at ? new Date(a.starts_at).toLocaleDateString() : '—') + ' → ' + (a.ends_at ? new Date(a.ends_at).toLocaleDateString() : 'no end');
+            const slug = escHtml(a.slug);
+            return `<tr style="${a.is_active ? '' : 'opacity:0.6;'}">
+                <td><small>${KIND_LABELS[a.kind] || escHtml(a.kind)}</small></td>
+                <td><strong>${escHtml(content)}</strong>${variants ? `<br><small style="color:var(--text-light);">${variants} device version(s)</small>` : ''}</td>
+                <td><small>${escHtml(audienceLabel(a))}</small></td>
+                <td><small>${TRIGGER_LABELS[a.trigger_type] || escHtml(a.trigger_type)}${a.trigger_type === 'page_open' && a.trigger_page ? ' (' + escHtml(a.trigger_page) + ')' : ''}</small></td>
+                <td><small>${escHtml(repeatLabel(a))}</small></td>
+                <td><small>${dates}</small></td>
+                <td><span class="badge badge-${cls}">${st}</span></td>
+                <td style="text-align:center; white-space:nowrap;">
+                    <button class="btn btn-outline btn-small" onclick="openAnnouncementModal('${slug}')">Edit</button>
+                    <button class="btn btn-outline btn-small" onclick="toggleAnnouncement('${slug}', ${!a.is_active})">${a.is_active ? 'Pause' : 'Resume'}</button>
+                    <button class="btn btn-danger btn-small" onclick="deleteAnnouncement('${slug}')">Delete</button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    async function toggleAnnouncement(slug, makeActive) {
+        const { error } = await supabaseClient.from('announcements').update({ is_active: makeActive }).eq('slug', slug);
+        if (error) { const b = document.getElementById('ann-error'); b.innerText = error.message; b.style.display = 'block'; return; }
+        await loadAnnouncements();
+    }
+
+    async function deleteAnnouncement(slug) {
+        if (!confirm('Delete this item for good? To hide it for a while, use Pause instead.')) return;
+        const { error } = await supabaseClient.from('announcements').delete().eq('slug', slug);
+        if (error) { const b = document.getElementById('ann-error'); b.innerText = error.message; b.style.display = 'block'; return; }
+        await loadAnnouncements();
+    }
+
+    function buildAnnStaticParts() {
+        const verBox = document.getElementById('ann-versions');
+        if (!verBox.innerHTML.trim()) {
+            verBox.innerHTML = DEVICE_VERSIONS.map(([k, label]) => `<details class="ver" id="ann-vd-${k}"><summary>${label} version</summary>
+                <div class="form-group" style="margin-top:8px;"><label>Title</label><input type="text" id="ann-v-${k}-title"></div>
+                <div class="form-group"><label>Text</label><textarea id="ann-v-${k}-body" rows="3"></textarea></div>
+                <div class="row2">
+                    <div class="form-group"><label>Image or video path / link</label><input type="text" id="ann-v-${k}-media"></div>
+                    <div class="form-group"><label>Link</label><input type="text" id="ann-v-${k}-link"></div>
+                </div></details>`).join('');
+        }
+        const opts = '<option value="">— None —</option>' + APP_PAGES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+        document.getElementById('ann-cta-action').innerHTML = opts;
+        document.getElementById('ann-trigger-page').innerHTML = APP_PAGES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+    }
+
+    function renderAnnPlanChecks(selected) {
+        const sel = Array.isArray(selected) ? selected : Array.from(document.querySelectorAll('#ann-plans input:checked')).map(i => i.value);
+        const aud = document.getElementById('ann-audience').value;
+        const list = plans.filter(p => aud === 'all' || planType(p) === aud);
+        document.getElementById('ann-plans').innerHTML = list.length
+            ? list.map(p => `<label class="chk"><input type="checkbox" value="${p.id}" ${sel.includes(String(p.id)) ? 'checked' : ''}> ${escHtml(p.name)} <small style="color:var(--text-light);">(${planType(p) === 'accountant' ? 'accountant' : 'business'})</small></label>`).join('')
+            : '<small style="color:var(--text-light);">No plans.</small>';
+    }
+
+    function renderAnnPeople() {
+        const aud = document.getElementById('ann-audience').value;
+        const q = (document.getElementById('ann-people-search').value || '').toLowerCase().trim();
+        const items = [];
+        if (aud !== 'accountant') businesses.forEach(b => items.push({ kind: 'b', id: String(b.id), name: b.businessName || '', sub: [b.ownerUsername, b.ownerEmail].filter(Boolean).join(' · ') }));
+        if (aud !== 'business') accountants.forEach(a => items.push({ kind: 'a', id: String(a.userId), name: a.fullName || a.email || '', sub: a.email || '' }));
+        const shown = items.filter(i => !q || (i.name + ' ' + i.sub).toLowerCase().includes(q));
+        document.getElementById('ann-people').innerHTML = shown.length
+            ? shown.slice(0, 200).map(i => `<label class="feat-row" style="align-items:center;"><input type="checkbox" ${(i.kind === 'b' ? annPickBiz : annPickAcc).has(i.id) ? 'checked' : ''} onchange="toggleAnnPerson('${i.kind}', '${escHtml(i.id)}', this.checked)"><span><strong>${escHtml(i.name) || '—'}</strong> <small style="display:inline;">${i.kind === 'b' ? 'Business' : 'Accountant'}${i.sub ? ' · ' + escHtml(i.sub) : ''}</small></span></label>`).join('')
+            : '<small style="display:block; padding:10px 0; color:var(--text-light);">No one found.</small>';
+        const n = annPickBiz.size + annPickAcc.size;
+        document.getElementById('ann-people-count').innerText = (n ? n + ' selected. ' : 'No one selected: the whole audience sees it. ') + (shown.length > 200 ? 'Showing the first 200, type to search.' : '');
+    }
+    function toggleAnnPerson(kind, id, on) {
+        const set = kind === 'b' ? annPickBiz : annPickAcc;
+        if (on) set.add(id); else set.delete(id);
+        const n = annPickBiz.size + annPickAcc.size;
+        const cnt = document.getElementById('ann-people-count');
+        cnt.innerText = n ? n + ' selected.' : 'No one selected: the whole audience sees it.';
+    }
+
+    function onAnnTriggerChange() {
+        document.getElementById('ann-page-wrap').style.display = document.getElementById('ann-trigger').value === 'page_open' ? 'block' : 'none';
+    }
+    function onAnnRepeatChange() {
+        const m = document.getElementById('ann-repeat').value;
+        document.getElementById('ann-every-wrap').style.display = m === 'every_n_days' ? 'block' : 'none';
+        document.getElementById('ann-weekdays-wrap').style.display = m === 'weekdays' ? 'block' : 'none';
+    }
+
+    async function openAnnouncementModal(slug) {
+        buildAnnStaticParts();
+        if (!accountantsLoaded) { try { await loadAccountants(); } catch (e) { /* the people list just shows businesses */ } }
+        const a = slug ? announcements.find(x => x.slug === slug) : null;
+        editingAnnSlug = a ? a.slug : null;
+        editingAnn = a;
+        const v = (id, val) => { document.getElementById(id).value = val ?? ''; };
+        document.getElementById('ann-modal-error').style.display = 'none';
+        document.getElementById('ann-modal-title').innerText = a ? 'Edit item' : 'New announcement, ad or tutorial';
+        v('ann-kind', a ? a.kind : 'announcement');
+        v('ann-priority', a ? a.priority : 0);
+        v('ann-title', a?.title); v('ann-body', a?.body); v('ann-media', a?.media_url);
+        v('ann-link', a?.link_url); v('ann-cta-label', a?.cta_label === 'Try it' ? '' : a?.cta_label);
+        const act = a?.cta_action || '';
+        v('ann-cta-action', act.startsWith('view:') ? act.slice(5) : '');
+        const am = (a?.i18n || {}).am || {};
+        v('ann-am-title', am.title); v('ann-am-body', am.body); v('ann-am-cta', am.cta_label); v('ann-am-media', am.media_url);
+
+        const variants = a?.variants || {};
+        DEVICE_VERSIONS.forEach(([k]) => {
+            const vr = { ...(variants[k] || {}) };
+            // older rows keep the phone demos in their own columns; show them here so nothing is lost
+            if (k === 'ios' && !vr.media_url && a?.media_url_ios) vr.media_url = a.media_url_ios;
+            if (k === 'android' && !vr.media_url && a?.media_url_android) vr.media_url = a.media_url_android;
+            v(`ann-v-${k}-title`, vr.title); v(`ann-v-${k}-body`, vr.body); v(`ann-v-${k}-media`, vr.media_url); v(`ann-v-${k}-link`, vr.link_url);
+            document.getElementById(`ann-vd-${k}`).open = !!(vr.title || vr.body || vr.media_url || vr.link_url);
+        });
+
+        v('ann-audience', a ? a.audience : 'all');
+        renderAnnPlanChecks(a ? (a.audience_plan_ids || []).map(String) : []);
+        annPickBiz = new Set(a ? (a.audience_business_ids || []).map(String) : []);
+        annPickAcc = new Set(a ? (a.audience_user_ids || []).map(String) : []);
+        document.getElementById('ann-people-search').value = '';
+        renderAnnPeople();
+        document.querySelectorAll('#ann-devices input').forEach(i => { i.checked = !!a && (a.devices || []).includes(i.value); });
+        v('ann-trigger', a ? a.trigger_type : 'next_open');
+        v('ann-trigger-page', a?.trigger_page || 'dashboard');
+        onAnnTriggerChange();
+        v('ann-repeat', a ? a.repeat_mode : 'once');
+        v('ann-every-n', a ? a.repeat_every_days : 2);
+        document.querySelectorAll('#ann-weekdays input').forEach(i => { i.checked = !!a && (a.repeat_weekdays || []).includes(Number(i.value)); });
+        onAnnRepeatChange();
+        v('ann-starts', a ? localDateStr(a.starts_at) : localDateStr(new Date().toISOString()));
+        v('ann-ends', a ? localDateStr(a.ends_at) : '');
+        document.getElementById('ann-active').checked = a ? !!a.is_active : true;
+        document.getElementById('ann-modal').classList.add('active');
+    }
+    function closeAnnouncementModal() { document.getElementById('ann-modal').classList.remove('active'); }
+
+    async function saveAnnouncement() {
+        const errBox = document.getElementById('ann-modal-error');
+        const fail = msg => { errBox.innerText = msg; errBox.style.display = 'block'; errBox.scrollIntoView({ block: 'nearest' }); };
+        errBox.style.display = 'none';
+        const g = id => document.getElementById(id).value.trim();
+        const orNull = s => s === '' ? null : s;
+
+        const variants = {};
+        DEVICE_VERSIONS.forEach(([k]) => {
+            const o = {};
+            [['title', 'title'], ['body', 'body'], ['media_url', 'media'], ['link_url', 'link']].forEach(([field, suffix]) => {
+                const val = g(`ann-v-${k}-${suffix}`);
+                if (val) o[field] = val;
+            });
+            if (Object.keys(o).length) variants[k] = o;
+        });
+
+        const title = g('ann-title'), body = g('ann-body'), media = g('ann-media');
+        if (!title && !body && !media && !Object.keys(variants).length) return fail('Add at least a title, some text, or an image/video (or a device version).');
+
+        const repeat = g('ann-repeat');
+        const everyN = Number(g('ann-every-n')) || 1;
+        const weekdays = Array.from(document.querySelectorAll('#ann-weekdays input:checked')).map(i => Number(i.value));
+        if (repeat === 'every_n_days' && everyN < 1) return fail('“Every how many days” must be 1 or more.');
+        if (repeat === 'weekdays' && !weekdays.length) return fail('Tick at least one day of the week.');
+
+        const trigger = g('ann-trigger');
+        const startsVal = g('ann-starts'), endsVal = g('ann-ends');
+        if (startsVal && endsVal && endsVal < startsVal) return fail('The end date is before the start date.');
+
+        // keep the old date exactly if the admin did not touch it
+        const startsAt = !startsVal ? new Date().toISOString()
+            : (editingAnn && localDateStr(editingAnn.starts_at) === startsVal ? editingAnn.starts_at : new Date(startsVal + 'T00:00:00').toISOString());
+        const endsAt = !endsVal ? null
+            : (editingAnn && localDateStr(editingAnn.ends_at) === endsVal ? editingAnn.ends_at : new Date(endsVal + 'T23:59:59').toISOString());
+
+        const i18n = { ...((editingAnn && editingAnn.i18n) || {}) };
+        const am = {};
+        if (g('ann-am-title')) am.title = g('ann-am-title');
+        if (g('ann-am-body')) am.body = g('ann-am-body');
+        if (g('ann-am-cta')) am.cta_label = g('ann-am-cta');
+        if (g('ann-am-media')) am.media_url = g('ann-am-media');
+        if (Object.keys(am).length) i18n.am = am; else delete i18n.am;
+
+        const page = g('ann-cta-action');
+        const row = {
+            kind: g('ann-kind'),
+            priority: Number(g('ann-priority')) || 0,
+            title: orNull(title), body: orNull(body), media_url: orNull(media),
+            link_url: orNull(g('ann-link')),
+            cta_action: page ? 'view:' + page : null,
+            cta_label: g('ann-cta-label') || 'Try it',
+            i18n,
+            variants,
+            // the older app code still reads these two columns, so keep them in step
+            media_url_ios: variants.ios?.media_url || null,
+            media_url_android: variants.android?.media_url || null,
+            audience: g('ann-audience'),
+            audience_user_ids: g('ann-audience') === 'business' ? [] : Array.from(annPickAcc),
+            audience_plan_ids: Array.from(document.querySelectorAll('#ann-plans input:checked')).map(i => i.value),
+            devices: Array.from(document.querySelectorAll('#ann-devices input:checked')).map(i => i.value),
+            trigger_type: trigger,
+            trigger_page: trigger === 'page_open' ? g('ann-trigger-page') : null,
+            repeat_mode: repeat,
+            repeat_every_days: repeat === 'every_n_days' ? everyN : 1,
+            repeat_weekdays: repeat === 'weekdays' ? weekdays : [],
+            starts_at: startsAt,
+            ends_at: endsAt,
+            is_active: document.getElementById('ann-active').checked,
+        };
+        const pickB = g('ann-audience') === 'accountant' ? [] : Array.from(annPickBiz);
+        if (pickB.length || (editingAnn && 'audience_business_ids' in editingAnn)) row.audience_business_ids = pickB;
+
+        let error;
+        if (editingAnnSlug) {
+            ({ error } = await supabaseClient.from('announcements').update(row).eq('slug', editingAnnSlug));
+        } else {
+            const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+            row.slug = row.kind + '-' + stamp + '-' + Math.random().toString(36).slice(2, 6);
+            ({ error } = await supabaseClient.from('announcements').insert(row));
+        }
+        if (error) return fail('Could not save: ' + error.message + (/audience_business_ids|column/.test(error.message) ? ' (run step2b-features-and-people.sql in Supabase first)' : ''));
+        closeAnnouncementModal();
+        await loadAnnouncements();
     }
 
     function renderPlatformStats() {
@@ -572,7 +1308,7 @@
         document.getElementById('sub-modal-error').style.display = 'none';
         document.getElementById('sub-modal-business-name').innerText = biz.businessName;
         document.getElementById('sub-plan-select').innerHTML = plans
-            .filter(p => p.is_active || p.id === biz.subscriptionPlanId)
+            .filter(p => planType(p) === 'business' && (p.is_active || p.id === biz.subscriptionPlanId))
             .map(p => `<option value="${p.id}" ${p.id === biz.subscriptionPlanId ? 'selected' : ''}>${escHtml(p.name)}${(p.is_premium || /premium/i.test(p.name)) ? ' ★ Premium' : ''} — ETB ${p.price_etb}${p.is_active ? '' : ' (inactive)'}</option>`).join('');
         document.getElementById('sub-status-select').value = ['suspended', 'cancelled'].includes(biz.subscriptionStatus) ? 'inactive' : biz.subscriptionStatus;
         document.getElementById('sub-expiry-input').value = biz.subscriptionExpiresAt ? biz.subscriptionExpiresAt.split('T')[0] : '';

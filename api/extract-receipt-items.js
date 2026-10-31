@@ -14,7 +14,7 @@ export const config = { maxDuration: 30 };
 
 const GC_YEAR = new Date().getFullYear(); // used inside the prompt to explain Ethiopian vs Gregorian years
 
-const ITEMS_PROMPT = `You are reading a photo of an Ethiopian PURCHASE document (the shop bought goods from a supplier). The photo may be rotated sideways or upside down - read it the right way up in your mind. It is ONE of four layouts - figure out which first and put the letter in "layout":
+const ITEMS_PROMPT = `You are reading a photo of an Ethiopian PURCHASE document (the shop bought goods from a supplier). The photo may be rotated sideways or upside down - read it the right way up in your mind. It is ONE of five layouts - figure out which first and put the letter in "layout":
 
 LAYOUT A - fiscal cash register receipt (thin thermal paper):
 - The SELLER'S TIN is near the top as "TIN: XXXXXXXXXX", followed by the seller's business name. "Buyer's TIN" further down is the buyer, never the seller.
@@ -48,6 +48,16 @@ LAYOUT D - ethio telecom "CASH RECEIPT" (computer-printed, bilingual Amharic/Eng
 - doc_title = "CASH RECEIPT" as printed. header_lines = the remaining small-print lines of the seller block (VAT Reg. No, address, tel) followed by the customer lines as "Label: value" (Customer Name, Address, City, Service No, Account No, Customer Code). footer_lines = the payment lines that are not items, as "Label: value" (5% Excise Tax, 5% National Disaster Risk Fund, Advance Payment, Payment Mode, Payment Reason, Service Center, the amount in words, Received By).
 - Ignore the round stamp, the signature, the social-media icons and the "Thank you" note. A fold or the paper edge can cover part of the page - read around it.
 
+LAYOUT E - computer-generated e-invoice "Cash Sales Invoice/VAT/Excise" (bilingual Amharic/English, a clean printed A4 page with a QR code at the top right, a long hex "IRN" line under the title, and "Business Management Suite by Marakisoft Technologies" in the footer; a variant such as "Credit Sales Invoice" has the same form):
+- The box headed "From" is the SELLER: seller_name = the big company name at the top (repeated in the From box), seller_tin = "Seller's TIN" in the From box (for example 0000177986), vat_reg_no = "Seller's VAT Reg. No" (for example 18023). "Sub TIN" is a secondary field - ignore it.
+- The box headed "To" is the BUYER: buyer_tin = "Buyer's TIN" (for example 0000390746). The "Code" line (for example P-100439) is the supplier's own customer code, NOT a TIN. "Buyer's VAT Reg. No" is often empty. Never swap seller and buyer.
+- receipt_no = the number after "Doc. No:" at the top right (for example 1957; the Amharic label next to it means "receipt number"). The "Reference" (CSI-...), "Ref Note" (JA-...), "System Number" and the long IRN are internal system references - NOT the receipt number. The tiny line at the very top edge, like "e2eb6e41-18ac-4020-8928-b1a5c7ea6070 | 04.08.2026 11:23:10", is the system stamp: copy it into "doc_stamp".
+- DATE: the top right prints TWO dates - an Ethiopian one after the Amharic "ቀን" (for example 28/11/2018) and a Gregorian one after "Date:" (for example 04/08/2026 11:23:05). Use the GREGORIAN "Date:" value, which is DAY first (DD/MM/YYYY): date_calendar "GC", copy it exactly into date_raw (04/08/2026 means day 4, month 8). Ignore the Ethiopian one.
+- The item table columns are: No., Product/Service Description, Nature of Supply (Goods/Service), UoM, Tax Code, Quantity, Unit Price, Discount, Excise Tax, Total Amount. The description is the product name; a small code printed under it (for example 1499-01) is the item code and is not part of the name. UoM (for example PCS) is the measurement. Unit prices and line totals are BEFORE VAT.
+- The totals box reads: "Total Amount", "Excise Tax", "Discount", "VAT15 Taxable Total" = before_vat, "VAT15 Tax (15%)" = vat, "Non Taxable Total", "Withheld Amount (3%)", "Total VAT Withheld Amount", then "Total Price Including Tax (ETB)" = total. Withheld amounts are NOT VAT. The amount in words ("... Cents Only") can be used to double-check the total.
+- There is no machine code on this layout: mrc = null. is_vat is true. Ignore the QR code, "Prepared by", the "Remark" line (a payment reference such as CBE ...) and the payment method.
+
+- For layout E: doc_title = the title as printed (for example "Cash Sales Invoice/VAT/Excise"); voucher_no = the "Reference" value (CSI-...); fs_no = null; receipt_time = the time after "Date:" (for example 11:23); header_lines = the remaining small-print lines of the From block (email, woreda, city) and the To block (Code as "Code: P-100439"), as "Label: value"; footer_lines = Payment Method, the amount in words and Remark, as "Label: value".
 MULTI-PAGE DOCUMENTS: a long sheet is photographed one page per photo. Page 1 usually has the header (seller, buyer, FS No., date) and the first lines; later pages may show only more lines; the LAST page has the Subtotal / VAT / Grand Total. Report only what is visible in THIS photo: set "has_header" to true only if the seller name/TIN block is visible, and "has_totals" to true only if a Subtotal/TXBL1, VAT/TAX1 or Grand Total/TOTAL amount is visible. If the footer says "Page 1 of 2" (or similar) fill "page_no" and "page_count" (numbers), otherwise null. Most ERP sheets also print a small faint "system stamp" line at the very top or bottom edge, like "001-01-0000033133 | 09.04.2026 13:40:55" (it can look like a ghost or duplicate print); copy it exactly into "doc_stamp" (it is the same on every page of one document), otherwise null. List ONLY the lines visible in this photo - a line hidden under a fold or finger must not be invented; if its description is hidden but its numbers are visible, use "" as the description.
 
 FADED OR HARD-TO-READ PHOTOS: thermal paper fades, photos blur, and watermarks cover text. Read every character you reasonably can, including very pale ones. Then use arithmetic to check yourself: quantity x unit price = line amount; the line amounts add up to the subtotal; subtotal x 15% = VAT; subtotal + VAT = total. If one digit is unreadable, use these relationships to repair it. If you still cannot read a value with confidence, return null for it and never invent it.
@@ -56,7 +66,7 @@ TASK: extract EVERY line item on the document. Do not skip, merge, or summarise 
 
 Return ONLY raw JSON, no markdown fences, no commentary:
 {
-  "layout": "A" or "B" or "C" or "D",
+  "layout": "A" or "B" or "C" or "D" or "E",
   "seller_name": string or null,
   "seller_tin": string or null,
   "buyer_tin": string or null,
@@ -103,7 +113,7 @@ Rules for each item:
 - "measurement": only a unit that is actually printed next to the item (PCS, KG, M, MT, L, BOX, PK...). Otherwise null - never guess.
 - "pack_hint": only if the description itself states a pack size, for example "12PCS/BOX", "carton of 24", "1x10". Copy that text; otherwise null.
 - "before_vat", "vat", "total" are always the receipt-wide totals, never per-item figures.
-- "receipt_no": for layout A use the FS No.; for layout B the invoice serial; for layout C use the FS No. if one is printed, otherwise the Voucher No; for layout D use the "Receipt No" at the top right (not the Invoice No in the payment table).
+- "receipt_no": for layout A use the FS No.; for layout B the invoice serial; for layout C use the FS No. if one is printed, otherwise the Voucher No; for layout D use the "Receipt No" at the top right (not the Invoice No in the payment table); for layout E use the "Doc. No" at the top right (not the Reference, Ref Note, System Number or IRN).
 - "doc_title": the banner/title line printed on the document, copied exactly (for example "CASH INVOICE", "Sales Invoice", "Cash Sales Attachment"). Otherwise null.
 - "receipt_time": the time printed next to the date (HH:MM, 24-hour; if AM/PM is printed, convert it). Otherwise null.
 - "header_lines": every OTHER text line printed at the top, in order, copied exactly (address, phone, VAT registration number, branch, etc.). Do not repeat the seller name, the TIN line, the receipt number, the date or the title. Use [] if none.
@@ -188,12 +198,12 @@ function fixDate(parsed) {
     parsed.date_ambiguous = false;
     parsed.date_alt_day = null;
     parsed.date_alt_month = null;
-    if (parsed.date_calendar !== 'GC' || (parsed.layout !== 'C' && parsed.layout !== 'D')) return parsed;
+    if (parsed.date_calendar !== 'GC' || (parsed.layout !== 'C' && parsed.layout !== 'D' && parsed.layout !== 'E')) return parsed;
     const m = String(parsed.date_raw || '').match(/(\d{1,2})\s*[\/\-.]\s*(\d{1,2})\s*[\/\-.]\s*(\d{4})/);
     if (!m) return parsed;
     const a = Number(m[1]), b = Number(m[2]), y = Number(m[3]);
     parsed.date_year = y;
-    if (parsed.layout === 'D') { // ethio telecom always prints day first
+    if (parsed.layout === 'D' || parsed.layout === 'E') { // ethio telecom and the Marakisoft e-invoice always print day first
         if (b > 12 && a <= 12) { parsed.date_day = b; parsed.date_month = a; } else { parsed.date_day = a; parsed.date_month = b; }
         return parsed;
     }
@@ -365,7 +375,7 @@ export default async function handler(req, res) {
         let parsed = JSON.parse(cleaned);
         parsed = fillMissingVatFields(parsed);
         parsed.date_calendar = parsed.date_calendar === 'EC' ? 'EC' : 'GC';
-        parsed.layout = ['A', 'B', 'C', 'D'].includes(parsed.layout) ? parsed.layout : 'A';
+        parsed.layout = ['A', 'B', 'C', 'D', 'E'].includes(parsed.layout) ? parsed.layout : 'A';
         // The attachment's own voucher number is internal; the FS No. is what ties it to the fiscal receipt.
         if (parsed.layout === 'C' && parsed.fs_no) parsed.receipt_no = String(parsed.fs_no).trim();
         parsed = fixEthiopianYear(parsed);

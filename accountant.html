@@ -73,6 +73,7 @@
     .kind-pill.purchase { background: #f1f6f2; color: var(--ink); border-color: #d3e2d6; }
     .kind-pill.sale { background: #eef4fb; color: #1f4f86; border-color: #d0e0f2; }
     .kind-pill.expense { background: var(--amber-bg); color: var(--amber); border-color: #efd9b8; }
+    .kind-pill.withholding { background: #f4eefb; color: #5b3a8a; border-color: #e0d3f1; }
     .seg { display: inline-flex; border: 1px solid var(--paper-line); border-radius: 6px; overflow: hidden; background: #fff; flex-wrap: wrap; }
     .seg button { border: none; background: #fff; padding: 7px 12px; font-size: 12.5px; font-family: inherit; cursor: pointer; color: var(--text-soft); border-right: 1px solid var(--paper-line); }
     .seg button:last-child { border-right: none; }
@@ -121,6 +122,25 @@
     .auth-box { max-width: 400px; width: 100%; position: relative; z-index: 2; }
     .pw-toggle { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 4px; display: flex; }
 
+    /* Free trial (no account) — one batch of photos -> on-screen VAT report preview */
+    #guest-overlay { position: fixed; inset: 0; z-index: 510; display: none; align-items: flex-start; justify-content: center; padding: 64px 16px 40px; overflow-y: auto; background: var(--paper); }
+    #guest-overlay .auth-box { margin: auto; }
+    .gt-drop { border: 1px dashed var(--paper-line); border-radius: 6px; padding: 26px 16px; text-align: center; color: var(--text-soft); font-size: 13.5px; }
+    .gt-sheet { position: relative; border: 1px solid var(--paper-line); background: #fff; border-radius: 4px; padding: 14px; overflow: hidden; -webkit-user-select: none; user-select: none; }
+    .gt-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; position: relative; }
+    .gt-sheet table { border-collapse: collapse; width: 100%; min-width: 980px; font-family: Nyala, 'Noto Sans Ethiopic', 'Abyssinica SIL', sans-serif; font-size: 12px; color: #1f1f1f; }
+    .gt-sheet th, .gt-sheet td { border: 1px solid #555; padding: 4px 6px; vertical-align: top; }
+    .gt-sheet th { text-align: center; font-weight: 700; font-size: 11px; vertical-align: middle; }
+    .gt-sheet td.num { text-align: right; white-space: nowrap; }
+    .gt-sheet tr.tot td { background: #E7E6E6; font-weight: 700; }
+    .gt-title { text-align: center; font-weight: 700; font-size: 15px; border-bottom: 1px solid #555; padding: 6px 0; margin: 10px 0; font-family: Nyala, 'Noto Sans Ethiopic', 'Abyssinica SIL', sans-serif; }
+    .gt-info { font-family: Nyala, 'Noto Sans Ethiopic', 'Abyssinica SIL', sans-serif; font-size: 13px; font-weight: 700; line-height: 1.9; }
+    .gt-info span { display: inline-block; min-width: 180px; border-bottom: 1px solid #555; margin-left: 6px; color: #888; font-weight: 400; }
+    .gt-wm { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 96px; font-weight: 800; letter-spacing: 8px; color: rgba(27, 58, 47, 0.07); transform: rotate(-22deg); pointer-events: none; z-index: 2; }
+    .gt-hint { display: none; font-size: 11.5px; color: var(--text-soft); text-align: center; margin-top: 8px; position: relative; z-index: 3; }
+    @media (max-width: 700px) { .gt-hint { display: block; } .gt-info { font-size: 12px; line-height: 1.7; } .gt-info span { min-width: 60px; } }
+    @media print { #guest-overlay { display: none !important; } }
+
     /* ---------------- Mobile ---------------- */
     @media (max-width: 700px) {
         .wrap { padding: 18px 14px 48px; }
@@ -165,47 +185,54 @@
 
     <div class="card auth-box">
         <h1 class="auth-welcome-heading">Welcome</h1>
-        <p class="auth-welcome-subtitle">Sign in to your bookkeeping workspace.</p>
+        <p class="auth-welcome-subtitle" id="auth-subtitle">Sign in to your bookkeeping workspace.</p>
         <div id="auth-error" class="notice notice-warn" style="display:none;"></div>
 
         <div id="auth-signin-view">
-            <div class="form-group"><label>Email</label><input type="email" id="signin-email"></div>
+            <div class="form-group"><label>Email</label><input type="email" id="signin-email" autocomplete="username"></div>
             <div class="form-group">
                 <label>Password</label>
                 <div style="position:relative;">
-                    <input type="password" id="signin-password" style="padding-right:38px;">
+                    <input type="password" id="signin-password" autocomplete="current-password" style="padding-right:38px;">
                     <button type="button" class="pw-toggle" onclick="togglePasswordVisibility('signin-password', this)"><svg viewBox="0 0 576 512" width="17" height="17"><path fill="#6B6B5F" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#6B6B5F"/></svg></button>
                 </div>
             </div>
-            <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="handleSignIn()">Sign In</button>
+            <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="handleSignIn()">Sign In</button><div style="display:flex; align-items:center; gap:10px; margin:14px 0 10px; color:var(--text-soft); font-size:12px;" class="acct-google"><div style="flex:1; height:1px; background:var(--paper-line);"></div>or<div style="flex:1; height:1px; background:var(--paper-line);"></div></div><button type="button" class="btn btn-ghost acct-google" onclick="signInWithGoogle()" style="width:100%; justify-content:center; gap:10px;"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.9 2.4 30.4 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.6 5.9c4.5-4.1 7-10.2 7-17.6z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.5-.8-3-.8-4.7s.3-3.2.8-4.7l-7.9-6.1C.9 16.4 0 20.1 0 24s.9 7.6 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.9 2.3-8.3 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>Continue with Google</button>
             <p style="text-align:center; font-size:13px; margin-top:12px;"><a href="#" onclick="handleForgotPassword(); return false;" style="color:var(--text-soft);">Forgot password?</a></p>
             <p style="text-align:center; font-size:13px; margin-top:4px; color:var(--text-soft);">Don't have an account yet? <a href="#" onclick="showAuthView('signup'); return false;" style="color:var(--amber); font-weight:600;">Create one</a></p>
+            <div style="display:flex; align-items:center; gap:10px; margin:18px 0 12px; color:var(--text-soft); font-size:12px;"><div style="flex:1; height:1px; background:var(--paper-line);"></div>or<div style="flex:1; height:1px; background:var(--paper-line);"></div></div>
+            <button class="btn btn-ghost" style="width:100%; justify-content:center;" onclick="openGuestTrial()">Try it free &mdash; scan up to 5 receipts</button>
         </div>
 
         <div id="auth-signup-view" style="display:none;">
-            <div class="form-group"><label>Your full name</label><input type="text" id="auth-full-name" placeholder="e.g. Mekdes Alemu"></div>
-            <div class="form-group"><label>Phone number</label><input type="tel" id="auth-phone" placeholder="e.g. 0911 234 567"></div>
-            <div class="form-group"><label>Email</label><input type="email" id="auth-email"></div>
+            <div class="form-group"><label>Phone number</label><input type="tel" id="auth-phone" autocomplete="tel" inputmode="tel" placeholder="e.g. 0911 234 567"></div>
+            <div class="form-group"><label>Email</label><input type="email" id="auth-email" autocomplete="email"></div>
             <div class="form-group">
                 <label>Password</label>
                 <div style="position:relative;">
-                    <input type="password" id="auth-password" style="padding-right:38px;" placeholder="At least 6 characters">
+                    <input type="password" id="auth-password" autocomplete="new-password" style="padding-right:38px;" placeholder="At least 6 characters">
                     <button type="button" class="pw-toggle" onclick="togglePasswordVisibility('auth-password', this)"><svg viewBox="0 0 576 512" width="17" height="17"><path fill="#6B6B5F" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#6B6B5F"/></svg></button>
                 </div>
             </div>
             <div class="form-group">
                 <label>Confirm Password</label>
                 <div style="position:relative;">
-                    <input type="password" id="auth-password-confirm" style="padding-right:38px;">
+                    <input type="password" id="auth-password-confirm" autocomplete="new-password" style="padding-right:38px;">
                     <button type="button" class="pw-toggle" onclick="togglePasswordVisibility('auth-password-confirm', this)"><svg viewBox="0 0 576 512" width="17" height="17"><path fill="#6B6B5F" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#6B6B5F"/></svg></button>
                 </div>
             </div>
-            <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="handleSignUp()">Create Account</button>
+            <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="handleSignUp()">Create Account</button><div style="display:flex; align-items:center; gap:10px; margin:14px 0 10px; color:var(--text-soft); font-size:12px;" class="acct-google"><div style="flex:1; height:1px; background:var(--paper-line);"></div>or<div style="flex:1; height:1px; background:var(--paper-line);"></div></div><button type="button" class="btn btn-ghost acct-google" onclick="signInWithGoogle()" style="width:100%; justify-content:center; gap:10px;"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.9 2.4 30.4 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.6 5.9c4.5-4.1 7-10.2 7-17.6z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.5-.8-3-.8-4.7s.3-3.2.8-4.7l-7.9-6.1C.9 16.4 0 20.1 0 24s.9 7.6 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.9 2.3-8.3 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>Continue with Google</button><p id="auth-gp-signout" style="display:none; text-align:center; font-size:12px; margin-top:12px;"><a href="#" onclick="event.preventDefault(); setGooglePhoneMode(false); handleSignOut();" style="color:var(--text-soft);">Use a different account</a></p>
             <p style="text-align:center; font-size:13px; margin-top:16px; color:var(--text-soft);">Already have an account? <a href="#" onclick="showAuthView('signin'); return false;" style="color:var(--amber); font-weight:600;">Sign in</a></p>
         </div>
 
         <div id="auth-loading" style="display:none; text-align:center; margin-top:14px; font-size:12px; color:var(--text-soft);">Working, please wait…</div>
     </div>
+    <div class="auth-footer-note">&copy; 2026 MELEYA. All rights reserved.</div>
+</div>
+
+<div id="guest-overlay">
+    <div class="auth-brand-mark-fixed"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFIAAABICAMAAABSv1JUAAAA/1BMVEWaag1vPx8zMwAAfwAA/wBmmTOZMwCNVQCTZwq/vz+qqlXDfw/AgQ3BhRDAhxD///8AAAC1fBC6gRKweweaagr/AADDhhKzew2zfBF/fwD//wC5hBGqVQCyiAehbgu6gRCqqgC6gRC0fA7/fwC2fQ60ew60fQ+4gw+5ghDChhSVaRO4gg/DiAp/AAB7VQOWZgKbaQqqagybexD/qgB6PABrZgDLlhJVVQCkbgvOfwqYaw+6lQ/CgRBVAACMXwjBiBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAjeH97AAAAQHRSTlOiBgUCAQUFCXQEAyJuqtsBAP39C/0B/tgpAgEqAxD80AOwbAKRsk5RbSIqixACBwnYDQ0DBAYOA9gOTAtPA/yLQM4XkAAABWxJREFUeNqdmId64jgQgNnr/UYjJFsugLEhXKjpyWb39v3f6mbcsGUZlNP3QWKDf6ZpiiZAy0h6S6QCj6Xql7VMQm8y4n8n9HoBiCRTc9fzPsvQ6/6u/mfCf+6XQRBkGwmLi8KNLnrsJgtEsE2ZOaG3eK6FQK3nMZgIPryiJ5CZ1kgEHUICk6/meU6XxESNG4fy1+SMFrCmR8ulRRqZyQGWfC3KhdkzPDhotMbw5JYlP1kxsAA5MWaF2DJZ+cVlIZXlGJnVz5YrIMXhLejcoV9bgzK+rlEJhOyIzkoJmQbYQ+L2V9bmanBWQbdE7Ev0DyGl6CHp7kqC9HHRA7wXaMmD8QDJF8gGvR7lQ6UZGQ6R1UfLC9FU+8XAevBkjbwbIinut5e2UhU7W3Q8KN7cUnLYB+ElJll7pYfPCUF+GEOSBGtWzr1hyIyBHvJ0sJzcjiArbgFtNKlurNPNDTqtFZ6mF5FCZ2k/mlSjdGYrjZx2vhxP02l4EUmKrCFRVjhKp9Kos+fb6fTfK1LW0dTzEmW/G3Q9sAQiEvMakg363FFeSbcZxSqGzzPBzOtIgUF8zncS0uycCs+GJF0+T2dTTyQpfwORqd1DZhwA9SoE+KXkEXZs91jMbVQa1EQbhwspfiGaVMSpmHkh2Zsp/ETUtRU7vCNIxPzTRDRIEXooXjIpNyW5koX1Xc1WhMNKiJ6U6XVkHU1PQLbEepU3M66IMmiAzPSUsoomCYcD/L0UuiEGN9QQwO2pQ5yK2CmlM5SJEIKk7U3lqxKx2EGSUDjOWt5MuGyJiHghmpQh168D7iNIxMOR0vBZxvJbg0LBwACdgnI38U2BefkO7r5svkjI88eyhM8uI8vdMteIrgyKZTQd2E1cHo2CAsWsVXysQtLF8TnTLl7Z5ZBBjVILudgn8FLoSsZZbUd+2iklCZINKx+eDcqJWb2UpWL9WppyNmsFcrhHz9+j6PtCj8QAKU/R9EgJ5J6IMQSVKWftV0OXe1J4/AqFHo9QKllvnJLmFFUnRrZCjigu7mG/N9TPjReQv2LuSecpPHBp6IhYS5naSElJbH+EjdYjMU/d5JaIEj7B4dQHuoNI7CCijlJS3nELWnl/tYOnR3g62Z86gyiFqC5bYnwjkY9y0ubnVy+krJBwHGVSxa6GB5C+yLrIHjmXOZEbyOua/mqXodjtnkpKtacmYLg5kaO96RWl9ZsjQVTbsurEU3tzlvtHNt3HEBm6FTedno+2ncUMO4VdDizj3OMS9t0+8kdi1srTHy7r5jxL7gbI0J02uj1QktPmbAyKHOCmM54OpSw9bk0Ugey3VdQFbRvdMes0x8qJjB1DikitwYEa1GoUoQz83ptfzIh7+kgxRML+EdZzDp5NDr2+OBoJogFSQmRPOyRavF5LsD4ZDSJb8QGSksiimbvtMcAvLlNwDeX5YjG4HfmHeuQ5i0f/Y0NeHfQJiR4pOPU+JQGavO1Jt0F2+osqq/sulhIHw3Pa+yHaPf5IDqJu8sNzEKEQ2JaVQILxJCornzLy90bx6n5Zp4LKPT72JI/PLVt2gwjbxkd+wD2kuDi3xXZc1n0UbiLjf+oEN3PdITr7S5oalcdpW/PxHu6KfgtRDynNj2hRXDkscJ0exPXcWwlbK97283E1gasPMNVDPVbiAElXy6Qspkq5I2bskCzPIS3qOQPbNot75lUMziOn6yL/QP4kN2k8N9ZsRfwDXCcEvp5P4H6JukVSfkISUeUfMODgivQLV2cpy0nwodlj5/L3odNWnv55ciNbRjL7c9cc3ygF/ig1PN/afZvv+Cz4t7aoKK+jauU46GnPhBfViXVkusCO7nXw+PlL0faM2B//ATwKrTDJPBChAAAAAElFTkSuQmCC" alt="M" class="auth-m-logo"><span class="dark">ELEYA</span></div>
+    <div class="card auth-box" id="guest-box"></div>
     <div class="auth-footer-note">&copy; 2026 MELEYA. All rights reserved.</div>
 </div>
 
@@ -396,7 +423,7 @@
         return { csv: toCsv([header, ...allRows]), nextCounter: counter };
     }
     function buildReceiptsCsv(client, fromKey, toKey) {
-        const entries = client.entries.filter((e) => e.type === 'receipt' && entryEcKey(e) >= fromKey && entryEcKey(e) <= toKey);
+        const entries = client.entries.filter((e) => (e.type === 'receipt' || (e.type === 'withholding' && !e.tinMismatch)) && entryEcKey(e) >= fromKey && entryEcKey(e) <= toKey);
         if (!entries.length) return null;
         const periods = Array.from(new Set(entries.map(entryEcKey))).sort();
         const rule = client.receiptsRule;
@@ -405,6 +432,7 @@
             const periodEntries = entries.filter((e) => entryEcKey(e) === periodKey);
             let sales = 0, nonVatSales = 0, vatPay = 0, vatWithholding = 0;
             periodEntries.forEach((e) => {
+                if (e.type === 'withholding') { vatWithholding += Number(e.vat) || 0; return; } // VAT the agents withheld from the client's payments
                 if (e.isVat) { sales += Number(e.beforeVat) || 0; vatPay += Number(e.vat) || 0; nonVatSales += Number(e.nonVatAmount) || 0; }
                 else { nonVatSales += Number(e.total ?? e.beforeVat) || 0; }
             });
@@ -619,6 +647,25 @@ This field is  mandatory.",Total value,vat,value after vat`;
         return { csv, skipped };
     }
 
+    // eTax VAT withholding upload file (the site's own VATWHFORVATTAX.csv): four columns, TAB-separated like the site's template.
+    const ETAX_WITHHOLDING_HEADER = ['VAT withholding receipt no. issued by  agent', 'VAT withholding receipt issued date', 'Total taxable transaction amount', 'VAT withheld amount'];
+    function buildEtaxWithholdingCsv(client, fromKey, toKey, calendar) {
+        const entries = client.entries.filter((e) => e.type === 'withholding' && !e.tinMismatch && entryEcKey(e) >= fromKey && entryEcKey(e) <= toKey);
+        const rows = [], skipped = [];
+        entries.forEach((e) => {
+            const missing = [];
+            if (!e.date) missing.push('date');
+            if (!e.receiptNo) missing.push('withholding receipt number');
+            if (!(Number(e.beforeVat) > 0)) missing.push('taxable amount');
+            if (!(Number(e.vat) > 0)) missing.push('VAT withheld amount');
+            if (missing.length) { skipped.push({ entry: e, reasons: missing }); return; }
+            let date = etaxDdMmYyyy(e.date);
+            if (calendar === 'E') { const ec = gcToEc(e.date); if (ec) date = `${String(ec.day).padStart(2, '0')}/${String(ec.month).padStart(2, '0')}/${ec.year}`; }
+            rows.push([String(e.receiptNo).replace(/[\t\r\n]+/g, ' ').trim(), date, etaxMoney(e.beforeVat), etaxMoney(e.vat)]);
+        });
+        if (!rows.length) return { csv: null, skipped };
+        return { csv: [ETAX_WITHHOLDING_HEADER, ...rows].map((r) => r.join('\t')).join('\r\n') + '\r\n', skipped };
+    }
     function buildVatWorkbook(client, fromKey, toKey) {
         const entries = client.entries
             .filter((e) => e.type === 'payment' && !e.tinMismatch) // hold back TIN mismatches until unflagged
@@ -838,6 +885,14 @@ This field is  mandatory.",Total value,vat,value after vat`;
         if (!sellerIsClient && !buyerIsClient && (sellerTin || buyerTin)) return { type: null, mismatch: true }; // neither side is the client
         return { type: null, mismatch: false }; // not enough info printed to tell either way
     }
+    // A VAT withholding receipt names the AGENT who withheld (seller_*) and the SUPPLIER whose VAT was withheld
+    // (read into buyer_tin). Our client is the supplier, so the supplier TIN must be the client's own TIN.
+    function evaluateWithholdingMatch(ex, client) {
+        const clientTin = normalizeTin(client && client.tin);
+        const supplierTin = normalizeTin(ex.buyer_tin);
+        if (!clientTin || !supplierTin) return { type: 'withholding', mismatch: false };
+        return { type: 'withholding', mismatch: supplierTin !== clientTin };
+    }
 
     // ------------------------------------------------------------------------
     // Auth
@@ -852,6 +907,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
         clearAuthError();
         document.getElementById('auth-signin-view').style.display = view === 'signin' ? 'block' : 'none';
         document.getElementById('auth-signup-view').style.display = view === 'signup' ? 'block' : 'none';
+        document.getElementById('auth-subtitle').textContent = view === 'signup' ? 'Create your free account. It takes a few seconds.' : 'Sign in to your bookkeeping workspace.';
     }
     const EYE_OPEN_SVG = '<svg viewBox="0 0 576 512" width="17" height="17"><path fill="#6B6B5F" d="M572.5 238.1C518.3 108.8 411.2 32 288 32S57.7 108.8 3.5 238.1a48.2 48.2 0 0 0 0 35.8C57.7 403.2 164.8 480 288 480s230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM288 400a144 144 0 1 1 0-288 144 144 0 0 1 0 288z"/><circle cx="288" cy="256" r="80" fill="#6B6B5F"/></svg>';
     const EYE_CLOSED_SVG = '<svg viewBox="0 0 576 512" width="17" height="17"><path fill="#6B6B5F" d="M572.5 238.1a274.5 274.5 0 0 0-58.5-76.4L488 188.6a208.3 208.3 0 0 1 45.7 63.6c-1.8 3.9-4.4 8.9-7.9 14.6C481.7 344.9 391.5 400 288 400a222.1 222.1 0 0 1-45.6-4.7l-32 32A277.7 277.7 0 0 0 288 448c123.2 0 230.3-76.8 284.5-206.1a48.2 48.2 0 0 0 0-35.8zM99.5 273.9a231.3 231.3 0 0 1-8-14.9 208 208 0 0 1 46.4-64.4C170.6 165.6 226.5 144 288 144a222 222 0 0 1 45.9 4.8l35-35A276.9 276.9 0 0 0 288 96C164.8 96 57.7 172.8 3.5 302.1a48.2 48.2 0 0 0 0 35.8 274.6 274.6 0 0 0 58.9 76.9l35-35a231.1 231.1 0 0 1-30.9-30.9c-3.5-5.7-6.1-10.7-7.9-14.6z"/><path fill="#6B6B5F" d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l528 416c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L38.8 5.1z"/></svg>';
@@ -860,6 +916,43 @@ This field is  mandatory.",Total value,vat,value after vat`;
         const showing = input.type === 'text';
         input.type = showing ? 'password' : 'text';
         btn.innerHTML = showing ? EYE_OPEN_SVG : EYE_CLOSED_SVG;
+    }
+    async function signInWithGoogle() {
+        // Needs the Google provider switched on in Supabase and this site's address in its redirect URLs.
+        if (location.protocol === 'file:') return showAuthError('Google sign-in only works on the online site (https), not from a file on this computer.');
+        setAuthLoading(true);
+        const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname } });
+        if (error) { setAuthLoading(false); showAuthError(error.message); }
+    }
+    // Google users have no phone number yet: ask for it on its own page, then continue into the app.
+    let googlePhoneMode = false;
+    function needsGooglePhone(user) {
+        return !!(user && user.app_metadata && user.app_metadata.provider === 'google' && !(accountantProfile && accountantProfile.phone));
+    }
+    function setGooglePhoneMode(on) {
+        googlePhoneMode = on;
+        ['auth-email', 'auth-password', 'auth-password-confirm'].forEach(id => { const g = document.getElementById(id).closest('.form-group'); if (g) g.style.display = on ? 'none' : ''; });
+        document.querySelectorAll('#auth-signup-view .acct-google').forEach(e => e.style.display = on ? 'none' : '');
+        const l = document.querySelector('#auth-signup-view a[onclick*="signin"]'); if (l) l.parentElement.style.display = on ? 'none' : '';
+        document.getElementById('auth-gp-signout').style.display = on ? 'block' : 'none';
+        document.getElementById('auth-subtitle').textContent = on ? 'Almost there. What is your phone number?' : 'Create your free account. It takes a few seconds.';
+    }
+    function showGooglePhonePage() {
+        document.getElementById('app').style.display = 'none';
+        document.getElementById('auth-overlay').style.display = 'flex';
+        showAuthView('signup'); setGooglePhoneMode(true);
+    }
+    async function saveGooglePhone() {
+        const phone = document.getElementById('auth-phone').value.trim();
+        if (!phone) return showAuthError('Please enter your phone number.');
+        setAuthLoading(true);
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        const md = (user && user.user_metadata) || {};
+        const { error } = await supabaseClient.from('accountant_profiles').upsert({ user_id: user.id, full_name: md.full_name || md.name || '', phone });
+        setAuthLoading(false);
+        if (error) return showAuthError(error.message);
+        setGooglePhoneMode(false);
+        await afterSignIn();
     }
     async function handleSignIn() {
         clearAuthError();
@@ -874,12 +967,11 @@ This field is  mandatory.",Total value,vat,value after vat`;
     }
     async function handleSignUp() {
         clearAuthError();
-        const fullName = document.getElementById('auth-full-name').value.trim();
+        if (googlePhoneMode) return saveGooglePhone();
         const phone = document.getElementById('auth-phone').value.trim();
         const email = document.getElementById('auth-email').value.trim();
         const password = document.getElementById('auth-password').value;
         const passwordConfirm = document.getElementById('auth-password-confirm').value;
-        if (!fullName) return showAuthError('Please enter your full name.');
         if (!phone) return showAuthError('Please enter your phone number.');
         if (!email || !password) return showAuthError('Please enter an email and password.');
         if (password.length < 6) return showAuthError('Password must be at least 6 characters.');
@@ -893,8 +985,10 @@ This field is  mandatory.",Total value,vat,value after vat`;
         // write (RLS checks auth.uid() = user_id) -- which doesn't exist
         // yet if email confirmation is required. Picked up by afterSignIn()
         // whenever a session first becomes available, same pattern MELEYA's
-        // own signup uses for pending business details.
-        try { sessionStorage.setItem('meleya_acct_pending_profile', JSON.stringify({ full_name: fullName, phone })); } catch (e) {}
+        // own signup uses for pending business details. Only the phone is
+        // asked at signup now; the name is added later from the dashboard
+        // notice / "My profile" (clients search for accountants by name).
+        try { sessionStorage.setItem('meleya_acct_pending_profile', JSON.stringify({ full_name: '', phone })); } catch (e) {}
         if (!data.session) return showAuthError('Account created! Check your email to confirm your address, then sign in below.');
         await afterSignIn();
     }
@@ -916,13 +1010,15 @@ This field is  mandatory.",Total value,vat,value after vat`;
         document.getElementById('auth-overlay').style.display = 'flex';
     }
     async function afterSignIn() {
-        document.getElementById('auth-overlay').style.display = 'none';
-        document.getElementById('app').style.display = 'block';
+        guestStorage('meleya_acct_auth_seen', '1');
         checkAdminAccountantImpersonationBanner();
         const { data: { user } } = await supabaseClient.auth.getUser();
         currentUserId = user ? user.id : null;
         await applyPendingAccountantProfile();
         await loadAccountantProfile();
+        if (needsGooglePhone(user)) return showGooglePhonePage();
+        document.getElementById('auth-overlay').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
         await loadClients();
         await refreshMyLinks();
         await loadNotifications();
@@ -1095,6 +1191,8 @@ This field is  mandatory.",Total value,vat,value after vat`;
         const { data: { session } } = await supabaseClient.auth.getSession();
         if (session) {
             await afterSignIn();
+        } else if (!tookOverViaAdmin && (/[?&]trial(=|&|$)/.test(location.search) || guestStorage('meleya_acct_auth_seen') !== '1')) {
+            openGuestTrial();
         } else if (tookOverViaAdmin) {
             // verifyOtp succeeded but getSession() raced ahead of the client
             // persisting it — reload rather than leaving a blank screen.
@@ -1444,7 +1542,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
     function renderShareNotice(f) {
         const c = activeClient();
         const link = linkedApprovedShop(c);
-        if (!link || f.tinMismatch) return '';
+        if (!link || f.tinMismatch || f.type === 'withholding') return '';
         const shop = esc(link.business_name || c.name);
         if (f.type === 'payment') {
             const kind = f.entryKind === 'expense' ? 'expense' : 'purchase';
@@ -1463,9 +1561,9 @@ This field is  mandatory.",Total value,vat,value after vat`;
     // ------------------------------------------------------------------------
     // Helpers shared by the receipts list, the review windows and the live updates
     // ------------------------------------------------------------------------
-    // Purchase of goods / Expense (a service) / Sale. Sales are always type 'receipt'.
-    function entryKindOf(e) { return e.type === 'receipt' ? 'sale' : (e.entryKind === 'expense' ? 'expense' : 'purchase'); }
-    const KIND_LABEL = { purchase: 'Purchase', sale: 'Sale', expense: 'Expense' };
+    // Purchase of goods / Expense (a service) / Sale / VAT withholding receipt. Sales are always type 'receipt'; withholding receipts have their own type 'withholding'.
+    function entryKindOf(e) { return e.type === 'withholding' ? 'withholding' : (e.type === 'receipt' ? 'sale' : (e.entryKind === 'expense' ? 'expense' : 'purchase')); }
+    const KIND_LABEL = { purchase: 'Purchase', sale: 'Sale', expense: 'Expense', withholding: 'VAT withholding' };
     // A sale that came in from the shop is the shop's own record: the accountant can read it but not change it.
     function isShopSale(e) { return !!e && e.type === 'receipt' && e.syncedFrom === 'shop'; }
     function normKey(s) { return String(s ?? '').toLowerCase().replace(/[^a-z0-9\u1200-\u137f]+/g, ''); }
@@ -1764,12 +1862,14 @@ This field is  mandatory.",Total value,vat,value after vat`;
             onStatus && onStatus(force ? 'Reading the receipt again…' : 'Reading the receipt…');
             const res = await fetch('/api/extract-receipt', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: await apiAuthHeaders(!!force),
                 body: JSON.stringify({ image: base64Data }),
             });
             const data = await res.json().catch(() => null);
             if (!res.ok) {
-                throw new Error((data && data.error) || `Receipt extraction failed (${res.status})`);
+                const err = new Error((data && data.error) || `Receipt extraction failed (${res.status})`);
+                err.code = data && data.code; // e.g. trial_used, busy, auth_required
+                throw err;
             }
             return data;
         };
@@ -1787,6 +1887,280 @@ This field is  mandatory.",Total value,vat,value after vat`;
 
 
     // ------------------------------------------------------------------------
+    // Free trial (no account). A visitor picks up to 5 receipt photos ONCE, we
+    // read them and show the VAT Purchase Detail report on screen as a preview
+    // (nothing can be downloaded or saved), then the "Create an account" page.
+    // The one-try / 5-photo limit is enforced on the SERVER (/api/extract-receipt
+    // asks the database function claim_guest_scan) -- not here -- so clearing
+    // this page's storage or editing this file cannot get extra scans. The
+    // browser only sends who it is (a random device ID, a browser fingerprint,
+    // and the batch ID); the server adds the IP address.
+    // ------------------------------------------------------------------------
+    const TRIAL_MAX_PHOTOS = 5;
+    const TRIAL_DONE_KEY = 'meleya_acct_trial_done';
+    let guestMode = null;                 // set only while a trial scan runs; makes API calls send the guest headers
+    let guestState = { step: 'upload' };  // upload | reading | preview | used | error
+    let guestIdCache = null;
+
+    function guestStorage(key, value) {
+        try {
+            if (value === undefined) return localStorage.getItem(key);
+            localStorage.setItem(key, value);
+        } catch (e) { /* private mode / blocked storage: the server still enforces the limit */ }
+        return null;
+    }
+    function randomId() {
+        try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch (e) {}
+        return 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
+    }
+    // Kept in memory as well as in localStorage so the IDs stay the same for the
+    // whole visit even if storage is blocked.
+    function guestIds() {
+        if (guestIdCache) return guestIdCache;
+        let device = guestStorage('meleya_acct_guest_device');
+        if (!device) { device = randomId(); guestStorage('meleya_acct_guest_device', device); }
+        let batch = guestStorage('meleya_acct_guest_batch');
+        if (!batch) { batch = randomId(); guestStorage('meleya_acct_guest_batch', batch); }
+        guestIdCache = { device, batch };
+        return guestIdCache;
+    }
+    // A hash of browser/device traits. Not unique to one phone (many are the
+    // same model), which is why the server only uses it together with the IP.
+    async function guestFingerprint() {
+        try {
+            const parts = [
+                navigator.userAgent, navigator.language, (navigator.languages || []).join(','), navigator.platform || '',
+                screen.width + 'x' + screen.height + 'x' + screen.colorDepth, window.devicePixelRatio || '',
+                (Intl.DateTimeFormat().resolvedOptions() || {}).timeZone || '', navigator.hardwareConcurrency || '', navigator.deviceMemory || '',
+            ];
+            try {
+                const c = document.createElement('canvas'); c.width = 200; c.height = 40;
+                const g = c.getContext('2d');
+                g.textBaseline = 'top'; g.font = '14px Arial'; g.fillStyle = '#B5762A'; g.fillText('Meleya trial 0123', 4, 6);
+                parts.push(c.toDataURL());
+            } catch (e) {}
+            const bytes = new TextEncoder().encode(parts.join('|'));
+            const buf = await crypto.subtle.digest('SHA-256', bytes);
+            return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 40);
+        } catch (e) { return ''; }
+    }
+    // Headers for /api/extract-receipt: a signed-in user sends their login token,
+    // a free-trial visitor sends the guest identifiers.
+    async function apiAuthHeaders(isRetry) {
+        const h = { 'Content-Type': 'application/json' };
+        if (guestMode) {
+            h['x-guest-device'] = guestMode.device;
+            h['x-guest-fp'] = guestMode.fp || '';
+            h['x-guest-batch'] = guestMode.batch;
+            if (isRetry) h['x-guest-retry'] = '1';
+        } else {
+            try {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (session && session.access_token) h['Authorization'] = 'Bearer ' + session.access_token;
+            } catch (e) { /* the server will say if a token was needed */ }
+        }
+        return h;
+    }
+
+    function showAuthScreen(view) {
+        guestStorage('meleya_acct_auth_seen', '1');
+        document.getElementById('guest-overlay').style.display = 'none';
+        document.getElementById('auth-overlay').style.display = 'flex';
+        showAuthView(view);
+    }
+    function closeGuestTrial() { showAuthScreen('signin'); }
+    function guestGoSignup() { showAuthScreen('signup'); }
+    function openGuestTrial() {
+        document.getElementById('auth-overlay').style.display = 'none';
+        document.getElementById('guest-overlay').style.display = 'flex';
+        guestState = guestStorage(TRIAL_DONE_KEY) === '1' ? { step: 'used' } : { step: 'upload' };
+        renderGuest();
+    }
+
+    function guestPickPhotos(input) {
+        let files = Array.from(input.files || []).filter((f) => !f.type || /^image\//.test(f.type));
+        input.value = '';
+        if (!files.length) return;
+        let note = '';
+        if (files.length > TRIAL_MAX_PHOTOS) {
+            note = `You picked ${files.length} photos. The free try reads the first ${TRIAL_MAX_PHOTOS}.`;
+            files = files.slice(0, TRIAL_MAX_PHOTOS);
+        }
+        runGuestScan(files, note);
+    }
+
+    // One row of the VAT Purchase Detail form, built the same way a saved receipt is.
+    function guestRowFromReading(ex) {
+        if (!ex || ex.layout === 'W') return null; // withholding receipts are not purchases
+        const calendar = ex.date_calendar === 'EC' ? 'EC' : 'GC';
+        let date = '';
+        if (ex.date_year && ex.date_month && ex.date_day) {
+            date = calendar === 'EC' ? ecToGc(ex.date_year, ex.date_month, ex.date_day) : `${ex.date_year}-${String(ex.date_month).padStart(2, '0')}-${String(ex.date_day).padStart(2, '0')}`;
+        }
+        let receiptNo = ex.receipt_no ? String(ex.receipt_no).trim() : '';
+        if (receiptNo) {
+            if ((ex.layout === 'A' || (ex.layout === 'C' && ex.mrc)) && !/^FS/i.test(receiptNo)) receiptNo = 'FS' + receiptNo;
+            else if (ex.layout === 'B' && !/^M[\s\-:.]*\d/i.test(receiptNo)) receiptNo = 'M' + receiptNo;
+        }
+        const before = Number(ex.before_vat);
+        const qty = ex.quantity === null || ex.quantity === undefined || ex.quantity === '' ? null : Number(ex.quantity);
+        const unit = ex.unit_price === null || ex.unit_price === undefined || ex.unit_price === '' ? null : Number(ex.unit_price);
+        return {
+            sellerName: ex.seller_name || '', sellerTin: ex.seller_tin || '', vatRegNo: ex.vat_reg_no || '', mrc: ex.mrc || '',
+            date, receiptNo, description: ex.description || '', measurement: ex.measurement || '',
+            quantity: Number.isFinite(qty) ? qty : null, unitPrice: Number.isFinite(unit) ? unit : null,
+            beforeVat: Number.isFinite(before) ? before : 0,
+        };
+    }
+
+    async function runGuestScan(files, note) {
+        guestState = { step: 'reading', text: files.length > 1 ? `Reading ${files.length} photos…` : 'Reading the receipt…', note };
+        renderGuest();
+        const ids = guestIds();
+        guestMode = { device: ids.device, batch: ids.batch, fp: await guestFingerprint() };
+        const reads = new Array(files.length);
+        let next = 0, done = 0, blocked = null;
+        const setText = (t) => { guestState.text = t; const el = document.getElementById('guest-status'); if (el) el.textContent = t; };
+        const worker = async () => {
+            while (next < files.length) {
+                const k = next++;
+                try { reads[k] = { ex: await runGeminiExtraction(files[k], () => {}) }; }
+                catch (e) { console.error(e); if (e && e.code && !blocked) blocked = e; reads[k] = { error: true }; }
+                done++;
+                if (files.length > 1) setText(`Read ${done} of ${files.length} photos…`);
+            }
+        };
+        try {
+            await Promise.all(Array.from({ length: Math.min(3, files.length) }, worker));
+            const okIdx = [];
+            reads.forEach((r, i) => { if (r.ex) okIdx.push(i); });
+            if (!okIdx.length) {
+                if (blocked && blocked.code === 'trial_used') { guestStorage(TRIAL_DONE_KEY, '1'); guestState = { step: 'used' }; }
+                else guestState = { step: 'error', message: blocked ? blocked.message : 'We could not read those photos. Try clearer, well-lit photos of the receipts.' };
+                return;
+            }
+            setText(okIdx.length > 1 ? 'Combining pages…' : 'Checking the numbers…');
+            const docs = await ocrMerge(okIdx.map((i) => reads[i].ex));
+            const readings = docs || okIdx.map((i) => reads[i].ex);
+            const rows = readings.map(guestRowFromReading).filter(Boolean);
+            const failed = reads.filter((r) => r.error).length;
+            if (!rows.length) {
+                guestState = { step: 'error', message: 'We could not find any purchase receipts in those photos. Try photos of the full receipt, flat and well lit.' };
+                return;
+            }
+            rows.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+            guestStorage(TRIAL_DONE_KEY, '1');
+            guestState = { step: 'preview', rows, failed, note };
+        } catch (e) {
+            console.error(e);
+            guestState = { step: 'error', message: 'Something went wrong while reading your photos. Please try again.' };
+        } finally {
+            guestMode = null;
+            renderGuest();
+        }
+    }
+
+    function guestMoney(n) { return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    // The on-screen copy of the official VAT Purchase Detail form (same columns, same
+    // 15% maths as the downloadable workbook a paid account gets). View only.
+    function guestSheetHtml(rows) {
+        const heads = ['No', 'Taxpayer Name/ የግብር ከፋይ ስም', 'Seller Tin/ የሻጭ ቲን', 'Vat registration no/ የቫት ምዝገባ ቁጥር', 'MRC/ የሽ/መ/መ/ቁ', 'date of purchase/ ግዢው የተከናወነበት ቀን', 'vat Receipt Number/ የደረሠኝ ቁጥር', 'Product Description/ የዕቃው ዓይነት', 'measurement/ መለኪያ', 'Quantity/ ብዛት', 'unit price/ ያንዱ ዋጋ', 'value before vat/ ከቫት በፊት', 'vat paid on purchase / የተከፈለ ቫት', 'value after tax / ከቫት በኋላ'];
+        let sumBefore = 0;
+        const body = rows.map((r, i) => {
+            const vat = r.beforeVat * 0.15;
+            sumBefore += r.beforeVat;
+            return `<tr>
+                <td>${i + 1}</td><td>${esc(r.sellerName)}</td><td>${esc(r.sellerTin)}</td><td>${esc(r.vatRegNo)}</td><td>${esc(r.mrc)}</td>
+                <td class="num">${esc(isoToDisplayDate(r.date))}</td><td>${esc(r.receiptNo)}</td><td>${esc(r.description)}</td><td>${esc(r.measurement)}</td>
+                <td class="num">${r.quantity != null ? esc(String(r.quantity)) : ''}</td><td class="num">${r.unitPrice != null ? guestMoney(r.unitPrice) : ''}</td>
+                <td class="num">${guestMoney(r.beforeVat)}</td><td class="num">${guestMoney(vat)}</td><td class="num">${guestMoney(r.beforeVat + vat)}</td>
+            </tr>`;
+        }).join('');
+        const sumVat = sumBefore * 0.15;
+        return `
+            <div class="gt-sheet" oncontextmenu="return false;">
+                <div class="gt-wm">PREVIEW</div>
+                <div class="gt-info">
+                    1. TAXPAYER NAME/የግብር ከፋይ ስም ፡ <span>&nbsp;</span><br>
+                    2. BUYER TIN/ የገዢ ቲን ፡ <span>&nbsp;</span><br>
+                    3. VAT REGISTRATION NO./ የቫት ምዝገባ ቁጥር <span>&nbsp;</span><br>
+                    4. TRADE TYPE/የንግዱ ዓይነት ፡ <span>&nbsp;</span>
+                </div>
+                <div class="gt-title">የተጨማሪ እሴት ታክስ ግዢ ማሳወቂያ ቅፅ/VAT PURCHASE DETAIL</div>
+                <div class="gt-scroll">
+                    <table>
+                        <thead><tr>${heads.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead>
+                        <tbody>${body}
+                            <tr class="tot"><td colspan="11"></td><td class="num">${guestMoney(sumBefore)}</td><td class="num">${guestMoney(sumVat)}</td><td class="num">${guestMoney(sumBefore + sumVat)}</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="gt-hint">Swipe sideways to see all columns &rarr;</div>
+            </div>`;
+    }
+
+    function renderGuest() {
+        const box = document.getElementById('guest-box');
+        if (!box) return;
+        const st = guestState;
+        box.style.maxWidth = st.step === 'preview' ? '1100px' : '440px';
+        const signupBtn = (label) => `<button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="guestGoSignup()">${esc(label)}</button>`;
+        const backLink = `<p style="text-align:center; font-size:13px; margin-top:14px;"><a href="#" onclick="closeGuestTrial(); return false;" style="color:var(--text-soft);">Back to sign in</a></p>`;
+        let html = '';
+        if (st.step === 'upload') {
+            html = `
+                <h1 class="auth-welcome-heading">Try it free</h1>
+                <p class="auth-welcome-subtitle">Pick up to ${TRIAL_MAX_PHOTOS} receipt photos. We read them and show you your VAT report in seconds.</p>
+                <input type="file" accept="image/*" multiple style="display:none;" id="guest-file-input" onchange="guestPickPhotos(this)">
+                <div class="gt-drop">
+                    ${icon('upload', 26)}
+                    <div style="margin:10px 0 14px;">Choose 1 to ${TRIAL_MAX_PHOTOS} photos from your phone or computer</div>
+                    <button class="btn btn-primary" onclick="document.getElementById('guest-file-input').click()">${icon('image', 15)} Choose photos</button>
+                </div>
+                <p style="text-align:center; font-size:12px; color:var(--text-soft); margin-top:12px;">One free try per device. With a free account you can save, edit and download your reports.</p>
+                ${backLink}`;
+        } else if (st.step === 'reading') {
+            html = `
+                <h1 class="auth-welcome-heading">Reading your receipts</h1>
+                <div style="display:flex; align-items:center; justify-content:center; gap:8px; color:var(--text-soft); font-size:13.5px; margin-top:18px;">
+                    <span class="spin" style="display:inline-flex;">${icon('loader-2', 16)}</span> <span id="guest-status">${esc(st.text || 'Reading…')}</span>
+                </div>
+                ${st.note ? `<p style="text-align:center; font-size:12px; color:var(--text-soft); margin-top:12px;">${esc(st.note)}</p>` : ''}`;
+        } else if (st.step === 'preview') {
+            const n = st.rows.length;
+            html = `
+                <h1 class="auth-welcome-heading" style="margin-bottom:10px;">Your VAT report preview</h1>
+                <p class="auth-welcome-subtitle" style="margin-bottom:14px;">${n} receipt${n === 1 ? '' : 's'} read and placed on the VAT Purchase Detail form.</p>
+                ${st.note ? `<div class="notice notice-warn">${esc(st.note)}</div>` : ''}
+                ${st.failed ? `<div class="notice notice-warn">${st.failed} photo${st.failed === 1 ? '' : 's'} could not be read.</div>` : ''}
+                ${guestSheetHtml(st.rows)}
+                <div class="card" style="margin:16px 0 0; text-align:center; background:var(--paper);">
+                    <div style="font-size:14px; font-weight:600; margin-bottom:6px;">This is a preview. Want the real file?</div>
+                    <div style="font-size:13px; color:var(--text-soft); margin-bottom:14px;">Create a free account to save these receipts, fix anything we misread, and download the official VAT report (Excel) plus eTax and Peachtree files.</div>
+                    <div style="max-width:320px; margin:0 auto;">${signupBtn('Create free account')}</div>
+                </div>
+                ${backLink}`;
+        } else if (st.step === 'used') {
+            html = `
+                <h1 class="auth-welcome-heading">You've used your free try</h1>
+                <p class="auth-welcome-subtitle">Create a free account to keep scanning receipts and download your VAT reports.</p>
+                ${signupBtn('Create free account')}
+                ${backLink}`;
+        } else {
+            html = `
+                <h1 class="auth-welcome-heading">Something went wrong</h1>
+                <div class="notice notice-warn">${esc(st.message || 'Please try again.')}</div>
+                <div style="display:flex; flex-direction:column; gap:10px; margin-top:6px;">
+                    <button class="btn btn-ghost" style="width:100%; justify-content:center;" onclick="guestState = { step: 'upload' }; renderGuest();">Try again</button>
+                    ${signupBtn('Create free account')}
+                </div>
+                ${backLink}`;
+        }
+        box.innerHTML = html;
+        refreshIcons();
+    }
+
+    // ------------------------------------------------------------------------
     // App state
     // ------------------------------------------------------------------------
     let clients = [];
@@ -1797,8 +2171,8 @@ This field is  mandatory.",Total value,vat,value after vat`;
     // Which VAT line each eTax CSV export should file under — applies to
     // every row in that download. Change it here if a given month's batch
     // is mostly a different category (e.g. capital assets instead of
-    // general expenses); mismatched rows can still be moved on the site.
-    let etaxOptions = { purchaseType: '5', purchaseCategory: 'G', saleType: '1', saleCategory: 'G', nonTaxPurchaseCategory: 'G', nonTaxSaleCategory: 'G' };
+    // capital assets); mismatched rows can still be moved on the site.
+    let etaxOptions = { purchaseType: '1', purchaseCategory: 'G', saleType: '1', saleCategory: 'G', nonTaxPurchaseCategory: 'G', nonTaxSaleCategory: 'G', withholdingCalendar: 'G' };
     let addFlow = null; // { step, preview, error, form }
 
     function activeClient() { return clients.find((c) => c.id === activeClientId) || null; }
@@ -2022,6 +2396,12 @@ This field is  mandatory.",Total value,vat,value after vat`;
     function backToDashboard() { activeClientId = null; stopLive(); render(); }
     function setTab(key) { activeTab = key; addFlow = null; render(); }
 
+    // Saving a 'withholding' receipt needs the database to accept that value in the type column (migration_withholding.sql).
+    function entryDbError(error, entry) {
+        const msg = (error && error.message) || 'Could not save.';
+        if (entry && entry.type === 'withholding' && /check constraint|violates|invalid input value|enum/i.test(msg)) return msg + "\n\nThe database does not accept the 'withholding' receipt type yet. Run migration_withholding.sql once in Supabase (SQL editor), then save again.";
+        return msg;
+    }
     async function addEntry(entry) {
         const client = activeClient();
         let row = entryToDb(entry, client.id);
@@ -2032,7 +2412,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
             delete row.non_vat_amount; delete row.lines; delete row.entry_kind;
             ({ data, error } = await supabaseClient.from('accountant_entries').insert(row).select().single());
         }
-        if (error) { alert(error.message); return; }
+        if (error) { alert(entryDbError(error, entry)); return; }
         client.entries.unshift(mapEntryFromDb(data));
         client.entryCount = (client.entryCount || 0) + 1;
         rememberSeller(entry.sellerName, entry.sellerTin);
@@ -2123,7 +2503,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
                 </div>
             </div></div>
             <div class="wrap">
-                ${!accountantProfile ? `<div class="notice notice-warn">${icon('alert-triangle', 14)} Set up your accountant profile so clients can find you on MELEYA. <a href="#" onclick="event.preventDefault(); openProfileModal();" style="color:inherit; text-decoration:underline; margin-left:4px;">Set it up</a></div>` : ''}
+                ${(!accountantProfile || !accountantProfile.full_name) ? `<div class="notice notice-warn">${icon('alert-triangle', 14)} Add your name to your accountant profile so clients can find you on MELEYA. <a href="#" onclick="event.preventDefault(); openProfileModal();" style="color:inherit; text-decoration:underline; margin-left:4px;">Set it up</a></div>` : ''}
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:18px;">
                     <div style="font-size:15px; color:var(--text-soft);">${clients.length} client${clients.length === 1 ? '' : 's'}</div>
                     <button class="btn btn-primary" onclick="openAddClientSearch()">${icon('plus', 16)} Add client</button>
@@ -2251,7 +2631,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
     }
     function receiptsView(client) {
         const base = receiptsPeriodFiltered(client).filter((e) => entryMatchesQuery(e, receiptsFilter.query));
-        const counts = { all: base.length, purchase: 0, sale: 0, expense: 0 };
+        const counts = { all: base.length, purchase: 0, sale: 0, expense: 0, withholding: 0 };
         base.forEach((e) => { counts[entryKindOf(e)]++; });
         const shown = receiptsFilter.kind === 'all' ? base : base.filter((e) => entryKindOf(e) === receiptsFilter.kind);
         return { shown, counts };
@@ -2264,7 +2644,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
     }
     function renderKindFilter(client) {
         const { counts } = receiptsView(client);
-        const opts = [['all', 'All'], ['purchase', 'Purchase receipts'], ['sale', 'Sales receipts'], ['expense', 'Expense receipts']];
+        const opts = [['all', 'All'], ['purchase', 'Purchase receipts'], ['sale', 'Sales receipts'], ['expense', 'Expense receipts'], ['withholding', 'VAT withholding receipts']];
         return `<div class="seg">${opts.map(([k, label]) => `<button type="button" class="${receiptsFilter.kind === k ? 'on' : ''}" onclick="rfSetKind('${k}')">${label}<span class="cnt">${counts[k]}</span></button>`).join('')}</div>`;
     }
     function renderReceiptsList(client) {
@@ -2280,12 +2660,12 @@ This field is  mandatory.",Total value,vat,value after vat`;
             return `
             <tr class="entry-row${e.reviewed === false ? ' unreviewed' : ''}${e.tinMismatch ? ' tin-mismatch' : ''}" onclick="openEntryDetail('${e.id}')" style="cursor:pointer;">
                 <td class="mono" style="font-size:12px;">${esc(e.date) || '—'}</td>
-                <td>${esc(e.sellerName) || 'Unknown seller'}${e.missing && e.missing.length ? ` <span title="Needs review: ${esc(e.missing.join(', '))}" style="color:var(--amber);">${icon('alert-triangle', 12)}</span>` : ''}${e.reviewed === false ? `<span class="badge-new" title="Auto-saved from a batch upload — not reviewed yet">New</span>` : ''}${e.syncedFrom === 'shop' ? `<span class="badge-shop" title="${locked ? "This is the shop's own sales record, so it is view-only." : "Came from the shop's own records. Check the details and the FS number."}">${icon('store', 11)} From shop</span>` : ''}${e.tinMismatch ? `<span class="tin-mismatch-badge" title="Neither party's TIN on the document matches this client — excluded from exports">${icon('alert-triangle', 11)} TIN mismatch</span>` : ''}
-                    ${(e.receiptNo || e.mrc) ? `<div class="mono" style="font-size:11px; color:var(--text-soft); margin-top:2px;">${e.receiptNo ? `FS ${esc(e.receiptNo)}` : ''}${e.receiptNo && e.mrc ? ' · ' : ''}${e.mrc ? `MRC ${esc(e.mrc)}` : ''}</div>` : ''}</td>
+                <td>${esc(e.sellerName) || (e.type === 'withholding' ? 'Unknown agent' : 'Unknown seller')}${e.missing && e.missing.length ? ` <span title="Needs review: ${esc(e.missing.join(', '))}" style="color:var(--amber);">${icon('alert-triangle', 12)}</span>` : ''}${e.reviewed === false ? `<span class="badge-new" title="Auto-saved from a batch upload — not reviewed yet">New</span>` : ''}${e.syncedFrom === 'shop' ? `<span class="badge-shop" title="${locked ? "This is the shop's own sales record, so it is view-only." : "Came from the shop's own records. Check the details and the FS number."}">${icon('store', 11)} From shop</span>` : ''}${e.tinMismatch ? `<span class="tin-mismatch-badge" title="Neither party's TIN on the document matches this client — excluded from exports">${icon('alert-triangle', 11)} TIN mismatch</span>` : ''}
+                    ${(e.receiptNo || e.mrc) ? `<div class="mono" style="font-size:11px; color:var(--text-soft); margin-top:2px;">${e.receiptNo ? `${e.type === 'withholding' ? 'WH no. ' : (/^(FS|M)[\s\-:.]*\d/i.test(e.receiptNo) ? '' : 'FS ')}${esc(e.receiptNo)}` : ''}${e.receiptNo && e.mrc ? ' · ' : ''}${e.mrc ? `MRC ${esc(e.mrc)}` : ''}</div>` : ''}</td>
                 <td><span class="kind-pill ${kind}" title="${kind === 'expense' ? 'Saved as a service' : ''}">${KIND_LABEL[kind]}</span></td>
                 <td class="mono num">${money(e.beforeVat)}</td>
-                <td class="mono num">${money(e.vat)}</td>
-                <td class="mono num" style="font-weight:600;">${money(e.total)}${e.nonVatAmount > 0 ? `<div style="font-size:10.5px; font-weight:400; color:var(--amber);" title="Goods on this receipt that carry no VAT">+ ${money(e.nonVatAmount)} non-VAT</div>` : ''}</td>
+                <td class="mono num">${e.type === 'withholding' ? `${money(e.vat)}<div style="font-size:10.5px; font-weight:400; color:var(--text-soft);" title="VAT the agent withheld from the payment">withheld</div>` : money(e.vat)}</td>
+                <td class="mono num" style="font-weight:600;">${e.type === 'withholding' ? '<span style="color:var(--text-soft); font-weight:400;">—</span>' : money(e.total)}${e.nonVatAmount > 0 ? `<div style="font-size:10.5px; font-weight:400; color:var(--amber);" title="Goods on this receipt that carry no VAT">+ ${money(e.nonVatAmount)} non-VAT</div>` : ''}</td>
                 <td style="text-align:right; white-space:nowrap;">
                     ${e.tinMismatch && !locked ? `<button class="btn-icon" title="Unflag — include in exports" onclick="event.stopPropagation(); toggleTinMismatch('${e.id}')">${icon('flag', 14)}</button>` : ''}
                     ${locked ? `<span class="btn-icon" style="cursor:default;" title="View-only: this sale came from the shop">${icon('lock', 14)}</span>` : `<button class="btn-icon" onclick="event.stopPropagation(); removeEntry('${e.id}')">${icon('trash-2', 14)}</button>`}
@@ -2399,8 +2779,8 @@ This field is  mandatory.",Total value,vat,value after vat`;
         const patch = {
             entryKind: d.type === 'payment' ? (d.entryKind === 'expense' ? 'expense' : 'purchase') : '',
             type: d.type, date: d.date, sellerName: d.sellerName, sellerTin: d.sellerTin, vatRegNo: d.vatRegNo,
-            mrc: d.mrc, receiptNo: d.receiptNo, isVat: !!d.isVat,
-            beforeVat: Number(d.beforeVat) || 0, vat: Number(d.vat) || 0, total: Number(d.total) || 0,
+            mrc: d.mrc, receiptNo: d.receiptNo, isVat: d.type === 'withholding' ? false : !!d.isVat,
+            beforeVat: Number(d.beforeVat) || 0, vat: Number(d.vat) || 0, total: d.type === 'withholding' ? (Number(d.beforeVat) || 0) : (Number(d.total) || 0),
             description: d.description, measurement: d.measurement,
             quantity: d.quantity === '' ? null : Number(d.quantity), unitPrice: d.unitPrice === '' ? null : Number(d.unitPrice),
             reviewed: true, tinMismatch: !!d.tinMismatch,
@@ -2414,7 +2794,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
             delete upd.non_vat_amount; delete upd.lines; delete upd.entry_kind;
             ({ error } = await supabaseClient.from('accountant_entries').update(upd).eq('id', entryModalId));
         }
-        if (error) { alert(error.message); return; }
+        if (error) { alert(entryDbError(error, patch)); return; }
         if (idx >= 0) client.entries[idx] = { ...client.entries[idx], ...patch };
         rememberSeller(patch.sellerName, patch.sellerTin);
         if (previous) {
@@ -2465,6 +2845,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
         const d = locked ? { ...entryModalDraft, description: cleanShopDescription(entryModalDraft) } : entryModalDraft;
         const ec = gcToEc(d.date);
         const ecLabel = ec ? `${EC_MONTHS[ec.month - 1]} ${ec.day}, ${ec.year} (EC)` : '';
+        const isW = d.type === 'withholding';
         const field = (key, label, mono) => `
             <div><label>${label}</label>
             <input value="${esc(d[key])}" style="${mono ? "font-family:'IBM Plex Mono',monospace;" : ''}" oninput="entryModalDraft.${key}=this.value"></div>`;
@@ -2484,13 +2865,14 @@ This field is  mandatory.",Total value,vat,value after vat`;
                     </div>
                     ${locked ? `<div class="ro-banner">${icon('lock', 14)}<div><strong>View only.</strong> This sale came from the shop, so only the shop can change it. If something looks wrong, ask them to correct it and it will update here.</div></div>` : ''}
                     ${d.reviewed === false && !locked ? `<div class="notice notice-warn">${icon('alert-triangle', 14)} Auto-saved from a batch upload, not reviewed yet. Check the fields below, then Save (or just move to the next one — that marks it reviewed too).</div>` : ''}
-                    ${d.tinMismatch ? `<div class="notice notice-danger">${icon('alert-triangle', 14)} <div>Neither party's TIN on this document matched this client's TIN, so it's excluded from filing exports. <button type="button" class="btn btn-ghost" style="margin-left:6px; padding:2px 8px; font-size:12px;" onclick="entryModalDraft.tinMismatch=false; render();">${icon('check', 12)} Confirm it's theirs — include it</button></div></div>` : ''}
+                    ${d.tinMismatch ? `<div class="notice notice-danger">${icon('alert-triangle', 14)} <div>${d.type === 'withholding' ? "The supplier TIN on this withholding receipt did not match this client's TIN, so it's excluded from filing exports." : "Neither party's TIN on this document matched this client's TIN, so it's excluded from filing exports."} <button type="button" class="btn btn-ghost" style="margin-left:6px; padding:2px 8px; font-size:12px;" onclick="entryModalDraft.tinMismatch=false; render();">${icon('check', 12)} Confirm it's theirs — include it</button></div></div>` : ''}
                     ${renderUndoBar('receipt')}
                     <fieldset class="ro" ${locked ? 'disabled' : ''}>
                     <div style="display:flex; gap:16px; margin-bottom:14px; flex-wrap:wrap;">
                         <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="edit-entry-type" style="width:auto;" ${d.type === 'payment' ? 'checked' : ''} onchange="entryModalDraft.type='payment'; render()"> Purchase (payment out)</label>
                         <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="edit-entry-type" style="width:auto;" ${d.type === 'receipt' ? 'checked' : ''} onchange="entryModalDraft.type='receipt'; render()"> Sale (receipt in)</label>
-                        <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; margin-left:auto;"><input type="checkbox" style="width:auto;" ${d.isVat ? 'checked' : ''} onchange="entryModalDraft.isVat=this.checked"> VAT receipt</label>
+                        <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="edit-entry-type" style="width:auto;" ${d.type === 'withholding' ? 'checked' : ''} onchange="entryModalDraft.type='withholding'; entryModalDraft.isVat=false; render()"> VAT withholding receipt</label>
+                        ${isW ? '' : `<label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; margin-left:auto;"><input type="checkbox" style="width:auto;" ${d.isVat ? 'checked' : ''} onchange="entryModalDraft.isVat=this.checked"> VAT receipt</label>`}
                     </div>
                     ${renderKindPicker(d, 'entryModalDraft')}
                     <div class="grid-2" style="margin-bottom:12px;">
@@ -2498,26 +2880,28 @@ This field is  mandatory.",Total value,vat,value after vat`;
                         <div><label>&nbsp;</label><div id="edit-ec-label" class="mono" style="font-size:12px; color:var(--text-soft); padding-top:8px;">${esc(ecLabel)}</div></div>
                     </div>
                     <div class="grid-3" style="margin-bottom:12px;">
-                        ${field('sellerName', 'Seller name')}
+                        ${isW ? `${field('sellerName', 'Withholding agent name')}
+                        ${field('sellerTin', 'Agent TIN', true)}
+                        ${field('receiptNo', 'Withholding receipt number')}` : `${field('sellerName', 'Seller name')}
                         ${field('sellerTin', 'Seller TIN', true)}
                         ${field('vatRegNo', 'VAT reg no', true)}
                         ${field('mrc', 'MRC code', true)}
                         ${field('receiptNo', 'Receipt / FS number')}
-                        <div></div>
+                        <div></div>`}
                     </div>
                     <div class="grid-3" style="margin-bottom:12px;">
-                        ${field('beforeVat', 'Before VAT', true)}
-                        ${field('vat', 'VAT', true)}
-                        ${field('total', 'Total', true)}
+                        ${isW ? field('beforeVat', 'Amount paid (taxable amount)', true) : field('beforeVat', 'Before VAT', true)}
+                        ${isW ? field('vat', 'VAT withheld (15% ÷ 2)', true) : field('vat', 'VAT', true)}
+                        ${isW ? '' : field('total', 'Total', true)}
                     </div>
                     ${d.nonVatAmount > 0 ? `<div style="font-size:12px; margin:-6px 0 10px; color:var(--text-soft);">Total here = taxable lines + VAT. Non-VAT goods on this receipt: <strong class="mono">${money(d.nonVatAmount)}</strong> (kept separately).</div>` : ''}
-                    ${renderLinesPanel(d, 'edit')}
-                    <div class="grid-4" style="margin-bottom:16px;">
+                    ${isW ? '' : renderLinesPanel(d, 'edit')}
+                    ${isW ? '' : `<div class="grid-4" style="margin-bottom:16px;">
                         ${field('description', 'Description')}
                         ${field('measurement', 'Measurement')}
                         ${field('quantity', 'Quantity', true)}
                         ${field('unitPrice', 'Unit price', true)}
-                    </div>
+                    </div>`}
                     </fieldset>
                     <div style="display:flex; gap:10px;">
                         ${locked ? `<button class="btn btn-ghost" onclick="closeEntryDetail()">Close</button>` : `
@@ -2640,8 +3024,9 @@ This field is  mandatory.",Total value,vat,value after vat`;
             // don't keep the scanned TINs around afterward, just the flag
             // and (when we could tell) the Purchase/Sale type.
             const client = activeClient();
-            const match = evaluateTinMatch(ex, client);
-            const entryType = match.type || 'payment';
+            const isW = ex.layout === 'W'; // VAT withholding receipt
+            const match = isW ? evaluateWithholdingMatch(ex, client) : evaluateTinMatch(ex, client);
+            const entryType = isW ? 'withholding' : (match.type || 'payment');
             addFlow.tinMismatchInfo = match.mismatch ? { seller: ex.seller_tin, buyer: ex.buyer_tin, expected: client.tin } : null;
             addFlow.form = {
                 type: entryType, calendar, ecYear: ex.date_year || '', ecMonth: ex.date_month || '', ecDay: ex.date_day || '', date: gcDate,
@@ -2657,6 +3042,16 @@ This field is  mandatory.",Total value,vat,value after vat`;
                 entryKind: 'purchase',
                 splitStatus: (ex.split && ex.split.status) || 'none',
             };
+            // The FS / M letters are written right into the receipt number, so they show up in every export. The user can edit or erase them in the same field.
+            if (!isW && addFlow.form.receiptNo) {
+                const n = String(addFlow.form.receiptNo).trim();
+                if ((ex.layout === 'A' || (ex.layout === 'C' && ex.mrc)) && !/^FS/i.test(n)) addFlow.form.receiptNo = 'FS' + n;
+                else if (ex.layout === 'B' && !/^M[\s\-:.]*\d/i.test(n)) addFlow.form.receiptNo = 'M' + n;
+            }
+            if (isW) {
+                // before VAT = taxable amount paid, VAT = VAT withheld. No lines, no MRC, not a VAT invoice.
+                Object.assign(addFlow.form, { isVat: false, vatRegNo: '', mrc: '', description: 'VAT withholding receipt', measurement: '', quantity: '', unitPrice: '', lines: [], nonVatAmount: 0, entryKind: '', total: ex.before_vat ?? '' });
+            }
             addFlow.step = 'review';
         } catch (e) {
             console.error(e);
@@ -2683,7 +3078,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
             return `
                 <div class="card" style="text-align:center;">
                     ${icon('upload', 26)}
-                    <div style="margin:10px 0 14px; color:var(--text-soft); font-size:13.5px;">Upload photos of the receipt or invoice, or take one with your camera</div>
+                    <div style="margin:10px 0 14px; color:var(--text-soft); font-size:13.5px;">Upload photos of the receipt, invoice or VAT withholding receipt, or take one with your camera</div>
                     <input type="file" accept="image/*" multiple style="display:none;" id="receipt-file-input" onchange="handleReceiptFile(this)">
                     <input type="file" accept="image/*" capture="environment" style="display:none;" id="receipt-camera-input" onchange="handleReceiptFile(this)">
                     <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
@@ -2706,6 +3101,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
                 </div>`;
         }
         const f = addFlow.form;
+        const isW = f.type === 'withholding';
         const missingSet = new Set(f.missing || []);
         const field = (key, label, flagName, mono) => `
             <div><label>${label}</label>
@@ -2722,25 +3118,29 @@ This field is  mandatory.",Total value,vat,value after vat`;
                         <div style="display:flex; gap:16px; margin-bottom:14px; flex-wrap:wrap;">
                             <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="entry-type" style="width:auto;" ${f.type === 'payment' ? 'checked' : ''} onchange="addFlow.form.type='payment'; render()"> Purchase (payment out)</label>
                             <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="entry-type" style="width:auto;" ${f.type === 'receipt' ? 'checked' : ''} onchange="addFlow.form.type='receipt'; render()"> Sale (receipt in)</label>
-                            <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; margin-left:auto;"><input type="checkbox" style="width:auto;" ${f.isVat ? 'checked' : ''} onchange="addFlow.form.isVat=this.checked"> VAT receipt</label>
+                            <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="radio" name="entry-type" style="width:auto;" ${f.type === 'withholding' ? 'checked' : ''} onchange="addFlow.form.type='withholding'; addFlow.form.isVat=false; render()"> VAT withholding receipt</label>
+                            ${isW ? '' : `<label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; margin-left:auto;"><input type="checkbox" style="width:auto;" ${f.isVat ? 'checked' : ''} onchange="addFlow.form.isVat=this.checked"> VAT receipt</label>`}
                         </div>
                         ${renderKindPicker(f, 'addFlow.form')}
                         ${f.tinMismatch ? `
                         <div class="notice notice-danger">
                             ${icon('alert-triangle', 14)}
                             <div>
-                                <div><strong>Neither party's TIN matches this client.</strong> Seller TIN ${esc(addFlow.tinMismatchInfo ? (addFlow.tinMismatchInfo.seller || '—') : '')}, Buyer TIN ${esc(addFlow.tinMismatchInfo ? (addFlow.tinMismatchInfo.buyer || '—') : '')} — this client's TIN is ${esc(addFlow.tinMismatchInfo ? addFlow.tinMismatchInfo.expected : '')}.</div>
+                                <div><strong>${f.type === 'withholding' ? 'The supplier TIN on this withholding receipt does not match this client.' : "Neither party's TIN matches this client."}</strong> ${f.type === 'withholding' ? 'Agent TIN' : 'Seller TIN'} ${esc(addFlow.tinMismatchInfo ? (addFlow.tinMismatchInfo.seller || '—') : '')}, ${f.type === 'withholding' ? 'Supplier TIN' : 'Buyer TIN'} ${esc(addFlow.tinMismatchInfo ? (addFlow.tinMismatchInfo.buyer || '—') : '')} — this client's TIN is ${esc(addFlow.tinMismatchInfo ? addFlow.tinMismatchInfo.expected : '')}.</div>
                                 <div style="margin-top:4px; font-size:12px;">It will still be saved, but kept out of filing exports until you confirm it belongs to this client.</div>
                                 <button type="button" class="btn btn-ghost" style="margin-top:6px; padding:4px 10px; font-size:12px;" onclick="addFlow.form.tinMismatch=false; render();">${icon('check', 13)} This is correct — include it</button>
                             </div>
                         </div>` : ''}
                         <div class="grid-3" style="margin-bottom:12px;">
-                            ${field('sellerName', 'Seller name')}
+                            ${isW ? `${field('sellerName', 'Withholding agent name', 'Seller name')}
+                            ${field('sellerTin', 'Agent TIN', 'Seller TIN')}
+                            ${field('receiptNo', 'Withholding receipt number')}
+                            <div style="grid-column:1 / -1; font-size:12px; color:var(--text-soft);">VAT withholding receipts are kept apart from your purchases and sales. They go into the VAT withholding upload file.</div>` : `${field('sellerName', 'Seller name')}
                             ${field('sellerTin', 'Seller TIN', 'Seller TIN')}
                             ${field('vatRegNo', 'VAT reg no', 'VAT reg no')}
                             ${field('mrc', 'MRC code', 'MRC')}
                             ${field('receiptNo', 'Receipt / FS number')}
-                            <div></div>
+                            <div></div>`}
                         </div>
                         <div style="border:1px solid var(--paper-line); border-radius:5px; padding:12px; margin-bottom:12px; background:var(--paper);">
                             <div style="display:flex; gap:16px; margin-bottom:10px;">
@@ -2758,18 +3158,18 @@ This field is  mandatory.",Total value,vat,value after vat`;
                             </div>
                         </div>
                         <div class="grid-3" style="margin-bottom:12px;">
-                            ${field('beforeVat', 'Before VAT', null, true)}
-                            ${field('vat', 'VAT', null, true)}
-                            ${field('total', 'Total', null, true)}
+                            ${isW ? field('beforeVat', 'Amount paid (taxable amount)', 'Taxable amount', true) : field('beforeVat', 'Before VAT', null, true)}
+                            ${isW ? field('vat', 'VAT withheld (15% ÷ 2)', null, true) : field('vat', 'VAT', null, true)}
+                            ${isW ? '' : field('total', 'Total', null, true)}
                         </div>
                         ${f.nonVatAmount > 0 ? `<div style="font-size:12px; margin:-6px 0 10px; color:var(--text-soft);">Total here = taxable lines + VAT. Non-VAT goods on this receipt: <strong class="mono">${money(f.nonVatAmount)}</strong> (kept separately).</div>` : ''}
-                        ${renderLinesPanel(f, 'add')}
-                        <div class="grid-4" style="margin-bottom:16px;">
+                        ${isW ? '' : renderLinesPanel(f, 'add')}
+                        ${isW ? '' : `<div class="grid-4" style="margin-bottom:16px;">
                             ${field('description', 'Description')}
                             ${field('measurement', 'Measurement', 'Measurement')}
                             ${field('quantity', 'Quantity', 'Quantity', true)}
                             ${field('unitPrice', 'Unit price', 'Unit price', true)}
-                        </div>
+                        </div>`}
                         ${renderShareNotice(f)}
                         <div style="display:flex; gap:10px;">
                             <button class="btn btn-primary" id="save-receipt-btn" ${f.date ? '' : 'disabled'} onclick="saveReceiptForm()">${icon('check', 15)} Save receipt</button>
@@ -2885,7 +3285,7 @@ This field is  mandatory.",Total value,vat,value after vat`;
         return addEntry({
             ...f,
             reviewed: reviewed !== false,
-            beforeVat: Number(f.beforeVat) || 0, vat: Number(f.vat) || 0, total: Number(f.total) || 0,
+            beforeVat: Number(f.beforeVat) || 0, vat: Number(f.vat) || 0, total: f.type === 'withholding' ? (Number(f.beforeVat) || 0) : (Number(f.total) || 0),
             quantity: f.quantity === '' ? null : Number(f.quantity), unitPrice: f.unitPrice === '' ? null : Number(f.unitPrice),
         });
     }
@@ -3083,6 +3483,20 @@ This field is  mandatory.",Total value,vat,value after vat`;
                         </div>
                         <button class="btn btn-ghost" onclick="downloadEtaxNonTax('sale')">${icon('download', 14)} Download</button>
                     </div>
+                    <div class="export-row">
+                        <div class="icon-box">${icon('upload', 16)}</div>
+                        <div class="info">
+                            <div class="title">VAT withholding upload CSV <span style="font-weight:400; color:var(--text-soft); font-size:12px;">(VAT withheld by agents)</span></div>
+                            <div style="font-size:11.5px; color:var(--text-soft); margin-top:2px;">One row per VAT withholding receipt: receipt number, date, taxable amount, VAT withheld. Same tab-separated layout as the site's own file.</div>
+                            <div style="display:flex; gap:8px; margin-top:6px; flex-wrap:wrap;">
+                                <select style="width:auto; font-size:12px;" onchange="etaxOptions.withholdingCalendar=this.value">
+                                    <option value="G" ${etaxOptions.withholdingCalendar === 'G' ? 'selected' : ''}>Dates as Gregorian</option>
+                                    <option value="E" ${etaxOptions.withholdingCalendar === 'E' ? 'selected' : ''}>Dates as Ethiopian</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button class="btn btn-ghost" onclick="downloadEtaxWithholding()">${icon('download', 14)} Download</button>
+                    </div>
                 </div>
             </div>`;
     }
@@ -3153,6 +3567,18 @@ This field is  mandatory.",Total value,vat,value after vat`;
             return;
         }
         downloadBlob(csv, `${client.name.replace(/\s+/g, '_')}_etax_nontax_${side}_${label}.csv`, 'text/csv');
+        warnEtaxSkipped(skipped);
+    }
+    function downloadEtaxWithholding() {
+        const client = activeClient();
+        const { fromKey, toKey, label } = exportRangeAndLabel(client);
+        const { csv, skipped } = buildEtaxWithholdingCsv(client, fromKey, toKey, etaxOptions.withholdingCalendar);
+        if (!csv) {
+            if (skipped.length) warnEtaxSkipped(skipped);
+            else alert('No VAT withholding receipts logged for this period.');
+            return;
+        }
+        downloadBlob(csv, `${client.name.replace(/\s+/g, '_')}_etax_vat_withholding_${label}.csv`, 'text/csv');
         warnEtaxSkipped(skipped);
     }
     function downloadEtaxSale() {
