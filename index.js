@@ -8,7 +8,7 @@
 // "a new version is ready".
 // =====================================================================
 
-const CACHE_NAME = 'meleya-shell-v43';
+const CACHE_NAME = 'meleya-shell-v44';
 
 // MUST all download successfully, or this version does NOT install and the
 // phone keeps running the previous working version (retrying later).
@@ -21,7 +21,7 @@ const CORE_ASSETS = [
 // Nice to have offline; a failure here does not block the install.
 const OPTIONAL_ASSETS = [
   './verticals/pharmacy.js',
-  './verticals/appliance_rental.js',
+  './verticals/rental.js',
   'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
   'https://cdn.jsdelivr.net/npm/chart.js@4.5.1',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2'

@@ -411,7 +411,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
            fit within max-height never show a scrollbar and just look
            like a normal block, same as before. This is also what lets a
            table have BOTH a sticky top header row AND a sticky left
-           column (see the Appliance Rental Availability grid) at once --
+           column (see the Rental Availability grid) at once --
            both stick relative to this same local scroll container. */
         .table-scroll { overflow: auto; max-height: 65vh; }
         .table-scroll table { margin-top: 0; }
@@ -1025,9 +1025,9 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                     </div>
                 </div>
 
-                <!-- Availability + Assets sections for the appliance_rental
+                <!-- Availability + Assets sections for the rental
                      vertical are rendered entirely by
-                     verticals/appliance_rental.js into this mount point --
+                     verticals/rental.js into this mount point --
                      replacing the Stock List above (which is hidden for
                      that business type). Empty div here so index.html
                      doesn't grow with rental-specific markup that every
@@ -1236,8 +1236,8 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                     </div>
                 </div>
                 </div>
-                <!-- Booking section for the appliance_rental vertical is
-                     rendered entirely by verticals/appliance_rental.js into
+                <!-- Booking section for the rental vertical is
+                     rendered entirely by verticals/rental.js into
                      this mount point, replacing the normal sales content
                      above (hidden for that business type). -->
                 <div id="sales-rental-mount"></div>
@@ -2676,6 +2676,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
         let currentTenantId = null;      // = businesses.id (the shop)
         let currentTenantName = '';
+        const normalizeBizType = v => (v === 'appliance_' + 'rental' ? 'rental' : (v || 'retail')); // old accounts saved the rental type under its long name until the SQL update is run
         let currentBusinessType = 'retail';   // businesses.business_type — drives vertical-specific behavior (see business-types.config.js). 'retail' is the generic catch-all for any product-selling shop that isn't its own defined vertical yet.
         let currentVerticalModule = null;         // resolved by loadVerticalModule() after login; null for business types with no extra module
         let currentBranchId = null;      // which branch this session is VIEWING — can be a real branch id, or 'all'
@@ -2959,7 +2960,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 'pharm.nothing_expiring': 'Nothing expiring in the next {n} days.',
                 'pharm.no_expired_stock': 'No expired stock.',
 
-                // Appliance rental vertical (verticals/appliance_rental.js)
+                // Rental vertical (verticals/rental.js)
                 'common.loading': 'Loading…',
                 'rental.out': 'Out', 'rental.overdue': 'Overdue', 'rental.due_in_days': 'Due in {a} days',
                 'rental.view_bookings': 'View these bookings', 'rental.no_bookings_category': 'No bookings in this category right now.',
@@ -3322,7 +3323,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 'pharm.nothing_expiring': 'በሚቀጥሉት {n} ቀናት የሚያልቅ ምንም የለም።',
                 'pharm.no_expired_stock': 'ምንም ጊዜው ያለፈበት ዕቃ የለም።',
 
-                // Appliance rental vertical (verticals/appliance_rental.js)
+                // Rental vertical (verticals/rental.js)
                 'common.loading': 'በመጫን ላይ…',
                 'rental.out': 'የወጣ', 'rental.overdue': 'ጊዜው ያለፈ', 'rental.due_in_days': 'በ{a} ቀናት ውስጥ የሚደርስ',
                 'rental.view_bookings': 'እነዚህን ማስያዣዎች ይመልከቱ', 'rental.no_bookings_category': 'በዚህ ምድብ ውስጥ አሁን ምንም ማስያዣ የለም።',
@@ -3527,7 +3528,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             sel.innerHTML = keys.map(k => `<option value="${escHtml(k)}">${BUSINESS_TYPES[k].label}</option>`).join('');
             updateAuthVatDetailFields();
         }
-        // Appliance rental has no VAT registration option at all (the whole
+        // Rental has no VAT registration option at all (the whole
         // question is hidden); every other business type shows the extra
         // TIN/owner/address fields once "Yes" is picked -- those go on every
         // receipt & invoice, so they're collected up front.
@@ -3537,7 +3538,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             const vatSel = document.getElementById('auth-vat-registered');
             const detailsGroup = document.getElementById('auth-vat-details-group');
             if (!typeSel || !vatGroup || !vatSel || !detailsGroup) return;
-            const isRental = typeSel.value === 'appliance_rental';
+            const isRental = typeSel.value === 'rental';
             vatGroup.style.display = isRental ? 'none' : 'block';
             if (isRental) vatSel.value = 'no';
             detailsGroup.style.display = (!isRental && vatSel.value === 'yes') ? 'block' : 'none';
@@ -3645,7 +3646,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             // Rental's Availability calendar and Bookings list show dates
             // too, but they're module-rendered rather than core functions,
             // so they need their own refresh call here.
-            if (currentBusinessType === 'appliance_rental' && currentVerticalModule) {
+            if (currentBusinessType === 'rental' && currentVerticalModule) {
                 const rentalCtx = { state, tenantId: currentTenantId, channelAccountCodes: CHANNEL_ACCOUNT_CODES, supabaseClient, branchId: currentBranchId, calendarPref: currentCalendarPref };
                 if (typeof currentVerticalModule.renderInventorySection === 'function' && document.getElementById('view-inventory')?.classList.contains('active')) {
                     currentVerticalModule.renderInventorySection({ ...rentalCtx, mountEl: document.getElementById('inventory-rental-mount') });
@@ -3692,17 +3693,17 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             // and hidden for the same reason.
             const cogsBox = document.getElementById('m-cogs-box');
             const grossBox = document.getElementById('m-gross-box');
-            if (cogsBox) cogsBox.style.display = (currentBusinessType === 'appliance_rental') ? 'none' : '';
-            if (grossBox) grossBox.style.display = (currentBusinessType === 'appliance_rental') ? 'none' : '';
+            if (cogsBox) cogsBox.style.display = (currentBusinessType === 'rental') ? 'none' : '';
+            if (grossBox) grossBox.style.display = (currentBusinessType === 'rental') ? 'none' : '';
 
-            // appliance_rental reuses Add Product / Purchase / Sales
+            // rental reuses Add Product / Purchase / Sales
             // exactly like every other business type -- it just needs
             // rate fields on the product form, no "Selling Price" on
             // Purchase (rentals bill by rate, not a per-unit sale price),
             // and its Stock List / Sales sections replaced by the
             // Availability+Assets / Booking sections the vertical module
             // renders into the *-rental-mount divs.
-            const isRental = currentBusinessType === 'appliance_rental';
+            const isRental = currentBusinessType === 'rental';
             ['p-daily-rate-group', 'p-weekly-rate-group', 'p-monthly-rate-group'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.style.display = isRental ? '' : 'none';
@@ -3759,7 +3760,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         // concern — none of this touches journal entries or accounts.
         function applyVatUIVisibility() {
             const isVat = !!state.vatRegistered;
-            const isRental = currentBusinessType === 'appliance_rental';
+            const isRental = currentBusinessType === 'rental';
             const saleVatGroup = document.getElementById('sale-vat-group');
             if (saleVatGroup) saleVatGroup.style.display = isVat ? 'block' : 'none';
             const cartVatGroup = document.getElementById('cart-sale-vat-group');
@@ -3767,7 +3768,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             const vatBox = document.getElementById('m-vat-box');
             if (vatBox) vatBox.style.display = isVat ? 'block' : 'none';
             const vatSettingsCard = document.getElementById('vat-settings-card');
-            // Appliance rental has no VAT registration concept at all -- the
+            // Rental has no VAT registration concept at all -- the
             // whole card (and thus the option to turn it on) is hidden, the
             // same as at signup.
             if (vatSettingsCard) vatSettingsCard.style.display = (currentIsOwner && !isRental) ? 'block' : 'none';
@@ -4162,7 +4163,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             if (!email || !password) return showAuthError('Please enter an email and password.');
             if (password.length < 6) return showAuthError('Password must be at least 6 characters.');
             if (password !== passwordConfirm) return showAuthError('Passwords do not match. Please re-type them.');
-            if (vatRegistered && businessType !== 'appliance_rental' && (!vatDetails.tin || !vatDetails.ownerFullName)) {
+            if (vatRegistered && businessType !== 'rental' && (!vatDetails.tin || !vatDetails.ownerFullName)) {
                 return showAuthError('Please enter at least the TIN number and owner\'s full name for a VAT-registered shop.');
             }
             if (vatDetails.tin && !isValidTin(vatDetails.tin)) {
@@ -4410,7 +4411,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             try { showSubscriptionWarning(biz); } catch (e) { }
 
             currentTenantName = biz.business_name;
-            currentBusinessType = biz.business_type || 'retail';
+            currentBusinessType = normalizeBizType(biz.business_type);
             state.categories = biz.categories || [];
             if (Array.isArray(biz.inventory_order)) state.inventoryOrder = biz.inventory_order; // shared stock-list order
             state.customAccounts = biz.custom_accounts || [];
@@ -4542,7 +4543,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         // this point in onboarding, so that function hasn't run).
         function applyInitialInventoryFieldVisibility() {
             const isPharmacy = currentBusinessType === 'pharmacy';
-            const isRental = currentBusinessType === 'appliance_rental';
+            const isRental = currentBusinessType === 'rental';
             document.getElementById('init-inv-expiry-group').style.display = isPharmacy ? '' : 'none';
             document.getElementById('init-inv-selling-price-group').style.display = isRental ? 'none' : '';
             ['init-inv-daily-rate-group', 'init-inv-weekly-rate-group', 'init-inv-monthly-rate-group'].forEach(id => {
@@ -4560,7 +4561,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
         function addToInitialInventoryCart() {
             const isPharmacy = currentBusinessType === 'pharmacy';
-            const isRental = currentBusinessType === 'appliance_rental';
+            const isRental = currentBusinessType === 'rental';
             const cat = document.getElementById('init-inv-category').value.trim();
             const name = document.getElementById('init-inv-name').value.trim();
             const qty = parseInt(document.getElementById('init-inv-qty').value);
@@ -4622,7 +4623,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
         function renderInitialInventoryCartTable() {
             const isPharmacy = currentBusinessType === 'pharmacy';
-            const isRental = currentBusinessType === 'appliance_rental';
+            const isRental = currentBusinessType === 'rental';
             const colCount = 4 + (isPharmacy ? 1 : 0) + (isRental ? 3 : 1) + 1; // category+name+qty+cost, expiry, rate(s)/selling price, remove
             const tbody = document.getElementById('initial-inventory-cart-table-body');
             if (!initialInventoryCart.length) {
@@ -4707,7 +4708,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 queueWrite({ kind: 'insert', table: 'purchase_log', row: toDbPurchase(row) });
             });
 
-            const invAccount = currentBusinessType === 'appliance_rental' ? '1500' : '1200';
+            const invAccount = currentBusinessType === 'rental' ? '1500' : '1200';
             const purchaseJournal = {
                 id: newRows[0].id, date, desc: stampDesc(`Multi-Item Purchase: ${initialInventoryCart.length} items / Supp: N/A`),
                 lines: [{ account: invAccount, dr: total, cr: 0 }, { account: '1020', cr: total, dr: 0 }],
@@ -4837,8 +4838,8 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 dailyRate: i.daily_rate != null ? parseFloat(i.daily_rate) : null,
                 weeklyRate: i.weekly_rate != null ? parseFloat(i.weekly_rate) : null,
                 monthlyRate: i.monthly_rate != null ? parseFloat(i.monthly_rate) : null,
-                // Dated write-off log (appliance_rental only) -- see the
-                // migration note in verticals/appliance_rental.js. Falls
+                // Dated write-off log (rental only) -- see the
+                // migration note in verticals/rental.js. Falls
                 // back to [] gracefully if the column doesn't exist yet.
                 rentalWriteOffs: i.rental_write_offs || [],
                 lots: sortLotsFifo((lots.data || []).filter(l => l.item_id === i.id).map(l => ({ id: l.id, qty: l.qty, cost: parseFloat(l.cost), branchId: l.branch_id, expiry: l.expiry_date || null, acquiredOn: l.acquired_on || null, createdAt: l.created_at || null })))
@@ -5021,7 +5022,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             if (['inactive', 'suspended', 'cancelled'].includes(biz.subscription_status)) { const o = document.getElementById('inactive-overlay'); if (o) o.style.display = 'flex'; }
             const before = liveSettingsSnapshot();
             currentTenantName = biz.business_name;
-            currentBusinessType = biz.business_type || 'retail';
+            currentBusinessType = normalizeBizType(biz.business_type);
             state.categories = biz.categories || [];
             if (Array.isArray(biz.inventory_order)) state.inventoryOrder = biz.inventory_order;
             state.customAccounts = biz.custom_accounts || [];
@@ -5606,7 +5607,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             try {
                 await withRetry(() => supabaseClient.from('businesses').update({ categories: state.categories, custom_accounts: state.customAccounts, sale_types: state.saleTypes }).eq('id', tid));
 
-                // Vertical-owned tables (like appliance_rental's `rentals`)
+                // Vertical-owned tables (like rental's `rentals`)
                 // can hold rows that foreign-key onto inventory_items, so
                 // they have to be emptied before inventory_items is
                 // deleted below, or Postgres blocks that delete with a
@@ -6148,7 +6149,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                     if((safetyInput || '').trim() === "DELETE") {
                         state.inventory = []; state.salesLog = []; state.purchaseLog = []; state.expenseLog = [];
                         state.journal = []; state.trash = []; state.notifications = [];
-                        // Vertical-owned state (e.g. appliance_rental's
+                        // Vertical-owned state (e.g. rental's
                         // rentalBookings) isn't a fixed field on every
                         // tenant's state object, so it's only cleared if
                         // present -- bulkReplaceAllData() reads it back via
@@ -6808,8 +6809,8 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         
         // --- DEEP ANALYTICS ENGINE ---
         // Deep Analytics normally reads only state.salesLog, but that stays
-        // empty for appliance_rental tenants -- their revenue comes from
-        // state.rentalBookings instead (see verticals/appliance_rental.js),
+        // empty for rental tenants -- their revenue comes from
+        // state.rentalBookings instead (see verticals/rental.js),
         // which has a different shape (itemId instead of desc, amount
         // instead of total, no cogs). This maps each booking into the same
         // { date, desc, qty, total, cogs, type } shape a sales_log row has,
@@ -7305,7 +7306,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 });
                 html += `</tbody></table>`;
                 // Rental Revenue (4020) posts separately from Sales (4010) --
-                // see the appliance_rental vertical -- so it's broken out as
+                // see the rental vertical -- so it's broken out as
                 // its own table here rather than forced into the Sales
                 // columns above (a booking has no single unit "price").
                 const rentalMatches = (state.rentalBookings || []).filter(b => verifyChronologicalOverlap(b.date || b.startDate, period) && shouldCountInCurrentTotals(b.branchId)).sort((a,b) => new Date(b.date || b.startDate) - new Date(a.date || a.startDate));
@@ -8293,15 +8294,15 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         // Same accounting as the opening-inventory screen: stock goes in at cost,
         // funded as owner capital (no cash/bank balance changes).
         function setProductFormMode(isEdit) {
-            const show = !isEdit && hasPerm('inventory.view_cost') && currentBusinessType === 'appliance_rental'; // other businesses: quantity, cost and supplier now live in Add in bulk
+            const show = !isEdit && hasPerm('inventory.view_cost') && currentBusinessType === 'rental'; // other businesses: quantity, cost and supplier now live in Add in bulk
             document.querySelectorAll('.p-stock-group').forEach(g => g.style.display = show ? '' : 'none');
             ['p-qty', 'p-cost'].forEach(id => { document.getElementById(id).required = false; });
             const showSell = false; // selling price now lives in Add in bulk
             document.querySelectorAll('.p-sell-group').forEach(g => g.style.display = showSell ? '' : 'none');
-            const bh = document.getElementById('p-bulk-hint'); if (bh) bh.style.display = (!isEdit && currentBusinessType !== 'appliance_rental' && hasPerm('inventory.view_cost')) ? '' : 'none';
+            const bh = document.getElementById('p-bulk-hint'); if (bh) bh.style.display = (!isEdit && currentBusinessType !== 'rental' && hasPerm('inventory.view_cost')) ? '' : 'none';
             document.getElementById('inv-title').innerText = isEdit ? 'Edit Product' : t('inv.add_product');
             const bulk = document.getElementById('inv-bulk-btn');
-            if (bulk) bulk.style.display = (currentBusinessType === 'appliance_rental' || !hasPerm('inventory.view_cost')) ? 'none' : '';
+            if (bulk) bulk.style.display = !hasPerm('inventory.view_cost') ? 'none' : '';
         }
         function showProductModal() {
             document.getElementById('product-modal').classList.add('active');
@@ -8320,7 +8321,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             if (!branchId) return false;
             writeBranchId = branchId;
             const date = new Date().toISOString().slice(0, 10);
-            const invAcc = currentBusinessType === 'appliance_rental' ? '1500' : '1200';
+            const invAcc = currentBusinessType === 'rental' ? '1500' : '1200';
             let catsChanged = false;
             list.forEach(c => { if (!state.categories.includes(c.category)) { state.categories.push(c.category); catsChanged = true; } });
             if (catsChanged) { syncCategoriesDatalist(); queueWrite({ kind: 'tenant_update', patch: { categories: state.categories } }); }
@@ -8333,7 +8334,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 items.forEach((c, i) => {
                     const lotId = `PR-${Date.now().toString().slice(-5)}-${n}-${i}`;
                     const item = { id: crypto.randomUUID(), category: c.category, desc: c.desc, sellingPrice: c.sellingPrice || 0, lots: [], history: [], dailyRate: c.dailyRate ?? null, weeklyRate: c.weeklyRate ?? null, monthlyRate: c.monthlyRate ?? null };
-                    const lot = stampLot({ id: lotId, qty: c.qty, cost: c.cost, branchId, expiry: null }, date);
+                    const lot = stampLot({ id: lotId, qty: c.qty, cost: c.cost, branchId, expiry: c.expiry || null }, date);
                     item.lots.push(lot); state.inventory.push(item);
                     queueWrite({ kind: 'insert', table: 'inventory_items', row: toDbInventoryItem(item) });
                     queueWrite({ kind: 'insert', table: 'inventory_lots', row: toDbLot(item.id, lot) });
@@ -8504,7 +8505,12 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         }
 
         // ---------- Add in bulk (Excel / CSV import with column matching) ----------
-        const BULK_FIELDS = [
+        // Three versions, picked by business type:
+        //   retail   (also every type without its own version): Category, Product Name, Quantity, Cost Price, Supplier, Selling Price
+        //   pharmacy : the retail columns + Expiry Date (saved on the stock batch that gets created)
+        //   rental   : Category, Asset Name, Quantity, Cost Price, Supplier, Daily Rate*, Weekly Rate, Monthly Rate (rentals have no selling price)
+        function bulkKind() { return currentBusinessType === 'pharmacy' ? 'pharmacy' : currentBusinessType === 'rental' ? 'rental' : 'retail'; }
+        const BULK_RETAIL_FIELDS = [
             { k: 'category', label: 'Category', syn: ['category', 'cat', 'type', 'group', 'class', 'ምድብ'] },
             { k: 'desc', label: 'Product Name', req: 1, syn: ['product name', 'item name', 'product', 'item', 'name', 'description', 'goods', 'article', 'material', 'የምርት ስም', 'ምርት'] },
             { k: 'qty', label: 'Quantity (optional)', syn: ['quantity', 'qty', 'stock', 'on hand', 'units', 'count', 'pcs', 'balance', 'ብዛት'] },
@@ -8512,6 +8518,66 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             { k: 'supplier', label: 'Supplier (optional)', syn: ['supplier', 'vendor', 'seller', 'supplied by', 'አቅራቢ'] },
             { k: 'sellingPrice', label: 'Selling Price (optional)', syn: ['selling price', 'sale price', 'sell price', 'retail price', 'retail', 'mrp'] }
         ];
+        const BULK_FIELD_SETS = {
+            retail: BULK_RETAIL_FIELDS,
+            pharmacy: BULK_RETAIL_FIELDS.concat([
+                { k: 'expiry', label: 'Expiry Date (optional)', syn: ['expiry date', 'expiry', 'expiration date', 'expiration', 'exp date', 'expire date', 'expires', 'best before', 'የሚያልፍበት ቀን'] }
+            ]),
+            rental: [
+                { k: 'category', label: 'Category', syn: ['category', 'cat', 'type', 'group', 'class', 'ምድብ'] },
+                { k: 'desc', label: 'Asset Name', req: 1, syn: ['asset name', 'asset', 'equipment', 'item name', 'item', 'product name', 'product', 'name', 'description', 'የዕቃ ስም', 'ምርት'] },
+                { k: 'qty', label: 'Quantity (optional)', syn: ['quantity', 'qty', 'stock', 'on hand', 'units', 'count', 'pcs', 'balance', 'ብዛት'] },
+                { k: 'cost', label: 'Cost Price (optional)', syn: ['cost price', 'buying price', 'purchase price', 'unit cost', 'cost', 'ዋጋ'] },
+                { k: 'supplier', label: 'Supplier (optional)', syn: ['supplier', 'vendor', 'seller', 'supplied by', 'አቅራቢ'] },
+                { k: 'dailyRate', label: 'Daily Rate', req: 1, syn: ['daily rate', 'rate per day', 'day rate', 'price per day', 'rent per day', 'daily rent', 'per day', 'daily', 'የቀን ዋጋ'] },
+                { k: 'weeklyRate', label: 'Weekly Rate (optional)', syn: ['weekly rate', 'rate per week', 'week rate', 'price per week', 'rent per week', 'per week', 'weekly', 'የሳምንት ዋጋ'] },
+                { k: 'monthlyRate', label: 'Monthly Rate (optional)', syn: ['monthly rate', 'rate per month', 'month rate', 'price per month', 'rent per month', 'per month', 'monthly', 'የወር ዋጋ'] }
+            ]
+        };
+        function bulkFields() { return BULK_FIELD_SETS[bulkKind()]; }
+        // Typed rows: one column per field. The retail order never changes, so a typed list saved by an older version still comes back correctly.
+        const BULK_MAN_COLS = (() => {
+            const cat = { k: 'category', cls: 'bm-c', h: 'Category', ph: 'Category', list: 'category-list' };
+            const qty = { k: 'qty', cls: 'bm-q', h: 'Quantity', ph: '0', mode: 'numeric', num: 1 };
+            const cost = { k: 'cost', cls: 'bm-p', h: 'Cost Price', ph: '0.00', mode: 'decimal', num: 1 };
+            const sup = { k: 'supplier', cls: 'bm-s', h: 'Supplier', ph: 'Supplier', list: 'supplier-list' };
+            const retail = [cat, { k: 'desc', cls: 'bm-d', h: 'Product Name *', ph: 'Product name' }, qty, cost, { k: 'sellingPrice', cls: 'bm-r', h: 'Selling Price', ph: '0.00', mode: 'decimal', num: 1 }, sup];
+            return {
+                retail,
+                pharmacy: retail.concat([{ k: 'expiry', cls: 'bm-e', h: 'Expiry Date', ph: 'YYYY-MM-DD or MM/YYYY' }]),
+                rental: [cat, { k: 'desc', cls: 'bm-d', h: 'Asset Name *', ph: 'Asset name' }, qty, cost, sup,
+                    { k: 'dailyRate', cls: 'bm-dr', h: 'Daily Rate *', ph: '0.00', mode: 'decimal', num: 1 },
+                    { k: 'weeklyRate', cls: 'bm-wr', h: 'Weekly Rate', ph: '0.00', mode: 'decimal', num: 1 },
+                    { k: 'monthlyRate', cls: 'bm-mr', h: 'Monthly Rate', ph: '0.00', mode: 'decimal', num: 1 }]
+            };
+        })();
+        function bulkManCols() { return BULK_MAN_COLS[bulkKind()].map(c => c.cls); }
+        function bulkLabels(kind) {
+            kind = kind || bulkKind();
+            if (kind === 'rental') return { noun: 'asset', nouns: 'assets', row: 'one asset per row',
+                intro: 'Add many rental assets at once: choose an Excel or CSV file, type them in below it, or use both together. You check everything before anything is saved.',
+                hint: 'One row per asset. <b>Asset Name</b> and <b>Daily Rate</b> are required. Weekly and monthly rates are optional. Fill quantity <b>and</b> cost price together to also record the stock.' };
+            if (kind === 'pharmacy') return { noun: 'product', nouns: 'products', row: 'one product per row',
+                intro: 'Add many products at once: choose an Excel or CSV file, type them in below it, or use both together. You check everything before anything is saved.',
+                hint: 'One row per product. Only <b>Product Name</b> is required. Fill quantity <b>and</b> cost price together to also record the stock. <b>Expiry Date</b> (YYYY-MM-DD or MM/YYYY) is saved on that stock, so it needs quantity and cost too.' };
+            return { noun: 'product', nouns: 'products', row: 'one product per row',
+                intro: 'Add many products at once: choose an Excel or CSV file, type them in below it, or use both together. You check everything before anything is saved.',
+                hint: 'One row per product. Only <b>Product Name</b> is required. Fill quantity <b>and</b> cost price together to also record the stock.' };
+        }
+        function bulkTemplateName() { const k = bulkKind(); return k === 'pharmacy' ? 'pharmacy-stock-template.xlsx' : k === 'rental' ? 'rental-template.xlsx' : 'stock-template.xlsx'; }
+        // Reads an expiry date typed or taken from Excel. Accepts YYYY-MM-DD, DD/MM/YYYY (day first), MM/YYYY (= last day of that month) and Excel date cells.
+        function bulkParseDate(v) {
+            if (v === null || v === undefined || (typeof v === 'string' && !v.trim())) return { empty: true };
+            const dim = (y, m) => new Date(Date.UTC(y, m, 0)).getUTCDate();
+            const done = (y, m, d) => (y >= 2000 && y <= 2100 && m >= 1 && m <= 12 && d >= 1 && d <= dim(y, m)) ? { iso: `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}` } : { bad: true };
+            if (typeof v === 'number') { if (v > 20000 && v < 90000) { const d = new Date(Math.round((v - 25569) * 86400000)); return done(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate()); } return { bad: true }; }
+            const str = String(v).trim(); let m;
+            if ((m = str.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})$/))) return done(+m[1], +m[2], +m[3]);
+            if ((m = str.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/))) return done(+m[3], +m[2], +m[1]);
+            if ((m = str.match(/^(\d{1,2})[-\/.](\d{4})$/))) return done(+m[2], +m[1], dim(+m[2], +m[1]));
+            if ((m = str.match(/^(\d{4})[-\/.](\d{1,2})$/))) return done(+m[1], +m[2], dim(+m[1], +m[2]));
+            return { bad: true };
+        }
         let bulkWb = null, bulkHeaders = [], bulkData = [], bulkMap = {}, bulkValid = [], bulkMode = 'file';
         const bulkEsc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
         const bulkNorm = s => String(s ?? '').toLowerCase().replace(/[^a-z0-9\u1200-\u137F ]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -8520,11 +8586,13 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         function closeBulkImport() { document.getElementById('bulk-overlay')?.remove(); bulkWb = null; }
         function openBulkImport() {
             closeBulkImport(); bulkData = []; bulkMap = {}; bulkValid = [];
+            const kind = bulkKind(), L = bulkLabels(kind);
+            const manHead = BULK_MAN_COLS[kind].map(c => `<th${c.num ? ' class="num"' : ''}>${c.h}</th>`).join('') + '<th></th>';
             const o = document.createElement('div'); o.id = 'bulk-overlay';
             o.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:6000;display:flex;align-items:flex-start;justify-content:center;padding:20px 12px;overflow-y:auto;';
             o.innerHTML = `<div class="card" style="max-width:900px;width:100%;margin:0;">
                 <h2>Add in bulk</h2>
-                <p style="font-size:13px;color:var(--text-light);">Add many products at once: choose an Excel or CSV file, type them in below it, or use both together. You check everything before anything is saved.</p>
+                <p style="font-size:13px;color:var(--text-light);">${L.intro}</p>
                 <div id="bulk-file-section" style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px;">
                     <h3 style="margin:0 0 8px;font-size:15px;">📁 Upload a file</h3>
                     <div id="bulk-file-wrap" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
@@ -8536,8 +8604,8 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 </div>
                 <div id="bulk-manual" style="border:1px solid var(--border);border-radius:10px;padding:12px;">
                     <h3 style="margin:0 0 8px;font-size:15px;">✍️ Or type them in</h3>
-                    <p style="font-size:12px;color:var(--text-light);margin:0 0 8px;">One row per product. Only <b>Product Name</b> is required. Fill quantity <b>and</b> cost price together to also record the stock.</p>
-                    <div class="table-scroll" style="max-height:260px;overflow:auto;"><table><thead><tr><th>Category</th><th>Product Name *</th><th class="num">Quantity</th><th class="num">Cost Price</th><th class="num">Selling Price</th><th>Supplier</th><th></th></tr></thead><tbody id="bulk-man-body"></tbody></table></div>
+                    <p style="font-size:12px;color:var(--text-light);margin:0 0 8px;">${L.hint}</p>
+                    <div class="table-scroll" style="max-height:260px;overflow:auto;"><table><thead><tr>${manHead}</tr></thead><tbody id="bulk-man-body"></tbody></table></div>
                     <button type="button" class="btn btn-small" style="margin-top:8px;" onclick="bulkManAdd()">+ Add row</button>
                     <div id="bulk-man-preview" class="table-scroll" style="max-height:260px;overflow:auto;margin-top:10px;"></div>
                 </div>
@@ -8565,6 +8633,9 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 ios: ['In <b>Add in bulk</b>, tap <b>Download template</b>. When Safari asks, tap <b>Download</b>.', 'Tap the <b>↓</b> icon in the address bar, then the file. Tap <b>Share</b> and choose <b>Excel</b>.', 'Delete the example row and type <b>one product per row</b>. Keep the column names in row 1.', 'Excel saves by itself. Tap <b>‹</b> when you finish.', 'Back in the app tap <b>Choose file</b> → <b>Choose File</b>, then pick <b>stock-template.xlsx</b> in <b>Downloads</b>.', 'The list fills in by itself. Check it, then tap <b>Import</b>.'],
                 and: ['In <b>Add in bulk</b>, tap <b>Download template</b>. Chrome saves <b>stock-template.xlsx</b>.', 'Tap <b>Open</b> on the “Downloaded” message and choose <b>Google Sheets</b>. Row 1 holds the column names. Do not change them.', 'Delete the example row and type <b>one product per row</b>.', 'Sheets saves by itself. Tap the back arrow when you finish.', 'Back in the app tap <b>Choose file</b> and pick <b>stock-template.xlsx</b> in <b>Downloads</b>.', 'The list fills in by itself. Check it, then tap <b>Import</b>.']
             };
+            // The steps below were written for the stock template; swap in this business type's file name and wording.
+            const tplName = bulkTemplateName(), rowWord = bulkLabels().row;
+            Object.keys(CAP).forEach(p => { CAP[p] = CAP[p].map(x => x.split('stock-template.xlsx').join(tplName).split('one product per row').join(rowWord)); });
             const o = document.createElement('div'); o.id = 'tpl-guide'; document.body.appendChild(o);
             const draw = () => {
                 const v = VID[plat];
@@ -8578,8 +8649,8 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         }
         function bulkManAdd() {
             const tr = document.createElement('tr');
-            const f = (cls, ph, list, mode) => `<td><input class="${cls}" type="text" ${mode ? `inputmode="${mode}"` : ''} ${list ? `list="${list}"` : ''} placeholder="${ph}" autocomplete="off" oninput="bulkManSync()" onkeydown="bulkManKey(event)" style="width:100%;min-width:90px;"></td>`;
-            tr.innerHTML = f('bm-c', 'Category', 'category-list') + f('bm-d', 'Product name') + f('bm-q', '0', '', 'numeric') + f('bm-p', '0.00', '', 'decimal') + f('bm-r', '0.00', '', 'decimal') + f('bm-s', 'Supplier', 'supplier-list') + `<td><button type="button" class="btn btn-small btn-warning" title="Remove row" onclick="this.closest('tr').remove();bulkManSync()">✕</button></td>`;
+            const f = c => `<td><input class="${c.cls}" type="text" ${c.mode ? `inputmode="${c.mode}"` : ''} ${c.list ? `list="${c.list}"` : ''} placeholder="${c.ph}" autocomplete="off" oninput="bulkManSync()" onkeydown="bulkManKey(event)" style="width:100%;min-width:${c.cls === 'bm-e' ? 130 : 90}px;"></td>`;
+            tr.innerHTML = BULK_MAN_COLS[bulkKind()].map(f).join('') + `<td><button type="button" class="btn btn-small btn-warning" title="Remove row" onclick="this.closest('tr').remove();bulkManSync()">✕</button></td>`;
             document.getElementById('bulk-man-body').appendChild(tr);
         }
         function bulkManSync() { bulkPreview(); }
@@ -8590,8 +8661,14 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         }
         function bulkDownloadTemplate() {
             if (typeof XLSX === 'undefined') return alert('Excel tools are still loading. Try again in a moment.');
-            const ws = XLSX.utils.aoa_to_sheet([['Category', 'Product Name', 'Quantity', 'Cost Price', 'Supplier', 'Selling Price'], ['Drinks', 'Mineral Water 1L', 24, 18, 'Abebe Traders', 25]]);
-            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Stock'); XLSX.writeFile(wb, 'stock-template.xlsx');
+            const kind = bulkKind();
+            const T = {
+                retail: { sheet: 'Stock', rows: [['Category', 'Product Name', 'Quantity', 'Cost Price', 'Supplier', 'Selling Price'], ['Drinks', 'Mineral Water 1L', 24, 18, 'Abebe Traders', 25]] },
+                pharmacy: { sheet: 'Stock', rows: [['Category', 'Product Name', 'Quantity', 'Cost Price', 'Supplier', 'Selling Price', 'Expiry Date'], ['Pain relief', 'Paracetamol 500mg (20 tablets)', 50, 12, 'Abebe Pharma', 18, '2027-12-31']] },
+                rental: { sheet: 'Assets', rows: [['Category', 'Asset Name', 'Quantity', 'Cost Price', 'Supplier', 'Daily Rate', 'Weekly Rate', 'Monthly Rate'], ['Kitchen', 'Gas Stove 4-burner', 5, 3500, 'Abebe Traders', 150, 900, 3200]] }
+            }[kind];
+            const ws = XLSX.utils.aoa_to_sheet(T.rows);
+            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, T.sheet); XLSX.writeFile(wb, bulkTemplateName());
         }
         async function bulkLoadFile(file) {
             if (!file) return;
@@ -8602,14 +8679,14 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         }
         function bulkPickSheet(name) {
             const aoa = XLSX.utils.sheet_to_json(bulkWb.Sheets[name], { header: 1, raw: true, defval: '' });
-            const score = r => r.reduce((s, c) => s + (BULK_FIELDS.some(f => f.syn.some(y => bulkNorm(c) === y)) ? 1 : 0), 0);
+            const score = r => r.reduce((s, c) => s + (bulkFields().some(f => f.syn.some(y => bulkNorm(c) === y)) ? 1 : 0), 0);
             let h = aoa.slice(0, 15).findIndex(r => score(r) >= 2);
             if (h < 0) h = aoa.findIndex(r => r.filter(c => String(c).trim()).length >= 2);
             if (h < 0) { document.getElementById('bulk-body').innerHTML = '<p style="color:#c0392b;">No table found in this sheet. It needs a header row and at least one product row.</p>'; document.getElementById('bulk-go').style.display = 'none'; return; }
             bulkHeaders = aoa[h].map((c, i) => String(c).trim() || `Column ${i + 1}`);
             bulkData = aoa.slice(h + 1).filter(r => r.some(c => String(c).trim() !== ''));
             const pairs = [];
-            BULK_FIELDS.forEach(f => bulkHeaders.forEach((c, i) => { const n = bulkNorm(c); let s = 0; f.syn.forEach(y => { if (n === y) s = Math.max(s, 100); else if (n && (n.includes(y) || y.includes(n))) s = Math.max(s, y.length); }); if (s) pairs.push({ k: f.k, i, s }); }));
+            bulkFields().forEach(f => bulkHeaders.forEach((c, i) => { const n = bulkNorm(c); let s = 0; f.syn.forEach(y => { if (n === y) s = Math.max(s, 100); else if (n && (n.includes(y) || y.includes(n))) s = Math.max(s, y.length); }); if (s) pairs.push({ k: f.k, i, s }); }));
             pairs.sort((a, b) => b.s - a.s); bulkMap = {}; const used = new Set();
             pairs.forEach(p => { if (bulkMap[p.k] === undefined && !used.has(p.i)) { bulkMap[p.k] = p.i; used.add(p.i); } });
             const opts = k => `<option value="">— none —</option>` + bulkHeaders.map((c, i) => `<option value="${escHtml(i)}" ${bulkMap[k] === i ? 'selected' : ''}>${bulkEsc(c)}</option>`).join('');
@@ -8617,16 +8694,19 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 (bulkWb.SheetNames.length > 1 ? `<div class="form-group"><label>Sheet</label><select onchange="bulkPickSheet(this.value)">${bulkWb.SheetNames.map(s => `<option ${s === name ? 'selected' : ''}>${bulkEsc(s)}</option>`).join('')}</select></div>` : '') +
                 `<p style="font-size:13px;"><strong>Check the matches</strong> (we guessed from your column names):</p>
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">` +
-                BULK_FIELDS.map(f => `<div class="form-group"><label>${f.label}${f.req ? ' *' : ''}</label><select onchange="bulkMap['${f.k}']=this.value===''?undefined:parseInt(this.value);bulkPreview()">${opts(f.k)}</select></div>`).join('') +
+                bulkFields().map(f => `<div class="form-group"><label>${f.label}${f.req ? ' *' : ''}</label><select onchange="bulkMap['${f.k}']=this.value===''?undefined:parseInt(this.value);bulkPreview()">${opts(f.k)}</select></div>`).join('') +
                 `<div class="form-group"><label>Category if the sheet has none</label><input type="text" id="bulk-defcat" value="General" oninput="bulkPreview()"></div></div>
                 <div id="bulk-preview" class="table-scroll" style="max-height:300px;overflow:auto;margin-top:10px;"></div>`;
             bulkPreview();
         }
         function bulkPreview() {
+            const kind = bulkKind(), L = bulkLabels(kind), mcols = BULK_MAN_COLS[kind];
             const defEl = document.getElementById('bulk-defcat'); const defCat = ((defEl && defEl.value) || 'General').trim();
-            const manMap = { category: 0, desc: 1, qty: 2, cost: 3, sellingPrice: 4, supplier: 5 };
-            const manData = Array.from(document.querySelectorAll('#bulk-man-body tr')).map(tr => ['bm-c', 'bm-d', 'bm-q', 'bm-p', 'bm-r', 'bm-s'].map(c => tr.querySelector('.' + c).value.trim())).filter(r => r.some(c => c !== ''));
+            const manMap = {}; mcols.forEach((c, i) => { manMap[c.k] = i; });
+            const manData = Array.from(document.querySelectorAll('#bulk-man-body tr')).map(tr => mcols.map(c => { const el = tr.querySelector('.' + c.cls); return el ? el.value.trim() : ''; })).filter(r => r.some(c => c !== ''));
             const seen = new Set(); bulkValid = [];
+            const todayIso = new Date().toISOString().slice(0, 10);
+            const extraHead = kind === 'pharmacy' ? '<th>Expiry</th>' : kind === 'rental' ? '<th class="num">Daily</th><th class="num">Weekly</th><th class="num">Monthly</th>' : '';
             // The file rows and the typed rows are checked together and imported together.
             const run = (data, map, manual, boxId) => {
                 const g = (r, k) => map[k] === undefined ? '' : r[map[k]]; const out = []; let ok = 0;
@@ -8634,9 +8714,28 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                     const desc = String(g(r, 'desc')).trim(), category = String(g(r, 'category')).trim() || defCat;
                     const qty = bulkNum(g(r, 'qty')), cost = bulkNum(g(r, 'cost')), supplier = String(g(r, 'supplier')).trim(), sp = bulkNum(g(r, 'sellingPrice'));
                     if (/^(grand |sub ?)?total\b/i.test(desc)) return;
-                    let err = ''; const hasBoth = qty > 0 && cost > 0;
-                    if (map.desc === undefined) err = 'Match the required (*) column first';
-                    else if (!desc) err = 'No product name';
+                    let err = '', note = ''; const hasBoth = qty > 0 && cost > 0;
+                    // Rental: daily rate is required, weekly and monthly are optional (blank or 0 = not set).
+                    let dailyRate = null, weeklyRate = null, monthlyRate = null, rateErr = '';
+                    if (kind === 'rental') {
+                        const dRaw = String(g(r, 'dailyRate')).trim(), d = bulkNum(dRaw);
+                        if (!(d > 0)) rateErr = 'Daily rate is required (a number above 0)'; else dailyRate = d;
+                        [['weeklyRate', 'Weekly'], ['monthlyRate', 'Monthly']].forEach(([k, nm]) => {
+                            const raw = String(g(r, k)).trim(); if (raw === '') return; const n = bulkNum(raw);
+                            if (isNaN(n) || n < 0) { rateErr = rateErr || `${nm} rate must be a number`; return; }
+                            if (n > 0) { if (k === 'weeklyRate') weeklyRate = n; else monthlyRate = n; }
+                        });
+                    }
+                    // Pharmacy: expiry date for the stock being added.
+                    let expiry = null, expiryShow = '', expiryErr = '';
+                    if (kind === 'pharmacy') {
+                        const raw = g(r, 'expiry'), pd = bulkParseDate(raw);
+                        if (pd.iso) { expiry = pd.iso; expiryShow = pd.iso; } else { expiryShow = String(raw ?? '').trim(); if (pd.bad) expiryErr = 'Expiry date not understood (use YYYY-MM-DD or MM/YYYY)'; }
+                    }
+                    if (map.desc === undefined || (kind === 'rental' && map.dailyRate === undefined)) err = 'Match the required (*) column first';
+                    else if (!desc) err = `No ${L.noun} name`;
+                    else if (rateErr) err = rateErr;
+                    else if (expiryErr) err = expiryErr;
                     else if (hasBoth && Math.abs(qty - Math.round(qty)) > 1e-9) err = 'Quantity must be a whole number';
                     else if (manual && ((qty > 0) !== (cost > 0))) err = 'Quantity and cost price go together';
                     else {
@@ -8645,17 +8744,20 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                         else if (state.inventory.some(i => i.category.toLowerCase() + '|' + i.desc.toLowerCase() === key)) err = 'Already in your stock';
                         seen.add(key);
                     }
-                    if (!err) { bulkValid.push({ category, desc, qty: hasBoth ? Math.round(qty) : 0, cost: hasBoth ? cost : 0, supplier: supplier || 'N/A', sellingPrice: sp > 0 ? sp : 0, noStock: !hasBoth }); ok++; }
-                    out.push(`<tr style="${err ? 'background:#FDECEA;' : ''}"><td>${ri + 1}</td><td>${bulkEsc(category)}</td><td>${bulkEsc(desc)}</td><td class="num">${bulkEsc(g(r, 'qty'))}</td><td class="num">${bulkEsc(g(r, 'cost'))}</td><td>${bulkEsc(supplier)}</td><td>${err ? '<span style="color:#c0392b;">Skipped: ' + err + '</span>' : (hasBoth ? '✓ Ready' : '✓ Ready (no stock yet)')}</td></tr>`);
+                    if (!err && expiry) { if (!hasBoth) note = ' (expiry ignored: no stock)'; else if (expiry < todayIso) note = ' (already expired)'; }
+                    if (!err) { bulkValid.push({ category, desc, qty: hasBoth ? Math.round(qty) : 0, cost: hasBoth ? cost : 0, supplier: supplier || 'N/A', sellingPrice: (kind !== 'rental' && sp > 0) ? sp : 0, noStock: !hasBoth, expiry: hasBoth ? expiry : null, dailyRate, weeklyRate, monthlyRate }); ok++; }
+                    const extra = kind === 'pharmacy' ? `<td>${bulkEsc(expiryShow)}</td>` : kind === 'rental' ? `<td class="num">${bulkEsc(g(r, 'dailyRate'))}</td><td class="num">${bulkEsc(g(r, 'weeklyRate'))}</td><td class="num">${bulkEsc(g(r, 'monthlyRate'))}</td>` : '';
+                    out.push(`<tr style="${err ? 'background:#FDECEA;' : ''}"><td>${ri + 1}</td><td>${bulkEsc(category)}</td><td>${bulkEsc(desc)}</td><td class="num">${bulkEsc(g(r, 'qty'))}</td><td class="num">${bulkEsc(g(r, 'cost'))}</td><td>${bulkEsc(supplier)}</td>${extra}<td>${err ? '<span style="color:#c0392b;">Skipped: ' + err + '</span>' : (hasBoth ? '✓ Ready' : '✓ Ready (no stock yet)') + note}</td></tr>`);
                 });
                 const box = document.getElementById(boxId);
-                if (box) box.innerHTML = out.length ? `<p style="font-size:13px;margin:0 0 6px;"><strong>${ok}</strong> ready, <strong>${out.length - ok}</strong> will be skipped.</p><table><thead><tr><th>#</th><th>Category</th><th>Product</th><th class="num">Qty</th><th class="num">Cost</th><th>Supplier</th><th>Status</th></tr></thead><tbody>${out.slice(0, 300).join('')}</tbody></table>${out.length > 300 ? '<p style="font-size:12px;">Showing the first 300 rows. All ready rows are imported.</p>' : ''}` : '';
+                if (box) box.innerHTML = out.length ? `<p style="font-size:13px;margin:0 0 6px;"><strong>${ok}</strong> ready, <strong>${out.length - ok}</strong> will be skipped.</p><table><thead><tr><th>#</th><th>Category</th><th>${kind === 'rental' ? 'Asset' : 'Product'}</th><th class="num">Qty</th><th class="num">Cost</th><th>Supplier</th>${extraHead}<th>Status</th></tr></thead><tbody>${out.slice(0, 300).join('')}</tbody></table>${out.length > 300 ? '<p style="font-size:12px;">Showing the first 300 rows. All ready rows are imported.</p>' : ''}` : '';
             };
             run(bulkData, bulkMap, false, 'bulk-preview'); run(manData, manMap, true, 'bulk-man-preview');
-            const go = document.getElementById('bulk-go'); go.style.display = bulkValid.length ? '' : 'none'; go.innerText = `Import ${bulkValid.length} products`;
+            const go = document.getElementById('bulk-go'); go.style.display = bulkValid.length ? '' : 'none'; go.innerText = `Import ${bulkValid.length} ${L.nouns}`;
         }
         async function bulkCommit() {
             if (!bulkValid.length) return;
+            const L = bulkLabels();
             const list = bulkValid.slice();
             const withStock = list.filter(c => !c.noStock), noStock = list.filter(c => c.noStock);
             // Products that have both quantity and cost: stock + purchase record (as before).
@@ -8666,21 +8768,24 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 noStock.forEach(c => { if (!state.categories.includes(c.category)) { state.categories.push(c.category); catsChanged = true; } });
                 if (catsChanged) { syncCategoriesDatalist(); queueWrite({ kind: 'tenant_update', patch: { categories: state.categories } }); }
                 noStock.forEach(c => {
-                    const newItem = { id: crypto.randomUUID(), category: c.category, desc: c.desc, sellingPrice: c.sellingPrice || 0, lots: [], history: [], dailyRate: null, weeklyRate: null, monthlyRate: null };
+                    const newItem = { id: crypto.randomUUID(), category: c.category, desc: c.desc, sellingPrice: c.sellingPrice || 0, lots: [], history: [], dailyRate: c.dailyRate ?? null, weeklyRate: c.weeklyRate ?? null, monthlyRate: c.monthlyRate ?? null };
                     state.inventory.push(newItem);
                     queueWrite({ kind: 'insert', table: 'inventory_items', row: toDbInventoryItem(newItem) });
                 });
-                addNotification('Products Added', `Added ${noStock.length} product(s) with no stock (no quantity or cost in the file).`);
+                addNotification(L.noun === 'asset' ? 'Assets Added' : 'Products Added', `Added ${noStock.length} ${L.noun}(s) with no stock (no quantity or cost in the file).`);
                 try { syncTransactionalProductDropdownOptions(); } catch (e) {}
             }
             closeBulkImport(); renderPerpetualInventoryTable();
-            alert(`${list.length} products added.` + (noStock.length ? ` ${noStock.length} of them have no stock yet (0 quantity, 0 cost).` : ''));
+            if (currentBusinessType === 'rental' && currentVerticalModule && typeof currentVerticalModule.renderInventorySection === 'function') {
+                currentVerticalModule.renderInventorySection({ state, tenantId: currentTenantId, channelAccountCodes: CHANNEL_ACCOUNT_CODES, supabaseClient, branchId: currentBranchId, calendarPref: currentCalendarPref, mountEl: document.getElementById('inventory-rental-mount') });
+            }
+            alert(`${list.length} ${L.nouns} added.` + (noStock.length ? ` ${noStock.length} of them have no stock yet (0 quantity, 0 cost).` : ''));
         }
 
         async function handleDefineProduct(e) {
             e.preventDefault();
             const idx = document.getElementById('edit-index').value, cat = document.getElementById('p-category').value.trim(), desc = document.getElementById('p-desc').value.trim();
-            const isRental = currentBusinessType === 'appliance_rental';
+            const isRental = currentBusinessType === 'rental';
             const dailyRate = isRental ? (parseFloat(document.getElementById('p-daily-rate').value) || 0) : null;
             if (isRental && dailyRate <= 0) return alert("Enter a daily rate for this asset.");
             const weeklyRaw = isRental ? document.getElementById('p-weekly-rate').value : '';
@@ -8747,7 +8852,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         function initiateEditProductDefinition(idx) {
             let i = state.inventory[idx];
             document.getElementById('edit-index').value = idx; document.getElementById('p-category').value = i.category; document.getElementById('p-desc').value = i.desc;
-            if (currentBusinessType === 'appliance_rental') {
+            if (currentBusinessType === 'rental') {
                 document.getElementById('p-daily-rate').value = i.dailyRate ?? '';
                 document.getElementById('p-weekly-rate').value = i.weeklyRate ?? '';
                 document.getElementById('p-monthly-rate').value = i.monthlyRate ?? '';
@@ -8818,7 +8923,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         // debit 6060 Inventory Write-off (Loss), credit 1200 Inventory —
         // so shrinkage shows up in the books, not just the stock count.
         async function writeOffExpiringLot(itemIndex, lotId, qtyToWriteOff) {
-            const requiredPerm = currentBusinessType === 'appliance_rental' ? 'rentals.write_off' : 'inventory.edit_products';
+            const requiredPerm = currentBusinessType === 'rental' ? 'rentals.write_off' : 'inventory.edit_products';
             if (!hasPerm(requiredPerm)) return;
             const item = state.inventory[itemIndex];
             if (!item) return;
@@ -8854,10 +8959,10 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
             // Rental only: keep a dated record of this write-off so the
             // Availability calendar can tell past days (before today) from
-            // today onward -- see qtyOnHandAsOf() in appliance_rental.js.
+            // today onward -- see qtyOnHandAsOf() in rental.js.
             // Without this, writing off a unit would look like it was
             // never in stock even on days before the write-off happened.
-            if (currentBusinessType === 'appliance_rental') {
+            if (currentBusinessType === 'rental') {
                 item.rentalWriteOffs = item.rentalWriteOffs || [];
                 item.rentalWriteOffs.push({ id: crypto.randomUUID(), date: new Date().toISOString().slice(0, 10), qty });
                 queueWrite({ kind: 'update', table: 'inventory_items', id: item.id, patch: { rental_write_offs: item.rentalWriteOffs } });
@@ -8870,7 +8975,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                     id: jId,
                     date: new Date().toISOString().slice(0, 10),
                     desc: jDesc,
-                    lines: [ { account: (currentBusinessType === 'appliance_rental' ? '6070' : '6060'), dr: lossAmount, cr: 0 }, { account: (currentBusinessType === 'appliance_rental' ? '1500' : '1200'), dr: 0, cr: lossAmount } ],
+                    lines: [ { account: (currentBusinessType === 'rental' ? '6070' : '6060'), dr: lossAmount, cr: 0 }, { account: (currentBusinessType === 'rental' ? '1500' : '1200'), dr: 0, cr: lossAmount } ],
                     branchId: lot.branchId || writeBranchId
                 };
                 state.journal.push(newJournal);
@@ -9932,7 +10037,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         // PRINTING -- thermal Receipt (cash register roll) and full-page
         // Invoice (attachment, sent to a normal printer). Shared by every
         // business type: Sales/Purchase History call this directly, and
-        // the appliance_rental module calls the same window.* entry
+        // the rental module calls the same window.* entry
         // points for Bookings, so every record type prints identically.
         //
         // Both documents are built from one plain-object shape so callers
@@ -10056,7 +10161,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             const lines = [];
             // VAT-registered businesses print their TIN/owner/address block on
             // every receipt & invoice (collected at signup or Team & Branches --
-            // see saveVatDetails). Appliance rental never has this since VAT
+            // see saveVatDetails). Rental never has this since VAT
             // registration isn't offered for that business type at all.
             if (state.vatRegistered) {
                 if (state.vatTin) lines.push(`TIN: ${state.vatTin}`);
@@ -10586,7 +10691,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         setInterval(() => { try { const v = document.getElementById('view-sales'); if (currentIsOwner && v && v.classList.contains('active')) loadReprintRequests(); } catch (e) { } }, 15000);
 
         // ---- Sale / Purchase adapters (bookings' own adapter lives in
-        // verticals/appliance_rental.js and calls printReceiptFor/
+        // verticals/rental.js and calls printReceiptFor/
         // printInvoiceFor directly) ----
         function buildSalePrintData(id, isGroup, priceOv) {
             const rows = isGroup ? state.salesLog.filter(s => s.groupId === id) : state.salesLog.filter(s => s.id === id);
@@ -11223,7 +11328,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             const DEFAULT_OPENERS = { 'product-modal': 'openProductModal()', 'add-member-modal': 'openAddMemberModal()', 'add-role-modal': 'openAddRoleModal()', 'add-branch-modal': 'openAddBranchModal()', 'fund-transfer-modal': 'openFundTransferModal()' };
             const OPENER_OK = /^(?:close|open|show|edit|view|initiate)[A-Za-z0-9_]*$/;
             const OPENER_BAD = /delete|remove|reset|logout|signout|loginas|complete|submit|save|print|pay\b/i;
-            const BULK_COLS = ['bm-c', 'bm-d', 'bm-q', 'bm-p', 'bm-r', 'bm-s'];
+            const bulkColsNow = () => (typeof bulkManCols === 'function' ? bulkManCols() : ['bm-c', 'bm-d', 'bm-q', 'bm-p', 'bm-r', 'bm-s']);
 
             let started = false, armed = false, restoring = false, listening = false;
             let lastSig = '', timer = null, lastClick = null;
@@ -11309,7 +11414,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
             function captureBulk() {
                 const o = document.getElementById('bulk-overlay'); if (!o) return null;
-                const rows = Array.from(o.querySelectorAll('#bulk-man-body tr')).slice(0, 500).map(tr => BULK_COLS.map(c => { const i = tr.querySelector('.' + c); return i ? i.value : ''; }));
+                const rows = Array.from(o.querySelectorAll('#bulk-man-body tr')).slice(0, 500).map(tr => bulkColsNow().map(c => { const i = tr.querySelector('.' + c); return i ? i.value : ''; }));
                 return { rows };
             }
 
@@ -11407,7 +11512,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 const rows = Array.isArray(b.rows) ? b.rows.slice(0, 500) : [];
                 if (rows.length) {
                     body.innerHTML = '';
-                    rows.forEach(r => { bulkManAdd(); const tr = body.lastElementChild; BULK_COLS.forEach((c, i) => { const inp = tr.querySelector('.' + c); if (inp) inp.value = String((r && r[i]) || ''); }); });
+                    rows.forEach(r => { bulkManAdd(); const tr = body.lastElementChild; bulkColsNow().forEach((c, i) => { const inp = tr.querySelector('.' + c); if (inp) inp.value = String((r && r[i]) || ''); }); });
                 }
                 try { bulkPreview(); } catch (e) { }
             }
@@ -11728,7 +11833,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 queueWrite({ kind: 'insert', table: 'inventory_lots', row: toDbLot(item.id, newLot) });
             });
 
-            const journalLines = [{ account: (currentBusinessType === 'appliance_rental' ? '1500' : '1200'), dr: total, cr: 0 }];
+            const journalLines = [{ account: (currentBusinessType === 'rental' ? '1500' : '1200'), dr: total, cr: 0 }];
             if (amountPaidNow > 0) journalLines.push({ account: CHANNEL_ACCOUNT_CODES[chan], cr: amountPaidNow, dr: 0 });
             if (remaining > 0) journalLines.push({ account: "2010", cr: remaining, dr: 0 });
             const newJournal = {
@@ -11806,7 +11911,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 paid: fullyPaid, paidChannel: fullyPaid ? chan : null, amountPaid: amountPaidNow, payments,
                 branchId: targetBranchId
             };
-            const journalLines = [{ account: (currentBusinessType === 'appliance_rental' ? '1500' : '1200'), dr: tot, cr: 0 }]; // rental equipment (fixed asset) vs inventory received at full cost
+            const journalLines = [{ account: (currentBusinessType === 'rental' ? '1500' : '1200'), dr: tot, cr: 0 }]; // rental equipment (fixed asset) vs inventory received at full cost
             if (amountPaidNow > 0) journalLines.push({ account: CHANNEL_ACCOUNT_CODES[chan], cr: amountPaidNow, dr: 0 });
             if (remaining > 0) journalLines.push({ account: "2010", cr: remaining, dr: 0 }); // Accounts payable
             const newJournal = {
@@ -13272,15 +13377,15 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             ] },
             { key: 'inventory', label: 'Inventory/Stock', viewPerm: 'inventory.view', actions: [
                 { key: 'inventory.edit_products', label: 'Add / edit product catalog' },
-                // Meaningless for appliance_rental -- rentals bill by rate, not
+                // Meaningless for rental -- rentals bill by rate, not
                 // a shelf selling price, and the whole price-editing UI this
                 // permission gates (core Stock List price cell + Purchase's
                 // Selling Price field) is hidden outright for that business
                 // type (see applyBusinessTypeLabels() in index.html).
-                { key: 'inventory.adjust_price', label: 'Change selling prices', hideFor: ['appliance_rental'] },
+                { key: 'inventory.adjust_price', label: 'Change selling prices', hideFor: ['rental'] },
                 { key: 'inventory.view_cost', label: 'View cost prices / cost of goods' },
                 { key: 'inventory.transfer', label: 'Transfer stock between branches' },
-                { key: 'rentals.write_off', label: 'Write off rental stock as a loss', onlyFor: ['appliance_rental'] }
+                { key: 'rentals.write_off', label: 'Write off rental stock as a loss', onlyFor: ['rental'] }
             ]},
             { key: 'cash_handover', label: 'Cash Handover', viewPerm: 'cash.handover', actions: [] },
             { key: 'sales', label: 'Sales', viewPerm: 'sales.view', actions: [
@@ -13288,7 +13393,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 { key: 'sales.void', label: 'Void / delete sales' },
                 { key: 'sales.reprint_receipt', label: 'Reprint a changed receipt without owner approval' },
                 { key: 'sales.mark_paid', label: 'Settle accounts receivable' },
-                { key: 'rentals.checkin', label: 'Check in / process rental returns', onlyFor: ['appliance_rental'] }
+                { key: 'rentals.checkin', label: 'Check in / process rental returns', onlyFor: ['rental'] }
             ]},
             { key: 'purchase', label: 'Purchase', viewPerm: 'purchase.view', actions: [
                 { key: 'purchase.create', label: 'Record purchases' },
@@ -13330,7 +13435,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             );
         }
         // Mirrors the same nav-label rename a business type gets elsewhere
-        // (e.g. appliance_rental's Sales -> "Booking", see
+        // (e.g. rental's Sales -> "Booking", see
         // business-types.config.js / applyBusinessTypeLabels()) so the Roles
         // & Permissions page reads consistently with the rest of the app,
         // instead of an owner granting access to "Sales" that then shows up

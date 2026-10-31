@@ -30,8 +30,8 @@ const BUSINESS_TYPES = {
         labelOverrides: {},
         modulePath: './verticals/pharmacy.js'
     },
-    appliance_rental: {
-        label: 'Home Appliance Rental',
+    rental: {
+        label: 'Rental',
         // Unlike pharmacy, this vertical replaces content on two EXISTING
         // pages rather than adding a new one: Inventory/Stock gets
         // Availability + Assets sections in place of the Stock List, and
@@ -43,7 +43,7 @@ const BUSINESS_TYPES = {
         // The Sales nav label itself is renamed via this override, since
         // it no longer records plain sales for this vertical.
         labelOverrides: { 'nav.sales': 'Booking' },
-        modulePath: './verticals/appliance_rental.js'
+        modulePath: './verticals/rental.js'
     }
 };
 
