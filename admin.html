@@ -110,6 +110,8 @@
                     <h2 style="border:none; margin-bottom:0;">Registered Businesses</h2>
                     <div style="display:flex; gap:10px;">
                         <button class="btn btn-outline" onclick="openPlansModal()">Manage Plans</button>
+                        <button class="btn btn-outline" onclick="openTrialModal()">Trial &amp; Payment</button>
+                        <button class="btn btn-outline" onclick="openRequestsModal()">Upgrade Requests <span id="requests-badge" class="badge badge-trial" style="display:none;"></span></button>
                         <input type="text" id="business-search" placeholder="Search by name, phone, owner..." style="max-width:260px;" oninput="renderBusinessTable()">
                     </div>
                 </div>
@@ -217,6 +219,45 @@
     </div>
 </div>
 
+<div id="trial-modal" class="modal-overlay" onclick="closeTrialModal()">
+    <div class="modal-box" onclick="event.stopPropagation()">
+        <h3>Free trial &amp; payment details</h3>
+        <div id="trial-modal-error" class="error-box"></div>
+        <div class="section-title">Free trial for new accounts</div>
+        <div class="form-group">
+            <label>Free trial length (days)</label>
+            <input type="number" min="0" id="trial-days-input" placeholder="0 = no free trial">
+            <div class="hint">Every NEW account gets this many days with everything open. Afterwards, features you ticked &quot;Locks after trial&quot; (in Manage Plans) lock unless the shop has a plan that includes them. Shops that already exist are not affected, and changing this number only affects accounts created from now on.</div>
+        </div>
+        <div class="section-title">Payment details (sent to a shop that requests an upgrade)</div>
+        <div class="form-group"><label>Phone number</label><input type="text" id="pay-phone-input" placeholder="e.g. 09..."></div>
+        <div class="form-group"><label>Bank name</label><input type="text" id="pay-bank-input" placeholder="e.g. Commercial Bank of Ethiopia"></div>
+        <div class="row2">
+            <div class="form-group"><label>Account number</label><input type="text" id="pay-acc-number-input"></div>
+            <div class="form-group"><label>Account name</label><input type="text" id="pay-acc-name-input"></div>
+        </div>
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px;">
+            <button class="btn btn-outline" onclick="closeTrialModal()">Cancel</button>
+            <button class="btn btn-success" onclick="saveTrialSettings()">Save</button>
+        </div>
+    </div>
+</div>
+
+<div id="requests-modal" class="modal-overlay" onclick="closeRequestsModal()">
+    <div class="modal-box" style="max-width:900px;" onclick="event.stopPropagation()">
+        <h3>Upgrade requests</h3>
+        <div id="requests-modal-error" class="error-box"></div>
+        <div class="hint" style="margin-bottom:10px;">When a shop pays, press &quot;Open plan&quot; to give it the plan, then &quot;Mark handled&quot;.</div>
+        <div style="overflow-x:auto;">
+            <table>
+                <thead><tr><th>When</th><th>Shop</th><th>Plan</th><th>Amount (ETB)</th><th>Locked feature</th><th>Telegram</th><th>Status</th><th></th></tr></thead>
+                <tbody id="requests-table-body"></tbody>
+            </table>
+        </div>
+        <div style="text-align:right; margin-top:16px;"><button class="btn btn-outline" onclick="closeRequestsModal()">Close</button></div>
+    </div>
+</div>
+
 <div id="plans-modal" class="modal-overlay" onclick="closePlansModal()">
     <div class="modal-box" style="max-width:820px;" onclick="event.stopPropagation()">
         <h3>Manage Subscription Plans</h3>
@@ -257,7 +298,7 @@
         </div>
 
         <div class="section-title">Features you can give to plans</div>
-        <div class="hint">Add a feature here, then tick it inside any plan. A feature is only a name for now; the apps decide what it unlocks.</div>
+        <div class="hint">Add a feature here, then tick it inside any plan. A feature is only a name for now; the apps decide what it unlocks. Tick &quot;Locks after trial&quot; on features that should lock when a new shop's free trial ends (unless its plan includes them).</div>
         <div id="features-list" style="margin-bottom:10px; max-height:230px; overflow-y:auto;"></div>
         <div class="row2">
             <div class="form-group" style="margin-bottom:0;"><label>New feature name</label><input type="text" id="new-feature-label" placeholder="e.g. Reports export"></div>
@@ -480,6 +521,7 @@
         plans = planRows || [];
         await loadFeatureData();
         businesses = listResult.businesses || [];
+        await loadTrialData();
         renderPlatformStats();
         renderBusinessTable();
     }
@@ -762,7 +804,10 @@
         document.getElementById('features-list').innerHTML = features.length
             ? sortedFeatures(features).map(f =>`<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--border); font-size:13px;">
                     <span><strong>${escHtml(f.label)}</strong> <small style="color:var(--text-light);">${escHtml(f.category || 'Other')} · ${labels[f.applies_to] || ''}</small></span>
-                    <button class="btn btn-small btn-danger" onclick="removeFeature('${escHtml(f.key)}')">Remove</button>
+                    <span style="display:flex; align-items:center; gap:12px; flex-shrink:0;">
+                        <label style="margin:0; display:flex; align-items:center; gap:5px; font-size:12px; font-weight:500; white-space:nowrap; cursor:pointer;"><input type="checkbox" style="width:auto;" ${f.locks_after_trial ? 'checked' : ''} onchange="setFeatureTrialLock('${escHtml(f.key)}', this.checked)"> Locks after trial</label>
+                        <button class="btn btn-small btn-danger" onclick="removeFeature('${escHtml(f.key)}')">Remove</button>
+                    </span>
                 </div>`).join('')
             : '<small style="color:var(--text-light);">No features yet.</small>';
     }
@@ -799,6 +844,115 @@
         renderFeaturesList();
         renderPlansTable();
         if (document.getElementById('plan-editor').style.display !== 'none') onPlanTypeChange();
+    }
+
+    // =====================================================================
+    // FREE TRIAL, PAYMENT DETAILS & UPGRADE REQUESTS
+    // (needs migration_free_trial_and_upgrade_requests.sql to have been run in Supabase)
+    // =====================================================================
+    let trialByBusiness = {};
+    let upgradeRequests = [];
+    let upgradeRequestsError = null;
+
+    async function loadTrialData() {
+        trialByBusiness = {};
+        try {
+            const { data, error } = await supabaseClient.rpc('admin_get_trial_dates');
+            if (!error) (data || []).forEach(r => { trialByBusiness[String(r.business_id)] = r.trial_ends_at; });
+        } catch (e) { /* SQL not run yet: the page works as before */ }
+        try { await loadUpgradeRequests(); } catch (e) { }
+    }
+
+    async function setFeatureTrialLock(key, on) {
+        const { error } = await supabaseClient.from('plan_features').update({ locks_after_trial: on }).eq('key', key);
+        if (error) {
+            showPlansError('Could not change this: ' + error.message + (/locks_after_trial/.test(error.message) ? ' (run migration_free_trial_and_upgrade_requests.sql in Supabase first)' : ''));
+            await loadFeatureData();
+            renderFeaturesList();
+            return;
+        }
+        const f = features.find(x => x.key === key); if (f) f.locks_after_trial = on;
+    }
+
+    async function openTrialModal() {
+        const err = document.getElementById('trial-modal-error'); err.style.display = 'none';
+        const { data, error } = await supabaseClient.from('platform_settings').select('*').eq('id', 1).maybeSingle();
+        if (error) { err.innerText = 'Could not load settings: ' + error.message + ' (run migration_free_trial_and_upgrade_requests.sql in Supabase first)'; err.style.display = 'block'; }
+        const s = data || {};
+        document.getElementById('trial-days-input').value = s.trial_days != null ? s.trial_days : 0;
+        document.getElementById('pay-phone-input').value = s.payment_phone || '';
+        document.getElementById('pay-bank-input').value = s.payment_bank_name || '';
+        document.getElementById('pay-acc-number-input').value = s.payment_account_number || '';
+        document.getElementById('pay-acc-name-input').value = s.payment_account_name || '';
+        document.getElementById('trial-modal').classList.add('active');
+    }
+    function closeTrialModal() { document.getElementById('trial-modal').classList.remove('active'); }
+
+    async function saveTrialSettings() {
+        const err = document.getElementById('trial-modal-error'); err.style.display = 'none';
+        const days = Number(document.getElementById('trial-days-input').value || 0);
+        if (!Number.isInteger(days) || days < 0) { err.innerText = 'Free trial length must be a whole number of days (0 = no trial).'; err.style.display = 'block'; return; }
+        const val = id => document.getElementById(id).value.trim() || null;
+        const row = {
+            id: 1, trial_days: days,
+            payment_phone: val('pay-phone-input'), payment_bank_name: val('pay-bank-input'),
+            payment_account_number: val('pay-acc-number-input'), payment_account_name: val('pay-acc-name-input'),
+            updated_at: new Date().toISOString(),
+        };
+        const { error } = await supabaseClient.from('platform_settings').upsert(row);
+        if (error) { err.innerText = 'Could not save: ' + error.message; err.style.display = 'block'; return; }
+        closeTrialModal();
+    }
+
+    async function loadUpgradeRequests() {
+        const { data, error } = await supabaseClient.from('upgrade_requests').select('*').order('created_at', { ascending: false }).limit(200);
+        upgradeRequestsError = error ? error.message : null;
+        upgradeRequests = error ? [] : (data || []);
+        updateRequestsBadge();
+    }
+    function updateRequestsBadge() {
+        const n = upgradeRequests.filter(r => r.status === 'pending').length;
+        const el = document.getElementById('requests-badge');
+        if (el) { el.innerText = n; el.style.display = n ? 'inline-block' : 'none'; }
+    }
+    async function openRequestsModal() {
+        await loadUpgradeRequests();
+        renderUpgradeRequests();
+        document.getElementById('requests-modal').classList.add('active');
+    }
+    function closeRequestsModal() { document.getElementById('requests-modal').classList.remove('active'); }
+
+    function renderUpgradeRequests() {
+        const box = document.getElementById('requests-modal-error');
+        if (upgradeRequestsError) { box.innerText = 'Could not load requests: ' + upgradeRequestsError + ' (run migration_free_trial_and_upgrade_requests.sql in Supabase first)'; box.style.display = 'block'; } else { box.style.display = 'none'; }
+        document.getElementById('requests-table-body').innerHTML = upgradeRequests.map(r => {
+            const featLabel = r.feature_key ? ((features.find(f => f.key === r.feature_key) || {}).label || r.feature_key) : '';
+            const pending = r.status === 'pending';
+            return `<tr style="${pending ? '' : 'opacity:0.55;'}">
+                <td><small>${new Date(r.created_at).toLocaleString()}</small></td>
+                <td><strong>${escHtml(r.business_name || '')}</strong></td>
+                <td>${escHtml(r.plan_name || '')}</td>
+                <td>${escHtml(Number(r.amount_etb || 0).toLocaleString())}</td>
+                <td><small>${featLabel ? escHtml(featLabel) : '&mdash;'}</small></td>
+                <td><small>${r.telegram_sent_at ? '&#10003; sent' : 'not opened yet'}</small></td>
+                <td><span class="badge ${pending ? 'badge-trial' : 'badge-active'}">${escHtml(r.status)}</span></td>
+                <td style="text-align:right; white-space:nowrap;">${pending ? `
+                    <button class="btn btn-warning btn-small" onclick="openPlanForRequest('${escHtml(r.business_id)}')">Open plan</button>
+                    <button class="btn btn-success btn-small" onclick="setRequestStatus('${escHtml(r.id)}', 'handled')">Mark handled</button>
+                    <button class="btn btn-outline btn-small" onclick="setRequestStatus('${escHtml(r.id)}', 'dismissed')">Dismiss</button>` : ''}</td>
+            </tr>`;
+        }).join('') || '<tr><td colspan="8" style="text-align:center; color:var(--text-light);">No upgrade requests yet.</td></tr>';
+    }
+    function openPlanForRequest(businessId) {
+        if (!businesses.some(b => String(b.id) === String(businessId))) { alert('That shop was not found. It may have been deleted.'); return; }
+        closeRequestsModal();
+        openSubscriptionModal(businessId);
+    }
+    async function setRequestStatus(id, status) {
+        const { error } = await supabaseClient.from('upgrade_requests').update({ status, handled_at: new Date().toISOString() }).eq('id', id);
+        if (error) { alert('Could not update: ' + error.message); return; }
+        await loadUpgradeRequests();
+        renderUpgradeRequests();
     }
 
     // =====================================================================
@@ -1209,13 +1363,19 @@
         tbody.innerHTML = filtered.map(b => {
             const expiresText = b.subscriptionExpiresAt ? new Date(b.subscriptionExpiresAt).toLocaleDateString() : '—';
             const isPastDue = b.subscriptionExpiresAt && new Date(b.subscriptionExpiresAt) < new Date() && ['trial', 'active'].includes(b.subscriptionStatus);
+            const trialEnd = trialByBusiness[String(b.id)];
+            let trialNote = '';
+            if (!b.subscriptionPlanName && trialEnd) {
+                const td = new Date(trialEnd);
+                trialNote = td > new Date() ? `<br><small style="color:var(--text-light);">Free trial until ${td.toLocaleDateString()}</small>` : `<br><small style="color:var(--danger);">Free trial ended ${td.toLocaleDateString()}</small>`;
+            }
             return `<tr>
                 <td><strong class="truncate" title="${escHtml(b.businessName)}">${escHtml(b.businessName)}</strong><br><small style="color:var(--text-light);">${escHtml(b.phone) || '—'}</small></td>
                 <td class="truncate" title="${escHtml(b.ownerEmail) || ''}"><small>${escHtml(b.ownerUsername) || '—'}<br>${escHtml(b.ownerEmail) || ''}</small></td>
                 <td><small>${new Date(b.createdAt).toLocaleDateString()}</small></td>
                 <td>${b.branchCount}</td>
                 <td>${b.memberCount}</td>
-                <td><small>${escHtml(b.subscriptionPlanName) || '—'}</small></td>
+                <td><small>${escHtml(b.subscriptionPlanName) || '—'}</small>${trialNote}</td>
                 <td>${statusBadge(b.subscriptionStatus)}${isPastDue ? ' <small style="color:var(--danger);">(past due)</small>' : ''}</td>
                 <td><small>${expiresText}</small></td>
                 <td style="text-align:center; white-space:nowrap;">
