@@ -8,7 +8,7 @@
 // "a new version is ready".
 // =====================================================================
 
-const CACHE_NAME = 'meleya-shell-v45';
+const CACHE_NAME = 'meleya-shell-v46';
 
 // MUST all download successfully, or this version does NOT install and the
 // phone keeps running the previous working version (retrying later).

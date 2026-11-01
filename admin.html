@@ -227,7 +227,12 @@
         <div class="form-group">
             <label>Free trial length (days)</label>
             <input type="number" min="0" id="trial-days-input" placeholder="0 = no free trial">
-            <div class="hint">Every NEW account gets this many days with everything open. Afterwards, features you ticked &quot;Locks after trial&quot; (in Manage Plans) lock unless the shop has a plan that includes them. Shops that already exist are not affected, and changing this number only affects accounts created from now on.</div>
+            <div class="hint">Every NEW account gets this many days with everything its plan includes. When the days run out, the features marked &quot;Locks after trial&quot; in that plan lock until the shop upgrades. Shops that already exist are not affected, and changing this only affects accounts created from now on.</div>
+        </div>
+        <div class="form-group">
+            <label>Plan for new accounts</label>
+            <select id="trial-default-plan"></select>
+            <div class="hint">New accounts start on this plan. Edit that plan in Manage Plans to choose its features and which ones lock after the trial. Its branch and employee limits also apply.</div>
         </div>
         <div class="section-title">Payment details (sent to a shop that requests an upgrade)</div>
         <div class="form-group"><label>Phone number</label><input type="text" id="pay-phone-input" placeholder="e.g. 09..."></div>
@@ -290,6 +295,7 @@
                 <label style="margin:0;">Features included in this plan <span id="plan-ed-count" style="font-weight:500;"></span></label>
                 <span><button type="button" class="btn btn-outline btn-small" onclick="setAllPlanFeatures(true)">Select all</button><button type="button" class="btn btn-outline btn-small" onclick="setAllPlanFeatures(false)">Clear all</button></span>
             </div>
+            <div class="hint" id="plan-ed-lock-hint">Tick &quot;Locks after trial&quot; next to a feature to keep it open during a new shop's free trial and lock it when the trial ends. Use this on the plan that new accounts start on (choose it in Trial &amp; Payment).</div>
             <div id="plan-ed-features" style="margin-bottom:12px; max-height:340px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; background:white; padding:0 12px 6px;"></div>
             <div style="display:flex; gap:10px; justify-content:flex-end;">
                 <button class="btn btn-outline btn-small" onclick="document.getElementById('plan-editor').style.display='none'">Cancel</button>
@@ -297,20 +303,6 @@
             </div>
         </div>
 
-        <div class="section-title">Features you can give to plans</div>
-        <div class="hint">Add a feature here, then tick it inside any plan. A feature is only a name for now; the apps decide what it unlocks. Tick &quot;Locks after trial&quot; on features that should lock when a new shop's free trial ends (unless its plan includes them).</div>
-        <div id="features-list" style="margin-bottom:10px; max-height:230px; overflow-y:auto;"></div>
-        <div class="row2">
-            <div class="form-group" style="margin-bottom:0;"><label>New feature name</label><input type="text" id="new-feature-label" placeholder="e.g. Reports export"></div>
-            <div class="form-group" style="margin-bottom:0;"><label>For</label>
-                <select id="new-feature-applies"><option value="business">Business</option><option value="accountant">Accountant</option><option value="both">Both</option></select>
-            </div>
-        </div>
-        <div class="row2" style="margin-top:8px;">
-            <div class="form-group" style="margin-bottom:0;"><label>Group (optional)</label><input type="text" id="new-feature-category" list="feature-categories" placeholder="e.g. Accounting"><datalist id="feature-categories"></datalist></div>
-            <div class="form-group" style="margin-bottom:0;"><label>Short description (optional)</label><input type="text" id="new-feature-desc"></div>
-        </div>
-        <button class="btn btn-success btn-small" style="margin-top:8px;" onclick="addFeature()">+ Add feature</button>
         <div style="text-align:right; margin-top:16px;"><button class="btn btn-outline" onclick="closePlansModal()">Close</button></div>
     </div>
 </div>
@@ -661,9 +653,7 @@
         document.getElementById('plans-modal-error').style.display = 'none';
         if (featureLoadError) showPlansError('Features could not be loaded: ' + featureLoadError + ' (run step1-plans-and-announcements.sql and step2-admin-permissions.sql in Supabase first)');
         document.getElementById('plan-editor').style.display = 'none';
-        document.getElementById('new-feature-label').value = '';
         renderPlansTable();
-        renderFeaturesList();
         document.getElementById('plans-modal').classList.add('active');
     }
     function closePlansModal() { document.getElementById('plans-modal').classList.remove('active'); }
@@ -697,15 +687,29 @@
         document.getElementById('plan-ed-branches').value = p && p.max_branches != null ? p.max_branches : '';
         document.getElementById('plan-ed-employees').value = p && p.max_employees != null ? p.max_employees : '';
         document.getElementById('plan-ed-price').value = p ? p.price_etb : '';
-        onPlanTypeChange(p ? planFeatureKeys(p.id) : []);
+        onPlanTypeChange(p ? planFeatureKeys(p.id) : [], p ? (p.trial_locked_features || []) : []);
         const ed = document.getElementById('plan-editor');
         ed.style.display = 'block';
         ed.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
     function checkedFeatureKeys() {
-        return Array.from(document.querySelectorAll('#plan-ed-features input:checked')).map(i => i.value);
+        return Array.from(document.querySelectorAll('#plan-ed-features input.inc:checked')).map(i => i.value);
     }
+    function checkedLockKeys() {
+        return Array.from(document.querySelectorAll('#plan-ed-features input.lock:checked:not(:disabled)')).map(i => i.dataset.key);
+    }
+    // A feature can only "lock after trial" if the plan includes it.
+    function syncLockBoxes() {
+        document.querySelectorAll('#plan-ed-features input.inc').forEach(inc => {
+            const row = inc.closest('.feat-line'); const lock = row && row.querySelector('input.lock');
+            if (!lock) return;
+            lock.disabled = !inc.checked;
+            if (!inc.checked) lock.checked = false;
+            lock.parentElement.style.opacity = inc.checked ? '1' : '0.4';
+        });
+    }
+    function onFeatureIncludeChange() { syncLockBoxes(); updatePlanFeatureCount(); }
 
     function sortedFeatures(list) {
         return list.slice().sort((a, b) => ((a.sort_order ?? 9999) - (b.sort_order ?? 9999)) || String(a.created_at || '').localeCompare(String(b.created_at || '')));
@@ -721,30 +725,39 @@
         return groups;
     }
 
-    function onPlanTypeChange(keepKeys) {
+    function onPlanTypeChange(keepKeys, keepLocks) {
         const type = document.getElementById('plan-ed-type').value;
         document.getElementById('plan-ed-limits').style.display = type === 'business' ? 'grid' : 'none';
+        document.getElementById('plan-ed-lock-hint').style.display = type === 'business' ? 'block' : 'none';
         const selected = Array.isArray(keepKeys) ? keepKeys : checkedFeatureKeys();
+        const locked = Array.isArray(keepLocks) ? keepLocks : checkedLockKeys();
+        const showLock = type === 'business';   // the free trial is for shops, not accountants
         const groups = featureGroupsFor(type);
         document.getElementById('plan-ed-features').innerHTML = groups.length
             ? groups.map((g, gi) => `<div class="feat-group" data-g="${gi}">
                     <div class="feat-head"><span>${escHtml(g.name)}</span><span><a onclick="setGroupFeatures(${gi}, true)">all</a><a onclick="setGroupFeatures(${gi}, false)">none</a></span></div>
-                    ${g.items.map(f => `<label class="feat-row"><input type="checkbox" value="${escHtml(f.key)}" ${selected.includes(f.key) ? 'checked' : ''} onchange="updatePlanFeatureCount()"><span><strong>${escHtml(f.label)}</strong>${f.description ? `<small>${escHtml(f.description)}</small>` : ''}</span></label>`).join('')}
+                    ${g.items.map(f => `<div class="feat-line" style="display:flex; align-items:flex-start; gap:10px; border-bottom:1px solid var(--border);">
+                        <label class="feat-row" style="flex:1; border-bottom:none;"><input class="inc" type="checkbox" value="${escHtml(f.key)}" ${selected.includes(f.key) ? 'checked' : ''} onchange="onFeatureIncludeChange()"><span><strong>${escHtml(f.label)}</strong>${f.description ? `<small>${escHtml(f.description)}</small>` : ''}</span></label>
+                        ${showLock ? `<label style="margin:0; padding:8px 0; display:flex; align-items:center; gap:5px; font-size:12px; font-weight:500; white-space:nowrap; cursor:pointer; color:var(--text-light);" title="Open during the free trial, locked when the trial ends"><input class="lock" type="checkbox" style="width:auto; margin:0;" data-key="${escHtml(f.key)}" ${locked.includes(f.key) ? 'checked' : ''}> Locks after trial</label>` : ''}
+                    </div>`).join('')}
                 </div>`).join('')
-            : '<small style="display:block; padding:10px 0; color:var(--text-light);">No features for this type yet. Add some in the Features section below.</small>';
+            : '<small style="display:block; padding:10px 0; color:var(--text-light);">No features for this type yet.</small>';
+        syncLockBoxes();
         updatePlanFeatureCount();
     }
     function updatePlanFeatureCount() {
-        const all = document.querySelectorAll('#plan-ed-features input').length;
-        const on = document.querySelectorAll('#plan-ed-features input:checked').length;
+        const all = document.querySelectorAll('#plan-ed-features input.inc').length;
+        const on = document.querySelectorAll('#plan-ed-features input.inc:checked').length;
         document.getElementById('plan-ed-count').innerText = all ? '(' + on + ' of ' + all + ' selected)' : '';
     }
     function setAllPlanFeatures(on) {
-        document.querySelectorAll('#plan-ed-features input').forEach(i => { i.checked = on; });
+        document.querySelectorAll('#plan-ed-features input.inc').forEach(i => { i.checked = on; });
+        syncLockBoxes();
         updatePlanFeatureCount();
     }
     function setGroupFeatures(gi, on) {
-        document.querySelectorAll('#plan-ed-features .feat-group[data-g="' + gi + '"] input').forEach(i => { i.checked = on; });
+        document.querySelectorAll('#plan-ed-features .feat-group[data-g="' + gi + '"] input.inc').forEach(i => { i.checked = on; });
+        syncLockBoxes();
         updatePlanFeatureCount();
     }
 
@@ -763,6 +776,7 @@
             max_employees: type === 'business' ? num('plan-ed-employees') : null,
             price_etb: num('plan-ed-price') ?? 0,
             is_premium: keys.some(k => LEGACY_PREMIUM_KEYS.includes(k)),
+            trial_locked_features: type === 'business' ? checkedLockKeys() : [],
         };
         try {
             let planId = editingPlanId;
@@ -784,7 +798,7 @@
             document.getElementById('plan-editor').style.display = 'none';
             renderPlansTable();
         } catch (err) {
-            showPlansError('Could not save the plan: ' + err.message + ' (have you run both SQL files in Supabase?)');
+            showPlansError('Could not save the plan: ' + err.message + (/trial_locked_features/.test(err.message) ? ' (run migration_free_trial_and_upgrade_requests.sql in Supabase first)' : ' (have you run both SQL files in Supabase?)'));
         }
     }
 
@@ -796,54 +810,6 @@
         } catch (err) {
             showPlansError(err.message);
         }
-    }
-
-    function renderFeaturesList() {
-        const labels = { business: 'Business', accountant: 'Accountant', both: 'Both' };
-        document.getElementById('feature-categories').innerHTML = Array.from(new Set(features.map(f => f.category).filter(Boolean))).map(c => `<option value="${escHtml(c)}">`).join('');
-        document.getElementById('features-list').innerHTML = features.length
-            ? sortedFeatures(features).map(f =>`<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--border); font-size:13px;">
-                    <span><strong>${escHtml(f.label)}</strong> <small style="color:var(--text-light);">${escHtml(f.category || 'Other')} · ${labels[f.applies_to] || ''}</small></span>
-                    <span style="display:flex; align-items:center; gap:12px; flex-shrink:0;">
-                        <label style="margin:0; display:flex; align-items:center; gap:5px; font-size:12px; font-weight:500; white-space:nowrap; cursor:pointer;"><input type="checkbox" style="width:auto;" ${f.locks_after_trial ? 'checked' : ''} onchange="setFeatureTrialLock('${escHtml(f.key)}', this.checked)"> Locks after trial</label>
-                        <button class="btn btn-small btn-danger" onclick="removeFeature('${escHtml(f.key)}')">Remove</button>
-                    </span>
-                </div>`).join('')
-            : '<small style="color:var(--text-light);">No features yet.</small>';
-    }
-
-    async function addFeature() {
-        const label = document.getElementById('new-feature-label').value.trim();
-        if (!label) return showPlansError('Type a name for the feature.');
-        document.getElementById('plans-modal-error').style.display = 'none';
-        let key = label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-        if (!key) key = 'feature';
-        let unique = key, n = 2;
-        while (features.some(f => f.key === unique)) unique = key + '_' + (n++);
-        const newRow = { key: unique, label, applies_to: document.getElementById('new-feature-applies').value };
-        const cat = document.getElementById('new-feature-category').value.trim();
-        const desc = document.getElementById('new-feature-desc').value.trim();
-        if (cat) newRow.category = cat;
-        if (desc) newRow.description = desc;
-        const { error } = await supabaseClient.from('plan_features').insert(newRow);
-        if (error) return showPlansError('Could not add the feature: ' + error.message + (/category/.test(error.message) ? ' (run step2b-features-and-people.sql in Supabase first)' : ''));
-        document.getElementById('new-feature-label').value = '';
-        document.getElementById('new-feature-category').value = '';
-        document.getElementById('new-feature-desc').value = '';
-        await loadFeatureData();
-        renderFeaturesList();
-        renderPlansTable();
-        if (document.getElementById('plan-editor').style.display !== 'none') onPlanTypeChange();
-    }
-
-    async function removeFeature(key) {
-        if (!confirm('Remove this feature? It will be taken out of every plan that has it.')) return;
-        const { error } = await supabaseClient.from('plan_features').delete().eq('key', key);
-        if (error) return showPlansError('Could not remove the feature: ' + error.message);
-        await loadFeatureData();
-        renderFeaturesList();
-        renderPlansTable();
-        if (document.getElementById('plan-editor').style.display !== 'none') onPlanTypeChange();
     }
 
     // =====================================================================
@@ -863,23 +829,15 @@
         try { await loadUpgradeRequests(); } catch (e) { }
     }
 
-    async function setFeatureTrialLock(key, on) {
-        const { error } = await supabaseClient.from('plan_features').update({ locks_after_trial: on }).eq('key', key);
-        if (error) {
-            showPlansError('Could not change this: ' + error.message + (/locks_after_trial/.test(error.message) ? ' (run migration_free_trial_and_upgrade_requests.sql in Supabase first)' : ''));
-            await loadFeatureData();
-            renderFeaturesList();
-            return;
-        }
-        const f = features.find(x => x.key === key); if (f) f.locks_after_trial = on;
-    }
-
     async function openTrialModal() {
         const err = document.getElementById('trial-modal-error'); err.style.display = 'none';
         const { data, error } = await supabaseClient.from('platform_settings').select('*').eq('id', 1).maybeSingle();
         if (error) { err.innerText = 'Could not load settings: ' + error.message + ' (run migration_free_trial_and_upgrade_requests.sql in Supabase first)'; err.style.display = 'block'; }
         const s = data || {};
         document.getElementById('trial-days-input').value = s.trial_days != null ? s.trial_days : 0;
+        const sel = document.getElementById('trial-default-plan');
+        sel.innerHTML = '<option value="">No plan (full access)</option>' + plans.filter(p => planType(p) === 'business' && (p.is_active || String(p.id) === String(s.default_plan_id))).map(p => `<option value="${escHtml(String(p.id))}">${escHtml(p.name)}${p.is_active ? '' : ' (inactive)'}</option>`).join('');
+        sel.value = s.default_plan_id || '';
         document.getElementById('pay-phone-input').value = s.payment_phone || '';
         document.getElementById('pay-bank-input').value = s.payment_bank_name || '';
         document.getElementById('pay-acc-number-input').value = s.payment_account_number || '';
@@ -894,7 +852,7 @@
         if (!Number.isInteger(days) || days < 0) { err.innerText = 'Free trial length must be a whole number of days (0 = no trial).'; err.style.display = 'block'; return; }
         const val = id => document.getElementById(id).value.trim() || null;
         const row = {
-            id: 1, trial_days: days,
+            id: 1, trial_days: days, default_plan_id: document.getElementById('trial-default-plan').value || null,
             payment_phone: val('pay-phone-input'), payment_bank_name: val('pay-bank-input'),
             payment_account_number: val('pay-acc-number-input'), payment_account_name: val('pay-acc-name-input'),
             updated_at: new Date().toISOString(),
@@ -1365,7 +1323,7 @@
             const isPastDue = b.subscriptionExpiresAt && new Date(b.subscriptionExpiresAt) < new Date() && ['trial', 'active'].includes(b.subscriptionStatus);
             const trialEnd = trialByBusiness[String(b.id)];
             let trialNote = '';
-            if (!b.subscriptionPlanName && trialEnd) {
+            if (trialEnd && b.subscriptionStatus === 'trial') {
                 const td = new Date(trialEnd);
                 trialNote = td > new Date() ? `<br><small style="color:var(--text-light);">Free trial until ${td.toLocaleDateString()}</small>` : `<br><small style="color:var(--danger);">Free trial ended ${td.toLocaleDateString()}</small>`;
             }

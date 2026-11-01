@@ -2693,25 +2693,27 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         let currentPlanFeatures = null;
         let currentPlanName = '';
         let currentTrialEndsAt = null;       // ms timestamp when this shop's free trial ends; null = no trial (shops created before trials existed)
-        let currentTrialLockedKeys = [];     // feature keys the admin ticked "Locks after trial"
+        let currentTrialLockedKeys = [];     // features of THIS shop's plan that the admin ticked "Locks after trial"
+        let currentSubStatus = '';           // the shop's subscription status; trial locks only apply while it is 'trial'
         const PLAN_FEATURE_LABELS = {
             scanned_stock: 'Scanned Stock', deep_analytics: 'Deep Sales Analytics', accounting: 'Accounting pages',
             excel_export: 'Excel report download', vat: 'VAT registration', accountant_link: 'Accountant link', employees: 'Team members'
         };
         const planLockSvg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
-        // Free trial: a NEW shop that has no plan can use everything until its trial ends. After that, the features the admin
-        // ticked "Locks after trial" are locked until the shop gets a plan that includes them. A shop that already has a plan
-        // follows its plan only. Like the other plan locks, this is checked in the app on the device.
+        // Free trial: a new shop starts on a plan (chosen in the admin page) and gets a trial end date. In that plan the admin ticks
+        // "Locks after trial" next to some features: they work during the trial and lock when it ends, until the shop is moved to a paid plan
+        // (status Active). Shops created before trials existed have no trial date, so nothing changes for them. Like the other plan locks,
+        // this is checked in the app on the device.
         function trialEnded() { return currentTrialEndsAt !== null && Date.now() > currentTrialEndsAt; }
-        function trialLockedFeature(f) { return currentPlanFeatures === null && trialEnded() && currentTrialLockedKeys.includes(f); }
+        function trialLockedFeature(f) { return currentSubStatus === 'trial' && trialEnded() && currentTrialLockedKeys.includes(f); }
         function planCan(f) {
             const premiumOnly = (f === 'scanned_stock' || f === 'accountant_link');
-            if (currentPlanFeatures === null) return (premiumOnly ? currentPlanPremium : true) && !trialLockedFeature(f);
-            if (premiumOnly) return currentPlanPremium && currentPlanFeatures[f] !== false;
-            return currentPlanFeatures[f] !== false;
+            if (currentPlanFeatures === null) return premiumOnly ? currentPlanPremium : true;
+            if (premiumOnly) return currentPlanPremium && currentPlanFeatures[f] !== false && !trialLockedFeature(f);
+            return currentPlanFeatures[f] !== false && !trialLockedFeature(f);
         }
-        // "Locked" = the shop HAS a plan and the plan leaves this out, or its free trial ended and this feature locks after the trial (shown with a lock + Upgrade message).
-        function planLocked(f) { return (currentPlanFeatures !== null || trialLockedFeature(f)) && !planCan(f); }
+        // "Locked" = the shop HAS a plan and the plan leaves this out (or it locks after the free trial), shown with a lock + Upgrade message.
+        function planLocked(f) { return currentPlanFeatures !== null && !planCan(f); }
 
         function upgradeModalEl() {
             let m = document.getElementById('plan-upgrade-modal');
@@ -2729,7 +2731,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             const m = upgradeModalEl();
             const fk = String(f || '').replace(/[^a-z0-9_]/gi, '');
             const label = PLAN_FEATURE_LABELS[f] || 'This feature';
-            const why = (currentPlanFeatures === null && trialEnded())
+            const why = trialLockedFeature(f)
                 ? `Your free trial has ended, so <b>${label}</b> is now locked.`
                 : `<b>${label}</b> is not included in your ${currentPlanName ? escHtml(currentPlanName) + ' ' : ''}plan.`;
             const action = currentIsOwner
@@ -2805,7 +2807,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         }
         // Owners see a bar in the last 7 days of the free trial, and after it ends while features are locked.
         function showTrialBanner() {
-            if (!currentIsOwner || currentPlanFeatures !== null || currentTrialEndsAt === null || !currentTrialLockedKeys.length || document.getElementById('trial-banner')) return;
+            if (!currentIsOwner || currentSubStatus !== 'trial' || currentTrialEndsAt === null || !currentTrialLockedKeys.length || document.getElementById('trial-banner')) return;
             const left = Math.ceil((currentTrialEndsAt - Date.now()) / 86400000);
             if (!trialEnded() && left > 7) return;
             const msg = trialEnded() ? 'Your free trial has ended. Some features are now locked.' : `Your free trial ends in ${left} day${left === 1 ? '' : 's'}. Some features will lock after that.`;
@@ -2819,19 +2821,14 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             const right = document.createElement('span'); right.style.cssText = 'display:flex;gap:8px;align-items:center;'; right.append(go, x);
             bar.append(span, right); document.body.appendChild(bar);
         }
-        // Reads this shop's trial end date and which features lock after the trial. Saved on the device so it also works offline.
+        // Reads this shop's trial end date and status (the list of features that lock came with its plan). Saved on the device so it also works offline.
         async function loadTrialState(biz) {
             const ends = biz && biz.trial_ends_at ? new Date(biz.trial_ends_at).getTime() : NaN;
             currentTrialEndsAt = isNaN(ends) ? null : ends;
-            let locked = null;
-            if (currentTrialEndsAt !== null && currentPlanFeatures === null) {
-                try { const { data, error } = await supabaseClient.rpc('get_trial_locked_features'); if (!error && Array.isArray(data)) locked = data; } catch (e) { }
-                if (locked === null) { try { const c = JSON.parse(localStorage.getItem('neba_erp_trial_' + currentTenantId) || 'null'); if (c && Array.isArray(c.locked)) locked = c.locked; } catch (e) { } }
-            }
-            currentTrialLockedKeys = locked || [];
+            currentSubStatus = String((biz && biz.subscription_status) || '').toLowerCase();
             try {
                 if (currentTrialEndsAt === null) localStorage.removeItem('neba_erp_trial_' + currentTenantId);
-                else localStorage.setItem('neba_erp_trial_' + currentTenantId, JSON.stringify({ endsAt: currentTrialEndsAt, locked: currentTrialLockedKeys }));
+                else localStorage.setItem('neba_erp_trial_' + currentTenantId, JSON.stringify({ endsAt: currentTrialEndsAt, status: currentSubStatus, locked: currentTrialLockedKeys }));
             } catch (e) { }
         }
 
@@ -4374,7 +4371,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                     // Offline start: Premium was not re-checked, use what this device saw last time online.
                     try { currentPlanPremium = localStorage.getItem('neba_erp_premium_' + currentTenantId) === '1'; } catch (e) { }
                 try { const f = localStorage.getItem('neba_erp_features_' + currentTenantId); currentPlanFeatures = f ? JSON.parse(f) : null; currentPlanName = localStorage.getItem('neba_erp_planname_' + currentTenantId) || ''; } catch (e) { }
-                try { const t = JSON.parse(localStorage.getItem('neba_erp_trial_' + currentTenantId) || 'null'); currentTrialEndsAt = t && typeof t.endsAt === 'number' ? t.endsAt : null; currentTrialLockedKeys = t && Array.isArray(t.locked) ? t.locked : []; } catch (e) { currentTrialEndsAt = null; currentTrialLockedKeys = []; }
+                try { const t = JSON.parse(localStorage.getItem('neba_erp_trial_' + currentTenantId) || 'null'); currentTrialEndsAt = t && typeof t.endsAt === 'number' ? t.endsAt : null; currentSubStatus = t && typeof t.status === 'string' ? t.status : ''; currentTrialLockedKeys = t && Array.isArray(t.locked) ? t.locked : []; } catch (e) { currentTrialEndsAt = null; currentTrialLockedKeys = []; }
                     if (window.scnShowNav) window.scnShowNav();
                 }
             if (!(lastIdentity && lastIdentity.tenantId)) return false;
@@ -4508,13 +4505,14 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                     try { localStorage.setItem('neba_erp_premium_' + currentTenantId, currentPlanPremium ? '1' : '0'); } catch (e) { }
                     currentPlanFeatures = (pr.data && pr.data.features && typeof pr.data.features === 'object') ? pr.data.features : {};
                     currentPlanName = (pr.data && pr.data.name) || '';
+                    currentTrialLockedKeys = (pr.data && Array.isArray(pr.data.trial_locked_features)) ? pr.data.trial_locked_features : [];
                     try { localStorage.setItem('neba_erp_features_' + currentTenantId, JSON.stringify(currentPlanFeatures)); localStorage.setItem('neba_erp_planname_' + currentTenantId, currentPlanName); } catch (e) { }
                 } catch (e) { currentPlanPremium = false; currentPlanFeatures = {}; }
             } else {
                 currentPlanMaxBranches = null;
                 currentPlanMaxEmployees = null;
                 currentPlanPremium = false;
-                currentPlanFeatures = null; currentPlanName = '';   // no plan assigned: full access, as before
+                currentPlanFeatures = null; currentPlanName = ''; currentTrialLockedKeys = [];   // no plan assigned: full access, as before
                 try { localStorage.setItem('neba_erp_premium_' + currentTenantId, '0'); localStorage.removeItem('neba_erp_features_' + currentTenantId); localStorage.removeItem('neba_erp_planname_' + currentTenantId); } catch (e) { }
             }
             await loadTrialState(biz);   // free-trial end date + which features lock after it (must be known before planCan() is used below)
