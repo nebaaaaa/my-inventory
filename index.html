@@ -1524,6 +1524,11 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             </div>
 
             <div id="view-settings" class="view-panel">
+                <div class="card" id="plans-settings-card">
+                    <h2 style="border:none; margin-bottom:10px;">Plans</h2>
+                    <p id="plans-settings-current" style="font-size:13px; color:var(--text-light); margin-bottom:12px;"></p>
+                    <button type="button" class="btn" onclick="openUpgradeRequest('')">View plans</button>
+                </div>
                 <div class="card" id="vat-settings-card" style="display:none;">
                     <h2 style="border:none; margin-bottom:10px;" data-i18n="team.vat_registration">VAT Registration</h2>
                     <p style="font-size:13px; color:var(--text-light); margin-bottom:12px;" data-i18n="team.vat_registration_hint">Turning this on adds an "Include VAT (15%)" checkbox to the Sales page and shows an Estimated VAT box on the Dashboard. This is only an estimate for your own planning — it does not affect your journal entries or accounts.</p>
@@ -3133,6 +3138,11 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         }
         function planLockMessage(key) {
             return trialLockedFeature(key) ? 'Your free trial has ended.' : 'Not included in your ' + (currentPlanName ? currentPlanName + ' ' : '') + 'plan.';
+        }
+        // Settings > Plans: shows the shop's current plan and opens the plans page (the Upgrade plan screens).
+        function renderPlansSettingsCard() {
+            const el = document.getElementById('plans-settings-current'); if (!el) return;
+            el.innerHTML = currentPlanName ? 'Your plan: <b>' + escHtml(currentPlanName) + '</b>. See every plan and upgrade or renew.' : 'See the plans and choose one for your shop.';
         }
         function requestUpgradeFor(key) { if (currentIsOwner) openUpgradeRequest(key); else showUpgrade(key); }
         // The frosted cover with a Upgrade plan button, put on top of a whole page or one box / graph / card.
@@ -6521,6 +6531,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             if (window.innerWidth <= 768) document.getElementById('sidebar').classList.add('collapsed');
 
             if (viewId === 'dashboard') renderAnalyticalDashboards();
+            if (viewId === 'settings') renderPlansSettingsCard();
             if (viewId === 'inventory') {
                 resetProductForm(); renderPerpetualInventoryTable();
                 if (currentVerticalModule && typeof currentVerticalModule.renderInventorySection === 'function') {
