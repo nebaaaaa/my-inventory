@@ -241,6 +241,23 @@
             <div class="form-group"><label>Account number</label><input type="text" id="pay-acc-number-input"></div>
             <div class="form-group"><label>Account name</label><input type="text" id="pay-acc-name-input"></div>
         </div>
+        <div class="section-title">Longer plans (shown to shops when they upgrade)</div>
+        <div class="hint" style="margin-bottom:8px;">A plan's price is per month. Shops choose 3 months, 6 months or 1 year, and you can give a discount for paying longer.</div>
+        <div class="row2">
+            <div class="form-group"><label>3 months: discount %</label><input type="number" min="0" max="90" id="disc-3m-input"></div>
+            <div class="form-group"><label>6 months: discount %</label><input type="number" min="0" max="90" id="disc-6m-input"></div>
+        </div>
+        <div class="form-group"><label>1 year: discount %</label><input type="number" min="0" max="90" id="disc-12m-input"></div>
+        <div class="section-title">Payment receipts</div>
+        <div class="form-group">
+            <label>When a receipt passes the checks</label>
+            <select id="receipt-mode-select">
+                <option value="bank_verified">Activate the plan only if the bank's own receipt page confirms it (recommended)</option>
+                <option value="manual">Always wait for me to approve</option>
+                <option value="ai_only">Activate as soon as the AI has read it and the checks pass (a doctored screenshot could slip through)</option>
+            </select>
+            <div class="hint">The bot always checks the amount, the receiver, the date and that the receipt was never used before. Anything unclear is sent to Upgrade Requests for you to approve.</div>
+        </div>
         <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px;">
             <button class="btn btn-outline" onclick="closeTrialModal()">Cancel</button>
             <button class="btn btn-success" onclick="saveTrialSettings()">Save</button>
@@ -252,10 +269,10 @@
     <div class="modal-box" style="max-width:900px;" onclick="event.stopPropagation()">
         <h3>Upgrade requests</h3>
         <div id="requests-modal-error" class="error-box"></div>
-        <div class="hint" style="margin-bottom:10px;">When a shop pays, press &quot;Open plan&quot; to give it the plan, then &quot;Mark handled&quot;.</div>
+        <div class="hint" style="margin-bottom:10px;">The bot checks receipts by itself. &quot;Needs your review&quot; means it was unsure: look at the receipt (the bot sent you a copy if you set ADMIN_TELEGRAM_CHAT_ID), then press &quot;Approve &amp; activate&quot; only if the money really arrived.</div>
         <div style="overflow-x:auto;">
             <table>
-                <thead><tr><th>When</th><th>Shop</th><th>Plan</th><th>Amount (ETB)</th><th>Locked feature</th><th>Telegram</th><th>Status</th><th></th></tr></thead>
+                <thead><tr><th>When</th><th>Shop</th><th>Plan</th><th>Amount (ETB)</th><th>Status</th><th>Receipt</th><th>Telegram</th><th></th></tr></thead>
                 <tbody id="requests-table-body"></tbody>
             </table>
         </div>
@@ -269,7 +286,7 @@
         <div id="plans-modal-error" class="error-box"></div>
         <div style="overflow-x:auto;">
             <table style="margin-bottom:12px;">
-                <thead><tr><th>Name</th><th>For</th><th>Branches</th><th>Employees</th><th>Price (ETB)</th><th>Features</th><th></th></tr></thead>
+                <thead><tr><th>Name</th><th>For</th><th>Branches</th><th>Employees</th><th>Price per month (ETB)</th><th>Features</th><th></th></tr></thead>
                 <tbody id="plans-table-body"></tbody>
             </table>
         </div>
@@ -290,7 +307,7 @@
                 <div class="form-group"><label>Max branches</label><input type="number" min="0" id="plan-ed-branches" placeholder="Blank = unlimited"></div>
                 <div class="form-group"><label>Max employees</label><input type="number" min="0" id="plan-ed-employees" placeholder="Blank = unlimited"></div>
             </div>
-            <div class="form-group"><label>Price (ETB)</label><input type="number" min="0" id="plan-ed-price" placeholder="0"></div>
+            <div class="form-group"><label>Price per month (ETB)</label><input type="number" min="0" id="plan-ed-price" placeholder="0"></div>
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:6px;">
                 <label style="margin:0;">Features included in this plan <span id="plan-ed-count" style="font-weight:500;"></span></label>
                 <span><button type="button" class="btn btn-outline btn-small" onclick="setAllPlanFeatures(true)">Select all</button><button type="button" class="btn btn-outline btn-small" onclick="setAllPlanFeatures(false)">Clear all</button></span>
@@ -832,12 +849,16 @@
     async function openTrialModal() {
         const err = document.getElementById('trial-modal-error'); err.style.display = 'none';
         const { data, error } = await supabaseClient.from('platform_settings').select('*').eq('id', 1).maybeSingle();
-        if (error) { err.innerText = 'Could not load settings: ' + error.message + ' (run migration_free_trial_and_upgrade_requests.sql in Supabase first)'; err.style.display = 'block'; }
+        if (error) { err.innerText = 'Could not load settings: ' + error.message + ' (run the two migration files in Supabase first)'; err.style.display = 'block'; }
         const s = data || {};
         document.getElementById('trial-days-input').value = s.trial_days != null ? s.trial_days : 0;
         const sel = document.getElementById('trial-default-plan');
         sel.innerHTML = '<option value="">No plan (full access)</option>' + plans.filter(p => planType(p) === 'business' && (p.is_active || String(p.id) === String(s.default_plan_id))).map(p => `<option value="${escHtml(String(p.id))}">${escHtml(p.name)}${p.is_active ? '' : ' (inactive)'}</option>`).join('');
         sel.value = s.default_plan_id || '';
+        document.getElementById('disc-3m-input').value = s.discount_3m_pct != null ? s.discount_3m_pct : 0;
+        document.getElementById('disc-6m-input').value = s.discount_6m_pct != null ? s.discount_6m_pct : 10;
+        document.getElementById('disc-12m-input').value = s.discount_12m_pct != null ? s.discount_12m_pct : 20;
+        document.getElementById('receipt-mode-select').value = s.receipt_mode || 'bank_verified';
         document.getElementById('pay-phone-input').value = s.payment_phone || '';
         document.getElementById('pay-bank-input').value = s.payment_bank_name || '';
         document.getElementById('pay-acc-number-input').value = s.payment_account_number || '';
@@ -850,9 +871,13 @@
         const err = document.getElementById('trial-modal-error'); err.style.display = 'none';
         const days = Number(document.getElementById('trial-days-input').value || 0);
         if (!Number.isInteger(days) || days < 0) { err.innerText = 'Free trial length must be a whole number of days (0 = no trial).'; err.style.display = 'block'; return; }
+        const pct = id => Number(document.getElementById(id).value || 0);
+        const pcts = [pct('disc-3m-input'), pct('disc-6m-input'), pct('disc-12m-input')];
+        if (pcts.some(v => !Number.isInteger(v) || v < 0 || v > 90)) { err.innerText = 'Discounts must be whole numbers from 0 to 90.'; err.style.display = 'block'; return; }
         const val = id => document.getElementById(id).value.trim() || null;
         const row = {
             id: 1, trial_days: days, default_plan_id: document.getElementById('trial-default-plan').value || null,
+            discount_3m_pct: pcts[0], discount_6m_pct: pcts[1], discount_12m_pct: pcts[2], receipt_mode: document.getElementById('receipt-mode-select').value,
             payment_phone: val('pay-phone-input'), payment_bank_name: val('pay-bank-input'),
             payment_account_number: val('pay-acc-number-input'), payment_account_name: val('pay-acc-name-input'),
             updated_at: new Date().toISOString(),
@@ -880,26 +905,51 @@
     }
     function closeRequestsModal() { document.getElementById('requests-modal').classList.remove('active'); }
 
+    const REQUEST_STATUS = {
+        pending:      ['Waiting for receipt', 'badge-trial'],
+        needs_review: ['Needs your review',   'badge-soon'],
+        rejected:     ['Receipt rejected',    'badge-inactive'],
+        paid:         ['Paid',                'badge-active'],
+        handled:      ['Handled',             'badge-active'],
+        dismissed:    ['Dismissed',           'badge-cancelled'],
+    };
+    function monthsText(m) { m = Number(m) || 1; return m === 12 ? '1 year' : (m + (m === 1 ? ' month' : ' months')); }
     function renderUpgradeRequests() {
         const box = document.getElementById('requests-modal-error');
-        if (upgradeRequestsError) { box.innerText = 'Could not load requests: ' + upgradeRequestsError + ' (run migration_free_trial_and_upgrade_requests.sql in Supabase first)'; box.style.display = 'block'; } else { box.style.display = 'none'; }
+        if (upgradeRequestsError) { box.innerText = 'Could not load requests: ' + upgradeRequestsError + ' (run the two migration files in Supabase first)'; box.style.display = 'block'; } else { box.style.display = 'none'; }
         document.getElementById('requests-table-body').innerHTML = upgradeRequests.map(r => {
             const featLabel = r.feature_key ? ((features.find(f => f.key === r.feature_key) || {}).label || r.feature_key) : '';
-            const pending = r.status === 'pending';
-            return `<tr style="${pending ? '' : 'opacity:0.55;'}">
+            const open = ['pending', 'needs_review', 'rejected'].includes(r.status);
+            const st = REQUEST_STATUS[r.status] || [r.status, 'badge-trial'];
+            const rd = r.receipt_data || {};
+            const receipt = r.receipt_received_at
+                ? `<small>${escHtml(r.receipt_reference || 'no reference')}${rd.amount != null ? ' &middot; ' + escHtml(Number(rd.amount).toLocaleString()) + ' ETB' : ''}${r.verified_by ? ' &middot; verified by ' + escHtml(r.verified_by) : ''}${r.failure_reason ? '<br><span style="color:var(--danger);">' + escHtml(r.failure_reason) + '</span>' : ''}</small>`
+                : '<small style="color:var(--text-light);">none yet</small>';
+            return `<tr style="${open ? '' : 'opacity:0.6;'}">
                 <td><small>${new Date(r.created_at).toLocaleString()}</small></td>
                 <td><strong>${escHtml(r.business_name || '')}</strong></td>
-                <td>${escHtml(r.plan_name || '')}</td>
-                <td>${escHtml(Number(r.amount_etb || 0).toLocaleString())}</td>
-                <td><small>${featLabel ? escHtml(featLabel) : '&mdash;'}</small></td>
-                <td><small>${r.telegram_sent_at ? '&#10003; sent' : 'not opened yet'}</small></td>
-                <td><span class="badge ${pending ? 'badge-trial' : 'badge-active'}">${escHtml(r.status)}</span></td>
-                <td style="text-align:right; white-space:nowrap;">${pending ? `
-                    <button class="btn btn-warning btn-small" onclick="openPlanForRequest('${escHtml(r.business_id)}')">Open plan</button>
-                    <button class="btn btn-success btn-small" onclick="setRequestStatus('${escHtml(r.id)}', 'handled')">Mark handled</button>
-                    <button class="btn btn-outline btn-small" onclick="setRequestStatus('${escHtml(r.id)}', 'dismissed')">Dismiss</button>` : ''}</td>
+                <td>${escHtml(r.plan_name || '')}<br><small style="color:var(--text-light);">${monthsText(r.months)}${featLabel ? ' &middot; wanted: ' + escHtml(featLabel) : ''}</small></td>
+                <td>${escHtml(Number(r.amount_etb || 0).toLocaleString())}${Number(r.discount_pct) ? '<br><small style="color:var(--text-light);">' + Number(r.discount_pct) + '% off</small>' : ''}</td>
+                <td><span class="badge ${st[1]}">${st[0]}</span></td>
+                <td style="max-width:240px;">${receipt}</td>
+                <td><small>${r.telegram_sent_at ? '&#10003; opened' : 'not opened yet'}</small></td>
+                <td style="text-align:right;">${open ? `<div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end;">
+                    <button class="btn btn-success btn-small" onclick="approveUpgrade('${escHtml(r.id)}')">Approve &amp; activate</button>
+                    <span style="white-space:nowrap;"><button class="btn btn-warning btn-small" onclick="openPlanForRequest('${escHtml(r.business_id)}')">Open plan</button>
+                    <button class="btn btn-outline btn-small" onclick="setRequestStatus('${escHtml(r.id)}', 'handled')">Mark handled</button>
+                    <button class="btn btn-outline btn-small" onclick="setRequestStatus('${escHtml(r.id)}', 'dismissed')">Dismiss</button></span></div>` : ''}</td>
             </tr>`;
         }).join('') || '<tr><td colspan="8" style="text-align:center; color:var(--text-light);">No upgrade requests yet.</td></tr>';
+    }
+    async function approveUpgrade(id) {
+        const r = upgradeRequests.find(x => String(x.id) === String(id)); if (!r) return;
+        if (!confirm(`Activate "${r.plan_name}" (${monthsText(r.months)}) for ${r.business_name}?\n\nOnly do this after you have checked that the money really arrived.`)) return;
+        try {
+            await callAdminFunction('admin-approve-upgrade', { requestId: id });
+        } catch (e) { alert('Could not activate: ' + e.message); return; }
+        await loadEverything();
+        await loadUpgradeRequests();
+        renderUpgradeRequests();
     }
     function openPlanForRequest(businessId) {
         if (!businesses.some(b => String(b.id) === String(businessId))) { alert('That shop was not found. It may have been deleted.'); return; }

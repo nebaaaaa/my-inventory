@@ -2698,64 +2698,64 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         let currentSubStatus = '';           // the shop's subscription status; trial locks only apply while it is 'trial'
         // ---------------------------------------------------------------
         // PLAN FEATURES: every piece of the shop app an admin can tick in a plan (the same list is in the admin page's plan editor).
-        //   page   = the whole page gets a frosted cover with a Request Upgrade button (its menu item shows a lock)
+        //   page   = the whole page gets a frosted cover with a Upgrade plan button (its menu item shows a lock)
         //   block  = one box / graph / card gets the frosted cover
-        //   action = the button shows a lock; tapping it opens the Request Upgrade pop-up instead of doing its job
+        //   action = the button shows a lock; tapping it opens the Upgrade plan pop-up instead of doing its job
         // A shop with NO plan has full access. A shop on a plan gets what its plan includes, minus the features set to lock after the free trial.
         // A plan that has no features ticked at all is treated as "not set up yet" and also gets full access.
         // ---------------------------------------------------------------
         const PLAN_FEATURES_UI = [
             // ---- Dashboard
-            { key: 'dash_period_filters', label: "Period filters", targets: [{ sel: "#f-today,#f-week,#f-month,#f-year,#f-custom", kind: 'action' }] },
-            { key: 'dash_revenue', label: "Total Revenue box", targets: [{ sel: "#m-revenue", kind: 'block', up: ".metric-box", compact: true }] },
-            { key: 'dash_cogs', label: "Cost of Goods Sold box", targets: [{ sel: "#m-cogs-box", kind: 'block', compact: true }] },
-            { key: 'dash_gross_profit', label: "Gross Profit box", targets: [{ sel: "#m-gross-box", kind: 'block', compact: true }] },
-            { key: 'dash_expenses', label: "Total Expenses box", targets: [{ sel: "#m-expenses", kind: 'block', up: ".metric-box", compact: true }] },
-            { key: 'dash_net_profit', label: "Net Profit box", targets: [{ sel: "#m-net", kind: 'block', up: ".metric-box", compact: true }] },
-            { key: 'dash_vat', label: "Estimated VAT box", targets: [{ sel: "#m-vat-box", kind: 'block', compact: true }] },
-            { key: 'dash_liquid', label: "Cash & stock value positions", targets: [{ sel: "#dash-cash-box", kind: 'block', up: ".card", compact: true }] },
-            { key: 'dash_top_items', label: "Top-selling items graph", targets: [{ sel: "#chart-top-items", kind: 'block', parent: true }] },
-            { key: 'dash_bottom_items', label: "Slowest-selling items graph", targets: [{ sel: "#chart-bottom-items", kind: 'block', parent: true }] },
-            { key: 'dash_revenue_profit_history', label: "Revenue & Profit History graph", targets: [{ sel: "#container-revprof", kind: 'block', up: ".chart-scroll-wrap" }] },
-            { key: 'dash_sales_type', label: "Sales type graph", targets: [{ sel: "#chart-sales-type", kind: 'block', parent: true }] },
-            { key: 'dash_item_performance', label: "Item Performance table", targets: [{ sel: "#item-performance-tbody", kind: 'block', up: ".table-scroll" }] },
+            { key: 'dash_period_filters', cat: 'Dashboard', label: "Period filters", targets: [{ sel: "#f-today,#f-week,#f-month,#f-year,#f-custom", kind: 'action' }] },
+            { key: 'dash_revenue', cat: 'Dashboard', label: "Total Revenue box", targets: [{ sel: "#m-revenue", kind: 'block', up: ".metric-box", compact: true }] },
+            { key: 'dash_cogs', cat: 'Dashboard', label: "Cost of Goods Sold box", targets: [{ sel: "#m-cogs-box", kind: 'block', compact: true }] },
+            { key: 'dash_gross_profit', cat: 'Dashboard', label: "Gross Profit box", targets: [{ sel: "#m-gross-box", kind: 'block', compact: true }] },
+            { key: 'dash_expenses', cat: 'Dashboard', label: "Total Expenses box", targets: [{ sel: "#m-expenses", kind: 'block', up: ".metric-box", compact: true }] },
+            { key: 'dash_net_profit', cat: 'Dashboard', label: "Net Profit box", targets: [{ sel: "#m-net", kind: 'block', up: ".metric-box", compact: true }] },
+            { key: 'dash_vat', cat: 'Dashboard', label: "Estimated VAT box", targets: [{ sel: "#m-vat-box", kind: 'block', compact: true }] },
+            { key: 'dash_liquid', cat: 'Dashboard', label: "Cash & stock value positions", targets: [{ sel: "#dash-cash-box", kind: 'block', up: ".card", compact: true }] },
+            { key: 'dash_top_items', cat: 'Dashboard', label: "Top-selling items graph", targets: [{ sel: "#chart-top-items", kind: 'block', parent: true }] },
+            { key: 'dash_bottom_items', cat: 'Dashboard', label: "Slowest-selling items graph", targets: [{ sel: "#chart-bottom-items", kind: 'block', parent: true }] },
+            { key: 'dash_revenue_profit_history', cat: 'Dashboard', label: "Revenue & Profit History graph", targets: [{ sel: "#container-revprof", kind: 'block', up: ".chart-scroll-wrap" }] },
+            { key: 'dash_sales_type', cat: 'Dashboard', label: "Sales type graph", targets: [{ sel: "#chart-sales-type", kind: 'block', parent: true }] },
+            { key: 'dash_item_performance', cat: 'Dashboard', label: "Item Performance table", targets: [{ sel: "#item-performance-tbody", kind: 'block', up: ".table-scroll" }] },
             // ---- Inventory & stock
-            { key: 'inventory_stock_list', label: "Stock list", targets: [{ sel: "#inventory-default-stocklist-card", kind: 'block' }] },
-            { key: 'inventory_add_product', label: "Add product button", targets: [{ sel: "#inv-open-add", kind: 'action' }] },
-            { key: 'bulk_add_products', label: "Add products in bulk", targets: [{ sel: "#inv-bulk-btn", kind: 'action' }] },
-            { key: 'transfer', label: "Transfer stock between branches", targets: [{ sel: "#stock-transfer-card", kind: 'block' }] },
-            { key: 'cash_handover', label: "Cash handover", targets: [{ sel: "#cash-handover-employee-card,#cash-handover-owner-balances-card,#cash-handover-owner-pending-card", kind: 'block' }] },
+            { key: 'inventory_stock_list', cat: 'Inventory & stock', label: "Stock list", targets: [{ sel: "#inventory-default-stocklist-card", kind: 'block' }] },
+            { key: 'inventory_add_product', cat: 'Inventory & stock', label: "Add product button", targets: [{ sel: "#inv-open-add", kind: 'action' }] },
+            { key: 'bulk_add_products', cat: 'Inventory & stock', label: "Add products in bulk", targets: [{ sel: "#inv-bulk-btn", kind: 'action' }] },
+            { key: 'transfer', cat: 'Inventory & stock', label: "Transfer stock between branches", targets: [{ sel: "#stock-transfer-card", kind: 'block' }] },
+            { key: 'cash_handover', cat: 'Inventory & stock', label: "Cash handover", targets: [{ sel: "#cash-handover-employee-card,#cash-handover-owner-balances-card,#cash-handover-owner-pending-card", kind: 'block' }] },
             // ---- Sales
-            { key: 'sales_record', label: "Record a sale", targets: [{ sel: "#sales-entry-card", kind: 'block' }] },
-            { key: 'sales_multi_item', label: "Multi-item sale (cart)", targets: [{ sel: "#sale-cart-card", kind: 'block' }] },
-            { key: 'sales_history', label: "Sales history", targets: [{ sel: "h2[data-i18n=\"sale.history\"]", kind: 'block', up: ".card" }] },
-            { key: 'drafts', label: "Drafts", targets: [{ sel: "#view-drafts", kind: 'page', nav: ["nav-drafts"] }, { sel: "button[onclick*=\"saveCartToDraft\"]", kind: 'action' }] },
-            { key: 'print_order_lists', label: "Print & share order lists", targets: [{ sel: "button[onclick*=\"printBasket\"]", kind: 'action' }] },
+            { key: 'sales_record', cat: 'Sales', label: "Record a sale", targets: [{ sel: "#sales-entry-card", kind: 'block' }] },
+            { key: 'sales_multi_item', cat: 'Sales', label: "Multi-item sale (cart)", targets: [{ sel: "#sale-cart-card", kind: 'block' }] },
+            { key: 'sales_history', cat: 'Sales', label: "Sales history", targets: [{ sel: "h2[data-i18n=\"sale.history\"]", kind: 'block', up: ".card" }] },
+            { key: 'drafts', cat: 'Sales', label: "Drafts", targets: [{ sel: "#view-drafts", kind: 'page', nav: ["nav-drafts"] }, { sel: "button[onclick*=\"saveCartToDraft\"]", kind: 'action' }] },
+            { key: 'print_order_lists', cat: 'Sales', label: "Print & share order lists", targets: [{ sel: "button[onclick*=\"printBasket\"]", kind: 'action' }] },
             // ---- Purchases
-            { key: 'purchase_record', label: "Record a purchase", targets: [{ sel: "#purchase-entry-card", kind: 'block' }] },
-            { key: 'purchase_multi_item', label: "Multi-item purchase (cart)", targets: [{ sel: "#purchase-cart-card", kind: 'block' }] },
-            { key: 'purchase_history', label: "Purchase history", targets: [{ sel: "h2[data-i18n=\"pur.history\"]", kind: 'block', up: ".card" }] },
+            { key: 'purchase_record', cat: 'Purchases', label: "Record a purchase", targets: [{ sel: "#purchase-entry-card", kind: 'block' }] },
+            { key: 'purchase_multi_item', cat: 'Purchases', label: "Multi-item purchase (cart)", targets: [{ sel: "#purchase-cart-card", kind: 'block' }] },
+            { key: 'purchase_history', cat: 'Purchases', label: "Purchase history", targets: [{ sel: "h2[data-i18n=\"pur.history\"]", kind: 'block', up: ".card" }] },
             // ---- Expenses
-            { key: 'expenses_record', label: "Record an expense", targets: [{ sel: "#expense-entry-card", kind: 'block' }] },
-            { key: 'expense_scan', label: "Scan expense receipt", targets: [{ sel: "#exp-scan-btn", kind: 'action' }, { sel: "#scan-expense-settings-card", kind: 'block' }] },
-            { key: 'expenses_history', label: "Expense history", targets: [{ sel: "h2[data-i18n=\"exp.history\"]", kind: 'block', up: ".card" }] },
+            { key: 'expenses_record', cat: 'Expenses', label: "Record an expense", targets: [{ sel: "#expense-entry-card", kind: 'block' }] },
+            { key: 'expense_scan', cat: 'Expenses', label: "Scan expense receipt", targets: [{ sel: "#exp-scan-btn", kind: 'action' }, { sel: "#scan-expense-settings-card", kind: 'block' }] },
+            { key: 'expenses_history', cat: 'Expenses', label: "Expense history", targets: [{ sel: "h2[data-i18n=\"exp.history\"]", kind: 'block', up: ".card" }] },
             // ---- Accounting
-            { key: 'chart_of_accounts', label: "Chart of accounts", targets: [{ sel: "#view-coa", kind: 'page', nav: ["nav-coa"] }] },
-            { key: 'journal_entries', label: "Journal entries", targets: [{ sel: "#view-journal", kind: 'page', nav: ["nav-journal"] }] },
-            { key: 'general_ledger', label: "General ledger", targets: [{ sel: "#view-ledger", kind: 'page', nav: ["nav-ledger"] }] },
-            { key: 'stmt_trial_balance', label: "Trial balance", targets: [{ sel: "#stmt-btn-trial", kind: 'action' }] },
-            { key: 'stmt_income', label: "Income statement (Profit & Loss)", targets: [{ sel: "#stmt-btn-income", kind: 'action' }] },
-            { key: 'stmt_balance_sheet', label: "Statement of financial position", targets: [{ sel: "#stmt-btn-balance", kind: 'action' }] },
+            { key: 'chart_of_accounts', cat: 'Accounting', label: "Chart of accounts", targets: [{ sel: "#view-coa", kind: 'page', nav: ["nav-coa"] }] },
+            { key: 'journal_entries', cat: 'Accounting', label: "Journal entries", targets: [{ sel: "#view-journal", kind: 'page', nav: ["nav-journal"] }] },
+            { key: 'general_ledger', cat: 'Accounting', label: "General ledger", targets: [{ sel: "#view-ledger", kind: 'page', nav: ["nav-ledger"] }] },
+            { key: 'stmt_trial_balance', cat: 'Accounting', label: "Trial balance", targets: [{ sel: "#stmt-btn-trial", kind: 'action' }] },
+            { key: 'stmt_income', cat: 'Accounting', label: "Income statement (Profit & Loss)", targets: [{ sel: "#stmt-btn-income", kind: 'action' }] },
+            { key: 'stmt_balance_sheet', cat: 'Accounting', label: "Statement of financial position", targets: [{ sel: "#stmt-btn-balance", kind: 'action' }] },
             // ---- Settings & data
-            { key: 'vat_registration', label: "VAT details & reports", targets: [{ sel: "#vat-settings-card", kind: 'block' }] },
-            { key: 'accountant_access', label: "Accountant access", targets: [{ sel: "#accountant-access-card", kind: 'block' }] },
-            { key: 'backup_restore', label: "Backup & restore", targets: [{ sel: "#btn-backup,#btn-restore", kind: 'action' }] },
-            { key: 'excel_report', label: "Download Excel report", targets: [{ sel: "#btn-export-hub", kind: 'action' }] },
-            { key: 'trash', label: "Trash & restore", targets: [{ sel: "#view-trash", kind: 'page' }] },
+            { key: 'vat_registration', cat: 'Settings & data', label: "VAT details & reports", targets: [{ sel: "#vat-settings-card", kind: 'block' }] },
+            { key: 'accountant_access', cat: 'Settings & data', label: "Accountant access", targets: [{ sel: "#accountant-access-card", kind: 'block' }] },
+            { key: 'backup_restore', cat: 'Settings & data', label: "Backup & restore", targets: [{ sel: "#btn-backup,#btn-restore", kind: 'action' }] },
+            { key: 'excel_report', cat: 'Settings & data', label: "Download Excel report", targets: [{ sel: "#btn-export-hub", kind: 'action' }] },
+            { key: 'trash', cat: 'Settings & data', label: "Trash & restore", targets: [{ sel: "#view-trash", kind: 'page' }] },
             // ---- Team
-            { key: 'team_branches', label: "Branches", targets: [{ sel: "#btn-add-branch", kind: 'block', up: ".card" }] },
-            { key: 'team_members', label: "Team members", targets: [{ sel: "#btn-add-employee", kind: 'block', up: ".card" }] },
-            { key: 'team_roles', label: "Roles & permissions", targets: [{ sel: "h2[data-i18n=\"team.roles_perms\"]", kind: 'block', up: ".card" }] },
+            { key: 'team_branches', cat: 'Team', label: "Branches", targets: [{ sel: "#btn-add-branch", kind: 'block', up: ".card" }] },
+            { key: 'team_members', cat: 'Team', label: "Team members", targets: [{ sel: "#btn-add-employee", kind: 'block', up: ".card" }] },
+            { key: 'team_roles', cat: 'Team', label: "Roles & permissions", targets: [{ sel: "h2[data-i18n=\"team.roles_perms\"]", kind: 'block', up: ".card" }] },
         ];
         const PLAN_FEATURE_LABELS = {};
         PLAN_FEATURES_UI.forEach(f => { PLAN_FEATURE_LABELS[f.key] = f.label; });
@@ -2771,7 +2771,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             if (currentPlanFeatures === null) return true;   // no plan assigned: full access, as before
             return planIncludes(f) && !trialLockedFeature(f);
         }
-        // "Locked" = the shop HAS a plan and the plan leaves this out (or it locks after the free trial): shown with a cover / lock + Request Upgrade.
+        // "Locked" = the shop HAS a plan and the plan leaves this out (or it locks after the free trial): shown with a cover / lock + Upgrade plan.
         function planLocked(f) { return currentPlanFeatures !== null && !planCan(f); }
 
         function upgradeModalEl() {
@@ -2794,8 +2794,8 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 ? `Your free trial has ended, so <b>${label}</b> is now locked.`
                 : `<b>${label}</b> is not included in your ${currentPlanName ? escHtml(currentPlanName) + ' ' : ''}plan.`;
             const action = currentIsOwner
-                ? `<p style="font-size:13px; color:var(--text-light); margin:0 0 14px;">Request an upgrade and we will send you the payment details.</p>
-                   <button type="button" class="btn" onclick="openUpgradeRequest('${fk}')">Request Upgrade</button> <button type="button" class="btn btn-outline" onclick="closeUpgradeModal()">Not now</button>`
+                ? `<p style="font-size:13px; color:var(--text-light); margin:0 0 14px;">Upgrade your plan to unlock this.</p>
+                   <button type="button" class="btn" onclick="openUpgradeRequest('${fk}')">Upgrade plan</button> <button type="button" class="btn btn-outline" onclick="closeUpgradeModal()">Not now</button>`
                 : `<p style="font-size:13px; color:var(--text-light); margin:0 0 14px;">Please ask the shop owner to upgrade the plan.</p>
                    <button type="button" class="btn" onclick="closeUpgradeModal()">OK</button>`;
             m.innerHTML = `<div style="${upgradeBoxCss} text-align:center;">
@@ -2805,64 +2805,297 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 ${action}</div>`;
             m.style.display = 'flex';
         }
-        let _upgradePlans = [], _upgradePick = null;
-        async function openUpgradeRequest(f) {
-            const m = upgradeModalEl();
-            const fk = String(f || '').replace(/[^a-z0-9_]/gi, '');
-            if (!navigator.onLine) {
-                m.innerHTML = `<div style="${upgradeBoxCss} text-align:center;"><h3 style="margin:0 0 8px;">No internet</h3><p style="font-size:13px;">Connect to the internet to request an upgrade.</p><button type="button" class="btn" onclick="closeUpgradeModal()">OK</button></div>`;
-                m.style.display = 'flex'; return;
-            }
-            m.innerHTML = `<div style="${upgradeBoxCss} text-align:center;"><p style="margin:0;">Loading plans...</p></div>`;
-            m.style.display = 'flex';
-            try {
-                const r = await callEdgeFunction('request-upgrade', { action: 'plans', businessId: currentTenantId, featureKey: fk || null });
-                _upgradePlans = (r && r.plans) || [];
-            } catch (e) {
-                m.innerHTML = `<div style="${upgradeBoxCss} text-align:center;"><h3 style="margin:0 0 8px;">Could not load plans</h3><p style="font-size:13px;">${escHtml(e.message || 'Please try again.')}</p><button type="button" class="btn" onclick="closeUpgradeModal()">OK</button></div>`;
-                return;
-            }
-            const fits = _upgradePlans.filter(p => p.includesFeature);
-            _upgradePick = (fits[0] || _upgradePlans[0] || {}).id || null;
-            if (!_upgradePlans.length) {
-                m.innerHTML = `<div style="${upgradeBoxCss} text-align:center;"><h3 style="margin:0 0 8px;">No plans available</h3><p style="font-size:13px;">Please contact your provider to upgrade.</p><button type="button" class="btn" onclick="closeUpgradeModal()">OK</button></div>`;
-                return;
-            }
-            const rows = _upgradePlans.map(p => `<label style="display:flex; align-items:center; gap:10px; padding:10px; border:1px solid var(--border); border-radius:8px; margin-bottom:8px; cursor:pointer;">
-                    <input type="radio" name="up-plan" value="${escHtml(String(p.id))}" ${String(p.id) === String(_upgradePick) ? 'checked' : ''} onchange="_upgradePick = this.value">
-                    <span style="flex:1;"><b>${escHtml(p.name)}</b>${f && !p.includesFeature ? '<br><small style="color:var(--text-light);">Does not include this feature</small>' : ''}</span>
-                    <b style="white-space:nowrap;">${Number(p.priceEtb || 0).toLocaleString()} ETB</b></label>`).join('');
-            m.innerHTML = `<div style="${upgradeBoxCss}">
-                <h3 style="margin:0 0 4px;">Choose a plan</h3>
-                <p style="font-size:13px; color:var(--text-light); margin:0 0 12px;">After you send the request we show you how to pay.</p>
-                ${rows}
-                <div id="up-err" style="display:none; color:var(--danger); font-size:13px; margin-bottom:8px;"></div>
-                <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:6px;">
-                    <button type="button" class="btn btn-outline" onclick="closeUpgradeModal()">Cancel</button>
-                    <button type="button" class="btn" id="up-send" onclick="submitUpgradeRequest('${fk}')">Send request</button></div></div>`;
+        // ---------------------------------------------------------------
+        // UPGRADE PLAN: choose a plan, choose how long (3 months / 6 months / 1 year), get the payment details,
+        // then send the receipt screenshot to the Telegram bot, which checks it and activates the plan.
+        //   Phone    : list of plans -> tap one -> a sheet slides up halfway to pick the length -> Continue -> payment page.
+        //   Computer : one page with the length switch on top and the plans side by side -> choose -> payment page.
+        // A plan's price is PRICE PER MONTH. The server works out the real amount; the numbers here are only for display.
+        // ---------------------------------------------------------------
+        const UF = { plans: [], discounts: { 3: 0, 6: 10, 12: 20 }, currentPlanId: null, planId: null, months: 6, feature: '', req: null, phone: false, open: {}, busy: false, timer: null };
+        const UF_MONTHS = [3, 6, 12];
+        const ufMoney = n => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
+        const ufMonthsText = m => m === 12 ? '1 year' : m + ' months';
+        const ufPlan = () => UF.plans.find(p => String(p.id) === String(UF.planId));
+        function ufPrice(plan, months) {
+            const list = Math.round(plan.priceEtb * months), pct = Number(UF.discounts[months]) || 0, total = Math.round(list * (100 - pct) / 100);
+            return { list, pct, total, perMonth: Math.round(total / months) };
         }
-        async function submitUpgradeRequest(f) {
-            const m = upgradeModalEl(), btn = document.getElementById('up-send'), err = document.getElementById('up-err');
-            if (!_upgradePick) { if (err) { err.innerText = 'Choose a plan first.'; err.style.display = 'block'; } return; }
-            if (btn) { btn.disabled = true; btn.innerText = 'Sending...'; }
+        function ufLimits(p) {
+            return (p.maxBranches == null ? 'Unlimited branches' : p.maxBranches + (p.maxBranches === 1 ? ' branch' : ' branches')) + ' \u00B7 ' + (p.maxEmployees == null ? 'Unlimited team members' : p.maxEmployees + ' team members');
+        }
+        // One line per area of the app: all / some / none of its features are in the plan.
+        function ufChecks(p) {
+            if (!p.featureKeys.length) return '<div class="uf-ck">&#10003; All features</div>';
+            const groups = {}; PLAN_FEATURES_UI.forEach(f => { (groups[f.cat] = groups[f.cat] || []).push(f.key); });
+            return Object.keys(groups).map(name => {
+                const n = groups[name].length, m = groups[name].filter(k => p.featureKeys.includes(k)).length;
+                return `<div class="uf-ck${m === 0 ? ' none' : ''}">${m === 0 ? '&#10005;' : '&#10003;'} ${escHtml(name)}${m > 0 && m < n ? ` (${m} of ${n})` : ''}</div>`;
+            }).join('');
+        }
+        function ufInjectCss() {
+            if (document.getElementById('uf-css')) return;
+            const st = document.createElement('style'); st.id = 'uf-css';
+            st.textContent = `#upgrade-flow { position: fixed; inset: 0; z-index: 10080; background: var(--bg); color: var(--text); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+#upgrade-flow *, #upgrade-flow *::before, #upgrade-flow *::after { box-sizing: border-box; }
+.uf-top { display: flex; align-items: center; gap: 12px; padding: 14px 16px; position: sticky; top: 0; background: var(--bg); z-index: 2; }
+.uf-back { width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 24px; line-height: 1; cursor: pointer; }
+.uf-title { flex: 1; text-align: center; font-weight: 600; font-size: 17px; margin-right: 40px; }
+.uf-list { padding: 4px 16px 28px; display: flex; flex-direction: column; gap: 12px; max-width: 560px; margin: 0 auto; }
+.uf-plan { background: var(--surface); border: 1.5px solid var(--border); border-radius: 18px; padding: 18px; cursor: pointer; box-shadow: var(--shadow-sm); }
+.uf-plan.sel { border-color: var(--accent); }
+.uf-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.uf-pname { font-size: 22px; font-weight: 600; }
+.uf-pprice { font-size: 22px; font-weight: 600; white-space: nowrap; }
+.uf-pprice small { font-size: 12px; font-weight: 400; color: var(--text-light); }
+.uf-pdesc { color: var(--text-light); font-size: 13px; margin: 8px 0 12px; }
+.uf-link { font-size: 13px; color: var(--accent); cursor: pointer; }
+.uf-cur { font-size: 12px; color: var(--accent); font-weight: 600; }
+.uf-info { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; display: grid; gap: 6px; font-size: 13px; }
+.uf-ck.none { color: var(--text-light); opacity: .65; }
+.uf-dim { position: fixed; inset: 0; background: rgba(0,0,0,.5); opacity: 0; transition: opacity .25s; z-index: 3; pointer-events: none; }
+.uf-dim.on { opacity: 1; pointer-events: auto; }
+.uf-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 4; background: var(--surface); border-radius: 24px 24px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); transform: translateY(105%); transition: transform .32s cubic-bezier(.2,.8,.2,1); max-height: 78vh; overflow-y: auto; box-shadow: 0 -8px 30px rgba(0,0,0,.25); }
+.uf-sheet.on { transform: translateY(0); }
+.uf-grab { width: 40px; height: 4px; background: var(--border); border-radius: 4px; margin: 0 auto 12px; }
+.uf-x { position: absolute; top: 14px; right: 14px; width: 34px; height: 34px; border-radius: 10px; border: 0; background: var(--bg); color: var(--text); font-size: 16px; cursor: pointer; }
+.uf-stitle { text-align: center; font-size: 26px; font-weight: 700; }
+.uf-ssub { text-align: center; color: var(--text-light); font-size: 13px; margin: 4px 0 16px; }
+.uf-durs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.uf-dur { border: 1.5px solid var(--border); border-radius: 18px; padding: 20px 6px 14px; text-align: center; cursor: pointer; background: var(--bg); }
+.uf-dur.sel { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+.uf-dur .n { font-size: 34px; font-weight: 700; line-height: 1; }
+.uf-dur .u { font-size: 13px; margin: 4px 0 10px; }
+.uf-dur .t { font-weight: 700; font-size: 14px; }
+.uf-dur .pm { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+.uf-chip { display: inline-block; margin-top: 8px; padding: 3px 8px; border-radius: 8px; background: var(--primary); color: #fff; font-size: 11px; font-weight: 600; }
+.uf-cta { width: 100%; margin-top: 18px; padding: 15px; border: 0; border-radius: 16px; background: var(--primary); color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; }
+.uf-cta:disabled { opacity: .6; cursor: default; }
+.uf-fine { font-size: 11px; color: var(--text-light); text-align: center; margin-top: 12px; }
+.uf-pay { padding: 4px 16px 32px; max-width: 520px; margin: 0 auto; }
+.uf-amount { text-align: center; margin: 8px 0 18px; }
+.uf-amount .big { font-size: 40px; font-weight: 700; }
+.uf-amount .sub { color: var(--text-light); font-size: 14px; }
+.uf-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; margin-bottom: 14px; box-shadow: var(--shadow-sm); }
+.uf-card h4 { margin: 0 0 6px; font-size: 14px; color: var(--text-light); font-weight: 600; }
+.uf-kv { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+.uf-kv:last-child { border-bottom: 0; }
+.uf-kv > span:first-child { color: var(--text-light); }
+.uf-kv b { text-align: right; overflow-wrap: anywhere; }
+.uf-copy { border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 8px; padding: 2px 8px; font-size: 11px; cursor: pointer; margin-left: 8px; }
+.uf-steps { margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.7; }
+.uf-status { margin-top: 12px; font-size: 13px; text-align: center; color: var(--text-light); min-height: 18px; }
+.uf-btnrow { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+.uf-btn { display: block; text-align: center; text-decoration: none; padding: 14px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 15px; font-weight: 600; cursor: pointer; }
+.uf-btn.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.uf-pc { max-width: 1080px; margin: 0 auto; padding: 28px 24px 44px; position: relative; }
+.uf-pc-x { position: absolute; top: 20px; right: 24px; width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 16px; cursor: pointer; }
+.uf-pc-head { text-align: center; margin: 8px 0 6px; }
+.uf-pc-head h2 { font-size: 30px; margin: 0 0 6px; }
+.uf-pc-head p { margin: 0 0 18px; color: var(--text-light); }
+.uf-seg { display: inline-flex; background: var(--surface); border: 1px solid var(--border); border-radius: 100px; padding: 4px; gap: 4px; }
+.uf-seg button { border: 0; background: transparent; color: var(--text-light); padding: 9px 18px; border-radius: 100px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.uf-seg button.on { background: var(--primary); color: #fff; }
+.uf-seg i { font-style: normal; font-size: 11px; margin-left: 6px; opacity: .85; }
+.uf-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 26px; align-items: stretch; }
+.uf-pcard { background: var(--surface); border: 1.5px solid var(--border); border-radius: 24px; padding: 26px 22px; display: flex; flex-direction: column; box-shadow: var(--shadow-md); }
+.uf-pcard.cur { border-color: var(--accent); }
+.uf-pcard h3 { margin: 0 0 4px; font-size: 20px; text-align: center; }
+.uf-pcard .lim { text-align: center; color: var(--text-light); font-size: 13px; }
+.uf-pcard .price { text-align: center; margin: 14px 0 4px; font-size: 38px; font-weight: 700; }
+.uf-pcard .price small { font-size: 14px; font-weight: 400; color: var(--text-light); }
+.uf-pcard .bill { text-align: center; color: var(--text-light); font-size: 13px; min-height: 20px; }
+.uf-pcard .pick { margin: 18px 0; padding: 13px; border-radius: 12px; border: 0; background: var(--primary); color: #fff; font-weight: 600; font-size: 15px; cursor: pointer; }
+.uf-pcard .pick:disabled { opacity: .6; cursor: default; }
+.uf-pcard .list { border-top: 1px solid var(--border); padding-top: 14px; display: grid; gap: 8px; font-size: 14px; }
+.uf-pc-pay { display: grid; grid-template-columns: 1fr 1.2fr; gap: 24px; margin-top: 18px; align-items: start; }
+.uf-sumtotal { font-size: 36px; font-weight: 700; margin: 6px 0 2px; }
+@media (max-width: 720px) { .uf-pc-pay { grid-template-columns: 1fr; } }`;
+            document.head.appendChild(st);
+        }
+        function ufEl() {
+            let el = document.getElementById('upgrade-flow');
+            if (!el) { el = document.createElement('div'); el.id = 'upgrade-flow'; document.body.appendChild(el); }
+            document.body.style.overflow = 'hidden';
+            return el;
+        }
+        function ufClose() {
+            if (UF.timer) { clearInterval(UF.timer); UF.timer = null; }
+            const el = document.getElementById('upgrade-flow'); if (el) el.remove();
+            document.body.style.overflow = '';
+        }
+        document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.getElementById('upgrade-flow')) ufClose(); });
+
+        // ---- entry: loads the plans, then shows the phone or the computer version
+        async function openUpgradeRequest(f) {
+            closeUpgradeModal();
+            UF.feature = String(f || '').replace(/[^a-z0-9_]/gi, ''); UF.req = null; UF.planId = null; UF.open = {}; UF.busy = false;
+            if (!navigator.onLine) { alert('Connect to the internet to upgrade your plan.'); return; }
+            UF.phone = window.matchMedia('(max-width: 720px)').matches;
+            ufInjectCss();
+            const el = ufEl();
+            el.innerHTML = `<div class="uf-top"><button class="uf-back" onclick="ufClose()" aria-label="Close">&#8249;</button><div class="uf-title">Upgrade plan</div></div><p style="text-align:center; color:var(--text-light);">Loading plans...</p>`;
             try {
-                const r = await callEdgeFunction('request-upgrade', { action: 'request', businessId: currentTenantId, planId: _upgradePick, featureKey: f || null });
-                const p = r.payment || {};
-                const row = (k, v) => v ? `<div style="display:flex; justify-content:space-between; gap:10px; padding:5px 0; border-bottom:1px solid var(--border); font-size:14px;"><span style="color:var(--text-light);">${k}</span><b style="text-align:right; overflow-wrap:anywhere;">${escHtml(String(v))}</b></div>` : '';
-                const hasPay = p.phone || p.bankName || p.accountName || p.accountNumber;
-                m.innerHTML = `<div style="${upgradeBoxCss}">
-                    <h3 style="margin:0 0 4px; text-align:center;">Request sent &#10003;</h3>
-                    <p style="font-size:13px; color:var(--text-light); margin:0 0 12px; text-align:center;">${hasPay ? 'To activate your plan, please pay:' : 'We will contact you shortly with the payment details.'}</p>
-                    ${row('Plan', r.plan && r.plan.name)}${row('Amount to pay', r.plan && (Number(r.plan.amountEtb || 0).toLocaleString() + ' ETB'))}
-                    ${row('Bank', p.bankName)}${row('Account name', p.accountName)}${row('Account number', p.accountNumber)}${row('Phone', p.phone)}
-                    <p style="font-size:12px; color:var(--text-light); margin:12px 0;">${hasPay ? 'After you pay, contact us with your payment receipt and we will activate your plan.' : ''}</p>
-                    <div style="display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap;">
-                        ${r.telegramLink ? `<a class="btn" style="text-decoration:none; display:inline-block;" href="${escHtml(r.telegramLink)}" target="_blank" rel="noopener">Get these details on Telegram</a>` : ''}
-                        <button type="button" class="btn btn-outline" onclick="closeUpgradeModal()">Done</button></div></div>`;
+                const r = await callEdgeFunction('request-upgrade', { action: 'plans', businessId: currentTenantId, featureKey: UF.feature || null });
+                UF.plans = ((r && r.plans) || []).slice().sort((a, b) => a.priceEtb - b.priceEtb);
+                UF.discounts = Object.assign({ 3: 0, 6: 10, 12: 20 }, (r && r.discounts) || {});
+                UF.currentPlanId = r && r.currentPlanId != null ? String(r.currentPlanId) : null;
             } catch (e) {
-                if (btn) { btn.disabled = false; btn.innerText = 'Send request'; }
-                if (err) { err.innerText = e.message || 'Could not send the request.'; err.style.display = 'block'; }
+                el.innerHTML = `<div class="uf-top"><button class="uf-back" onclick="ufClose()" aria-label="Close">&#8249;</button><div class="uf-title">Upgrade plan</div></div><p style="text-align:center; padding:0 20px;">Could not load the plans.<br><small>${escHtml(e.message || 'Please try again.')}</small></p>`;
+                return;
             }
+            if (!UF.plans.length) {
+                el.innerHTML = `<div class="uf-top"><button class="uf-back" onclick="ufClose()" aria-label="Close">&#8249;</button><div class="uf-title">Upgrade plan</div></div><p style="text-align:center; padding:0 20px;">No plans are available right now. Please contact your provider.</p>`;
+                return;
+            }
+            UF.months = 6;
+            if (UF.phone) ufPhonePlans(); else ufPcPlans();
+        }
+
+        // ---- PHONE: plan list
+        function ufPhoneCard(p) {
+            const id = escHtml(String(p.id)), cur = String(p.id) === String(UF.currentPlanId), open = !!UF.open[p.id];
+            return `<div class="uf-plan${String(UF.planId) === String(p.id) ? ' sel' : ''}" role="button" tabindex="0" onclick="ufPickPlan('${id}')">
+                <div class="uf-row"><span class="uf-pname">${escHtml(p.name)}</span><span class="uf-pprice">${ufMoney(p.priceEtb)} ETB<small>/month</small></span></div>
+                <div class="uf-pdesc">${escHtml(ufLimits(p))}</div>
+                <div class="uf-row"><span class="uf-cur">${cur ? 'current plan' : ''}</span><span class="uf-link" onclick="event.stopPropagation(); ufToggleInfo('${id}')">${open ? 'hide' : 'learn more'} &#8250;</span></div>
+                ${open ? `<div class="uf-info">${ufChecks(p)}</div>` : ''}</div>`;
+        }
+        function ufPhonePlans() {
+            const el = ufEl();
+            el.innerHTML = `<div class="uf-top"><button class="uf-back" onclick="ufClose()" aria-label="Close">&#8249;</button><div class="uf-title">Upgrade plan</div></div>
+                <div class="uf-list" id="uf-list">${UF.plans.map(ufPhoneCard).join('')}</div>
+                <div class="uf-dim" id="uf-dim" onclick="ufCloseSheet()"></div><div class="uf-sheet" id="uf-sheet"></div>`;
+        }
+        function ufToggleInfo(id) { UF.open[id] = !UF.open[id]; const l = document.getElementById('uf-list'); if (l) l.innerHTML = UF.plans.map(ufPhoneCard).join(''); }
+        function ufPickPlan(id) {
+            UF.planId = id;
+            const l = document.getElementById('uf-list'); if (l) l.innerHTML = UF.plans.map(ufPhoneCard).join('');
+            ufOpenSheet();
+        }
+
+        // ---- PHONE: the sheet that slides up halfway to choose how long
+        function ufDurHTML() {
+            const p = ufPlan();
+            return UF_MONTHS.map(m => {
+                const pr = ufPrice(p, m), unit = m === 12 ? ['1', 'Year'] : [String(m), 'Months'];
+                return `<div class="uf-dur${UF.months === m ? ' sel' : ''}" role="button" tabindex="0" data-m="${m}" onclick="ufPickMonths(${m})">
+                    <div class="n">${unit[0]}</div><div class="u">${unit[1]}</div>
+                    <div class="t">${ufMoney(pr.total)} ETB</div><div class="pm">${ufMoney(pr.perMonth)}/month</div>
+                    ${pr.pct ? `<span class="uf-chip">-${pr.pct}%</span>` : ''}</div>`;
+            }).join('');
+        }
+        function ufOpenSheet() {
+            const p = ufPlan(); const sh = document.getElementById('uf-sheet'), dim = document.getElementById('uf-dim'); if (!p || !sh) return;
+            sh.innerHTML = `<div class="uf-grab"></div><button class="uf-x" onclick="ufCloseSheet()" aria-label="Close">&#10005;</button>
+                <div class="uf-stitle">${escHtml(p.name)}</div><div class="uf-ssub">How long do you want to pay for?</div>
+                <div class="uf-durs" id="uf-durs">${ufDurHTML()}</div>
+                <button class="uf-cta" id="uf-continue" onclick="ufContinue()">Continue</button>
+                <div class="uf-fine">You pay once for the period you choose. Nothing renews by itself.</div>`;
+            setTimeout(() => { sh.classList.add('on'); if (dim) dim.classList.add('on'); }, 20);
+        }
+        function ufCloseSheet() {
+            const sh = document.getElementById('uf-sheet'), dim = document.getElementById('uf-dim');
+            if (sh) sh.classList.remove('on'); if (dim) dim.classList.remove('on');
+        }
+        function ufPickMonths(m) {
+            UF.months = m;
+            document.querySelectorAll('#uf-durs .uf-dur').forEach(d => d.classList.toggle('sel', Number(d.getAttribute('data-m')) === m));
+        }
+
+        // ---- COMPUTER: all plans side by side with the length switch on top
+        function ufPcCard(p) {
+            const id = escHtml(String(p.id)), cur = String(p.id) === String(UF.currentPlanId), pr = ufPrice(p, UF.months);
+            return `<div class="uf-pcard${cur ? ' cur' : ''}">
+                <h3>${escHtml(p.name)}${cur ? ' <span class="uf-cur">(current)</span>' : ''}</h3>
+                <div class="lim">${escHtml(ufLimits(p))}</div>
+                <div class="price">${ufMoney(pr.perMonth)}<small> ETB/month</small></div>
+                <div class="bill">${pr.pct ? `<s>${ufMoney(p.priceEtb)}</s> &middot; ` : ''}${ufMoney(pr.total)} ETB for ${ufMonthsText(UF.months)}</div>
+                <button class="pick" onclick="ufPcChoose('${id}')">${cur ? 'Renew this plan' : 'Choose plan'}</button>
+                <div class="list">${ufChecks(p)}</div></div>`;
+        }
+        function ufPcSeg() {
+            return UF_MONTHS.map(m => `<button class="${UF.months === m ? 'on' : ''}" onclick="ufPcMonths(${m})">${m === 12 ? '1 year' : m + ' months'}${UF.discounts[m] ? `<i>-${UF.discounts[m]}%</i>` : ''}</button>`).join('');
+        }
+        function ufPcPlans() {
+            const el = ufEl();
+            el.innerHTML = `<div class="uf-pc"><button class="uf-pc-x" onclick="ufClose()" aria-label="Close">&#10005;</button>
+                <div class="uf-pc-head"><h2>Upgrade your plan</h2><p>Choose a plan and how long you want to pay for.</p><div class="uf-seg" id="uf-seg">${ufPcSeg()}</div></div>
+                <div class="uf-grid" id="uf-grid">${UF.plans.map(ufPcCard).join('')}</div></div>`;
+        }
+        function ufPcMonths(m) {
+            UF.months = m;
+            const s = document.getElementById('uf-seg'), g = document.getElementById('uf-grid');
+            if (s) s.innerHTML = ufPcSeg(); if (g) g.innerHTML = UF.plans.map(ufPcCard).join('');
+        }
+        async function ufPcChoose(id) { UF.planId = id; if (await ufCreateRequest()) ufPayPage(); }
+        async function ufContinue() { if (await ufCreateRequest()) ufPayPage(); }
+
+        // ---- the request is saved on the server, which works out the amount and returns the payment details
+        async function ufCreateRequest() {
+            if (UF.busy) return false;
+            UF.busy = true;
+            const btns = document.querySelectorAll('#upgrade-flow .uf-cta, #upgrade-flow .pick'); btns.forEach(b => { b.disabled = true; });
+            try {
+                UF.req = await callEdgeFunction('request-upgrade', { action: 'request', businessId: currentTenantId, planId: UF.planId, months: UF.months, featureKey: UF.feature || null });
+                UF.busy = false; return true;
+            } catch (e) {
+                UF.busy = false; btns.forEach(b => { b.disabled = false; });
+                alert(e.message || 'Could not send the request. Please try again.');
+                return false;
+            }
+        }
+
+        // ---- payment details + how to send the receipt
+        function ufCopy(btn) {
+            const t = btn.getAttribute('data-copy') || '';
+            try { navigator.clipboard.writeText(t); btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = 'Copy'; }, 1500); } catch (e) { }
+        }
+        function ufPayPage() {
+            const el = ufEl(), r = UF.req, pay = r.payment || {}, pl = r.plan || {};
+            const kv = (k, v, copy) => v ? `<div class="uf-kv"><span>${k}</span><b>${escHtml(String(v))}${copy ? `<button class="uf-copy" data-copy="${escHtml(String(v))}" onclick="ufCopy(this)">Copy</button>` : ''}</b></div>` : '';
+            const hasPay = pay.phone || pay.bankName || pay.accountName || pay.accountNumber;
+            const details = hasPay
+                ? `<div class="uf-card"><h4>Send the money to</h4>${kv('Bank', pay.bankName)}${kv('Account name', pay.accountName)}${kv('Account number', pay.accountNumber, true)}${kv('Phone', pay.phone, true)}</div>`
+                : `<div class="uf-card"><h4>Payment details</h4><p style="margin:0; font-size:14px;">We will contact you shortly with the payment details.</p></div>`;
+            const steps = `<div class="uf-card"><h4>What to do next</h4><ol class="uf-steps">
+                    <li>Send exactly <b>${ufMoney(pl.amountEtb)} ETB</b> to the account above.</li>
+                    <li>Take a screenshot of the payment receipt.</li>
+                    <li>${r.telegramLink ? 'Open the Meleya bot on Telegram and send it the screenshot.' : 'Send the screenshot to us on Telegram.'}</li>
+                    <li>We check it and activate your plan. You get a message when it is done.</li></ol></div>`;
+            const buttons = `<div class="uf-btnrow">
+                    ${r.telegramLink ? `<a class="uf-btn primary" href="${escHtml(r.telegramLink)}" target="_blank" rel="noopener">Open Telegram bot</a>` : ''}
+                    <button type="button" class="uf-btn" onclick="ufCheckStatus(false)">I sent the receipt - check status</button>
+                    <button type="button" class="uf-btn" onclick="ufClose()">Done</button></div>
+                    <div class="uf-status" id="uf-status"></div>`;
+            const summaryRows = `${kv('Plan', pl.name)}${kv('Length', ufMonthsText(Number(pl.months) || 1))}${pl.discountPct ? kv('Discount', pl.discountPct + '%') : ''}`;
+            if (UF.phone) {
+                el.innerHTML = `<div class="uf-top"><button class="uf-back" onclick="ufPhonePlans()" aria-label="Back">&#8249;</button><div class="uf-title">Payment</div></div>
+                    <div class="uf-pay"><div class="uf-amount"><div class="big">${ufMoney(pl.amountEtb)} ETB</div><div class="sub">${escHtml(pl.name || '')} &middot; ${ufMonthsText(Number(pl.months) || 1)}</div></div>
+                    ${details}${steps}${buttons}</div>`;
+            } else {
+                el.innerHTML = `<div class="uf-pc"><button class="uf-pc-x" onclick="ufClose()" aria-label="Close">&#10005;</button>
+                    <div class="uf-pc-head"><h2>Payment</h2><p><a href="#" onclick="ufPcPlans(); return false;" style="color:var(--accent);">&#8249; Change plan</a></p></div>
+                    <div class="uf-pc-pay"><div class="uf-card"><h4>Your order</h4>${summaryRows}
+                        <div class="uf-kv" style="display:block; border:0;"><span>Total to pay</span><div class="uf-sumtotal">${ufMoney(pl.amountEtb)} ETB</div></div></div>
+                        <div>${details}${steps}${buttons}</div></div></div>`;
+            }
+            if (UF.timer) clearInterval(UF.timer);
+            UF.timer = setInterval(() => ufCheckStatus(true), 8000);   // notices by itself when the plan is activated
+        }
+        async function ufCheckStatus(silent) {
+            const st = document.getElementById('uf-status');
+            if (!st || !UF.req) { if (UF.timer) { clearInterval(UF.timer); UF.timer = null; } return; }
+            if (!silent) st.textContent = 'Checking...';
+            try {
+                const r = await callEdgeFunction('request-upgrade', { action: 'status', businessId: currentTenantId, requestId: UF.req.requestId });
+                if (r.status === 'paid' || r.status === 'handled') {
+                    if (UF.timer) { clearInterval(UF.timer); UF.timer = null; }
+                    st.textContent = 'Your plan is active! Reloading...'; setTimeout(() => location.reload(), 1200);
+                } else if (r.status === 'needs_review') st.textContent = 'We received your receipt and are checking it. You will get a Telegram message when your plan is active.';
+                else if (r.status === 'rejected') st.textContent = 'Receipt not accepted: ' + (r.reason || 'please send a correct receipt on Telegram.');
+                else if (!silent) st.textContent = 'No receipt received yet. Send the screenshot to the Telegram bot, then check again.';
+            } catch (e) { if (!silent) st.textContent = e.message || 'Could not check. Try again.'; }
         }
         // Owners see a bar in the last 7 days of the free trial, and after it ends while features are locked.
         function showTrialBanner() {
@@ -2874,7 +3107,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             const top = document.getElementById('sub-warning-bar') ? '46px' : '0';
             bar.style.cssText = 'position:fixed;left:0;right:0;top:' + top + ';z-index:3990;display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 14px;font-size:14px;font-weight:600;color:#fff;background:' + (trialEnded() || left <= 2 ? '#B23A2E' : '#A9752F') + ';box-shadow:0 2px 8px rgba(0,0,0,.25);';
             const span = document.createElement('span'); span.textContent = msg;
-            const go = document.createElement('button'); go.type = 'button'; go.textContent = 'Request Upgrade'; go.style.cssText = 'background:#fff;color:#333;border:0;border-radius:6px;padding:5px 10px;font-weight:600;cursor:pointer;white-space:nowrap;';
+            const go = document.createElement('button'); go.type = 'button'; go.textContent = 'Upgrade plan'; go.style.cssText = 'background:#fff;color:#333;border:0;border-radius:6px;padding:5px 10px;font-weight:600;cursor:pointer;white-space:nowrap;';
             go.onclick = () => openUpgradeRequest('');
             const x = document.createElement('button'); x.type = 'button'; x.textContent = '\u2715'; x.setAttribute('aria-label', 'Close'); x.style.cssText = 'background:transparent;border:0;color:#fff;font-size:18px;cursor:pointer;padding:0 4px;'; x.onclick = () => bar.remove();
             const right = document.createElement('span'); right.style.cssText = 'display:flex;gap:8px;align-items:center;'; right.append(go, x);
@@ -2902,7 +3135,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             return trialLockedFeature(key) ? 'Your free trial has ended.' : 'Not included in your ' + (currentPlanName ? currentPlanName + ' ' : '') + 'plan.';
         }
         function requestUpgradeFor(key) { if (currentIsOwner) openUpgradeRequest(key); else showUpgrade(key); }
-        // The frosted cover with a Request Upgrade button, put on top of a whole page or one box / graph / card.
+        // The frosted cover with a Upgrade plan button, put on top of a whole page or one box / graph / card.
         function addPlanOverlay(el, key, kind, compact) {
             if (!el || el.querySelector(':scope > .plan-overlay[data-feature="' + key + '"]')) return;
             if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
@@ -2910,7 +3143,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             const ov = document.createElement('div');
             ov.className = 'plan-overlay po-' + kind + (compact ? ' po-compact' : '');
             ov.setAttribute('data-feature', key);
-            ov.innerHTML = `<div class="po-inner">${planLockSvg.replace('width="13" height="13"', 'width="24" height="24"')}<div class="po-title">${escHtml(PLAN_FEATURE_LABELS[key] || 'This feature')}</div><div class="po-msg">${escHtml(planLockMessage(key))}</div><button type="button" class="btn btn-small po-btn" onclick="requestUpgradeFor('${key}')">Request Upgrade</button></div>`;
+            ov.innerHTML = `<div class="po-inner">${planLockSvg.replace('width="13" height="13"', 'width="24" height="24"')}<div class="po-title">${escHtml(PLAN_FEATURE_LABELS[key] || 'This feature')}</div><div class="po-msg">${escHtml(planLockMessage(key))}</div><button type="button" class="btn btn-small po-btn" onclick="requestUpgradeFor('${key}')">Upgrade plan</button></div>`;
             el.appendChild(ov);
         }
         function clearPlanLocks() {
@@ -2935,7 +3168,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 });
             });
         }
-        // A locked button never does its job: tapping it opens the Request Upgrade pop-up instead (runs before the button's own handler).
+        // A locked button never does its job: tapping it opens the Upgrade plan pop-up instead (runs before the button's own handler).
         document.addEventListener('click', e => {
             const el = e.target && e.target.closest ? e.target.closest('[data-plan-locked]') : null;
             if (!el) return;
