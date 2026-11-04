@@ -902,7 +902,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 <strong data-i18n="ui2.system_alerts">System Alerts</strong>
                 <button class="btn-small btn" onclick="clearAllNotifications()" data-i18n="misc.clear_all">Clear All</button>
             </div>
-            <div id="push-row" style="display:none; padding:10px 12px; border-bottom:1px solid var(--border); align-items:center; justify-content:space-between; gap:10px; font-size:12.5px;"><span id="push-row-text">Get alerts on this device even when the app is closed.</span><button type="button" class="btn-small btn" id="push-row-btn" onclick="mlyPushToggle()">Turn on</button></div>
+            <div id="push-row" style="display:none; padding:10px 12px; border-bottom:1px solid var(--border); align-items:center; justify-content:space-between; gap:10px; font-size:12.5px;"><span id="push-row-text">Get alerts on this device even when the app is closed.</span><span style="display:flex; gap:6px; flex-shrink:0;"><button type="button" class="btn-small btn btn-outline" id="push-row-test" style="display:none;" onclick="mlyPushTest()">Test</button><button type="button" class="btn-small btn" id="push-row-btn" onclick="mlyPushToggle()">Turn on</button></span></div>
             <div id="notif-list"></div>
         </div>
 
@@ -1227,6 +1227,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                     </div>
                 </div>
                 
+                <div id="sales-history-block">
                 <div class="card">
                     <h2 data-i18n="sale.history">Sales History</h2>
                     <div class="filter-panel">
@@ -1248,6 +1249,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                         <tbody id="sales-log-table-body"></tbody>
                     </table>
                     </div>
+                </div>
                 </div>
                 </div>
                 <!-- Booking section for the rental vertical is
@@ -1373,6 +1375,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                     </div>
                 </div>
 
+                <div id="purchase-history-block">
                 <div class="card">
                     <h2 data-i18n="pur.history">Purchase History</h2>
                     <div class="filter-panel">
@@ -1393,6 +1396,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                         <tbody id="purchase-log-table-body"></tbody>
                     </table>
                     </div>
+                </div>
                 </div>
             </div>
 
@@ -2867,13 +2871,13 @@ a.sg-link{text-decoration:none}
             // ---- Sales
             { key: 'sales_record', cat: 'Sales', label: "Record a sale", targets: [{ sel: "#sales-entry-card", kind: 'block' }] },
             { key: 'sales_multi_item', cat: 'Sales', label: "Multi-item sale (cart)", targets: [{ sel: "#sale-cart-card", kind: 'block' }] },
-            { key: 'sales_history', cat: 'Sales', label: "Sales history", targets: [{ sel: "h2[data-i18n=\"sale.history\"]", kind: 'block', up: ".card" }] },
+            { key: 'sales_history', cat: 'Sales', label: "Sales history", targets: [{ sel: "#sales-history-block", kind: 'block', minH: '170px' }] },
             { key: 'drafts', cat: 'Sales', label: "Drafts", targets: [{ sel: "#view-drafts", kind: 'page', nav: ["nav-drafts"] }, { sel: "button[onclick*=\"saveCartToDraft\"]", kind: 'action' }] },
             { key: 'print_order_lists', cat: 'Sales', label: "Print & share order lists", targets: [{ sel: "button[onclick*=\"printBasket\"]", kind: 'action' }] },
             // ---- Purchases
             { key: 'purchase_record', cat: 'Purchases', label: "Record a purchase", targets: [{ sel: "#purchase-entry-card", kind: 'block' }] },
             { key: 'purchase_multi_item', cat: 'Purchases', label: "Multi-item purchase (cart)", targets: [{ sel: "#purchase-cart-card", kind: 'block' }] },
-            { key: 'purchase_history', cat: 'Purchases', label: "Purchase history", targets: [{ sel: "h2[data-i18n=\"pur.history\"]", kind: 'block', up: ".card" }] },
+            { key: 'purchase_history', cat: 'Purchases', label: "Purchase history", targets: [{ sel: "#purchase-history-block", kind: 'block', minH: '170px' }] },
             // ---- Expenses
             { key: 'expenses_record', cat: 'Expenses', label: "Record an expense", targets: [{ sel: "#expense-entry-card", kind: 'block' }] },
             { key: 'expense_scan', cat: 'Expenses', label: "Scan expense receipt", targets: [{ sel: "#exp-scan-btn", kind: 'action' }] },
@@ -3563,11 +3567,15 @@ a.sg-link{text-decoration:none}
         }
         function requestUpgradeFor(key) { if (currentIsOwner) openUpgradeRequest(key); else showUpgrade(key); }
         // The frosted cover with a Upgrade plan button, put on top of a whole page or one box / graph / card.
-        function addPlanOverlay(el, key, kind, compact) {
+        function addPlanOverlay(el, key, kind, compact, minH) {
             if (!el || el.querySelector(':scope > .plan-overlay[data-feature="' + key + '"]')) return;
             if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
             if (kind === 'page' && !el.style.minHeight) { el.style.minHeight = '60vh'; el.setAttribute('data-po-min', '1'); }
+            if (minH && !el.style.minHeight) { el.style.minHeight = minH; el.setAttribute('data-po-min', '1'); }
             const ov = document.createElement('div');
+            // The cover sits INSIDE the box it hides. Without this, a tap on the cover bubbled up to the box's own
+            // onclick (e.g. the dashboard box pop-ups) and opened the details underneath the lock.
+            ov.addEventListener('click', e => e.stopPropagation());
             ov.className = 'plan-overlay po-' + kind + (compact ? ' po-compact' : '');
             ov.setAttribute('data-feature', key);
             ov.innerHTML = `<div class="po-inner">${planLockSvg.replace('width="13" height="13"', 'width="24" height="24"')}<div class="po-title">${escHtml(PLAN_FEATURE_LABELS[key] || 'This feature')}</div><div class="po-msg">${escHtml(planLockMessage(key))}</div><button type="button" class="btn btn-small po-btn" onclick="requestUpgradeFor('${key}')">Upgrade plan</button></div>`;
@@ -3589,10 +3597,17 @@ a.sg-link{text-decoration:none}
                         if (t.kind === 'action') {
                             el.setAttribute('data-plan-locked', def.key);
                             if (!el.querySelector(':scope > .plan-lock')) { const sp = document.createElement('span'); sp.className = 'plan-lock'; sp.innerHTML = planLockSvg; el.appendChild(sp); }
-                        } else addPlanOverlay(el, def.key, t.kind, !!t.compact);
+                        } else addPlanOverlay(el, def.key, t.kind, !!t.compact, t.minH);
                     });
                     (t.nav || []).forEach(id => planBadge(id, true));
                 });
+            });
+            // Tables drawn before the plan was known (or before an upgrade) are redrawn so they match the lock:
+            // locked = emptied, unlocked again = filled again.
+            [['sales_history', 'sales-log-table-body', 'renderSalesLogTable'], ['purchase_history', 'purchase-log-table-body', 'renderPurchaseLogTable'], ['expenses_history', 'expense-log-table-body', 'renderExpenseLogTable']].forEach(([k, id, fn]) => {
+                const tb = document.getElementById(id); if (!tb || typeof window[fn] !== 'function') return;
+                const locked = planLocked(k);
+                if (locked ? tb.children.length : tb.dataset.planCleared) { delete tb.dataset.planCleared; try { window[fn](); } catch (e) { } }
             });
         }
         // A locked button never does its job: tapping it opens the Upgrade plan pop-up instead (runs before the button's own handler).
@@ -8197,7 +8212,23 @@ a.sg-link{text-decoration:none}
             }
         }
 
+        // Which plan features feed each dashboard box's pop-up. If ANY of them is locked for the shop's plan, the
+        // pop-up does not open (the "Upgrade to unlock" message shows instead). To change which box follows which
+        // history, edit this list only.
+        //   Revenue  <- sales history          Expenses <- expense history
+        //   COGS & Gross profit <- sales AND purchase history (they are made from both)
+        const DRILL_LOCKS = {
+            revenue: ['dash_revenue', 'sales_history'],
+            cogs: ['dash_cogs', 'sales_history', 'purchase_history'],
+            gross: ['dash_gross_profit', 'sales_history', 'purchase_history'],
+            expenses: ['dash_expenses', 'expenses_history'],
+            net: ['dash_net_profit']
+        };
+        function drillLockedKey(metric) { return (DRILL_LOCKS[metric] || []).find(k => planLocked(k)) || null; }
+
         function launchDrillDown(metric) {
+            const lockedKey = drillLockedKey(metric);
+            if (lockedKey) { showUpgrade(lockedKey); return; }
             const mTitle = document.getElementById('modal-title');
             const mContent = document.getElementById('modal-body-content');
             let period = state.currentFilter;
@@ -8280,6 +8311,7 @@ a.sg-link{text-decoration:none}
 
         function launchRevProfBucketDrillDown(key, timeAgg, label) {
             if (!key) return;
+            if (planLocked('sales_history')) { showUpgrade('sales_history'); return; }   // this pop-up lists individual sales
             const isEthChart = currentCalendarPref === 'ethiopian';
             let start, end, periodLabel;
             if (timeAgg === 'year') {
@@ -8370,6 +8402,7 @@ a.sg-link{text-decoration:none}
         let vatDrillDownState = { mode: 'month', year: null, month: null };
 
         function launchVatDrillDown() {
+            if (planLocked('dash_vat')) { showUpgrade('dash_vat'); return; }
             // Reset to "today", expressed in whichever calendar is currently
             // active — so if the person switched calendars since they last
             // opened this, it still opens on a sensible period instead of a
@@ -11692,6 +11725,11 @@ a.sg-link{text-decoration:none}
 
         function renderSalesLogTable() {
             const tbody = document.getElementById('sales-log-table-body');
+            if (planLocked('sales_history')) {   // locked by the plan: show no rows and no totals at all
+                if (tbody) { tbody.innerHTML = ''; tbody.dataset.planCleared = '1'; }
+                const lt = document.getElementById('sale-log-total-display'); if (lt) lt.textContent = '';
+                return;
+            }
 
             // "By" dropdown is built from whoever actually has a sale right
             // now (not the full team roster), same approach as Expense History.
@@ -12851,6 +12889,11 @@ a.sg-link{text-decoration:none}
 
         function renderPurchaseLogTable() {
             const tbody = document.getElementById('purchase-log-table-body');
+            if (planLocked('purchase_history')) {   // locked by the plan: show no rows and no totals at all
+                if (tbody) { tbody.innerHTML = ''; tbody.dataset.planCleared = '1'; }
+                const lt = document.getElementById('pur-log-total-display'); if (lt) lt.textContent = '';
+                return;
+            }
 
             const authorSel = document.getElementById('pur-log-filter-author');
             if (authorSel) {
@@ -12979,6 +13022,11 @@ a.sg-link{text-decoration:none}
 
         function renderExpenseLogTable() {
             const tbody = document.getElementById('expense-log-table-body');
+            if (planLocked('expenses_history')) {   // locked by the plan: show no rows and no totals at all
+                if (tbody) { tbody.innerHTML = ''; tbody.dataset.planCleared = '1'; }
+                const lt = document.getElementById('exp-log-total-display'); if (lt) lt.textContent = '';
+                return;
+            }
 
             // Author dropdown is built from whoever actually has an expense
             // entry right now, not the full team roster — keeps the list
@@ -17816,23 +17864,46 @@ function buildSteps() {
         function key(b) { const p = '='.repeat((4 - b.length % 4) % 4); const r = atob((b + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(r, c => c.charCodeAt(0)); }
         async function getSub() { const r = await navigator.serviceWorker.ready; return { r, sub: await r.pushManager.getSubscription() }; }
 
+        let lastError = '';   // why turning alerts on failed last time (shown in the bell panel instead of failing silently)
+        function errText(e) { const m = (e && (e.message || e.details || e.hint)) || String(e || 'unknown error'); return String(m).slice(0, 140); }
+        // A phone that subscribed earlier with a DIFFERENT public key keeps that old subscription, and the push service then
+        // rejects every message sent with the new key. So a subscription made with another key is thrown away and redone.
+        function sameKey(sub) {
+            try {
+                const cur = sub.options && sub.options.applicationServerKey; if (!cur) return true;   // browser does not say: assume fine
+                const a = new Uint8Array(cur), b = key(VAPID_PUBLIC_KEY);
+                if (a.length !== b.length) return false;
+                for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+                return true;
+            } catch (e) { return true; }
+        }
+
         async function register() {
             const { r, sub: have } = await getSub();
-            const sub = have || await r.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key(VAPID_PUBLIC_KEY) });
+            let sub = have;
+            if (sub && !sameKey(sub)) { try { await sub.unsubscribe(); } catch (e) { } sub = null; }
+            if (!sub) sub = await r.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key(VAPID_PUBLIC_KEY) });
             const j = sub.toJSON();
+            if (!j.keys || !j.keys.p256dh || !j.keys.auth) throw new Error('This device did not give push keys');
             const { error } = await supabaseClient.rpc('register_push', { p_tenant: String(currentTenantId), p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth });
             if (error) throw error;
-            syncedTenant = currentTenantId;
+            syncedTenant = currentTenantId; lastError = '';
+        }
+        // register() that never throws: a failure is remembered in lastError and shown by paint()
+        async function tryRegister() {
+            try { await register(); return true; }
+            catch (e) { lastError = errText(e); console.warn('Push register failed', e); return false; }
         }
 
         async function paint() {
             const row = document.getElementById('push-row'); if (!row) return;
             if (!ok || !currentTenantId) { row.style.display = 'none'; return; }
-            const t = document.getElementById('push-row-text'), b = document.getElementById('push-row-btn');
-            row.style.display = 'flex'; b.style.display = '';
+            const t = document.getElementById('push-row-text'), b = document.getElementById('push-row-btn'), tb = document.getElementById('push-row-test');
+            row.style.display = 'flex'; b.style.display = ''; if (tb) tb.style.display = 'none';
             if (Notification.permission === 'denied') { t.textContent = 'Alerts are blocked. Allow notifications for MELEYA in your phone settings.'; b.style.display = 'none'; return; }
             const { sub } = await getSub();
-            if (Notification.permission === 'granted' && sub && syncedTenant === currentTenantId) { t.textContent = 'Phone alerts are on for this device.'; b.textContent = 'Turn off'; }
+            if (Notification.permission === 'granted' && sub && syncedTenant === currentTenantId) { t.textContent = 'Phone alerts are on for this device.'; b.textContent = 'Turn off'; if (tb) tb.style.display = ''; }
+            else if (Notification.permission === 'granted' && lastError) { t.textContent = 'Alerts could not be turned on: ' + lastError; b.textContent = 'Try again'; }
             else { t.textContent = 'Get alerts on this device even when the app is closed.'; b.textContent = 'Turn on'; }
         }
 
@@ -17846,8 +17917,17 @@ function buildSteps() {
                     const perm = await Notification.requestPermission(); // must come from a tap
                     if (perm === 'granted') await register();
                 }
-            } catch (e) { console.warn('Push toggle failed', e); try { alert('Could not change phone alerts. Check your connection and try again.'); } catch (_) { } }
+            } catch (e) { lastError = errText(e); console.warn('Push toggle failed', e); try { alert('Could not turn on phone alerts: ' + lastError); } catch (_) { } }
             paint();
+        };
+
+        // Shows a notification made on THIS phone, with no server involved. If it appears, the phone side works and any
+        // missing alert is the server's doing (secrets, function, or the saved device). If it does not appear, the phone is blocking it.
+        window.mlyPushTest = async function () {
+            try {
+                const { r } = await getSub();
+                await r.showNotification('MELEYA test', { body: 'If you can read this, alerts can reach this phone.', tag: 'mly-test' });
+            } catch (e) { try { alert('This phone would not show the test alert: ' + errText(e)); } catch (_) { } }
         };
 
         window.mlyPushOnSignOut = async function () {
@@ -17893,14 +17973,14 @@ function buildSteps() {
             if (Date.now() - last < 7 * 86400000) return;
             try { localStorage.setItem('mly_push_asked', String(Date.now())); } catch (e) { }
             if (IOS) { showCard(); return; }
-            try { if ((await Notification.requestPermission()) === 'granted') await register(); } catch (e) { }
+            try { if ((await Notification.requestPermission()) === 'granted') await tryRegister(); } catch (e) { }
             paint();
         }
 
         // Already allowed earlier? Quietly keep this device registered for the shop that is open.
         async function tick() {
             if (!ok || !currentTenantId || !navigator.onLine) return;
-            if (Notification.permission === 'granted' && syncedTenant !== currentTenantId) { try { await register(); } catch (e) { } }
+            if (Notification.permission === 'granted' && syncedTenant !== currentTenantId) await tryRegister();
             maybeAsk();
             paint();
         }
