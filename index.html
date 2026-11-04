@@ -837,7 +837,6 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                     <button onclick="switchView('ledger')" id="nav-ledger"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg> General Ledger</button>
                     <button onclick="switchView('statements')" id="nav-statements"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><line x1="3" y1="22" x2="21" y2="22"></line><line x1="6" y1="18" x2="6" y2="11"></line><line x1="10" y1="18" x2="10" y2="11"></line><line x1="14" y1="18" x2="14" y2="11"></line><line x1="18" y1="18" x2="18" y2="11"></line><polygon points="12 2 20 7 4 7"></polygon></svg> Financial Statements</button>
                 </div>
-                <button onclick="switchView('team')" id="nav-team" style="display:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg> <span data-i18n="nav.team">Team &amp; Branches</span></button>
                 <button onclick="switchView('settings')" id="nav-settings" style="display:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg> <span data-i18n="nav.settings">Settings</span></button>
             </nav>
         </div>
@@ -1551,6 +1550,22 @@ a.sg-link{text-decoration:none}
 .sg-item b{display:block;font-size:15px}
 .sg-item small{display:block;color:var(--text-light);font-size:12px;margin-top:2px}
 .sg-item .sg-chev{margin-left:auto;font-size:24px;line-height:1;color:var(--text-light)}
+.sg-label{font-size:13px;font-weight:600;color:var(--text-light);margin:20px 4px 8px}
+.sg-profile{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;cursor:pointer;color:var(--text);font:inherit}
+.sg-avatar{width:54px;height:54px;border-radius:50%;background:var(--primary,#1b3a2f);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;flex-shrink:0}
+.sg-profile b{display:block;font-size:16px;overflow-wrap:anywhere}
+.sg-profile small{display:block;color:var(--text-light);font-size:13px;margin-top:1px;overflow-wrap:anywhere}
+.sg-profile .sg-edit{display:inline-block;color:var(--accent);font-size:13px;margin-top:5px}
+.sg-profile .sg-chev{margin-left:auto;font-size:24px;line-height:1;color:var(--text-light)}
+.sg-ico{width:22px;height:22px;flex-shrink:0;color:var(--text-light)}
+.sg-upgrade{display:none;align-items:center;gap:14px;margin-top:14px;padding:16px;border-radius:14px;background:linear-gradient(135deg,#1c1c1c,#3b3b3b);color:#fff}
+.sg-upgrade.show{display:flex}
+.sg-upgrade>svg{flex-shrink:0;color:#6f8dff}
+.sg-upgrade .sg-up-text{min-width:0;flex:1}
+.sg-upgrade b{display:block;font-size:16px;margin-bottom:3px}
+.sg-upgrade small{display:block;font-size:12px;line-height:1.4;color:rgba(255,255,255,.72)}
+.sg-upgrade button{flex-shrink:0;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:#fff;border-radius:999px;padding:8px 14px;font:inherit;font-size:13px;cursor:pointer}
+@media (max-width:420px){.sg-upgrade{flex-wrap:wrap}.sg-upgrade button{margin-left:auto}}
 .sg-page{display:none}
 .sg-page.open{display:block}
 @media (min-width:721px){#view-settings:has(.sg-page.open) #settings-menu{display:none}}
@@ -1565,14 +1580,26 @@ a.sg-link{text-decoration:none}
 </style>
 <div id="settings-menu">
 <div class="sg-h1">Settings</div>
+<button type="button" class="sg-profile" id="sg-profile-card" onclick="openSettingsPage('business')"><span class="sg-avatar" id="sg-avatar">S</span><span style="min-width:0;"><b id="sg-profile-name">Your shop</b><small id="sg-profile-sub"></small><span class="sg-edit">Edit profile</span></span><span class="sg-chev">&#8250;</span></button>
+<div class="sg-upgrade" id="sg-upgrade-banner"><svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z"/></svg><div class="sg-up-text"><b>Upgrade your plan</b><small>Unlock more branches and team members, scanned receipts, accountant access and more.</small></div><button type="button" onclick="openUpgradeRequest('')">Upgrade &#8250;</button></div>
+<div id="sg-grp-shop">
+<div class="sg-label">Shop</div>
 <div class="sg-list">
-<button type="button" class="sg-item" onclick="openSettingsPage('business')"><span><b>Business profile</b><small id="sg-sub-business">Shop name, phone and address</small></span><span class="sg-chev">&#8250;</span></button>
-<button type="button" class="sg-item" onclick="openSettingsPage('plan')"><span><b>Plan &amp; billing</b><small id="sg-sub-plan">Your plan and payment history</small></span><span class="sg-chev">&#8250;</span></button>
-<button type="button" class="sg-item" id="sg-row-tax" onclick="openSettingsPage('tax')"><span><b>Tax</b><small id="sg-sub-tax">VAT registration</small></span><span class="sg-chev">&#8250;</span></button>
-<button type="button" class="sg-item" onclick="openSettingsPage('sales')"><span><b>Sales &amp; receipts</b><small id="sg-sub-sales">Receipt text, sale types and scanned expense receipts</small></span><span class="sg-chev">&#8250;</span></button>
-<button type="button" class="sg-item" onclick="openSettingsPage('team')"><span><b>Team &amp; access</b><small id="sg-sub-team">Branches, team, roles and your accountant</small></span><span class="sg-chev">&#8250;</span></button>
-<button type="button" class="sg-item" onclick="openSettingsPage('security')"><span><b>Security &amp; account</b><small id="sg-sub-security">Password, sign out and delete shop</small></span><span class="sg-chev">&#8250;</span></button>
-<button type="button" class="sg-item" onclick="openSettingsPage('about')"><span><b>About &amp; help</b><small id="sg-sub-about">Version, support, terms and privacy</small></span><span class="sg-chev">&#8250;</span></button>
+<button type="button" class="sg-item" id="sg-row-business" onclick="openSettingsPage('business')"><svg class="sg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l1.5-5h15L21 9"/><path d="M4 9v11h16V9"/><path d="M9 20v-6h6v6"/><path d="M3 9h18"/></svg><span><b>Business profile</b><small id="sg-sub-business">Shop name, phone and address</small></span><span class="sg-chev">&#8250;</span></button>
+<button type="button" class="sg-item" id="sg-row-tax" onclick="openSettingsPage('tax')"><svg class="sg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg><span><b>Tax</b><small id="sg-sub-tax">VAT registration</small></span><span class="sg-chev">&#8250;</span></button>
+<button type="button" class="sg-item" onclick="openSettingsPage('team')"><svg class="sg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span><b>Team &amp; access</b><small id="sg-sub-team">Branches, team, roles and your accountant</small></span><span class="sg-chev">&#8250;</span></button>
+</div>
+</div>
+<div id="sg-grp-account">
+<div class="sg-label">Plan &amp; account</div>
+<div class="sg-list">
+<button type="button" class="sg-item" onclick="openSettingsPage('plan')"><svg class="sg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg><span><b>Plan &amp; billing</b><small id="sg-sub-plan">Your plan and payment history</small></span><span class="sg-chev">&#8250;</span></button>
+<button type="button" class="sg-item" onclick="openSettingsPage('security')"><svg class="sg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span><b>Security &amp; account</b><small id="sg-sub-security">Password, sign out and delete shop</small></span><span class="sg-chev">&#8250;</span></button>
+</div>
+</div>
+<div class="sg-label">Support</div>
+<div class="sg-list">
+<button type="button" class="sg-item" onclick="openSettingsPage('about')"><svg class="sg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span><b>About &amp; help</b><small id="sg-sub-about">Version, support, terms and privacy</small></span><span class="sg-chev">&#8250;</span></button>
 </div>
 </div>
 <div class="sg-page" id="sg-page-business">
@@ -1621,79 +1648,8 @@ a.sg-link{text-decoration:none}
                     </div>
                 </div>
 </div>
-<div class="sg-page" id="sg-page-sales">
-<div class="sg-head"><button type="button" class="sg-back" onclick="closeSettingsPage()" aria-label="Back">&#8249;</button><span>Sales &amp; receipts</span></div>
-<div class="card" id="sales-receipts-card">
-<div class="form-group" style="margin-bottom:12px;"><label>Receipt header</label><textarea id="sr-header" rows="2" maxlength="160" placeholder="Shown under the shop name, e.g. address and phone"></textarea></div>
-<div class="form-group" style="margin-bottom:12px;"><label>Receipt footer</label><textarea id="sr-footer" rows="2" maxlength="200" placeholder="e.g. Thank you for shopping with us"></textarea></div>
-<div class="sg-sub" style="margin-bottom:10px;">Printed on normal receipts. VAT-registered shops print the fixed tax-receipt layout, which cannot be changed.</div>
-<button type="button" class="btn" onclick="saveReceiptTexts()">Save</button><span class="sg-saved" id="sr-texts-saved">Saved &#10003;</span>
-<div id="sr-vat-row" style="display:none; margin-top:18px; border-top:1px solid var(--border); padding-top:14px;">
-<label class="switch-row"><span class="switch"><input type="checkbox" id="sr-default-vat" onchange="setDefaultVat(this.checked)"><span class="slider"></span></span> <span>Tick &quot;Include VAT (15%)&quot; by default on new sales</span></label>
-</div>
-<div style="margin-top:18px; border-top:1px solid var(--border); padding-top:14px;">
-<label style="font-weight:600; font-size:13px;">Sale types</label>
-<div class="sg-sub">Walk in, Proforma, Customer and Tender are always there. Add your own below.</div>
-<div class="sg-chips" id="sr-saletypes"></div>
-<div style="display:flex; gap:8px; flex-wrap:wrap;"><input type="text" id="sr-saletype-new" maxlength="40" placeholder="New sale type" style="flex:1 1 180px;" onkeydown="if(event.key==='Enter'){event.preventDefault();addSaleTypeSetting();}"><button type="button" class="btn btn-outline" onclick="addSaleTypeSetting()">Add</button></div>
-</div>
-</div>
-<div class="card" id="scan-expense-settings-card" style="display:none;">
-                    <h2 style="border:none; margin-bottom:10px;">Scanned expense receipts</h2>
-                    <p style="font-size:13px; color:var(--text-light); margin-bottom:12px;">Also add scanned expense receipts to your Expenses page.</p>
-                    <label class="switch-row"><span class="switch"><input type="checkbox" id="settings-scan-expense-posts" onchange="toggleExpenseScanPosts(this.checked)"><span class="slider"></span></span> <span>Add to Expenses page</span></label>
-                </div>
-</div>
 <div class="sg-page" id="sg-page-team">
 <div class="sg-head"><button type="button" class="sg-back" onclick="closeSettingsPage()" aria-label="Back">&#8249;</button><span>Team &amp; access</span></div>
-<div class="card" id="team-links-card">
-<h2 style="border:none; margin-bottom:6px;">Branches, team &amp; roles</h2>
-<button type="button" class="sg-link" onclick="switchView('team')"><span>Branches<small>Add or edit your shop's branches</small></span><span>&#8250;</span></button>
-<button type="button" class="sg-link" onclick="switchView('team')"><span>Team members<small>Invite and manage your staff</small></span><span>&#8250;</span></button>
-<button type="button" class="sg-link" onclick="switchView('team')"><span>Roles &amp; permissions<small>Choose what each role can see and do</small></span><span>&#8250;</span></button>
-</div>
-<div class="card" id="accountant-access-card" style="display:none;">
-                    <h2 style="border:none; margin-bottom:10px;" data-i18n="ui2.accountant_access">Accountant Access</h2>
-                    <p style="font-size:13px; color:var(--text-light); margin-bottom:12px;" data-i18n="ui2.give_your_accountant_read_only_acc">Give your accountant read-only access to your inventory list. Search for them below, or approve a request they've already sent you.</p>
-                    <div style="display:flex; gap:8px; margin-bottom:6px;">
-                        <input type="text" id="accountant-search-input" placeholder="Search accountant by name or phone…" data-i18n-placeholder="ui2.search_accountant_by_name_or_phone" style="flex:1;" oninput="runAccountantSearch(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault(); submitAccountantSearch();}" onfocus="renderAccountantSearchHistory()">
-                        <button class="btn" style="padding:0 14px;" onclick="submitAccountantSearch()" data-i18n="ui2.search">Search</button>
-                    </div>
-                    <div id="accountant-search-history"></div>
-                    <div id="accountant-search-results" style="margin-bottom:6px;"></div>
-                    <div id="accountant-links-list" style="margin-top:14px;"></div>
-                </div>
-</div>
-<div class="sg-page" id="sg-page-security">
-<div class="sg-head"><button type="button" class="sg-back" onclick="closeSettingsPage()" aria-label="Back">&#8249;</button><span>Security &amp; account</span></div>
-<div class="card" id="security-card">
-<label style="font-weight:600; font-size:13px;">Change password</label>
-<div class="sg-row2" style="margin-top:6px;">
-<div class="form-group"><input type="password" id="sec-pw1" placeholder="New password" autocomplete="new-password"></div>
-<div class="form-group"><input type="password" id="sec-pw2" placeholder="Confirm new password" autocomplete="new-password"></div>
-</div>
-<button type="button" class="btn" onclick="changeMyPassword()">Change password</button>
-<div id="sec-pw-msg" style="font-size:13px; margin-top:8px;"></div>
-<div style="margin-top:18px; border-top:1px solid var(--border); padding-top:14px;">
-<button type="button" class="btn btn-outline" onclick="settingsSignOut()">Sign out of this device</button>
-</div>
-<div class="sg-danger" style="margin-top:18px; border:1px solid #e3b9b9; border-radius:8px; padding:14px;">
-<div style="font-weight:600; margin-bottom:4px;">Delete this shop</div>
-<div class="sg-sub" style="margin-bottom:10px;">Permanently deletes the shop and all its products, sales, purchases, expenses, branches and team members. This cannot be undone.</div>
-<button type="button" class="btn btn-danger" onclick="deleteMyShop()">Delete shop</button>
-</div>
-</div>
-</div>
-<div class="sg-page" id="sg-page-about">
-<div class="sg-head"><button type="button" class="sg-back" onclick="closeSettingsPage()" aria-label="Back">&#8249;</button><span>About &amp; help</span></div>
-<div class="card" id="about-card">
-<div id="about-version" class="sg-hint" style="margin-bottom:6px;"></div>
-<div id="about-links"></div>
-</div>
-</div>
-</div>
-
-            <div id="view-team" class="view-panel">
                 <div class="card">
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                         <h2 style="border:none; margin-bottom:0;" data-i18n="team.branches">Branches</h2>
@@ -1735,7 +1691,47 @@ a.sg-link{text-decoration:none}
                     <p style="font-size:13px; color:var(--text-light); margin-top:8px;" data-i18n="team.roles_desc">Toggle what each role is allowed to do. Changes apply immediately to everyone with that role.</p>
                     <div id="roles-permission-editor" style="margin-top:16px;"></div>
                 </div>
-            </div>
+<div class="card" id="accountant-access-card" style="display:none;">
+                    <h2 style="border:none; margin-bottom:10px;" data-i18n="ui2.accountant_access">Accountant Access</h2>
+                    <p style="font-size:13px; color:var(--text-light); margin-bottom:12px;" data-i18n="ui2.give_your_accountant_read_only_acc">Give your accountant read-only access to your inventory list. Search for them below, or approve a request they've already sent you.</p>
+                    <div style="display:flex; gap:8px; margin-bottom:6px;">
+                        <input type="text" id="accountant-search-input" placeholder="Search accountant by name or phone…" data-i18n-placeholder="ui2.search_accountant_by_name_or_phone" style="flex:1;" oninput="runAccountantSearch(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault(); submitAccountantSearch();}" onfocus="renderAccountantSearchHistory()">
+                        <button class="btn" style="padding:0 14px;" onclick="submitAccountantSearch()" data-i18n="ui2.search">Search</button>
+                    </div>
+                    <div id="accountant-search-history"></div>
+                    <div id="accountant-search-results" style="margin-bottom:6px;"></div>
+                    <div id="accountant-links-list" style="margin-top:14px;"></div>
+                </div>
+</div>
+<div class="sg-page" id="sg-page-security">
+<div class="sg-head"><button type="button" class="sg-back" onclick="closeSettingsPage()" aria-label="Back">&#8249;</button><span>Security &amp; account</span></div>
+<div class="card" id="security-card">
+<label style="font-weight:600; font-size:13px;">Change password</label>
+<div class="sg-row2" style="margin-top:6px;">
+<div class="form-group"><input type="password" id="sec-pw1" placeholder="New password" autocomplete="new-password"></div>
+<div class="form-group"><input type="password" id="sec-pw2" placeholder="Confirm new password" autocomplete="new-password"></div>
+</div>
+<button type="button" class="btn" onclick="changeMyPassword()">Change password</button>
+<div id="sec-pw-msg" style="font-size:13px; margin-top:8px;"></div>
+<div style="margin-top:18px; border-top:1px solid var(--border); padding-top:14px;">
+<button type="button" class="btn btn-outline" onclick="settingsSignOut()">Sign out of this device</button>
+</div>
+<div class="sg-danger" style="margin-top:18px; border:1px solid #e3b9b9; border-radius:8px; padding:14px;">
+<div style="font-weight:600; margin-bottom:4px;">Delete this shop</div>
+<div class="sg-sub" style="margin-bottom:10px;">Permanently deletes the shop and all its products, sales, purchases, expenses, branches and team members. This cannot be undone.</div>
+<button type="button" class="btn btn-danger" onclick="deleteMyShop()">Delete shop</button>
+</div>
+</div>
+</div>
+<div class="sg-page" id="sg-page-about">
+<div class="sg-head"><button type="button" class="sg-back" onclick="closeSettingsPage()" aria-label="Back">&#8249;</button><span>About &amp; help</span></div>
+<div class="card" id="about-card">
+<div id="about-version" class="sg-hint" style="margin-bottom:6px;"></div>
+<div id="about-links"></div>
+</div>
+</div>
+</div>
+
 
         </div>
     </main>
@@ -2866,7 +2862,7 @@ a.sg-link{text-decoration:none}
             { key: 'purchase_history', cat: 'Purchases', label: "Purchase history", targets: [{ sel: "h2[data-i18n=\"pur.history\"]", kind: 'block', up: ".card" }] },
             // ---- Expenses
             { key: 'expenses_record', cat: 'Expenses', label: "Record an expense", targets: [{ sel: "#expense-entry-card", kind: 'block' }] },
-            { key: 'expense_scan', cat: 'Expenses', label: "Scan expense receipt", targets: [{ sel: "#exp-scan-btn", kind: 'action' }, { sel: "#scan-expense-settings-card", kind: 'block' }] },
+            { key: 'expense_scan', cat: 'Expenses', label: "Scan expense receipt", targets: [{ sel: "#exp-scan-btn", kind: 'action' }] },
             { key: 'expenses_history', cat: 'Expenses', label: "Expense history", targets: [{ sel: "h2[data-i18n=\"exp.history\"]", kind: 'block', up: ".card" }] },
             // ---- Accounting
             { key: 'chart_of_accounts', cat: 'Accounting', label: "Chart of accounts", targets: [{ sel: "#view-coa", kind: 'page', nav: ["nav-coa"] }] },
@@ -3313,6 +3309,7 @@ a.sg-link{text-decoration:none}
         function openSettingsPage(id) {
             const pg = sgEl('sg-page-' + id); if (!pg) return;
             _sgOpen = id; pg.scrollTop = 0; pg.style.transform = ''; pg.classList.remove('drag'); pg.classList.add('open');
+            if (id === 'team' && typeof loadTeamView === 'function') Promise.resolve(loadTeamView()).catch(e => console.error('loadTeamView', e));
             if (!sgIsPhone()) window.scrollTo(0, 0);
             if (sgIsPhone() && !_sgPushed) { try { history.pushState({ sgPage: id }, ''); _sgPushed = true; } catch (e) { } }
         }
@@ -3370,14 +3367,59 @@ a.sg-link{text-decoration:none}
             sgEl('bp-address').value = currentBizProfile.address || '';
             const st = planStatusText();
             sgEl('plans-settings-current').innerHTML = (currentPlanName ? 'Your plan: <b>' + escHtml(currentPlanName) + '</b>' : 'No plan chosen yet') + (st ? '<br>' + escHtml(st) : '');
-            loadPaymentHistory();
+            if (currentIsOwner) loadPaymentHistory();
             const sp = sgEl('sg-sub-plan'); if (sp) sp.textContent = (currentPlanName || 'No plan chosen yet') + (st ? ' \u00b7 ' + st : '');
-            sgEl('sr-header').value = currentBizProfile.receiptHeader || '';
-            sgEl('sr-footer').value = currentBizProfile.receiptFooter || '';
-            sgEl('sr-vat-row').style.display = state.vatRegistered ? 'block' : 'none';
-            sgEl('sr-default-vat').checked = !!currentBizProfile.defaultVat;
-            renderSaleTypeSettings();
             renderAboutCard();
+            renderSettingsHome();
+        }
+
+        // ---- Settings home: profile card, upgrade banner (free plans only) and who sees what
+        function canSeeTeamPage() { return hasPerm('team.view') || hasPerm('team.manage_members') || hasPerm('team.manage_roles'); }
+        function applySettingsNavVisibility() {
+            const n = document.getElementById('nav-settings');
+            if (n) n.style.display = (currentIsOwner || canSeeTeamPage()) ? 'flex' : 'none';
+        }
+        let _sgPlanPrice = null, _sgPriceFor = null, _sgPriceAt = 0;
+        function sgIsFreePlan() {
+            if (currentPlanFeatures === null) return false;            // no plan assigned to this shop
+            if (_sgPriceFor !== currentPlanName) { _sgPriceFor = currentPlanName; _sgPlanPrice = null; _sgPriceAt = 0; }
+            if (_sgPlanPrice === null) {
+                try { const c = JSON.parse(localStorage.getItem('neba_erp_planprice_' + currentTenantId) || 'null'); if (c && c.name === currentPlanName && typeof c.price === 'number') _sgPlanPrice = c.price; } catch (e) { }
+            }
+            if (_sgPlanPrice !== null) return _sgPlanPrice === 0;
+            return /\bfree\b/i.test(currentPlanName || '');            // price not known yet: go by the plan's name
+        }
+        function sgUpdateUpgradeBanner() {
+            const b = sgEl('sg-upgrade-banner'); if (!b) return;
+            b.classList.toggle('show', !!currentIsOwner && sgIsFreePlan());
+        }
+        async function sgRefreshPlanPrice() {
+            if (!currentIsOwner || !navigator.onLine || !currentTenantId || currentPlanFeatures === null) return;
+            if (Date.now() - _sgPriceAt < 600000) return;
+            _sgPriceAt = Date.now();
+            try {
+                const r = await callEdgeFunction('request-upgrade', { action: 'plans', businessId: currentTenantId, featureKey: null });
+                const cur = ((r && r.plans) || []).find(p => String(p.id) === String(r.currentPlanId));
+                if (cur && Number.isFinite(Number(cur.priceEtb))) {
+                    _sgPlanPrice = Number(cur.priceEtb); _sgPriceFor = currentPlanName;
+                    try { localStorage.setItem('neba_erp_planprice_' + currentTenantId, JSON.stringify({ name: currentPlanName, price: _sgPlanPrice })); } catch (e) { }
+                    sgUpdateUpgradeBanner();
+                }
+            } catch (e) { }
+        }
+        function renderSettingsHome() {
+            const owner = !!currentIsOwner, nm = (currentTenantName || '').trim() || 'Your shop';
+            const set = (id, fn) => { const e = sgEl(id); if (e) fn(e); };
+            set('sg-avatar', e => { e.textContent = nm.charAt(0).toUpperCase(); });
+            set('sg-profile-name', e => { e.textContent = nm; });
+            set('sg-profile-sub', e => { e.textContent = currentUsername || currentBizProfile.phone || ''; });
+            // Staff who can manage the team only get the Team & access page here; the rest is owner-only.
+            set('sg-profile-card', e => { e.style.display = owner ? '' : 'none'; });
+            set('sg-row-business', e => { e.style.display = owner ? '' : 'none'; });
+            set('sg-grp-account', e => { e.style.display = owner ? '' : 'none'; });
+            if (!owner) set('sg-row-tax', e => { e.style.display = 'none'; });
+            sgUpdateUpgradeBanner();
+            sgRefreshPlanPrice();
         }
         // ---- Business profile
         function saveBusinessProfile() {
@@ -3401,44 +3443,11 @@ a.sg-link{text-decoration:none}
                 box.innerHTML = rows.map(x => `<div class="sg-hist"><div><b>${escHtml(x.planName || 'Plan')}</b> &middot; ${escHtml(ufMonthsText(Number(x.months) || 1))}<div class="sg-sub">${escHtml(sgDate(new Date(x.createdAt).getTime()))}</div></div><div style="text-align:right;"><div>${ufMoney(x.amountEtb)} ETB</div><span class="sg-pill sg-${escHtml(String(x.status))}">${escHtml(UPG_STATUS[x.status] || String(x.status))}</span></div></div>`).join('');
             } catch (e) { box.textContent = 'Could not load your payments. ' + (e.message || ''); }
         }
-        // ---- Sales & receipts
-        function saveReceiptTexts() {
-            const h = sgEl('sr-header').value.trim().slice(0, 160), f = sgEl('sr-footer').value.trim().slice(0, 200);
-            currentBizProfile.receiptHeader = h; currentBizProfile.receiptFooter = f;
-            queueWrite({ kind: 'tenant_update', patch: { receipt_header: h || null, receipt_footer: f || null } });
-            settingsFlash('sr-texts-saved');
-        }
+        // ---- Sales defaults (the Settings page for these was removed; values already saved keep working)
         function applyDefaultVat() {
             ['sale-include-vat', 'cart-sale-include-vat'].forEach(id => { const e = sgEl(id); if (e) e.checked = !!(state.vatRegistered && currentBizProfile.defaultVat); });
         }
-        function setDefaultVat(on) {
-            currentBizProfile.defaultVat = !!on;
-            queueWrite({ kind: 'tenant_update', patch: { default_include_vat: !!on } });
-            applyDefaultVat();
-        }
-        function renderSaleTypeSettings() {
-            const box = sgEl('sr-saletypes'); if (!box) return;
-            const list = state.saleTypes || [];
-            box.innerHTML = list.length ? list.map((t, i) => `<span class="sg-chip">${escHtml(t)}<button type="button" aria-label="Remove ${escHtml(t)}" onclick="removeSaleTypeSetting(${i})">&times;</button></span>`).join('') : '<span class="sg-sub">No sale types of your own yet.</span>';
-        }
         function syncSaleTypeLists() { syncSaleTypesDropdown(); populateSaleTypeFilterDropdown(); syncCartSaleTypeDropdown(); syncChannelDropdowns(); }
-        function addSaleTypeSetting() {
-            const inp = sgEl('sr-saletype-new'); const v = (inp.value || '').trim(); if (!v) return;
-            const all = ['Walk in', 'Proforma', 'Customer', 'Tender'].concat(state.saleTypes || []).map(x => x.toLowerCase());
-            if (all.includes(v.toLowerCase())) { alert('That sale type already exists.'); return; }
-            state.saleTypes.push(v);
-            syncSaleTypeLists();
-            queueWrite({ kind: 'tenant_update', patch: { sale_types: state.saleTypes } });
-            inp.value = ''; renderSaleTypeSettings();
-        }
-        async function removeSaleTypeSetting(i) {
-            const t = (state.saleTypes || [])[i]; if (t == null) return;
-            if (!(await uiConfirm(`Remove the sale type "${t}"? Sales already saved with it keep it.`, { title: 'Remove sale type', danger: true, yes: 'Remove', no: 'Keep it' }))) return;
-            state.saleTypes.splice(i, 1);
-            syncSaleTypeLists();
-            queueWrite({ kind: 'tenant_update', patch: { sale_types: state.saleTypes } });
-            renderSaleTypeSettings();
-        }
         // ---- Security & account
         async function changeMyPassword() {
             const a = sgEl('sec-pw1').value, b = sgEl('sec-pw2').value, msg = sgEl('sec-pw-msg');
@@ -4356,7 +4365,7 @@ a.sg-link{text-decoration:none}
             if (typeof renderExpenseLogTable === 'function' && document.getElementById('view-expenses')?.classList.contains('active')) renderExpenseLogTable();
             if (typeof renderTrashTable === 'function' && document.getElementById('view-trash')?.classList.contains('active')) renderTrashTable();
             if (typeof renderCashHandoverBody === 'function' && document.getElementById('view-cash_handover')?.classList.contains('active')) renderCashHandoverBody();
-            if (typeof loadTeamView === 'function' && document.getElementById('view-team')?.classList.contains('active')) loadTeamView();
+            if (typeof loadTeamView === 'function' && _sgOpen === 'team') loadTeamView();
             if (typeof renderSystemCOAProfileLayouts === 'function' && document.getElementById('view-coa')?.classList.contains('active')) renderSystemCOAProfileLayouts();
             if (typeof renderHistoricalJournalsTable === 'function' && document.getElementById('view-journal')?.classList.contains('active')) renderHistoricalJournalsTable();
             if (typeof renderGeneralLedgerCards === 'function' && document.getElementById('view-ledger')?.classList.contains('active')) renderGeneralLedgerCards();
@@ -4408,7 +4417,7 @@ a.sg-link{text-decoration:none}
             if (typeof renderExpenseLogTable === 'function' && document.getElementById('view-expenses')?.classList.contains('active')) renderExpenseLogTable();
             if (typeof renderTrashTable === 'function' && document.getElementById('view-trash')?.classList.contains('active')) renderTrashTable();
             if (typeof renderCashHandoverBody === 'function' && document.getElementById('view-cash_handover')?.classList.contains('active')) renderCashHandoverBody();
-            if (typeof loadTeamView === 'function' && document.getElementById('view-team')?.classList.contains('active')) loadTeamView();
+            if (typeof loadTeamView === 'function' && _sgOpen === 'team') loadTeamView();
             if (typeof renderHistoricalJournalsTable === 'function' && document.getElementById('view-journal')?.classList.contains('active')) renderHistoricalJournalsTable();
             if (typeof renderGeneralLedgerCards === 'function' && document.getElementById('view-ledger')?.classList.contains('active')) renderGeneralLedgerCards();
             if (typeof buildReports === 'function' && document.getElementById('view-statements')?.classList.contains('active')) {
@@ -5119,13 +5128,9 @@ a.sg-link{text-decoration:none}
                 const { data: perms } = await supabaseClient.from('role_permissions').select('permission_key').eq('role_id', currentRoleId);
                 currentPermissions = new Set((perms || []).map(p => p.permission_key));
             }
-            const teamNav = document.getElementById('nav-team');
-            if (teamNav) teamNav.style.display = (hasPerm('team.view') || hasPerm('team.manage_members') || hasPerm('team.manage_roles')) ? 'flex' : 'none';
-            // VAT Registration and Accountant Access were already owner-only
-            // (see applyVatUIVisibility / loadAccountantLinksSection) -- the
-            // Settings nav item follows the same rule.
-            const settingsNav = document.getElementById('nav-settings');
-            if (settingsNav) settingsNav.style.display = currentIsOwner ? 'flex' : 'none';
+            // Settings shows for the owner, and for staff who are allowed to manage the team
+            // (Team & Branches now lives in Settings > Team & access, so they still need the way in).
+            applySettingsNavVisibility();
             if (window.scnShowNav) window.scnShowNav();
 
             let { data: biz, error: bizErr } = await supabaseClient.from('businesses').select('*').eq('id', currentTenantId).single();
@@ -5839,8 +5844,7 @@ a.sg-link{text-decoration:none}
             const same = m.role_id === currentRoleId && next.size === currentPermissions.size && [...next].every(k => currentPermissions.has(k));
             if (same) return false;
             currentRoleId = m.role_id; currentPermissions = next;
-            const teamNav = document.getElementById('nav-team');
-            if (teamNav) teamNav.style.display = (hasPerm('team.view') || hasPerm('team.manage_members') || hasPerm('team.manage_roles')) ? 'flex' : 'none';
+            applySettingsNavVisibility();
             applyPermissionGating(); applyEmployeeGatedUI();
             try { cacheStateLocally(); } catch (e) { }
             return true;
@@ -5890,7 +5894,7 @@ a.sg-link{text-decoration:none}
             else if (v === 'drafts') step(renderAllDrafts);
             else if (v === 'cash_handover') step(renderCashHandoverView);
             else if (v === 'transfer') step(renderStockTransferHistory);
-            else if (v === 'team') { if (!modalOpen && ev.me) step(loadTeamView); }
+            else if (v === 'settings') { if (_sgOpen === 'team' && !modalOpen && ev.me) step(loadTeamView); }
             else if (v === 'statements') step(() => { const b = document.querySelector('.stmt-selected'); if (b && /^stmt-btn-/.test(b.id)) buildReports(b.id.replace('stmt-btn-', '')); });
         }
 
@@ -6857,6 +6861,7 @@ a.sg-link{text-decoration:none}
         }
 
         function switchView(viewId) {
+            if (viewId === 'team') { switchView('settings'); openSettingsPage('team'); return; }   // Team & Branches now lives in Settings > Team & access
             { const cur = (document.querySelector('.view-panel.active') || {}).id; // remember the page we left, so Trash can go back to it
               if (viewId === 'trash' && cur && cur !== 'view-trash') window.mlyViewBeforeTrash = cur.replace(/^view-/, ''); }
             document.querySelectorAll('.view-panel').forEach(el => el.classList.remove('active'));
@@ -14971,7 +14976,6 @@ a.sg-link{text-decoration:none}
                 { id: 'nav-journal', sel: '#nav-journal', key: 'app_journal' },
                 { id: 'nav-ledger', sel: '#nav-ledger', key: 'app_ledger' },
                 { id: 'nav-statements', sel: '#nav-statements', key: 'app_statements' },
-                { id: 'nav-team', sel: '#nav-team', key: 'app_team' },
                 { id: 'team-show-closed', sel: '#show-closed-branches', key: 'team_show_closed' },
                 { id: 'team-add-branch-btn', sel: '#btn-add-branch', key: 'team_add_branch_btn' },
                 { id: 'team-branch-name', sel: '#new-branch-name', key: 'team_branch_name' },
