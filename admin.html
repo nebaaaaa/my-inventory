@@ -110,7 +110,7 @@
                     <h2 style="border:none; margin-bottom:0;">Registered Businesses</h2>
                     <div style="display:flex; gap:10px;">
                         <button class="btn btn-outline" onclick="openPlansModal()">Manage Plans</button>
-                        <button class="btn btn-outline" onclick="openTrialModal()">Trial &amp; Payment</button>
+                        <button class="btn btn-outline" onclick="openTrialModal()">New Accounts &amp; Payment</button>
                         <button class="btn btn-outline" onclick="openRequestsModal()">Upgrade Requests <span id="requests-badge" class="badge badge-trial" style="display:none;"></span></button>
                         <input type="text" id="business-search" placeholder="Search by name, phone, owner..." style="max-width:260px;" oninput="renderBusinessTable()">
                     </div>
@@ -221,18 +221,18 @@
 
 <div id="trial-modal" class="modal-overlay" onclick="closeTrialModal()">
     <div class="modal-box" onclick="event.stopPropagation()">
-        <h3>Free trial &amp; payment details</h3>
+        <h3>New accounts &amp; payment details</h3>
         <div id="trial-modal-error" class="error-box"></div>
-        <div class="section-title">Free trial for new accounts</div>
-        <div class="form-group">
-            <label>Free trial length (days)</label>
-            <input type="number" min="0" id="trial-days-input" placeholder="0 = no free trial">
-            <div class="hint">Every NEW account gets this many days with everything its plan includes. When the days run out, the features marked &quot;Locks after trial&quot; in that plan lock until the shop upgrades. Shops that already exist are not affected, and changing this only affects accounts created from now on.</div>
-        </div>
+        <div class="section-title">Plans for new accounts and expired plans</div>
         <div class="form-group">
             <label>Plan for new accounts</label>
             <select id="trial-default-plan"></select>
-            <div class="hint">New accounts start on this plan. Edit that plan in Manage Plans to choose its features and which ones lock after the trial. Its branch and employee limits also apply.</div>
+            <div class="hint">Every NEW account gets this plan for 1 month, with its features and its branch and employee limits. Existing shops are not affected.</div>
+        </div>
+        <div class="form-group">
+            <label>Plan after a plan expires</label>
+            <select id="trial-expired-plan"></select>
+            <div class="hint">When any shop's plan runs out (a new account's first month or a paid plan), the shop moves to this plan and stays on it, with no end date, until it upgrades.</div>
         </div>
         <div class="section-title">Payment details (sent to a shop that requests an upgrade)</div>
         <div class="form-group"><label>Phone number</label><input type="text" id="pay-phone-input" placeholder="e.g. 09..."></div>
@@ -312,7 +312,6 @@
                 <label style="margin:0;">Features included in this plan <span id="plan-ed-count" style="font-weight:500;"></span></label>
                 <span><button type="button" class="btn btn-outline btn-small" onclick="setAllPlanFeatures(true)">Select all</button><button type="button" class="btn btn-outline btn-small" onclick="setAllPlanFeatures(false)">Clear all</button></span>
             </div>
-            <div class="hint" id="plan-ed-lock-hint">Tick &quot;Locks after trial&quot; next to a feature to keep it open during a new shop's free trial and lock it when the trial ends. Use this on the plan that new accounts start on (choose it in Trial &amp; Payment).</div>
             <div id="plan-ed-features" style="margin-bottom:12px; max-height:340px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; background:white; padding:0 12px 6px;"></div>
             <div style="display:flex; gap:10px; justify-content:flex-end;">
                 <button class="btn btn-outline btn-small" onclick="document.getElementById('plan-editor').style.display='none'">Cancel</button>
@@ -704,7 +703,7 @@
         document.getElementById('plan-ed-branches').value = p && p.max_branches != null ? p.max_branches : '';
         document.getElementById('plan-ed-employees').value = p && p.max_employees != null ? p.max_employees : '';
         document.getElementById('plan-ed-price').value = p ? p.price_etb : '';
-        onPlanTypeChange(p ? planFeatureKeys(p.id) : [], p ? (p.trial_locked_features || []) : []);
+        onPlanTypeChange(p ? planFeatureKeys(p.id) : []);
         const ed = document.getElementById('plan-editor');
         ed.style.display = 'block';
         ed.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -713,20 +712,7 @@
     function checkedFeatureKeys() {
         return Array.from(document.querySelectorAll('#plan-ed-features input.inc:checked')).map(i => i.value);
     }
-    function checkedLockKeys() {
-        return Array.from(document.querySelectorAll('#plan-ed-features input.lock:checked:not(:disabled)')).map(i => i.dataset.key);
-    }
-    // A feature can only "lock after trial" if the plan includes it.
-    function syncLockBoxes() {
-        document.querySelectorAll('#plan-ed-features input.inc').forEach(inc => {
-            const row = inc.closest('.feat-line'); const lock = row && row.querySelector('input.lock');
-            if (!lock) return;
-            lock.disabled = !inc.checked;
-            if (!inc.checked) lock.checked = false;
-            lock.parentElement.style.opacity = inc.checked ? '1' : '0.4';
-        });
-    }
-    function onFeatureIncludeChange() { syncLockBoxes(); updatePlanFeatureCount(); }
+    function onFeatureIncludeChange() { updatePlanFeatureCount(); }
 
     function sortedFeatures(list) {
         return list.slice().sort((a, b) => ((a.sort_order ?? 9999) - (b.sort_order ?? 9999)) || String(a.created_at || '').localeCompare(String(b.created_at || '')));
@@ -742,24 +728,19 @@
         return groups;
     }
 
-    function onPlanTypeChange(keepKeys, keepLocks) {
+    function onPlanTypeChange(keepKeys) {
         const type = document.getElementById('plan-ed-type').value;
         document.getElementById('plan-ed-limits').style.display = type === 'business' ? 'grid' : 'none';
-        document.getElementById('plan-ed-lock-hint').style.display = type === 'business' ? 'block' : 'none';
         const selected = Array.isArray(keepKeys) ? keepKeys : checkedFeatureKeys();
-        const locked = Array.isArray(keepLocks) ? keepLocks : checkedLockKeys();
-        const showLock = type === 'business';   // the free trial is for shops, not accountants
         const groups = featureGroupsFor(type);
         document.getElementById('plan-ed-features').innerHTML = groups.length
             ? groups.map((g, gi) => `<div class="feat-group" data-g="${gi}">
                     <div class="feat-head"><span>${escHtml(g.name)}</span><span><a onclick="setGroupFeatures(${gi}, true)">all</a><a onclick="setGroupFeatures(${gi}, false)">none</a></span></div>
                     ${g.items.map(f => `<div class="feat-line" style="display:flex; align-items:flex-start; gap:10px; border-bottom:1px solid var(--border);">
                         <label class="feat-row" style="flex:1; border-bottom:none;"><input class="inc" type="checkbox" value="${escHtml(f.key)}" ${selected.includes(f.key) ? 'checked' : ''} onchange="onFeatureIncludeChange()"><span><strong>${escHtml(f.label)}</strong>${f.description ? `<small>${escHtml(f.description)}</small>` : ''}</span></label>
-                        ${showLock ? `<label style="margin:0; padding:8px 0; display:flex; align-items:center; gap:5px; font-size:12px; font-weight:500; white-space:nowrap; cursor:pointer; color:var(--text-light);" title="Open during the free trial, locked when the trial ends"><input class="lock" type="checkbox" style="width:auto; margin:0;" data-key="${escHtml(f.key)}" ${locked.includes(f.key) ? 'checked' : ''}> Locks after trial</label>` : ''}
                     </div>`).join('')}
                 </div>`).join('')
             : '<small style="display:block; padding:10px 0; color:var(--text-light);">No features for this type yet.</small>';
-        syncLockBoxes();
         updatePlanFeatureCount();
     }
     function updatePlanFeatureCount() {
@@ -769,12 +750,10 @@
     }
     function setAllPlanFeatures(on) {
         document.querySelectorAll('#plan-ed-features input.inc').forEach(i => { i.checked = on; });
-        syncLockBoxes();
         updatePlanFeatureCount();
     }
     function setGroupFeatures(gi, on) {
         document.querySelectorAll('#plan-ed-features .feat-group[data-g="' + gi + '"] input.inc').forEach(i => { i.checked = on; });
-        syncLockBoxes();
         updatePlanFeatureCount();
     }
 
@@ -793,7 +772,6 @@
             max_employees: type === 'business' ? num('plan-ed-employees') : null,
             price_etb: num('plan-ed-price') ?? 0,
             is_premium: keys.some(k => LEGACY_PREMIUM_KEYS.includes(k)),
-            trial_locked_features: type === 'business' ? checkedLockKeys() : [],
         };
         try {
             let planId = editingPlanId;
@@ -815,7 +793,7 @@
             document.getElementById('plan-editor').style.display = 'none';
             renderPlansTable();
         } catch (err) {
-            showPlansError('Could not save the plan: ' + err.message + (/trial_locked_features/.test(err.message) ? ' (run migration_free_trial_and_upgrade_requests.sql in Supabase first)' : ' (have you run both SQL files in Supabase?)'));
+            showPlansError('Could not save the plan: ' + err.message + ' (have you run the SQL files in Supabase?)');
         }
     }
 
@@ -830,19 +808,13 @@
     }
 
     // =====================================================================
-    // FREE TRIAL, PAYMENT DETAILS & UPGRADE REQUESTS
+    // NEW-ACCOUNT PLANS, PAYMENT DETAILS & UPGRADE REQUESTS
     // (needs migration_free_trial_and_upgrade_requests.sql to have been run in Supabase)
     // =====================================================================
-    let trialByBusiness = {};
     let upgradeRequests = [];
     let upgradeRequestsError = null;
 
     async function loadTrialData() {
-        trialByBusiness = {};
-        try {
-            const { data, error } = await supabaseClient.rpc('admin_get_trial_dates');
-            if (!error) (data || []).forEach(r => { trialByBusiness[String(r.business_id)] = r.trial_ends_at; });
-        } catch (e) { /* SQL not run yet: the page works as before */ }
         try { await loadUpgradeRequests(); } catch (e) { }
     }
 
@@ -851,10 +823,12 @@
         const { data, error } = await supabaseClient.from('platform_settings').select('*').eq('id', 1).maybeSingle();
         if (error) { err.innerText = 'Could not load settings: ' + error.message + ' (run the two migration files in Supabase first)'; err.style.display = 'block'; }
         const s = data || {};
-        document.getElementById('trial-days-input').value = s.trial_days != null ? s.trial_days : 0;
         const sel = document.getElementById('trial-default-plan');
         sel.innerHTML = '<option value="">No plan (full access)</option>' + plans.filter(p => planType(p) === 'business' && (p.is_active || String(p.id) === String(s.default_plan_id))).map(p => `<option value="${escHtml(String(p.id))}">${escHtml(p.name)}${p.is_active ? '' : ' (inactive)'}</option>`).join('');
         sel.value = s.default_plan_id || '';
+        const xsel = document.getElementById('trial-expired-plan');
+        xsel.innerHTML = '<option value="">Keep the shop on its expired plan</option>' + plans.filter(p => planType(p) === 'business' && (p.is_active || String(p.id) === String(s.expired_plan_id))).map(p => `<option value="${escHtml(String(p.id))}">${escHtml(p.name)}${p.is_active ? '' : ' (inactive)'}</option>`).join('');
+        xsel.value = s.expired_plan_id || '';
         document.getElementById('disc-3m-input').value = s.discount_3m_pct != null ? s.discount_3m_pct : 0;
         document.getElementById('disc-6m-input').value = s.discount_6m_pct != null ? s.discount_6m_pct : 10;
         document.getElementById('disc-12m-input').value = s.discount_12m_pct != null ? s.discount_12m_pct : 20;
@@ -869,14 +843,12 @@
 
     async function saveTrialSettings() {
         const err = document.getElementById('trial-modal-error'); err.style.display = 'none';
-        const days = Number(document.getElementById('trial-days-input').value || 0);
-        if (!Number.isInteger(days) || days < 0) { err.innerText = 'Free trial length must be a whole number of days (0 = no trial).'; err.style.display = 'block'; return; }
         const pct = id => Number(document.getElementById(id).value || 0);
         const pcts = [pct('disc-3m-input'), pct('disc-6m-input'), pct('disc-12m-input')];
         if (pcts.some(v => !Number.isInteger(v) || v < 0 || v > 90)) { err.innerText = 'Discounts must be whole numbers from 0 to 90.'; err.style.display = 'block'; return; }
         const val = id => document.getElementById(id).value.trim() || null;
         const row = {
-            id: 1, trial_days: days, default_plan_id: document.getElementById('trial-default-plan').value || null,
+            id: 1, default_plan_id: document.getElementById('trial-default-plan').value || null, expired_plan_id: document.getElementById('trial-expired-plan').value || null,
             discount_3m_pct: pcts[0], discount_6m_pct: pcts[1], discount_12m_pct: pcts[2], receipt_mode: document.getElementById('receipt-mode-select').value,
             payment_phone: val('pay-phone-input'), payment_bank_name: val('pay-bank-input'),
             payment_account_number: val('pay-acc-number-input'), payment_account_name: val('pay-acc-name-input'),
@@ -1342,12 +1314,12 @@
     function renderPlatformStats() {
         const total = businesses.length;
         const active = businesses.filter(b => b.subscriptionStatus === 'active').length;
-        const trial = businesses.filter(b => b.subscriptionStatus === 'trial').length;
+        const soon = businesses.filter(b => b.subscriptionExpiresAt && ['trial', 'active'].includes(b.subscriptionStatus) && (new Date(b.subscriptionExpiresAt) - new Date()) / 86400000 <= 7).length;
         const suspended = businesses.filter(b => ['inactive', 'suspended', 'cancelled'].includes(b.subscriptionStatus)).length;
         document.getElementById('platform-stats').innerHTML = `
             <div class="card stat-box"><div class="label">Total Businesses</div><div class="value">${total}</div></div>
             <div class="card stat-box"><div class="label">Active</div><div class="value" style="color:var(--success);">${active}</div></div>
-            <div class="card stat-box"><div class="label">On Trial</div><div class="value" style="color:var(--accent);">${trial}</div></div>
+            <div class="card stat-box"><div class="label">Plan Ends in 7 Days</div><div class="value" style="color:var(--accent);">${soon}</div></div>
             <div class="card stat-box"><div class="label">Inactive</div><div class="value" style="color:var(--danger);">${suspended}</div></div>
         `;
     }
@@ -1371,20 +1343,14 @@
         tbody.innerHTML = filtered.map(b => {
             const expiresText = b.subscriptionExpiresAt ? new Date(b.subscriptionExpiresAt).toLocaleDateString() : '—';
             const isPastDue = b.subscriptionExpiresAt && new Date(b.subscriptionExpiresAt) < new Date() && ['trial', 'active'].includes(b.subscriptionStatus);
-            const trialEnd = trialByBusiness[String(b.id)];
-            let trialNote = '';
-            if (trialEnd && b.subscriptionStatus === 'trial') {
-                const td = new Date(trialEnd);
-                trialNote = td > new Date() ? `<br><small style="color:var(--text-light);">Free trial until ${td.toLocaleDateString()}</small>` : `<br><small style="color:var(--danger);">Free trial ended ${td.toLocaleDateString()}</small>`;
-            }
             return `<tr>
                 <td><strong class="truncate" title="${escHtml(b.businessName)}">${escHtml(b.businessName)}</strong><br><small style="color:var(--text-light);">${escHtml(b.phone) || '—'}</small></td>
                 <td class="truncate" title="${escHtml(b.ownerEmail) || ''}"><small>${escHtml(b.ownerUsername) || '—'}<br>${escHtml(b.ownerEmail) || ''}</small></td>
                 <td><small>${new Date(b.createdAt).toLocaleDateString()}</small></td>
                 <td>${b.branchCount}</td>
                 <td>${b.memberCount}</td>
-                <td><small>${escHtml(b.subscriptionPlanName) || '—'}</small>${trialNote}</td>
-                <td>${statusBadge(b.subscriptionStatus)}${isPastDue ? ' <small style="color:var(--danger);">(past due)</small>' : ''}</td>
+                <td><small>${escHtml(b.subscriptionPlanName) || '—'}</small></td>
+                <td>${statusBadge(b.subscriptionStatus)}${isPastDue ? ' <small style="color:var(--danger);">(expired)</small>' : ''}</td>
                 <td><small>${expiresText}</small></td>
                 <td style="text-align:center; white-space:nowrap;">
                     <button class="btn btn-outline btn-small" onclick="openDetailModal('${b.id}')">View</button>

@@ -1524,12 +1524,53 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             </div>
 
             <div id="view-settings" class="view-panel">
-                <div class="card" id="plans-settings-card">
-                    <h2 style="border:none; margin-bottom:10px;">Plans</h2>
-                    <p id="plans-settings-current" style="font-size:13px; color:var(--text-light); margin-bottom:12px;"></p>
-                    <button type="button" class="btn" onclick="openUpgradeRequest('')">View plans</button>
-                </div>
-                <div class="card" id="vat-settings-card" style="display:none;">
+<style>
+#view-settings .sg-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-light);margin:24px 2px 8px}
+#view-settings .sg-title:first-child{margin-top:4px}
+#view-settings .sg-sub{font-size:12px;color:var(--text-light)}
+#view-settings .sg-hint{font-size:13px;color:var(--text-light);margin:0 0 12px}
+#view-settings .sg-row2{display:flex;gap:12px;flex-wrap:wrap}
+#view-settings .sg-row2>.form-group{flex:1 1 200px;margin-bottom:12px}
+#view-settings .sg-saved{display:none;color:var(--success);font-size:13px;margin-left:10px}
+#view-settings .sg-hist{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--border);font-size:14px}
+#view-settings .sg-hist:first-child{border-top:0}
+#view-settings .sg-pill{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:#E4E1D8;color:#555}
+#view-settings .sg-paid{background:#DCEFE5;color:#1f6b45}
+#view-settings .sg-rejected{background:#F6DCDC;color:#9a2b2b}
+#view-settings .sg-needs_review{background:#EFE4D0;color:#7a5410}
+#view-settings .sg-chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 12px}
+#view-settings .sg-chip{display:inline-flex;align-items:center;gap:6px;background:var(--bg,#f4f2ea);border:1px solid var(--border);border-radius:16px;padding:4px 6px 4px 12px;font-size:13px}
+#view-settings .sg-chip button{border:0;background:transparent;font-size:16px;line-height:1;cursor:pointer;color:var(--text-light);padding:0 4px}
+#view-settings .sg-link{display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;background:transparent;border:0;border-top:1px solid var(--border);padding:12px 2px;font-size:14px;color:var(--text);cursor:pointer}
+#view-settings .sg-link:first-of-type{border-top:0}
+#view-settings .sg-link small{display:block;color:var(--text-light);font-size:12px}
+#view-settings a.sg-link{text-decoration:none}
+#view-settings .sg-danger{border-color:#e3b9b9}
+#view-settings #settings-tax-title{display:none}
+#view-settings:has(#vat-settings-card:not([style*="none"])) #settings-tax-title{display:block}
+</style>
+<div class="sg-title">Business</div>
+<div class="card" id="business-profile-card">
+<h2 style="border:none; margin-bottom:10px;">Business profile</h2>
+<div class="form-group" style="margin-bottom:12px;"><label>Shop name</label><input type="text" id="bp-name" maxlength="80"></div>
+<div class="sg-row2">
+<div class="form-group"><label>Phone</label><input type="tel" id="bp-phone" maxlength="30"></div>
+<div class="form-group"><label>Address</label><input type="text" id="bp-address" maxlength="120"></div>
+</div>
+<button type="button" class="btn" onclick="saveBusinessProfile()">Save</button><span class="sg-saved" id="bp-saved">Saved &#10003;</span>
+</div>
+<div class="sg-title">Plan &amp; billing</div>
+<div class="card" id="plans-settings-card">
+<h2 style="border:none; margin-bottom:10px;">Plan</h2>
+<p id="plans-settings-current" class="sg-hint"></p>
+<button type="button" class="btn" onclick="openUpgradeRequest('')">View plans</button>
+</div>
+<div class="card" id="plans-history-card">
+<h2 style="border:none; margin-bottom:10px;">Payment history</h2>
+<div id="plans-history-list" class="sg-sub" style="font-size:13px;"></div>
+</div>
+<div class="sg-title"id="settings-tax-title">Tax</div>
+<div class="card" id="vat-settings-card" style="display:none;">
                     <h2 style="border:none; margin-bottom:10px;" data-i18n="team.vat_registration">VAT Registration</h2>
                     <p style="font-size:13px; color:var(--text-light); margin-bottom:12px;" data-i18n="team.vat_registration_hint">Turning this on adds an "Include VAT (15%)" checkbox to the Sales page and shows an Estimated VAT box on the Dashboard. This is only an estimate for your own planning — it does not affect your journal entries or accounts.</p>
                     <label class="switch-row"><span class="switch"><input type="checkbox" id="settings-vat-registered" onchange="toggleVatRegistered(this.checked)"><span class="slider"></span></span> <span data-i18n="team.vat_registered_label">This shop is VAT registered</span></label>
@@ -1549,12 +1590,36 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                         <span id="settings-vat-details-saved" style="display:none; color:var(--success); font-size:13px; margin-left:10px;" data-i18n="ui2.saved">Saved ✓</span>
                     </div>
                 </div>
-                <div class="card" id="scan-expense-settings-card" style="display:none;">
+<div class="sg-title">Sales &amp; receipts</div>
+<div class="card" id="sales-receipts-card">
+<h2 style="border:none; margin-bottom:10px;">Sales &amp; receipts</h2>
+<div class="form-group" style="margin-bottom:12px;"><label>Receipt header</label><textarea id="sr-header" rows="2" maxlength="160" placeholder="Shown under the shop name, e.g. address and phone"></textarea></div>
+<div class="form-group" style="margin-bottom:12px;"><label>Receipt footer</label><textarea id="sr-footer" rows="2" maxlength="200" placeholder="e.g. Thank you for shopping with us"></textarea></div>
+<div class="sg-sub" style="margin-bottom:10px;">Printed on normal receipts. VAT-registered shops print the fixed tax-receipt layout, which cannot be changed.</div>
+<button type="button" class="btn" onclick="saveReceiptTexts()">Save</button><span class="sg-saved" id="sr-texts-saved">Saved &#10003;</span>
+<div id="sr-vat-row" style="display:none; margin-top:18px; border-top:1px solid var(--border); padding-top:14px;">
+<label class="switch-row"><span class="switch"><input type="checkbox" id="sr-default-vat" onchange="setDefaultVat(this.checked)"><span class="slider"></span></span> <span>Tick &quot;Include VAT (15%)&quot; by default on new sales</span></label>
+</div>
+<div style="margin-top:18px; border-top:1px solid var(--border); padding-top:14px;">
+<label style="font-weight:600; font-size:13px;">Sale types</label>
+<div class="sg-sub">Walk in, Proforma, Customer and Tender are always there. Add your own below.</div>
+<div class="sg-chips" id="sr-saletypes"></div>
+<div style="display:flex; gap:8px; flex-wrap:wrap;"><input type="text" id="sr-saletype-new" maxlength="40" placeholder="New sale type" style="flex:1 1 180px;" onkeydown="if(event.key==='Enter'){event.preventDefault();addSaleTypeSetting();}"><button type="button" class="btn btn-outline" onclick="addSaleTypeSetting()">Add</button></div>
+</div>
+</div>
+<div class="card" id="scan-expense-settings-card" style="display:none;">
                     <h2 style="border:none; margin-bottom:10px;">Scanned expense receipts</h2>
                     <p style="font-size:13px; color:var(--text-light); margin-bottom:12px;">Also add scanned expense receipts to your Expenses page.</p>
                     <label class="switch-row"><span class="switch"><input type="checkbox" id="settings-scan-expense-posts" onchange="toggleExpenseScanPosts(this.checked)"><span class="slider"></span></span> <span>Add to Expenses page</span></label>
                 </div>
-                <div class="card" id="accountant-access-card" style="display:none;">
+<div class="sg-title">Team &amp; access</div>
+<div class="card" id="team-links-card">
+<h2 style="border:none; margin-bottom:6px;">Branches, team &amp; roles</h2>
+<button type="button" class="sg-link" onclick="switchView('team')"><span>Branches<small>Add or edit your shop's branches</small></span><span>&#8250;</span></button>
+<button type="button" class="sg-link" onclick="switchView('team')"><span>Team members<small>Invite and manage your staff</small></span><span>&#8250;</span></button>
+<button type="button" class="sg-link" onclick="switchView('team')"><span>Roles &amp; permissions<small>Choose what each role can see and do</small></span><span>&#8250;</span></button>
+</div>
+<div class="card" id="accountant-access-card" style="display:none;">
                     <h2 style="border:none; margin-bottom:10px;" data-i18n="ui2.accountant_access">Accountant Access</h2>
                     <p style="font-size:13px; color:var(--text-light); margin-bottom:12px;" data-i18n="ui2.give_your_accountant_read_only_acc">Give your accountant read-only access to your inventory list. Search for them below, or approve a request they've already sent you.</p>
                     <div style="display:flex; gap:8px; margin-bottom:6px;">
@@ -1565,7 +1630,32 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                     <div id="accountant-search-results" style="margin-bottom:6px;"></div>
                     <div id="accountant-links-list" style="margin-top:14px;"></div>
                 </div>
-            </div>
+<div class="sg-title">Security &amp; account</div>
+<div class="card" id="security-card">
+<h2 style="border:none; margin-bottom:10px;">Security &amp; account</h2>
+<label style="font-weight:600; font-size:13px;">Change password</label>
+<div class="sg-row2" style="margin-top:6px;">
+<div class="form-group"><input type="password" id="sec-pw1" placeholder="New password" autocomplete="new-password"></div>
+<div class="form-group"><input type="password" id="sec-pw2" placeholder="Confirm new password" autocomplete="new-password"></div>
+</div>
+<button type="button" class="btn" onclick="changeMyPassword()">Change password</button>
+<div id="sec-pw-msg" style="font-size:13px; margin-top:8px;"></div>
+<div style="margin-top:18px; border-top:1px solid var(--border); padding-top:14px;">
+<button type="button" class="btn btn-outline" onclick="settingsSignOut()">Sign out of this device</button>
+</div>
+<div class="sg-danger" style="margin-top:18px; border:1px solid #e3b9b9; border-radius:8px; padding:14px;">
+<div style="font-weight:600; margin-bottom:4px;">Delete this shop</div>
+<div class="sg-sub" style="margin-bottom:10px;">Permanently deletes the shop and all its products, sales, purchases, expenses, branches and team members. This cannot be undone.</div>
+<button type="button" class="btn btn-danger" onclick="deleteMyShop()">Delete shop</button>
+</div>
+</div>
+<div class="sg-title">About &amp; help</div>
+<div class="card" id="about-card">
+<h2 style="border:none; margin-bottom:6px;">About &amp; help</h2>
+<div id="about-version" class="sg-hint" style="margin-bottom:6px;"></div>
+<div id="about-links"></div>
+</div>
+</div>
 
             <div id="view-team" class="view-panel">
                 <div class="card">
@@ -2698,15 +2788,13 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         let currentPlanFeatures = null;
         let currentPlanName = '';
         let currentPlanFeatureKeys = null;   // keys of the features the shop's plan includes (null = no plan or not loaded)
-        let currentTrialEndsAt = null;       // ms timestamp when this shop's free trial ends; null = no trial (shops created before trials existed)
-        let currentTrialLockedKeys = [];     // features of THIS shop's plan that the admin ticked "Locks after trial"
-        let currentSubStatus = '';           // the shop's subscription status; trial locks only apply while it is 'trial'
+        let currentSubStatus = '';           // the shop's subscription status (active, inactive, ...)
         // ---------------------------------------------------------------
         // PLAN FEATURES: every piece of the shop app an admin can tick in a plan (the same list is in the admin page's plan editor).
         //   page   = the whole page gets a frosted cover with a Upgrade plan button (its menu item shows a lock)
         //   block  = one box / graph / card gets the frosted cover
         //   action = the button shows a lock; tapping it opens the Upgrade plan pop-up instead of doing its job
-        // A shop with NO plan has full access. A shop on a plan gets what its plan includes, minus the features set to lock after the free trial.
+        // A shop with NO plan has full access. A shop on a plan gets what its plan includes.
         // A plan that has no features ticked at all is treated as "not set up yet" and also gets full access.
         // ---------------------------------------------------------------
         const PLAN_FEATURES_UI = [
@@ -2765,18 +2853,12 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         const PLAN_FEATURE_LABELS = {};
         PLAN_FEATURES_UI.forEach(f => { PLAN_FEATURE_LABELS[f.key] = f.label; });
         const planLockSvg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
-        // Free trial: a new shop starts on a plan (chosen in the admin page) and gets a trial end date. In that plan the admin ticks
-        // "Locks after trial" next to some features: they work during the trial and lock when it ends, until the shop is moved to a paid plan
-        // (status Active). Shops created before trials existed have no trial date, so nothing changes for them. Like the other plan locks,
-        // this is checked in the app on the device.
-        function trialEnded() { return currentTrialEndsAt !== null && Date.now() > currentTrialEndsAt; }
-        function trialLockedFeature(f) { return currentSubStatus === 'trial' && trialEnded() && currentTrialLockedKeys.includes(f); }
         function planIncludes(f) { return currentPlanFeatureKeys === null || currentPlanFeatureKeys.length === 0 || currentPlanFeatureKeys.includes(f); }
         function planCan(f) {
             if (currentPlanFeatures === null) return true;   // no plan assigned: full access, as before
-            return planIncludes(f) && !trialLockedFeature(f);
+            return planIncludes(f);
         }
-        // "Locked" = the shop HAS a plan and the plan leaves this out (or it locks after the free trial): shown with a cover / lock + Upgrade plan.
+        // "Locked" = the shop HAS a plan and the plan leaves this out: shown with a cover / lock + Upgrade plan.
         function planLocked(f) { return currentPlanFeatures !== null && !planCan(f); }
 
         function upgradeModalEl() {
@@ -2795,9 +2877,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             const m = upgradeModalEl();
             const fk = String(f || '').replace(/[^a-z0-9_]/gi, '');
             const label = PLAN_FEATURE_LABELS[f] || 'This feature';
-            const why = trialLockedFeature(f)
-                ? `Your free trial has ended, so <b>${label}</b> is now locked.`
-                : `<b>${label}</b> is not included in your ${currentPlanName ? escHtml(currentPlanName) + ' ' : ''}plan.`;
+            const why = `<b>${label}</b> is not included in your ${currentPlanName ? escHtml(currentPlanName) + ' ' : ''}plan.`;
             const action = currentIsOwner
                 ? `<p style="font-size:13px; color:var(--text-light); margin:0 0 14px;">Upgrade your plan to unlock this.</p>
                    <button type="button" class="btn" onclick="openUpgradeRequest('${fk}')">Upgrade plan</button> <button type="button" class="btn btn-outline" onclick="closeUpgradeModal()">Not now</button>`
@@ -2821,10 +2901,12 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         const UF_MONTHS = [3, 6, 12];
         const ufMoney = n => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
         const ufMonthsText = m => m === 12 ? '1 year' : m + ' months';
+        const ufMoney2 = n => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
         const ufPlan = () => UF.plans.find(p => String(p.id) === String(UF.planId));
         function ufPrice(plan, months) {
             const list = Math.round(plan.priceEtb * months), pct = Number(UF.discounts[months]) || 0, total = Math.round(list * (100 - pct) / 100);
-            return { list, pct, total, perMonth: Math.round(total / months) };
+            const credit = Number(UF.credit) || 0, net = Math.max(total - credit, 0);
+            return { list, pct, total, credit, net, perMonth: credit ? net / months : Math.round(total / months) };
         }
         function ufLimits(p) {
             return (p.maxBranches == null ? 'Unlimited branches' : p.maxBranches + (p.maxBranches === 1 ? ' branch' : ' branches')) + ' \u00B7 ' + (p.maxEmployees == null ? 'Unlimited team members' : p.maxEmployees + ' team members');
@@ -2866,6 +2948,8 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 .uf-x { position: absolute; top: 14px; right: 14px; width: 34px; height: 34px; border-radius: 10px; border: 0; background: var(--bg); color: var(--text); font-size: 16px; cursor: pointer; }
 .uf-stitle { text-align: center; font-size: 26px; font-weight: 700; }
 .uf-ssub { text-align: center; color: var(--text-light); font-size: 13px; margin: 4px 0 16px; }
+.uf-credit { text-align: center; color: #1f6b45; font-size: 12px; font-weight: 600; margin: -8px 0 12px; }
+.uf-plan .uf-credit, .uf-pcard .uf-credit { margin: 4px 0 6px; }
 .uf-durs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .uf-dur { border: 1.5px solid var(--border); border-radius: 18px; padding: 20px 6px 14px; text-align: center; cursor: pointer; background: var(--bg); }
 .uf-dur.sel { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
@@ -2945,6 +3029,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 UF.plans = ((r && r.plans) || []).slice().sort((a, b) => a.priceEtb - b.priceEtb);
                 UF.discounts = Object.assign({ 3: 0, 6: 10, 12: 20 }, (r && r.discounts) || {});
                 UF.currentPlanId = r && r.currentPlanId != null ? String(r.currentPlanId) : null;
+                UF.credit = Number(r && r.creditEtb) || 0;   // money still unused on the current paid plan; taken off the price
             } catch (e) {
                 el.innerHTML = `<div class="uf-top"><button class="uf-back" onclick="ufClose()" aria-label="Close">&#8249;</button><div class="uf-title">Upgrade plan</div></div><p style="text-align:center; padding:0 20px;">Could not load the plans.<br><small>${escHtml(e.message || 'Please try again.')}</small></p>`;
                 return;
@@ -2962,7 +3047,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             const id = escHtml(String(p.id)), cur = String(p.id) === String(UF.currentPlanId), open = !!UF.open[p.id];
             return `<div class="uf-plan${String(UF.planId) === String(p.id) ? ' sel' : ''}" role="button" tabindex="0" onclick="ufPickPlan('${id}')">
                 <div class="uf-row"><span class="uf-pname">${escHtml(p.name)}</span><span class="uf-pprice">${ufMoney(p.priceEtb)} ETB<small>/month</small></span></div>
-                <div class="uf-pdesc">${escHtml(ufLimits(p))}</div>
+                <div class="uf-pdesc">${escHtml(ufLimits(p))}</div>${UF.credit > 0 ? `<div class="uf-credit" style="text-align:left;">&minus;${ufMoney(UF.credit)} ETB credit from your current plan</div>` : ''}
                 <div class="uf-row"><span class="uf-cur">${cur ? 'current plan' : ''}</span><span class="uf-link" onclick="event.stopPropagation(); ufToggleInfo('${id}')">${open ? 'hide' : 'learn more'} &#8250;</span></div>
                 ${open ? `<div class="uf-info">${ufChecks(p)}</div>` : ''}</div>`;
         }
@@ -2986,14 +3071,14 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 const pr = ufPrice(p, m), unit = m === 12 ? ['1', 'Year'] : [String(m), 'Months'];
                 return `<div class="uf-dur${UF.months === m ? ' sel' : ''}" role="button" tabindex="0" data-m="${m}" onclick="ufPickMonths(${m})">
                     <div class="n">${unit[0]}</div><div class="u">${unit[1]}</div>
-                    <div class="t">${ufMoney(pr.total)} ETB</div><div class="pm">${ufMoney(pr.perMonth)}/month</div>
+                    <div class="t" style="white-space:nowrap;">${ufMoney2(pr.perMonth)}<span style="font-weight:400; font-size:11px;">/month</span></div><div class="pm">${ufMoney(pr.net)} ETB total</div>
                     ${pr.pct ? `<span class="uf-chip">-${pr.pct}%</span>` : ''}</div>`;
             }).join('');
         }
         function ufOpenSheet() {
             const p = ufPlan(); const sh = document.getElementById('uf-sheet'), dim = document.getElementById('uf-dim'); if (!p || !sh) return;
             sh.innerHTML = `<div class="uf-grab"></div><button class="uf-x" onclick="ufCloseSheet()" aria-label="Close">&#10005;</button>
-                <div class="uf-stitle">${escHtml(p.name)}</div><div class="uf-ssub">How long do you want to pay for?</div>
+                <div class="uf-stitle">${escHtml(p.name)}</div><div class="uf-ssub">How long do you want to pay for?</div>${UF.credit > 0 ? `<div class="uf-credit">${ufMoney(UF.credit)} ETB credit from your current plan is already taken off.</div>` : ''}
                 <div class="uf-durs" id="uf-durs">${ufDurHTML()}</div>
                 <button class="uf-cta" id="uf-continue" onclick="ufContinue()">Continue</button>
                 <div class="uf-fine">You pay once for the period you choose. Nothing renews by itself.</div>`;
@@ -3014,8 +3099,8 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             return `<div class="uf-pcard${cur ? ' cur' : ''}">
                 <h3>${escHtml(p.name)}${cur ? ' <span class="uf-cur">(current)</span>' : ''}</h3>
                 <div class="lim">${escHtml(ufLimits(p))}</div>
-                <div class="price">${ufMoney(pr.perMonth)}<small> ETB/month</small></div>
-                <div class="bill">${pr.pct ? `<s>${ufMoney(p.priceEtb)}</s> &middot; ` : ''}${ufMoney(pr.total)} ETB for ${ufMonthsText(UF.months)}</div>
+                <div class="price">${ufMoney2(pr.perMonth)}<small> ETB/month</small></div>
+                <div class="bill">${pr.pct ? `<s>${ufMoney(p.priceEtb)}</s> &middot; ` : ''}${ufMoney(pr.net)} ETB for ${ufMonthsText(UF.months)}</div>${pr.credit ? `<div class="uf-credit" style="text-align:left;">Includes &minus;${ufMoney(pr.credit)} ETB credit from your current plan</div>` : ''}
                 <button class="pick" onclick="ufPcChoose('${id}')">${cur ? 'Renew this plan' : 'Choose plan'}</button>
                 <div class="list">${ufChecks(p)}</div></div>`;
         }
@@ -3073,10 +3158,10 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                     <button type="button" class="uf-btn" onclick="ufCheckStatus(false)">I sent the receipt - check status</button>
                     <button type="button" class="uf-btn" onclick="ufClose()">Done</button></div>
                     <div class="uf-status" id="uf-status"></div>`;
-            const summaryRows = `${kv('Plan', pl.name)}${kv('Length', ufMonthsText(Number(pl.months) || 1))}${pl.discountPct ? kv('Discount', pl.discountPct + '%') : ''}`;
+            const summaryRows = `${kv('Plan', pl.name)}${kv('Length', ufMonthsText(Number(pl.months) || 1))}${pl.discountPct ? kv('Discount', pl.discountPct + '%') : ''}${pl.creditEtb ? kv('Credit from current plan', '-' + ufMoney(pl.creditEtb) + ' ETB') : ''}`;
             if (UF.phone) {
                 el.innerHTML = `<div class="uf-top"><button class="uf-back" onclick="ufPhonePlans()" aria-label="Back">&#8249;</button><div class="uf-title">Payment</div></div>
-                    <div class="uf-pay"><div class="uf-amount"><div class="big">${ufMoney(pl.amountEtb)} ETB</div><div class="sub">${escHtml(pl.name || '')} &middot; ${ufMonthsText(Number(pl.months) || 1)}</div></div>
+                    <div class="uf-pay"><div class="uf-amount"><div class="big">${ufMoney(pl.amountEtb)} ETB</div><div class="sub">${escHtml(pl.name || '')} &middot; ${ufMonthsText(Number(pl.months) || 1)}${pl.creditEtb ? ' &middot; ' + ufMoney(pl.creditEtb) + ' ETB credit applied' : ''}</div></div>
                     ${details}${steps}${buttons}</div>`;
             } else {
                 el.innerHTML = `<div class="uf-pc"><button class="uf-pc-x" onclick="ufClose()" aria-label="Close">&#10005;</button>
@@ -3102,32 +3187,8 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 else if (!silent) st.textContent = 'No receipt received yet. Send the screenshot to the Telegram bot, then check again.';
             } catch (e) { if (!silent) st.textContent = e.message || 'Could not check. Try again.'; }
         }
-        // Owners see a bar in the last 7 days of the free trial, and after it ends while features are locked.
-        function showTrialBanner() {
-            if (!currentIsOwner || currentSubStatus !== 'trial' || currentTrialEndsAt === null || !currentTrialLockedKeys.length || document.getElementById('trial-banner')) return;
-            const left = Math.ceil((currentTrialEndsAt - Date.now()) / 86400000);
-            if (!trialEnded() && left > 7) return;
-            const msg = trialEnded() ? 'Your free trial has ended. Some features are now locked.' : `Your free trial ends in ${left} day${left === 1 ? '' : 's'}. Some features will lock after that.`;
-            const bar = document.createElement('div'); bar.id = 'trial-banner'; bar.setAttribute('role', 'alert');
-            const top = document.getElementById('sub-warning-bar') ? '46px' : '0';
-            bar.style.cssText = 'position:fixed;left:0;right:0;top:' + top + ';z-index:3990;display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 14px;font-size:14px;font-weight:600;color:#fff;background:' + (trialEnded() || left <= 2 ? '#B23A2E' : '#A9752F') + ';box-shadow:0 2px 8px rgba(0,0,0,.25);';
-            const span = document.createElement('span'); span.textContent = msg;
-            const go = document.createElement('button'); go.type = 'button'; go.textContent = 'Upgrade plan'; go.style.cssText = 'background:#fff;color:#333;border:0;border-radius:6px;padding:5px 10px;font-weight:600;cursor:pointer;white-space:nowrap;';
-            go.onclick = () => openUpgradeRequest('');
-            const x = document.createElement('button'); x.type = 'button'; x.textContent = '\u2715'; x.setAttribute('aria-label', 'Close'); x.style.cssText = 'background:transparent;border:0;color:#fff;font-size:18px;cursor:pointer;padding:0 4px;'; x.onclick = () => bar.remove();
-            const right = document.createElement('span'); right.style.cssText = 'display:flex;gap:8px;align-items:center;'; right.append(go, x);
-            bar.append(span, right); document.body.appendChild(bar);
-        }
-        // Reads this shop's trial end date and status (the list of features that lock came with its plan). Saved on the device so it also works offline.
-        async function loadTrialState(biz) {
-            const ends = biz && biz.trial_ends_at ? new Date(biz.trial_ends_at).getTime() : NaN;
-            currentTrialEndsAt = isNaN(ends) ? null : ends;
-            currentSubStatus = String((biz && biz.subscription_status) || '').toLowerCase();
-            try {
-                if (currentTrialEndsAt === null) localStorage.removeItem('neba_erp_trial_' + currentTenantId);
-                else localStorage.setItem('neba_erp_trial_' + currentTenantId, JSON.stringify({ endsAt: currentTrialEndsAt, status: currentSubStatus, locked: currentTrialLockedKeys }));
-            } catch (e) { }
-        }
+        // Remembers the shop's subscription status (the Settings plan card uses it).
+        function captureSubStatus(biz) { currentSubStatus = String((biz && biz.subscription_status) || '').toLowerCase(); }
 
         function planBadge(id, on) {   // small lock icon at the end of a button
             const b = document.getElementById(id); if (!b) return;
@@ -3137,12 +3198,160 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             s = document.createElement('span'); s.className = 'plan-lock'; s.innerHTML = planLockSvg; b.appendChild(s);
         }
         function planLockMessage(key) {
-            return trialLockedFeature(key) ? 'Your free trial has ended.' : 'Not included in your ' + (currentPlanName ? currentPlanName + ' ' : '') + 'plan.';
+            return 'Not included in your ' + (currentPlanName ? currentPlanName + ' ' : '') + 'plan.';
         }
-        // Settings > Plans: shows the shop's current plan and opens the plans page (the Upgrade plan screens).
-        function renderPlansSettingsCard() {
-            const el = document.getElementById('plans-settings-current'); if (!el) return;
-            el.innerHTML = currentPlanName ? 'Your plan: <b>' + escHtml(currentPlanName) + '</b>. See every plan and upgrade or renew.' : 'See the plans and choose one for your shop.';
+        // ---------------------------------------------------------------
+        // SETTINGS PAGE: business profile, plan & billing, sales & receipts, team links, security, about
+        // ---------------------------------------------------------------
+        // Fill these in to show contact details and links under Settings > About & help (blank = hidden).
+        const MELEYA_SUPPORT = { phone: '', telegram: '', email: '' };   // telegram: username without the @
+        const MELEYA_TERMS_URL = '';
+        const MELEYA_PRIVACY_URL = '';
+        const UPG_STATUS = { pending: 'Waiting for receipt', needs_review: 'Being checked', rejected: 'Receipt not accepted', paid: 'Paid', handled: 'Handled', dismissed: 'Closed' };
+        let currentSubExpiresAt = null;
+        let currentBizProfile = { phone: '', address: '', receiptHeader: '', receiptFooter: '', defaultVat: false };
+        const sgEl = id => document.getElementById(id);
+        const receiptTextHtml = t => t ? '<div class="center small">' + escHtml(t).replace(/\n/g, '<br>') + '</div>' : '';
+        function captureBizSettings(biz) {
+            if (!biz) return;
+            const exp = biz.subscription_expires_at ? new Date(biz.subscription_expires_at).getTime() : NaN;
+            currentSubExpiresAt = isNaN(exp) ? null : exp;
+            currentBizProfile = { phone: biz.phone || '', address: biz.address || '', receiptHeader: biz.receipt_header || '', receiptFooter: biz.receipt_footer || '', defaultVat: !!biz.default_include_vat };
+        }
+        function settingsFlash(id) { const e = sgEl(id); if (!e) return; e.style.display = 'inline'; clearTimeout(e._t); e._t = setTimeout(() => { e.style.display = 'none'; }, 2000); }
+        function sgDate(ms) { return new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); }
+        function planStatusText() {
+            const off = ['inactive', 'suspended', 'cancelled'].includes(currentSubStatus);
+            if (off) return 'Not active';
+            if (currentSubExpiresAt !== null) {
+                const left = Math.ceil((currentSubExpiresAt - Date.now()) / 86400000);
+                return left > 0 ? `Ends ${sgDate(currentSubExpiresAt)} (${left} day${left === 1 ? '' : 's'} left)` : `Ended ${sgDate(currentSubExpiresAt)}`;
+            }
+            return '';
+        }
+        // When the app is opened again after the plan ran out, the shop moves to the expired-plan the admin chose.
+        let _expiryBusy = false;
+        async function checkPlanExpiry() {
+            if (_expiryBusy || currentSubExpiresAt === null || currentSubExpiresAt > Date.now() || !navigator.onLine || !currentTenantId) return;
+            _expiryBusy = true;
+            try { const r = await supabaseClient.rpc('apply_my_plan_expiry', { p_business_id: String(currentTenantId) }); if (r && r.data === true) location.reload(); } catch (e) { }
+            _expiryBusy = false;
+        }
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) checkPlanExpiry(); });
+        function renderSettingsPage() {
+            if (!sgEl('plans-settings-card')) return;
+            sgEl('bp-name').value = currentTenantName || '';
+            sgEl('bp-phone').value = currentBizProfile.phone || '';
+            sgEl('bp-address').value = currentBizProfile.address || '';
+            const st = planStatusText();
+            sgEl('plans-settings-current').innerHTML = (currentPlanName ? 'Your plan: <b>' + escHtml(currentPlanName) + '</b>' : 'No plan chosen yet') + (st ? '<br>' + escHtml(st) : '');
+            loadPaymentHistory();
+            sgEl('sr-header').value = currentBizProfile.receiptHeader || '';
+            sgEl('sr-footer').value = currentBizProfile.receiptFooter || '';
+            sgEl('sr-vat-row').style.display = state.vatRegistered ? 'block' : 'none';
+            sgEl('sr-default-vat').checked = !!currentBizProfile.defaultVat;
+            renderSaleTypeSettings();
+            renderAboutCard();
+        }
+        // ---- Business profile
+        function saveBusinessProfile() {
+            const name = sgEl('bp-name').value.trim();
+            if (!name) { alert('The shop name cannot be empty.'); return; }
+            const phone = sgEl('bp-phone').value.trim(), address = sgEl('bp-address').value.trim();
+            currentTenantName = name; currentBizProfile.phone = phone; currentBizProfile.address = address;
+            const b = sgEl('shop-brand-name'); if (b) b.innerText = name.toUpperCase();
+            queueWrite({ kind: 'tenant_update', patch: { business_name: name, phone: phone || null, address: address || null } });
+            settingsFlash('bp-saved');
+        }
+        // ---- Payment history
+        async function loadPaymentHistory() {
+            const box = sgEl('plans-history-list'); if (!box) return;
+            if (!navigator.onLine) { box.textContent = 'Connect to the internet to see your payments.'; return; }
+            box.textContent = 'Loading...';
+            try {
+                const r = await callEdgeFunction('request-upgrade', { action: 'history', businessId: currentTenantId });
+                const rows = (r && r.history) || [];
+                if (!rows.length) { box.textContent = 'No upgrade payments yet.'; return; }
+                box.innerHTML = rows.map(x => `<div class="sg-hist"><div><b>${escHtml(x.planName || 'Plan')}</b> &middot; ${escHtml(ufMonthsText(Number(x.months) || 1))}<div class="sg-sub">${escHtml(sgDate(new Date(x.createdAt).getTime()))}</div></div><div style="text-align:right;"><div>${ufMoney(x.amountEtb)} ETB</div><span class="sg-pill sg-${escHtml(String(x.status))}">${escHtml(UPG_STATUS[x.status] || String(x.status))}</span></div></div>`).join('');
+            } catch (e) { box.textContent = 'Could not load your payments. ' + (e.message || ''); }
+        }
+        // ---- Sales & receipts
+        function saveReceiptTexts() {
+            const h = sgEl('sr-header').value.trim().slice(0, 160), f = sgEl('sr-footer').value.trim().slice(0, 200);
+            currentBizProfile.receiptHeader = h; currentBizProfile.receiptFooter = f;
+            queueWrite({ kind: 'tenant_update', patch: { receipt_header: h || null, receipt_footer: f || null } });
+            settingsFlash('sr-texts-saved');
+        }
+        function applyDefaultVat() {
+            ['sale-include-vat', 'cart-sale-include-vat'].forEach(id => { const e = sgEl(id); if (e) e.checked = !!(state.vatRegistered && currentBizProfile.defaultVat); });
+        }
+        function setDefaultVat(on) {
+            currentBizProfile.defaultVat = !!on;
+            queueWrite({ kind: 'tenant_update', patch: { default_include_vat: !!on } });
+            applyDefaultVat();
+        }
+        function renderSaleTypeSettings() {
+            const box = sgEl('sr-saletypes'); if (!box) return;
+            const list = state.saleTypes || [];
+            box.innerHTML = list.length ? list.map((t, i) => `<span class="sg-chip">${escHtml(t)}<button type="button" aria-label="Remove ${escHtml(t)}" onclick="removeSaleTypeSetting(${i})">&times;</button></span>`).join('') : '<span class="sg-sub">No sale types of your own yet.</span>';
+        }
+        function syncSaleTypeLists() { syncSaleTypesDropdown(); populateSaleTypeFilterDropdown(); syncCartSaleTypeDropdown(); syncChannelDropdowns(); }
+        function addSaleTypeSetting() {
+            const inp = sgEl('sr-saletype-new'); const v = (inp.value || '').trim(); if (!v) return;
+            const all = ['Walk in', 'Proforma', 'Customer', 'Tender'].concat(state.saleTypes || []).map(x => x.toLowerCase());
+            if (all.includes(v.toLowerCase())) { alert('That sale type already exists.'); return; }
+            state.saleTypes.push(v);
+            syncSaleTypeLists();
+            queueWrite({ kind: 'tenant_update', patch: { sale_types: state.saleTypes } });
+            inp.value = ''; renderSaleTypeSettings();
+        }
+        async function removeSaleTypeSetting(i) {
+            const t = (state.saleTypes || [])[i]; if (t == null) return;
+            if (!(await uiConfirm(`Remove the sale type "${t}"? Sales already saved with it keep it.`, { title: 'Remove sale type', danger: true, yes: 'Remove', no: 'Keep it' }))) return;
+            state.saleTypes.splice(i, 1);
+            syncSaleTypeLists();
+            queueWrite({ kind: 'tenant_update', patch: { sale_types: state.saleTypes } });
+            renderSaleTypeSettings();
+        }
+        // ---- Security & account
+        async function changeMyPassword() {
+            const a = sgEl('sec-pw1').value, b = sgEl('sec-pw2').value, msg = sgEl('sec-pw-msg');
+            msg.style.color = 'var(--danger,#c0392b)';
+            if (!navigator.onLine) { msg.textContent = 'Connect to the internet to change your password.'; return; }
+            if (!a || a.length < 6) { msg.textContent = 'The password must be at least 6 characters.'; return; }
+            if (a !== b) { msg.textContent = 'The two passwords do not match.'; return; }
+            const { error } = await supabaseClient.auth.updateUser({ password: a });
+            if (error) { msg.textContent = error.message; return; }
+            sgEl('sec-pw1').value = ''; sgEl('sec-pw2').value = '';
+            msg.style.color = 'var(--success,#2e7d32)'; msg.textContent = 'Password changed.';
+        }
+        async function settingsSignOut() {
+            if (await uiConfirm('Sign out of this device?', { title: 'Sign out', yes: 'Sign out', no: 'Stay signed in' })) handleSignOut(true);
+        }
+        async function deleteMyShop() {
+            if (!navigator.onLine) { alert('Connect to the internet to delete the shop.'); return; }
+            if (!(await uiConfirm('This permanently deletes the shop and all its products, sales, purchases, expenses, branches and team members. It cannot be undone.', { title: 'Delete this shop?', danger: true, yes: 'Continue', no: 'Cancel' }))) return;
+            const typed = await uiPrompt('Type the shop name exactly to confirm: ' + currentTenantName, { title: 'Confirm deletion', yes: 'Delete forever' });
+            if (typed == null || !String(typed).trim()) return;
+            try { await callEdgeFunction('delete-my-business', { businessId: currentTenantId, confirmName: String(typed).trim() }); }
+            catch (e) { alert('Could not delete the shop: ' + (e.message || 'please try again.')); return; }
+            try { mlyResumeForget(); } catch (e) { }
+            alert('Your shop has been deleted.');
+            try { await handleSignOut(true); } catch (e) { location.reload(); }
+        }
+        // ---- About & help
+        async function renderAboutCard() {
+            let v = '';
+            try { const k = (await caches.keys()).find(x => /^meleya-shell-v\d+$/.test(x)); if (k) v = k.replace('meleya-shell-v', ''); } catch (e) { }
+            const ve = sgEl('about-version'); if (ve) ve.textContent = v ? 'Meleya version ' + v : 'Meleya';
+            const rows = [];
+            const row = (label, sub, href) => `<a class="sg-link" href="${escHtml(href)}" target="_blank" rel="noopener"><span>${escHtml(label)}<small>${escHtml(sub)}</small></span><span>&#8250;</span></a>`;
+            if (MELEYA_SUPPORT.phone) rows.push(row('Call support', MELEYA_SUPPORT.phone, 'tel:' + MELEYA_SUPPORT.phone.replace(/\s+/g, '')));
+            if (MELEYA_SUPPORT.telegram) rows.push(row('Message support on Telegram', '@' + MELEYA_SUPPORT.telegram.replace(/^@/, ''), 'https://t.me/' + MELEYA_SUPPORT.telegram.replace(/^@/, '')));
+            if (MELEYA_SUPPORT.email) rows.push(row('Email support', MELEYA_SUPPORT.email, 'mailto:' + MELEYA_SUPPORT.email));
+            if (MELEYA_TERMS_URL) rows.push(row('Terms of use', '', MELEYA_TERMS_URL));
+            if (MELEYA_PRIVACY_URL) rows.push(row('Privacy policy', '', MELEYA_PRIVACY_URL));
+            const le = sgEl('about-links'); if (le) le.innerHTML = rows.join('');
         }
         function requestUpgradeFor(key) { if (currentIsOwner) openUpgradeRequest(key); else showUpgrade(key); }
         // The frosted cover with a Upgrade plan button, put on top of a whole page or one box / graph / card.
@@ -4702,7 +4911,6 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                     try { currentPlanPremium = localStorage.getItem('neba_erp_premium_' + currentTenantId) === '1'; } catch (e) { }
                 try { const f = localStorage.getItem('neba_erp_features_' + currentTenantId); currentPlanFeatures = f ? JSON.parse(f) : null; currentPlanName = localStorage.getItem('neba_erp_planname_' + currentTenantId) || ''; } catch (e) { }
                 try { const k = JSON.parse(localStorage.getItem('neba_erp_fkeys_' + currentTenantId) || 'null'); currentPlanFeatureKeys = Array.isArray(k) ? k : null; } catch (e) { currentPlanFeatureKeys = null; }
-                try { const t = JSON.parse(localStorage.getItem('neba_erp_trial_' + currentTenantId) || 'null'); currentTrialEndsAt = t && typeof t.endsAt === 'number' ? t.endsAt : null; currentSubStatus = t && typeof t.status === 'string' ? t.status : ''; currentTrialLockedKeys = t && Array.isArray(t.locked) ? t.locked : []; } catch (e) { currentTrialEndsAt = null; currentTrialLockedKeys = []; }
                     if (window.scnShowNav) window.scnShowNav();
                 }
             if (!(lastIdentity && lastIdentity.tenantId)) return false;
@@ -4794,7 +5002,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             if (settingsNav) settingsNav.style.display = currentIsOwner ? 'flex' : 'none';
             if (window.scnShowNav) window.scnShowNav();
 
-            const { data: biz, error: bizErr } = await supabaseClient.from('businesses').select('*').eq('id', currentTenantId).single();
+            let { data: biz, error: bizErr } = await supabaseClient.from('businesses').select('*').eq('id', currentTenantId).single();
             if (mlyEarlyBooted) return;
             if (bizErr || !biz) {
                 const cached = loadCachedStateLocally();
@@ -4820,6 +5028,14 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 return;
             }
 
+            // A plan that has run out moves the shop to the plan the admin chose for expired plans.
+            if (navigator.onLine && biz.subscription_expires_at && new Date(biz.subscription_expires_at).getTime() <= Date.now()) {
+                try {
+                    const sw = await supabaseClient.rpc('apply_my_plan_expiry', { p_business_id: String(currentTenantId) });
+                    if (sw && sw.data === true) { const again = await supabaseClient.from('businesses').select('*').eq('id', currentTenantId).single(); if (again.data) biz = again.data; }
+                } catch (e) { }
+            }
+
             // Plan limits are re-fetched on every boot (never cached) so a
             // plan change made in the admin panel takes effect the next time
             // this device loads the app — not just after a manual refresh of
@@ -4836,7 +5052,6 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                     try { localStorage.setItem('neba_erp_premium_' + currentTenantId, currentPlanPremium ? '1' : '0'); } catch (e) { }
                     currentPlanFeatures = (pr.data && pr.data.features && typeof pr.data.features === 'object') ? pr.data.features : {};
                     currentPlanName = (pr.data && pr.data.name) || '';
-                    currentTrialLockedKeys = (pr.data && Array.isArray(pr.data.trial_locked_features)) ? pr.data.trial_locked_features : [];
                     currentPlanFeatureKeys = (pr.data && Array.isArray(pr.data.feature_keys)) ? pr.data.feature_keys : [];
                     try { localStorage.setItem('neba_erp_fkeys_' + currentTenantId, JSON.stringify(currentPlanFeatureKeys)); } catch (e) { }
                     try { localStorage.setItem('neba_erp_features_' + currentTenantId, JSON.stringify(currentPlanFeatures)); localStorage.setItem('neba_erp_planname_' + currentTenantId, currentPlanName); } catch (e) { }
@@ -4845,20 +5060,19 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 currentPlanMaxBranches = null;
                 currentPlanMaxEmployees = null;
                 currentPlanPremium = false;
-                currentPlanFeatures = null; currentPlanName = ''; currentTrialLockedKeys = []; currentPlanFeatureKeys = null;   // no plan assigned: full access, as before
+                currentPlanFeatures = null; currentPlanName = ''; currentPlanFeatureKeys = null;   // no plan assigned: full access, as before
                 try { localStorage.removeItem('neba_erp_fkeys_' + currentTenantId); } catch (e) { }
                 try { localStorage.setItem('neba_erp_premium_' + currentTenantId, '0'); localStorage.removeItem('neba_erp_features_' + currentTenantId); localStorage.removeItem('neba_erp_planname_' + currentTenantId); } catch (e) { }
             }
-            await loadTrialState(biz);   // free-trial end date + which features lock after it (must be known before planCan() is used below)
+            captureSubStatus(biz);
             if (window.scnShowNav) window.scnShowNav();
             setTimeout(() => { try { if (currentPlanPremium && window.scnEnsure) window.scnEnsure().catch(() => { }); } catch (e) { } }, 4000); // keep matches ready for offline selling
             setTimeout(() => { try { if (currentPlanPremium) prlPrefetch(); } catch (e) { } }, 9000); // learn which receipts are already printed, for offline use
 
             // Owners get a warning when the subscription is about to run out (or already has).
             try { showSubscriptionWarning(biz); } catch (e) { }
-            try { showTrialBanner(); } catch (e) { }
 
-            currentTenantName = biz.business_name;
+            currentTenantName = biz.business_name; try { captureBizSettings(biz); } catch (e) { }
             currentBusinessType = normalizeBizType(biz.business_type);
             state.categories = biz.categories || [];
             if (Array.isArray(biz.inventory_order)) state.inventoryOrder = biz.inventory_order; // shared stock-list order
@@ -5469,7 +5683,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             if (error || !biz) throw (error || new Error('business not found'));
             if (['inactive', 'suspended', 'cancelled'].includes(biz.subscription_status)) { const o = document.getElementById('inactive-overlay'); if (o) o.style.display = 'flex'; }
             const before = liveSettingsSnapshot();
-            currentTenantName = biz.business_name;
+            currentTenantName = biz.business_name; try { captureBizSettings(biz); } catch (e) { }
             currentBusinessType = normalizeBizType(biz.business_type);
             state.categories = biz.categories || [];
             if (Array.isArray(biz.inventory_order)) state.inventoryOrder = biz.inventory_order;
@@ -6531,7 +6745,8 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             if (window.innerWidth <= 768) document.getElementById('sidebar').classList.add('collapsed');
 
             if (viewId === 'dashboard') renderAnalyticalDashboards();
-            if (viewId === 'settings') renderPlansSettingsCard();
+            if (viewId === 'settings') renderSettingsPage();
+            if (viewId === 'sales') applyDefaultVat();
             if (viewId === 'inventory') {
                 resetProductForm(); renderPerpetualInventoryTable();
                 if (currentVerticalModule && typeof currentVerticalModule.renderInventorySection === 'function') {
@@ -6575,9 +6790,9 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             if (days > WARN_DAYS) return;
             _subWarnShown = true;
             const dateTxt = endDay.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-            const msg = days < 0 ? `Your subscription ended on ${dateTxt}. Please renew now to keep using the app.`
-                : days === 0 ? `Your subscription ends today (${dateTxt}). Please renew to keep using the app.`
-                : `Your subscription ends in ${days} day${days === 1 ? '' : 's'} (${dateTxt}). Please renew to avoid losing access.`;
+            const msg = days < 0 ? `Your plan ended on ${dateTxt}.`
+                : days === 0 ? `Your plan ends today (${dateTxt}). Upgrade now to keep its features.`
+                : `Your plan ends in ${days} day${days === 1 ? '' : 's'} (${dateTxt}). Upgrade to keep its features.`;
             const bar = document.createElement('div');
             bar.id = 'sub-warning-bar';
             bar.setAttribute('role', 'alert');
@@ -6586,7 +6801,9 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             const x = document.createElement('button'); x.type = 'button'; x.textContent = '\u2715'; x.setAttribute('aria-label', 'Close');
             x.style.cssText = 'background:transparent;border:0;color:#fff;font-size:18px;cursor:pointer;padding:0 4px;';
             x.onclick = () => bar.remove();
-            bar.append(span, x); document.body.appendChild(bar);
+            const go = document.createElement('button'); go.type = 'button'; go.textContent = 'Upgrade plan'; go.style.cssText = 'background:#fff;color:#333;border:0;border-radius:6px;padding:5px 10px;font-weight:600;cursor:pointer;white-space:nowrap;margin-left:auto;';
+            go.onclick = () => openUpgradeRequest('');
+            bar.append(span, go, x); document.body.appendChild(bar);
         }
 
         async function factoryReset() {
@@ -10187,7 +10404,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             const draftIdsUsed = saleCart.map(c => c.draftId).filter(Boolean);
             saleCart = [];
             document.getElementById('cart-sale-amount-paid').dataset.touched = '';
-            document.getElementById('cart-sale-include-vat').checked = false;
+            document.getElementById('cart-sale-include-vat').checked = !!(state.vatRegistered && currentBizProfile.defaultVat);
             renderSaleCartTable();
             document.getElementById('cart-sale-customer').value = '';
             syncTransactionalProductDropdownOptions(); renderSalesLogTable();
@@ -10282,6 +10499,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             const payNote = fullyPaid ? '' : ` (ETB ${amountPaidNow.money2()} paid now, ETB ${remaining.money2()} owed)`;
             addNotification('Sale Executed', `Posted revenue: ETB ${rev.money2()}${payNote}`, `Sold ${qty}x ${item.desc} to ${cName}${amountPaidNow > 0 ? ' via ' + chan : ''}`);
             if (includeVat) setTimeout(() => openBuyerInfoModal('sale', id, false, 'receipt'), 150); // VAT sale: open the print window straight away
+            applyDefaultVat();
         }
 
         let recordPaymentContext = null; // { type: 'sale'|'purchase', id }
@@ -10685,6 +10903,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 // Non-VAT-registered shops: plain receipt, no fiscal-style layout.
                 return `<!doctype html><html><head><meta charset="utf-8"><title>${escHtml(data.docLabel)}</title><style>${sharedStyle}</style></head><body>
                     <div class="center b" style="font-size:13px;">${escHtml(currentTenantName || 'Your Shop')}</div>
+                    ${receiptTextHtml(currentBizProfile.receiptHeader)}
                     <div class="center small">${fmtDateGregorian(data.date)}</div>
                     <hr>
                     <div class="b">${escHtml(data.docLabel)}</div>
@@ -10698,6 +10917,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                     <table><tr class="totrow"><td>TOTAL</td><td class="right" colspan="2">ETB ${data.total.money2()}</td></tr></table>
                     <hr>
                     <div class="center small">Ref: ${escHtml(data.docNumber)}</div>
+                    ${receiptTextHtml(currentBizProfile.receiptFooter)}
                     <div class="center small" style="margin-top:6px;">Prepared by Meleya Software Solutions.</div>
                 ${'</bo' + 'dy></html>'}`;
             }
@@ -14176,7 +14396,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         // and notice when a newer version of the app has been uploaded.
         if ('serviceWorker' in navigator) {
             const hadController = !!navigator.serviceWorker.controller; // false on a very first visit: nothing to "update"
-            let updatePending = false, lastTouch = Date.now(), updBar = null;
+            let updatePending = false, lastTouch = Date.now();
             ['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(ev => window.addEventListener(ev, () => { lastTouch = Date.now(); }, { passive: true, capture: true }));
 
             const updAm = () => { try { return (typeof currentLang !== 'undefined' ? currentLang : localStorage.getItem('appLang')) === 'am'; } catch (e) { return false; } };
@@ -14194,20 +14414,10 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                     return document.hidden || (Date.now() - lastTouch > 120000); // app in the background, or untouched for 2 minutes
                 } catch (e) { return false; }
             }
-            function showUpdateBar() {
-                if (updBar || !document.body) return;
-                const am = updAm();
-                updBar = document.createElement('div');
-                updBar.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:2147483000;max-width:92vw;background:#171b34;color:#fff;border-radius:14px;padding:10px 12px 10px 16px;box-shadow:0 6px 22px rgba(0,0,0,.35);display:flex;gap:12px;align-items:center;font:600 14px/1.3 Inter,-apple-system,Segoe UI,Arial,sans-serif;';
-                updBar.innerHTML = '<span>' + (am ? 'አዲስ የMELEYA ስሪት ዝግጁ ነው' : 'A new version of MELEYA is ready') + '</span>'
-                    + '<button type="button" style="background:#e0a21b;color:#171b34;border:0;border-radius:10px;padding:8px 14px;font:700 14px Inter,Arial,sans-serif;cursor:pointer;white-space:nowrap;">' + (am ? 'አሁን አድስ' : 'Update now') + '</button>';
-                updBar.querySelector('button').onclick = () => location.reload();
-                document.body.appendChild(updBar);
-            }
             function checkUpdateApply() {
                 if (!updatePending) return;
                 if (updateIsSafe()) { location.reload(); return; }
-                showUpdateBar(); // not a safe moment: ask, and keep checking quietly
+                // not a safe moment (someone is typing, a window is open, or a sale is half-done): say nothing, keep checking quietly, and update the moment it is safe
             }
             // A new service worker took over = a new release was uploaded and is already saved on this device.
             navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -17114,7 +17324,7 @@ window.startMeleyaDemo = function () {
   cacheStateLocally = () => { };                   // no local copy either
   currentTenantId = 'demo-shop'; currentTenantName = 'Demo Shop'; currentBusinessType = 'retail';
   currentBranchId = 'demo-main'; writeBranchId = 'demo-main'; accessibleBranches = [{ id: 'demo-main', name: 'Main shop' }];
-  currentPermissions = new Set(['*']); currentPlanFeatures = null; currentPlanPremium = false; currentPlanFeatureKeys = null; currentTrialLockedKeys = [];
+  currentPermissions = new Set(['*']); currentPlanFeatures = null; currentPlanPremium = false; currentPlanFeatureKeys = null;
   seed(); rebuildChartOfAccounts();
   $('#app-shell').style.display = 'flex'; const ao = $('#auth-overlay'); if (ao) ao.style.display = 'none';
   document.documentElement.classList.remove('mly-resume');
