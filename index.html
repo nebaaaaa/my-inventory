@@ -488,8 +488,10 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         body.mly-on-sg .mly-back-btn { display: flex; }
         body.mly-on-sg .header-left > .menu-toggle-btn:not(.mly-back-btn) { display: none; }
         /* Upgrade card in the sidebar (free plans only) */
-        .sb-upgrade { display: none; margin: 14px 14px 4px; padding: 14px; border-radius: 12px; background: linear-gradient(135deg,#1c1c1c,#3b3b3b); color: #fff; cursor: pointer; border: 1px solid rgba(255,255,255,.16); }
-        .sb-upgrade.show { display: block; }
+        .sb-upgrade { display: none; margin: 4px 14px 12px; padding: 14px; border-radius: 12px; background: linear-gradient(135deg,#1c1c1c,#3b3b3b); color: #fff; cursor: pointer; border: 1px solid rgba(255,255,255,.16); }
+        .sb-upgrade.show { display: block; animation: sbUpGlow 2.6s ease-in-out infinite; }
+        @keyframes sbUpGlow { 0%,100% { box-shadow: 0 0 0 0 rgba(111,141,255,0); } 50% { box-shadow: 0 0 0 4px rgba(111,141,255,.28); } }
+        @media (prefers-reduced-motion: reduce) { .sb-upgrade.show { animation: none; } }
         .sb-upgrade .sb-up-row { display: flex; align-items: center; gap: 10px; }
         .sb-upgrade .sb-up-row > svg { flex-shrink: 0; color: #6f8dff; }
         .sb-upgrade b { display: block; font-size: 14px; }
@@ -832,6 +834,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 <div class="brand" id="shop-brand-name">MELEYA</div>
                 <button type="button" class="mly-refresh-btn" id="mly-refresh-btn" onclick="mlyRefresh()" title="Refresh" aria-label="Refresh" data-i18n-title="ui2.refresh_app"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg></button>
             </div>
+                <div class="sb-upgrade" id="sb-upgrade-banner" role="button" tabindex="0" onclick="sbUpgradeClick()"><div class="sb-up-row"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z"/></svg><div><b>Upgrade your plan</b><small>Unlock more branches, team members and scanned receipts.</small></div></div><button type="button" class="sb-up-btn" onclick="event.stopPropagation(); sbUpgradeClick()">Upgrade &#8250;</button></div>
             <nav>
                 <button onclick="switchView('dashboard')" class="active" id="nav-dashboard"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> <span data-i18n="nav.dashboard">Dashboard</span></button>
                 <button onclick="switchView('inventory')" id="nav-inventory"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M16.5 9.4 7.55 4.24"></path><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.29 7 12 12 20.71 7"></polyline><line x1="12" y1="22" x2="12" y2="12"></line></svg> <span data-i18n="nav.inventory">Inventory/Stock</span></button>
@@ -850,7 +853,6 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 </div>
                 <button onclick="switchView('settings')" id="nav-settings" style="display:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg> <span data-i18n="nav.settings">Settings</span></button>
             </nav>
-                <div class="sb-upgrade" id="sb-upgrade-banner" role="button" tabindex="0" onclick="sbUpgradeClick()"><div class="sb-up-row"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z"/></svg><div><b>Upgrade your plan</b><small>Unlock more branches, team members and scanned receipts.</small></div></div><button type="button" class="sb-up-btn" onclick="event.stopPropagation(); sbUpgradeClick()">Upgrade &#8250;</button></div>
         </div>
         <div class="aside-footer">
             <button class="btn btn-excel" id="btn-export-hub" onclick="openExportHub()">
@@ -900,6 +902,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 <strong data-i18n="ui2.system_alerts">System Alerts</strong>
                 <button class="btn-small btn" onclick="clearAllNotifications()" data-i18n="misc.clear_all">Clear All</button>
             </div>
+            <div id="push-row" style="display:none; padding:10px 12px; border-bottom:1px solid var(--border); align-items:center; justify-content:space-between; gap:10px; font-size:12.5px;"><span id="push-row-text">Get alerts on this device even when the app is closed.</span><button type="button" class="btn-small btn" id="push-row-btn" onclick="mlyPushToggle()">Turn on</button></div>
             <div id="notif-list"></div>
         </div>
 
@@ -5059,6 +5062,7 @@ a.sg-link{text-decoration:none}
         async function handleSignOut(deliberate) {
             // Only when the person chose to sign out: nothing they were in the middle of comes back at the next sign-in.
             if (deliberate === true) { try { mlyResumeForget(); } catch (e) { } }
+            if (deliberate === true) { try { await mlyPushOnSignOut(); } catch (e) { } }
             sessionStorage.removeItem('neba_owner_session_backup');
             sessionStorage.removeItem('neba_impersonation_target_name');
             // Every write in the app is queued onto writeChain and often not
@@ -17796,5 +17800,115 @@ function buildSteps() {
 })();
 
 </script>
+
+    <script>
+    /* =====================================================================
+       PUSH NOTIFICATIONS (phone alerts even when the app is closed)
+       Needs: the push_subscriptions SQL, the send-push edge function and a
+       Database Webhook on notifications INSERT (see PUSH-SETUP.md).
+       Paste the PUBLIC VAPID key below. Until you do, this stays hidden.
+       ===================================================================== */
+    (function () {
+        const VAPID_PUBLIC_KEY = 'BAYc3AOZHaw-rR1PoTetA6gA0eWplI77czR8YNgHVse4ANoMkeEXL-VXi_hskyMQNBpRM3ElHTqF_HjLMat5uOc';
+        const ok = VAPID_PUBLIC_KEY.indexOf('PASTE') !== 0 && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+        let syncedTenant = null;
+
+        function key(b) { const p = '='.repeat((4 - b.length % 4) % 4); const r = atob((b + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(r, c => c.charCodeAt(0)); }
+        async function getSub() { const r = await navigator.serviceWorker.ready; return { r, sub: await r.pushManager.getSubscription() }; }
+
+        async function register() {
+            const { r, sub: have } = await getSub();
+            const sub = have || await r.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key(VAPID_PUBLIC_KEY) });
+            const j = sub.toJSON();
+            const { error } = await supabaseClient.rpc('register_push', { p_tenant: String(currentTenantId), p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth });
+            if (error) throw error;
+            syncedTenant = currentTenantId;
+        }
+
+        async function paint() {
+            const row = document.getElementById('push-row'); if (!row) return;
+            if (!ok || !currentTenantId) { row.style.display = 'none'; return; }
+            const t = document.getElementById('push-row-text'), b = document.getElementById('push-row-btn');
+            row.style.display = 'flex'; b.style.display = '';
+            if (Notification.permission === 'denied') { t.textContent = 'Alerts are blocked. Allow notifications for MELEYA in your phone settings.'; b.style.display = 'none'; return; }
+            const { sub } = await getSub();
+            if (Notification.permission === 'granted' && sub && syncedTenant === currentTenantId) { t.textContent = 'Phone alerts are on for this device.'; b.textContent = 'Turn off'; }
+            else { t.textContent = 'Get alerts on this device even when the app is closed.'; b.textContent = 'Turn on'; }
+        }
+
+        window.mlyPushToggle = async function () {
+            try {
+                const { sub } = await getSub();
+                if (sub && syncedTenant === currentTenantId) {
+                    await supabaseClient.rpc('unregister_push', { p_endpoint: sub.endpoint });
+                    await sub.unsubscribe(); syncedTenant = null;
+                } else {
+                    const perm = await Notification.requestPermission(); // must come from a tap
+                    if (perm === 'granted') await register();
+                }
+            } catch (e) { console.warn('Push toggle failed', e); try { alert('Could not change phone alerts. Check your connection and try again.'); } catch (_) { } }
+            paint();
+        };
+
+        window.mlyPushOnSignOut = async function () {
+            if (!ok) return;
+            const { sub } = await getSub(); if (!sub) return;
+            await Promise.race([supabaseClient.rpc('unregister_push', { p_endpoint: sub.endpoint }), new Promise(r => setTimeout(r, 3000))]);
+            await sub.unsubscribe(); syncedTenant = null;
+        };
+
+        // Remember this device for the shop, so the owner is told when a team member signs in on a NEW one.
+        let deviceTenant = null;
+        async function noteDevice() {
+            if (!currentTenantId || deviceTenant === currentTenantId || !navigator.onLine) return;
+            try {
+                let id = localStorage.getItem('mly_device_id');
+                if (!id) { id = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)); localStorage.setItem('mly_device_id', id); }
+                const ua = navigator.userAgent || '';
+                const os = /iPhone|iPad|iPod/.test(ua) ? 'iPhone' : /Android/.test(ua) ? 'Android phone' : /Windows/.test(ua) ? 'Windows PC' : /Mac OS/.test(ua) ? 'Mac' : /Linux/.test(ua) ? 'Linux PC' : 'device';
+                const { error } = await supabaseClient.rpc('note_device', { p_tenant: String(currentTenantId), p_device: id, p_label: os });
+                if (!error) deviceTenant = currentTenantId;
+            } catch (e) { }
+        }
+        setInterval(noteDevice, 6000);
+
+        // Ask on its own when the owner opens the app (no bell needed). At most once a week, so a "Not now" is respected.
+        // iPhones only allow the permission box after a tap, so there a small card with one button appears instead.
+        const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent || '');
+        function hideCard() { const c = document.getElementById('push-ask'); if (c) c.remove(); }
+        function showCard() {
+            if (document.getElementById('push-ask')) return;
+            const c = document.createElement('div'); c.id = 'push-ask';
+            c.style.cssText = 'position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:99999;background:var(--surface,#fff);color:var(--text,#111);border:1px solid var(--border,#ddd);border-radius:14px;padding:14px;box-shadow:0 8px 30px rgba(0,0,0,.25);font-size:14px;max-width:420px;margin:0 auto;';
+            c.innerHTML = '<div style="font-weight:600;margin-bottom:4px;">Get alerts on this phone?</div><div style="opacity:.8;margin-bottom:10px;">Plan reminders, requests and your daily summary, even when the app is closed.</div><div style="display:flex;gap:8px;justify-content:flex-end;"><button type="button" class="btn" id="push-ask-no">Not now</button><button type="button" class="btn btn-success" id="push-ask-yes">Turn on</button></div>';
+            document.body.appendChild(c);
+            document.getElementById('push-ask-no').onclick = hideCard;
+            document.getElementById('push-ask-yes').onclick = async function () { hideCard(); await window.mlyPushToggle(); };
+        }
+        async function maybeAsk() {
+            if (!ok || !currentTenantId || !navigator.onLine) return;
+            if (typeof currentIsOwner === 'undefined' || !currentIsOwner) return;      // employees can still use the bell
+            if (Notification.permission !== 'default') return;
+            let last = 0; try { last = Number(localStorage.getItem('mly_push_asked')) || 0; } catch (e) { }
+            if (Date.now() - last < 7 * 86400000) return;
+            try { localStorage.setItem('mly_push_asked', String(Date.now())); } catch (e) { }
+            if (IOS) { showCard(); return; }
+            try { if ((await Notification.requestPermission()) === 'granted') await register(); } catch (e) { }
+            paint();
+        }
+
+        // Already allowed earlier? Quietly keep this device registered for the shop that is open.
+        async function tick() {
+            if (!ok || !currentTenantId || !navigator.onLine) return;
+            if (Notification.permission === 'granted' && syncedTenant !== currentTenantId) { try { await register(); } catch (e) { } }
+            maybeAsk();
+            paint();
+        }
+        if (ok) {
+            setInterval(tick, 5000); window.addEventListener('online', tick);
+            document.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('#bell-btn')) setTimeout(paint, 50); }, true);
+        }
+    })();
+    </script>
 </body>
 </html>

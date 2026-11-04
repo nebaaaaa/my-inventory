@@ -8,7 +8,7 @@
 // "a new version is ready".
 // =====================================================================
 
-const CACHE_NAME = 'meleya-shell-v56';
+const CACHE_NAME = 'meleya-shell-v57';
 
 // MUST all download successfully, or this version does NOT install and the
 // phone keeps running the previous working version (retrying later).
@@ -110,4 +110,36 @@ self.addEventListener('fetch', (event) => {
       });
     })
   );
+});
+
+// =====================================================================
+// PUSH NOTIFICATIONS: shown even when the app is closed.
+// The send-push edge function sends { title, body, tag, url }.
+// =====================================================================
+self.addEventListener('push', (event) => {
+  let d = {};
+  try { d = event.data ? event.data.json() : {}; } catch (e) { d = { body: event.data ? event.data.text() : '' }; }
+  event.waitUntil((async () => {
+    const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const onScreen = wins.some((w) => w.visibilityState === 'visible' && w.focused);
+    // The app is open in front of the person: the in-app toast already tells them.
+    // iPhones must always show something for every push, so they are the exception.
+    const ios = /iPhone|iPad|iPod/.test(self.navigator.userAgent || '');
+    if (onScreen && !ios) return;
+    await self.registration.showNotification(d.title || 'MELEYA', {
+      body: d.body || '',
+      tag: d.tag || undefined,
+      data: { url: d.url || './' }
+    });
+  })());
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || './';
+  event.waitUntil((async () => {
+    const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const w of wins) { if ('focus' in w) return w.focus(); }
+    return self.clients.openWindow(url);
+  })());
 });
