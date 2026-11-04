@@ -484,6 +484,17 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         body.mly-on-trash .mly-back-btn { display: flex; }
         /* Trash page: the back arrow is the ONLY button on the left (no sidebar button) */
         body.mly-on-trash .header-left > .menu-toggle-btn:not(.mly-back-btn) { display: none; }
+        /* Settings sub-pages (phone): same back arrow, same rule */
+        body.mly-on-sg .mly-back-btn { display: flex; }
+        body.mly-on-sg .header-left > .menu-toggle-btn:not(.mly-back-btn) { display: none; }
+        /* Upgrade card in the sidebar (free plans only) */
+        .sb-upgrade { display: none; margin: 14px 14px 4px; padding: 14px; border-radius: 12px; background: linear-gradient(135deg,#1c1c1c,#3b3b3b); color: #fff; cursor: pointer; border: 1px solid rgba(255,255,255,.16); }
+        .sb-upgrade.show { display: block; }
+        .sb-upgrade .sb-up-row { display: flex; align-items: center; gap: 10px; }
+        .sb-upgrade .sb-up-row > svg { flex-shrink: 0; color: #6f8dff; }
+        .sb-upgrade b { display: block; font-size: 14px; }
+        .sb-upgrade small { display: block; font-size: 11.5px; line-height: 1.4; color: rgba(255,255,255,.72); margin-top: 2px; }
+        .sb-upgrade .sb-up-btn { display: block; width: 100%; margin-top: 10px; padding: 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,.35); background: rgba(255,255,255,.12); color: #fff; font: inherit; font-size: 13px; cursor: pointer; }
         /* Swipe back from Trash: the page we came from sits underneath while Trash follows the finger */
         .view-panel.mly-peek-under { display: block; position: absolute; left: 0; right: 0; top: 0; z-index: 1; pointer-events: none; }
         .brand-row { position: relative; }
@@ -839,6 +850,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 </div>
                 <button onclick="switchView('settings')" id="nav-settings" style="display:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg> <span data-i18n="nav.settings">Settings</span></button>
             </nav>
+                <div class="sb-upgrade" id="sb-upgrade-banner" role="button" tabindex="0" onclick="sbUpgradeClick()"><div class="sb-up-row"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z"/></svg><div><b>Upgrade your plan</b><small>Unlock more branches, team members and scanned receipts.</small></div></div><button type="button" class="sb-up-btn" onclick="event.stopPropagation(); sbUpgradeClick()">Upgrade &#8250;</button></div>
         </div>
         <div class="aside-footer">
             <button class="btn btn-excel" id="btn-export-hub" onclick="openExportHub()">
@@ -864,7 +876,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         </div>
         <header>
             <div class="header-left">
-                <button class="menu-toggle-btn mly-back-btn" id="mly-back-btn" onclick="mlyBackFromTrash()" title="Back" aria-label="Back" data-i18n-title="ui2.back"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg></button>
+                <button class="menu-toggle-btn mly-back-btn" id="mly-back-btn" onclick="mlyGoBack()" title="Back" aria-label="Back" data-i18n-title="ui2.back"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg></button>
                 <button class="menu-toggle-btn" onclick="toggleSidebar()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
                 <h1 id="page-title">Dashboard</h1>
             </div>
@@ -1572,10 +1584,10 @@ a.sg-link{text-decoration:none}
 .sg-head{display:flex;align-items:center;gap:10px;padding:10px 0 12px;font-size:19px;font-weight:700}
 .sg-back{width:38px;height:38px;border-radius:12px;border:0;background:var(--surface);color:var(--text);font-size:26px;line-height:1;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0 0 3px}
 @media (max-width:720px){
-.sg-page{position:fixed;top:0;left:0;right:0;bottom:0;z-index:1900;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;display:block;padding:0 14px calc(28px + env(safe-area-inset-bottom));box-sizing:border-box;transform:translateX(100%);visibility:hidden;transition:transform .3s cubic-bezier(.2,.8,.2,1),visibility 0s linear .3s}
+.sg-page{position:fixed;top:var(--sg-top,0px);left:0;right:0;bottom:0;z-index:1900;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;display:block;padding:12px 14px calc(28px + env(safe-area-inset-bottom));box-sizing:border-box;transform:translateX(100%);visibility:hidden;transition:transform .3s cubic-bezier(.2,.8,.2,1),visibility 0s linear .3s}
 .sg-page.open{transform:none;visibility:visible;transition:transform .3s cubic-bezier(.2,.8,.2,1)}
 .sg-page.drag{transition:none}
-.sg-head{position:sticky;top:0;z-index:2;background:var(--bg);padding-top:calc(10px + env(safe-area-inset-top))}
+.sg-head{display:none}
 }
 </style>
 <div id="settings-menu">
@@ -1585,7 +1597,6 @@ a.sg-link{text-decoration:none}
 <div id="sg-grp-shop">
 <div class="sg-label">Shop</div>
 <div class="sg-list">
-<button type="button" class="sg-item" id="sg-row-business" onclick="openSettingsPage('business')"><svg class="sg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l1.5-5h15L21 9"/><path d="M4 9v11h16V9"/><path d="M9 20v-6h6v6"/><path d="M3 9h18"/></svg><span><b>Business profile</b><small id="sg-sub-business">Shop name, phone and address</small></span><span class="sg-chev">&#8250;</span></button>
 <button type="button" class="sg-item" id="sg-row-tax" onclick="openSettingsPage('tax')"><svg class="sg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg><span><b>Tax</b><small id="sg-sub-tax">VAT registration</small></span><span class="sg-chev">&#8250;</span></button>
 <button type="button" class="sg-item" onclick="openSettingsPage('team')"><svg class="sg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span><b>Team &amp; access</b><small id="sg-sub-team">Branches, team, roles and your accountant</small></span><span class="sg-chev">&#8250;</span></button>
 </div>
@@ -3036,9 +3047,47 @@ a.sg-link{text-decoration:none}
         }
         function ufEl() {
             let el = document.getElementById('upgrade-flow');
-            if (!el) { el = document.createElement('div'); el.id = 'upgrade-flow'; document.body.appendChild(el); }
+            if (!el) { el = document.createElement('div'); el.id = 'upgrade-flow'; document.body.appendChild(el); ufBindSwipe(el); }
             document.body.style.overflow = 'hidden';
             return el;
+        }
+        // Phone: swipe right anywhere on the plan picker to go back (the page follows the finger). On the payment page it goes back to the plans.
+        function ufBindSwipe(el) {
+            let sx = 0, sy = 0, st = 0, mode = 0;       // mode: 0 waiting, 1 dragging, -1 not ours
+            const sheetOn = () => { const sh = document.getElementById('uf-sheet'); return !!(sh && sh.classList.contains('on')); };
+            el.addEventListener('touchstart', (e) => {
+                if (e.touches.length !== 1 || !UF.phone || sheetOn()) { mode = -1; return; }
+                const p = e.touches[0]; sx = p.clientX; sy = p.clientY; st = Date.now();
+                mode = (e.target.closest && e.target.closest('input,textarea,select,[contenteditable="true"],.uf-sheet')) ? -1 : 0;
+            }, { passive: true });
+            el.addEventListener('touchmove', (e) => {
+                if (mode === -1) return;
+                const p = e.touches[0], dx = p.clientX - sx, dy = p.clientY - sy;
+                if (mode === 0) {
+                    if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+                    if (dx > 0 && Math.abs(dx) > Math.abs(dy) * 1.4) { mode = 1; el.style.transition = 'none'; el.style.boxShadow = '-10px 0 28px rgba(0,0,0,.18)'; } else { mode = -1; return; }
+                }
+                e.preventDefault(); e.stopPropagation();
+                el.style.transform = 'translate3d(' + Math.max(dx, 0) + 'px,0,0)';
+            }, { passive: false });
+            const finish = (e) => {
+                if (mode !== 1) { mode = 0; return; }
+                mode = 0;
+                const p = (e.changedTouches && e.changedTouches[0]) || { clientX: sx }, dx = Math.max(p.clientX - sx, 0);
+                const w = el.offsetWidth || window.innerWidth, v = dx / Math.max(Date.now() - st, 1);
+                const commit = e.type !== 'touchcancel' && (dx > w * 0.35 || (v > 0.5 && dx > 40));
+                const dur = commit ? 220 : 180;
+                el.style.transition = 'transform ' + dur + 'ms cubic-bezier(.2,.8,.2,1)';
+                el.style.transform = 'translate3d(' + (commit ? w : 0) + 'px,0,0)';
+                setTimeout(() => {
+                    el.style.transition = ''; el.style.boxShadow = '';
+                    if (!commit) { el.style.transform = ''; return; }
+                    if (el.querySelector('.uf-pay')) { el.style.transform = ''; ufPhonePlans(); }
+                    else ufClose();
+                }, dur + 20);
+            };
+            el.addEventListener('touchend', finish, { passive: true });
+            el.addEventListener('touchcancel', finish, { passive: true });
         }
         function ufClose() {
             if (UF.timer) { clearInterval(UF.timer); UF.timer = null; }
@@ -3306,9 +3355,26 @@ a.sg-link{text-decoration:none}
         // ---- Settings: a list of categories; each opens its own page (back button, system back and swipe right to go back)
         let _sgOpen = null, _sgPushed = false, _sgIgnorePop = false;
         const sgIsPhone = () => window.matchMedia('(max-width: 720px)').matches;
+        // Phone: while a sub-page is open the header's left button is the back arrow (like Trash) and the title shows the page name.
+        function sgSyncHeader(pg) {
+            const on = !!pg && sgIsPhone();
+            document.body.classList.toggle('mly-on-sg', on);
+            const pt = document.getElementById('page-title');
+            if (on) {
+                const ttl = pg.querySelector('.sg-head span'); if (ttl && pt) pt.innerText = ttl.textContent;
+                const h = document.querySelector('header');
+                if (h) document.documentElement.style.setProperty('--sg-top', Math.max(0, Math.round(h.getBoundingClientRect().bottom)) + 'px');
+            } else {
+                document.documentElement.style.removeProperty('--sg-top');
+                const vs = document.getElementById('view-settings');
+                if (pt && vs && vs.classList.contains('active')) pt.innerText = t('pagetitle.settings');
+            }
+        }
+        window.addEventListener('resize', () => { if (_sgOpen) sgSyncHeader(sgEl('sg-page-' + _sgOpen)); });
         function openSettingsPage(id) {
             const pg = sgEl('sg-page-' + id); if (!pg) return;
             _sgOpen = id; pg.scrollTop = 0; pg.style.transform = ''; pg.classList.remove('drag'); pg.classList.add('open');
+            sgSyncHeader(pg);
             if (id === 'team' && typeof loadTeamView === 'function') Promise.resolve(loadTeamView()).catch(e => console.error('loadTeamView', e));
             if (!sgIsPhone()) window.scrollTo(0, 0);
             if (sgIsPhone() && !_sgPushed) { try { history.pushState({ sgPage: id }, ''); _sgPushed = true; } catch (e) { } }
@@ -3316,6 +3382,7 @@ a.sg-link{text-decoration:none}
         function closeSettingsPage(instant) {
             if (!_sgOpen) return;
             const pg = sgEl('sg-page-' + _sgOpen); _sgOpen = null;
+            sgSyncHeader(null);
             if (pg) {
                 if (instant) pg.classList.add('drag');
                 pg.style.transform = ''; pg.classList.remove('open');
@@ -3332,7 +3399,7 @@ a.sg-link{text-decoration:none}
             if (!pg || pg._sgSwipe) return; pg._sgSwipe = true;
             let sx = 0, sy = 0, st = 0, mode = 0;   // mode: 0 waiting, 1 dragging, -1 not ours
             pg.addEventListener('touchstart', (e) => {
-                if (e.touches.length !== 1 || !sgIsPhone()) { mode = -1; return; }
+                if (e.touches.length !== 1 || !sgIsPhone() || document.documentElement.classList.contains('mly-standalone')) { mode = -1; return; }
                 const t = e.touches[0]; sx = t.clientX; sy = t.clientY; st = Date.now();
                 mode = (e.target.closest && e.target.closest('input,textarea,select,[contenteditable="true"]')) ? -1 : 0;
             }, { passive: true });
@@ -3390,8 +3457,12 @@ a.sg-link{text-decoration:none}
             return /\bfree\b/i.test(currentPlanName || '');            // price not known yet: go by the plan's name
         }
         function sgUpdateUpgradeBanner() {
-            const b = sgEl('sg-upgrade-banner'); if (!b) return;
-            b.classList.toggle('show', !!currentIsOwner && sgIsFreePlan());
+            const on = !!currentIsOwner && sgIsFreePlan();
+            ['sg-upgrade-banner', 'sb-upgrade-banner'].forEach(id => { const b = sgEl(id); if (b) b.classList.toggle('show', on); });
+        }
+        function sbUpgradeClick() {
+            if (window.innerWidth <= 768) { const sb = document.getElementById('sidebar'); if (sb) sb.classList.add('collapsed'); }
+            openUpgradeRequest('');
         }
         async function sgRefreshPlanPrice() {
             if (!currentIsOwner || !navigator.onLine || !currentTenantId || currentPlanFeatures === null) return;
@@ -3415,7 +3486,6 @@ a.sg-link{text-decoration:none}
             set('sg-profile-sub', e => { e.textContent = currentUsername || currentBizProfile.phone || ''; });
             // Staff who can manage the team only get the Team & access page here; the rest is owner-only.
             set('sg-profile-card', e => { e.style.display = owner ? '' : 'none'; });
-            set('sg-row-business', e => { e.style.display = owner ? '' : 'none'; });
             set('sg-grp-account', e => { e.style.display = owner ? '' : 'none'; });
             if (!owner) set('sg-row-tax', e => { e.style.display = 'none'; });
             sgUpdateUpgradeBanner();
@@ -5047,6 +5117,7 @@ a.sg-link{text-decoration:none}
                 try { const f = localStorage.getItem('neba_erp_features_' + currentTenantId); currentPlanFeatures = f ? JSON.parse(f) : null; currentPlanName = localStorage.getItem('neba_erp_planname_' + currentTenantId) || ''; } catch (e) { }
                 try { const k = JSON.parse(localStorage.getItem('neba_erp_fkeys_' + currentTenantId) || 'null'); currentPlanFeatureKeys = Array.isArray(k) ? k : null; } catch (e) { currentPlanFeatureKeys = null; }
                     if (window.scnShowNav) window.scnShowNav();
+                    try { sgUpdateUpgradeBanner(); } catch (e) { }
                 }
             if (!(lastIdentity && lastIdentity.tenantId)) return false;
             loadOfflineQueue(); loadFailedOps(); // the tenant is known now, so changes saved earlier on this device are picked up
@@ -5196,6 +5267,7 @@ a.sg-link{text-decoration:none}
                 try { localStorage.setItem('neba_erp_premium_' + currentTenantId, '0'); localStorage.removeItem('neba_erp_features_' + currentTenantId); localStorage.removeItem('neba_erp_planname_' + currentTenantId); } catch (e) { }
             }
             captureSubStatus(biz);
+            try { sgUpdateUpgradeBanner(); sgRefreshPlanPrice(); } catch (e) { }
             if (window.scnShowNav) window.scnShowNav();
             setTimeout(() => { try { if (currentPlanPremium && window.scnEnsure) window.scnEnsure().catch(() => { }); } catch (e) { } }, 4000); // keep matches ready for offline selling
             setTimeout(() => { try { if (currentPlanPremium) prlPrefetch(); } catch (e) { } }, 9000); // learn which receipts are already printed, for offline use
@@ -6663,6 +6735,10 @@ a.sg-link{text-decoration:none}
         // --- UI ROUTING ---
         function toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed'); }
         // Trash page: back arrow (and swipe right in the installed app) returns to the page you were on.
+        function mlyGoBack() {
+            if (typeof _sgOpen !== 'undefined' && _sgOpen) { closeSettingsPage(); return; }   // inside a Settings sub-page
+            mlyBackFromTrash();
+        }
         function mlyBackFromTrash() {
             const prev = window.mlyViewBeforeTrash;
             switchView(prev && document.getElementById('view-' + prev) ? prev : 'dashboard');
@@ -6681,9 +6757,10 @@ a.sg-link{text-decoration:none}
             const isStandalone = () => document.documentElement.classList.contains('mly-standalone');
             const isPhone = () => window.innerWidth <= 768;
             const onTrash = () => document.body.classList.contains('mly-on-trash');
+            const onSg = () => document.body.classList.contains('mly-on-sg');
             const inSidebar = (t) => !!(t && t.closest && t.closest('#sidebar'));
             const isHamburger = (t) => !!(t && t.closest && t.closest('.header-left .menu-toggle-btn:not(.mly-back-btn)')); // it toggles the sidebar by itself
-            const BLOCK = '.mly-overlay, .mly-ann-ov, .modal-overlay.active, [id$="-modal"].active, #bulk-overlay, #neba-tour-tip, .notif-panel.active, .notif-panel.show, .notif-panel.open';
+            const BLOCK = '.mly-overlay, .mly-ann-ov, .modal-overlay.active, [id$="-modal"].active, #bulk-overlay, #upgrade-flow, #neba-tour-tip, .notif-panel.active, .notif-panel.show, .notif-panel.open';
             const FULLSCREEN_IDS = ['auth-overlay', 'reset-password-overlay', 'initial-inventory-overlay', 'inactive-overlay'];
 
             // Is this element (or a parent) something that scrolls sideways / is a field? Then a swipe on it is not a page swipe.
@@ -6714,7 +6791,7 @@ a.sg-link{text-decoration:none}
 
             // ---- finger-following drag ----
             let sx0 = 0, sy0 = 0, sTarget = null;
-            let mode = 'none';          // none | pending | sb | trash | dead
+            let mode = 'none';          // none | pending | sb | trash | sg | dead
             let lockX = 0, lastX = 0, lastT = 0, vel = 0, cur = 0, opening = false, busyAnim = false, tr = null;
             const EASE = 'cubic-bezier(.2,.8,.2,1)';
             const settle = (open, fraction) => open === null ? 0 : Math.round(110 + 190 * Math.min(1, fraction));
@@ -6781,8 +6858,39 @@ a.sg-link{text-decoration:none}
                 setTimeout(() => { trCleanup(); tr = null; if (commit) mlyBackFromTrash(); busyAnim = false; }, dur + 30);
             }
 
+            // Settings sub-page: the page slides right with the finger; the Settings list waits underneath.
+            let sgd = null;
+            function startSg() {
+                const pg = (typeof _sgOpen !== 'undefined' && _sgOpen) ? document.getElementById('sg-page-' + _sgOpen) : null;
+                if (!pg) { mode = 'dead'; return; }
+                sgd = { pg, menu: document.getElementById('settings-menu'), w: pg.offsetWidth || window.innerWidth };
+                mode = 'sg'; lockX = sx0; cur = 0; window.mlyHDrag = true;
+                pg.classList.add('drag'); if (sgd.menu) sgd.menu.style.willChange = 'transform';
+                sgApply(0);
+            }
+            function sgApply(d) {
+                sgd.pg.style.transform = 'translate3d(' + d + 'px,0,0)';
+                if (sgd.menu) sgd.menu.style.transform = 'translate3d(' + Math.round(-(1 - d / sgd.w) * 70) + 'px,0,0)';
+            }
+            function sgMove(x) { cur = Math.max(0, Math.min(sgd.w, x - lockX)); sgApply(cur); }
+            function sgFinish() {
+                const { pg, menu, w } = sgd, commit = decide(cur / w), target = commit ? w : 0;
+                const dur = settle(commit, Math.abs(target - cur) / w);
+                void pg.offsetWidth; busyAnim = true;
+                pg.classList.remove('drag');
+                pg.style.transition = 'transform ' + dur + 'ms ' + EASE;
+                if (menu) menu.style.transition = 'transform ' + dur + 'ms ' + EASE;
+                sgApply(target);
+                setTimeout(() => {
+                    pg.style.transition = '';
+                    if (menu) { menu.style.transition = ''; menu.style.transform = ''; menu.style.willChange = ''; }
+                    if (commit) closeSettingsPage(true); else pg.style.transform = '';
+                    sgd = null; busyAnim = false;
+                }, dur + 30);
+            }
+
             function finishDrag() {
-                if (mode === 'sb') sbFinish(); else if (mode === 'trash' && tr) trFinish();
+                if (mode === 'sb') sbFinish(); else if (mode === 'trash' && tr) trFinish(); else if (mode === 'sg' && sgd) sgFinish();
                 window.mlyHDrag = false;
             }
 
@@ -6809,16 +6917,17 @@ a.sg-link{text-decoration:none}
                     if (Math.abs(dx) < Math.abs(dy) * 1.2) { mode = 'dead'; return; } // scrolling up/down
                     if (sbOpen()) { if (dx < 0) startSb(false); else mode = 'dead'; }
                     else if (onTrash()) { if (dx > 0) startTrash(); else mode = 'dead'; }
+                    else if (onSg()) { if (dx > 0) startSg(); else mode = 'dead'; }
                     else if (dx > 0) startSb(true);
                     else mode = 'dead';
                     if (mode === 'dead') return;
                 }
                 if (e.cancelable) e.preventDefault();
-                if (mode === 'sb') sbMove(x); else if (mode === 'trash' && tr) trMove(x);
+                if (mode === 'sb') sbMove(x); else if (mode === 'trash' && tr) trMove(x); else if (mode === 'sg' && sgd) sgMove(x);
             }, { capture: true, passive: false });
 
             function onEnd(e) {
-                if (mode === 'sb' || mode === 'trash') {
+                if (mode === 'sb' || mode === 'trash' || mode === 'sg') {
                     if (e.type === 'touchend' && e.cancelable) e.preventDefault();
                     finishDrag(); mode = 'none'; return;
                 }
