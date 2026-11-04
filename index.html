@@ -1525,33 +1525,59 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
             <div id="view-settings" class="view-panel">
 <style>
-#view-settings .sg-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-light);margin:24px 2px 8px}
-#view-settings .sg-title:first-child{margin-top:4px}
-#view-settings .sg-sub{font-size:12px;color:var(--text-light)}
-#view-settings .sg-hint{font-size:13px;color:var(--text-light);margin:0 0 12px}
-#view-settings .sg-row2{display:flex;gap:12px;flex-wrap:wrap}
-#view-settings .sg-row2>.form-group{flex:1 1 200px;margin-bottom:12px}
-#view-settings .sg-saved{display:none;color:var(--success);font-size:13px;margin-left:10px}
-#view-settings .sg-hist{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--border);font-size:14px}
-#view-settings .sg-hist:first-child{border-top:0}
-#view-settings .sg-pill{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:#E4E1D8;color:#555}
-#view-settings .sg-paid{background:#DCEFE5;color:#1f6b45}
-#view-settings .sg-rejected{background:#F6DCDC;color:#9a2b2b}
-#view-settings .sg-needs_review{background:#EFE4D0;color:#7a5410}
-#view-settings .sg-chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 12px}
-#view-settings .sg-chip{display:inline-flex;align-items:center;gap:6px;background:var(--bg,#f4f2ea);border:1px solid var(--border);border-radius:16px;padding:4px 6px 4px 12px;font-size:13px}
-#view-settings .sg-chip button{border:0;background:transparent;font-size:16px;line-height:1;cursor:pointer;color:var(--text-light);padding:0 4px}
-#view-settings .sg-link{display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;background:transparent;border:0;border-top:1px solid var(--border);padding:12px 2px;font-size:14px;color:var(--text);cursor:pointer}
-#view-settings .sg-link:first-of-type{border-top:0}
-#view-settings .sg-link small{display:block;color:var(--text-light);font-size:12px}
-#view-settings a.sg-link{text-decoration:none}
-#view-settings .sg-danger{border-color:#e3b9b9}
-#view-settings #settings-tax-title{display:none}
-#view-settings:has(#vat-settings-card:not([style*="none"])) #settings-tax-title{display:block}
+.sg-sub{font-size:12px;color:var(--text-light)}
+.sg-hint{font-size:13px;color:var(--text-light);margin:0 0 12px}
+.sg-row2{display:flex;gap:12px;flex-wrap:wrap}
+.sg-row2>.form-group{flex:1 1 200px;margin-bottom:12px}
+.sg-saved{display:none;color:var(--success);font-size:13px;margin-left:10px}
+.sg-hist{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--border);font-size:14px}
+.sg-hist:first-child{border-top:0}
+.sg-pill{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:#E4E1D8;color:#555}
+.sg-paid{background:#DCEFE5;color:#1f6b45}
+.sg-rejected{background:#F6DCDC;color:#9a2b2b}
+.sg-needs_review{background:#EFE4D0;color:#7a5410}
+.sg-chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 12px}
+.sg-chip{display:inline-flex;align-items:center;gap:6px;background:var(--bg,#f4f2ea);border:1px solid var(--border);border-radius:16px;padding:4px 6px 4px 12px;font-size:13px}
+.sg-chip button{border:0;background:transparent;font-size:16px;line-height:1;cursor:pointer;color:var(--text-light);padding:0 4px}
+.sg-link{display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;background:transparent;border:0;border-top:1px solid var(--border);padding:12px 2px;font-size:14px;color:var(--text);cursor:pointer}
+.sg-link:first-of-type{border-top:0}
+.sg-link small{display:block;color:var(--text-light);font-size:12px}
+a.sg-link{text-decoration:none}
+.sg-danger{border-color:#e3b9b9}
+#view-settings:has(#vat-settings-card:not([style*="none"])) .sg-h1{font-size:22px;font-weight:700;margin:4px 2px 14px}
+.sg-list{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.sg-item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:transparent;border:0;border-top:1px solid var(--border);padding:15px 16px;cursor:pointer;color:var(--text);font:inherit}
+.sg-item:first-child{border-top:0}
+.sg-item b{display:block;font-size:15px}
+.sg-item small{display:block;color:var(--text-light);font-size:12px;margin-top:2px}
+.sg-item .sg-chev{margin-left:auto;font-size:24px;line-height:1;color:var(--text-light)}
+.sg-page{display:none}
+.sg-page.open{display:block}
+@media (min-width:721px){#view-settings:has(.sg-page.open) #settings-menu{display:none}}
+.sg-head{display:flex;align-items:center;gap:10px;padding:10px 0 12px;font-size:19px;font-weight:700}
+.sg-back{width:38px;height:38px;border-radius:12px;border:0;background:var(--surface);color:var(--text);font-size:26px;line-height:1;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0 0 3px}
+@media (max-width:720px){
+.sg-page{position:fixed;top:0;left:0;right:0;bottom:0;z-index:1900;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;display:block;padding:0 14px calc(28px + env(safe-area-inset-bottom));box-sizing:border-box;transform:translateX(100%);visibility:hidden;transition:transform .3s cubic-bezier(.2,.8,.2,1),visibility 0s linear .3s}
+.sg-page.open{transform:none;visibility:visible;transition:transform .3s cubic-bezier(.2,.8,.2,1)}
+.sg-page.drag{transition:none}
+.sg-head{position:sticky;top:0;z-index:2;background:var(--bg);padding-top:calc(10px + env(safe-area-inset-top))}
+}
 </style>
-<div class="sg-title">Business</div>
+<div id="settings-menu">
+<div class="sg-h1">Settings</div>
+<div class="sg-list">
+<button type="button" class="sg-item" onclick="openSettingsPage('business')"><span><b>Business profile</b><small id="sg-sub-business">Shop name, phone and address</small></span><span class="sg-chev">&#8250;</span></button>
+<button type="button" class="sg-item" onclick="openSettingsPage('plan')"><span><b>Plan &amp; billing</b><small id="sg-sub-plan">Your plan and payment history</small></span><span class="sg-chev">&#8250;</span></button>
+<button type="button" class="sg-item" id="sg-row-tax" onclick="openSettingsPage('tax')"><span><b>Tax</b><small id="sg-sub-tax">VAT registration</small></span><span class="sg-chev">&#8250;</span></button>
+<button type="button" class="sg-item" onclick="openSettingsPage('sales')"><span><b>Sales &amp; receipts</b><small id="sg-sub-sales">Receipt text, sale types and scanned expense receipts</small></span><span class="sg-chev">&#8250;</span></button>
+<button type="button" class="sg-item" onclick="openSettingsPage('team')"><span><b>Team &amp; access</b><small id="sg-sub-team">Branches, team, roles and your accountant</small></span><span class="sg-chev">&#8250;</span></button>
+<button type="button" class="sg-item" onclick="openSettingsPage('security')"><span><b>Security &amp; account</b><small id="sg-sub-security">Password, sign out and delete shop</small></span><span class="sg-chev">&#8250;</span></button>
+<button type="button" class="sg-item" onclick="openSettingsPage('about')"><span><b>About &amp; help</b><small id="sg-sub-about">Version, support, terms and privacy</small></span><span class="sg-chev">&#8250;</span></button>
+</div>
+</div>
+<div class="sg-page" id="sg-page-business">
+<div class="sg-head"><button type="button" class="sg-back" onclick="closeSettingsPage()" aria-label="Back">&#8249;</button><span>Business profile</span></div>
 <div class="card" id="business-profile-card">
-<h2 style="border:none; margin-bottom:10px;">Business profile</h2>
 <div class="form-group" style="margin-bottom:12px;"><label>Shop name</label><input type="text" id="bp-name" maxlength="80"></div>
 <div class="sg-row2">
 <div class="form-group"><label>Phone</label><input type="tel" id="bp-phone" maxlength="30"></div>
@@ -1559,7 +1585,9 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 </div>
 <button type="button" class="btn" onclick="saveBusinessProfile()">Save</button><span class="sg-saved" id="bp-saved">Saved &#10003;</span>
 </div>
-<div class="sg-title">Plan &amp; billing</div>
+</div>
+<div class="sg-page" id="sg-page-plan">
+<div class="sg-head"><button type="button" class="sg-back" onclick="closeSettingsPage()" aria-label="Back">&#8249;</button><span>Plan &amp; billing</span></div>
 <div class="card" id="plans-settings-card">
 <h2 style="border:none; margin-bottom:10px;">Plan</h2>
 <p id="plans-settings-current" class="sg-hint"></p>
@@ -1569,7 +1597,9 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 <h2 style="border:none; margin-bottom:10px;">Payment history</h2>
 <div id="plans-history-list" class="sg-sub" style="font-size:13px;"></div>
 </div>
-<div class="sg-title"id="settings-tax-title">Tax</div>
+</div>
+<div class="sg-page" id="sg-page-tax">
+<div class="sg-head"><button type="button" class="sg-back" onclick="closeSettingsPage()" aria-label="Back">&#8249;</button><span>Tax</span></div>
 <div class="card" id="vat-settings-card" style="display:none;">
                     <h2 style="border:none; margin-bottom:10px;" data-i18n="team.vat_registration">VAT Registration</h2>
                     <p style="font-size:13px; color:var(--text-light); margin-bottom:12px;" data-i18n="team.vat_registration_hint">Turning this on adds an "Include VAT (15%)" checkbox to the Sales page and shows an Estimated VAT box on the Dashboard. This is only an estimate for your own planning — it does not affect your journal entries or accounts.</p>
@@ -1590,9 +1620,10 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                         <span id="settings-vat-details-saved" style="display:none; color:var(--success); font-size:13px; margin-left:10px;" data-i18n="ui2.saved">Saved ✓</span>
                     </div>
                 </div>
-<div class="sg-title">Sales &amp; receipts</div>
+</div>
+<div class="sg-page" id="sg-page-sales">
+<div class="sg-head"><button type="button" class="sg-back" onclick="closeSettingsPage()" aria-label="Back">&#8249;</button><span>Sales &amp; receipts</span></div>
 <div class="card" id="sales-receipts-card">
-<h2 style="border:none; margin-bottom:10px;">Sales &amp; receipts</h2>
 <div class="form-group" style="margin-bottom:12px;"><label>Receipt header</label><textarea id="sr-header" rows="2" maxlength="160" placeholder="Shown under the shop name, e.g. address and phone"></textarea></div>
 <div class="form-group" style="margin-bottom:12px;"><label>Receipt footer</label><textarea id="sr-footer" rows="2" maxlength="200" placeholder="e.g. Thank you for shopping with us"></textarea></div>
 <div class="sg-sub" style="margin-bottom:10px;">Printed on normal receipts. VAT-registered shops print the fixed tax-receipt layout, which cannot be changed.</div>
@@ -1612,7 +1643,9 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                     <p style="font-size:13px; color:var(--text-light); margin-bottom:12px;">Also add scanned expense receipts to your Expenses page.</p>
                     <label class="switch-row"><span class="switch"><input type="checkbox" id="settings-scan-expense-posts" onchange="toggleExpenseScanPosts(this.checked)"><span class="slider"></span></span> <span>Add to Expenses page</span></label>
                 </div>
-<div class="sg-title">Team &amp; access</div>
+</div>
+<div class="sg-page" id="sg-page-team">
+<div class="sg-head"><button type="button" class="sg-back" onclick="closeSettingsPage()" aria-label="Back">&#8249;</button><span>Team &amp; access</span></div>
 <div class="card" id="team-links-card">
 <h2 style="border:none; margin-bottom:6px;">Branches, team &amp; roles</h2>
 <button type="button" class="sg-link" onclick="switchView('team')"><span>Branches<small>Add or edit your shop's branches</small></span><span>&#8250;</span></button>
@@ -1630,9 +1663,10 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                     <div id="accountant-search-results" style="margin-bottom:6px;"></div>
                     <div id="accountant-links-list" style="margin-top:14px;"></div>
                 </div>
-<div class="sg-title">Security &amp; account</div>
+</div>
+<div class="sg-page" id="sg-page-security">
+<div class="sg-head"><button type="button" class="sg-back" onclick="closeSettingsPage()" aria-label="Back">&#8249;</button><span>Security &amp; account</span></div>
 <div class="card" id="security-card">
-<h2 style="border:none; margin-bottom:10px;">Security &amp; account</h2>
 <label style="font-weight:600; font-size:13px;">Change password</label>
 <div class="sg-row2" style="margin-top:6px;">
 <div class="form-group"><input type="password" id="sec-pw1" placeholder="New password" autocomplete="new-password"></div>
@@ -1649,11 +1683,13 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 <button type="button" class="btn btn-danger" onclick="deleteMyShop()">Delete shop</button>
 </div>
 </div>
-<div class="sg-title">About &amp; help</div>
+</div>
+<div class="sg-page" id="sg-page-about">
+<div class="sg-head"><button type="button" class="sg-back" onclick="closeSettingsPage()" aria-label="Back">&#8249;</button><span>About &amp; help</span></div>
 <div class="card" id="about-card">
-<h2 style="border:none; margin-bottom:6px;">About &amp; help</h2>
 <div id="about-version" class="sg-hint" style="margin-bottom:6px;"></div>
 <div id="about-links"></div>
+</div>
 </div>
 </div>
 
@@ -3083,6 +3119,39 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 <button class="uf-cta" id="uf-continue" onclick="ufContinue()">Continue</button>
                 <div class="uf-fine">You pay once for the period you choose. Nothing renews by itself.</div>`;
             setTimeout(() => { sh.classList.add('on'); if (dim) dim.classList.add('on'); }, 20);
+            ufBindSheetDrag(sh, dim);
+        }
+        // Swipe the sheet down to close it: it follows the finger 1:1 (the dark background fades with it).
+        function ufBindSheetDrag(sh, dim) {
+            if (!sh || sh._ufDrag) return; sh._ufDrag = true;
+            let sy = 0, sx = 0, st = 0, mode = 0;
+            sh.addEventListener('touchstart', (e) => {
+                if (e.touches.length !== 1) { mode = -1; return; }
+                sy = e.touches[0].clientY; sx = e.touches[0].clientX; st = Date.now();
+                mode = sh.scrollTop <= 0 ? 0 : -1;
+            }, { passive: true });
+            sh.addEventListener('touchmove', (e) => {
+                if (mode === -1) return;
+                const dy = e.touches[0].clientY - sy, dx = e.touches[0].clientX - sx;
+                if (mode === 0) {
+                    if (Math.abs(dy) < 8 && Math.abs(dx) < 8) return;
+                    if (dy > 0 && Math.abs(dy) > Math.abs(dx)) { mode = 1; sh.style.transition = 'none'; } else { mode = -1; return; }
+                }
+                e.preventDefault(); e.stopPropagation();
+                const d = Math.max(dy, 0);
+                sh.style.transform = 'translateY(' + d + 'px)';
+                if (dim) { dim.style.transition = 'none'; dim.style.opacity = String(Math.max(0, 1 - d / Math.max(sh.offsetHeight, 1))); }
+            }, { passive: false });
+            const end = (e, cancelled) => {
+                if (mode !== 1) { mode = 0; return; }
+                mode = 0;
+                const dy = cancelled ? 0 : Math.max(e.changedTouches[0].clientY - sy, 0), v = dy / Math.max(Date.now() - st, 1);
+                sh.style.transition = ''; sh.style.transform = '';
+                if (dim) { dim.style.transition = ''; dim.style.opacity = ''; }
+                if (dy > sh.offsetHeight * 0.3 || (v > 0.5 && dy > 40)) ufCloseSheet();
+            };
+            sh.addEventListener('touchend', (e) => end(e, false), { passive: true });
+            sh.addEventListener('touchcancel', (e) => end(e, true), { passive: true });
         }
         function ufCloseSheet() {
             const sh = document.getElementById('uf-sheet'), dim = document.getElementById('uf-dim');
@@ -3238,14 +3307,71 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             _expiryBusy = false;
         }
         document.addEventListener('visibilitychange', () => { if (!document.hidden) checkPlanExpiry(); });
+        // ---- Settings: a list of categories; each opens its own page (back button, system back and swipe right to go back)
+        let _sgOpen = null, _sgPushed = false, _sgIgnorePop = false;
+        const sgIsPhone = () => window.matchMedia('(max-width: 720px)').matches;
+        function openSettingsPage(id) {
+            const pg = sgEl('sg-page-' + id); if (!pg) return;
+            _sgOpen = id; pg.scrollTop = 0; pg.style.transform = ''; pg.classList.remove('drag'); pg.classList.add('open');
+            if (!sgIsPhone()) window.scrollTo(0, 0);
+            if (sgIsPhone() && !_sgPushed) { try { history.pushState({ sgPage: id }, ''); _sgPushed = true; } catch (e) { } }
+        }
+        function closeSettingsPage(instant) {
+            if (!_sgOpen) return;
+            const pg = sgEl('sg-page-' + _sgOpen); _sgOpen = null;
+            if (pg) {
+                if (instant) pg.classList.add('drag');
+                pg.style.transform = ''; pg.classList.remove('open');
+                if (instant) setTimeout(() => pg.classList.remove('drag'), 60);
+            }
+            if (_sgPushed) { _sgPushed = false; _sgIgnorePop = true; try { history.back(); } catch (e) { _sgIgnorePop = false; } }
+        }
+        window.addEventListener('popstate', () => {
+            if (_sgIgnorePop) { _sgIgnorePop = false; return; }
+            if (_sgOpen) { _sgPushed = false; closeSettingsPage(); }
+        });
+        // Swipe right to go back: the page follows the finger 1:1; let go past the middle (or flick) and it closes.
+        function sgBindSwipe(pg) {
+            if (!pg || pg._sgSwipe) return; pg._sgSwipe = true;
+            let sx = 0, sy = 0, st = 0, mode = 0;   // mode: 0 waiting, 1 dragging, -1 not ours
+            pg.addEventListener('touchstart', (e) => {
+                if (e.touches.length !== 1 || !sgIsPhone()) { mode = -1; return; }
+                const t = e.touches[0]; sx = t.clientX; sy = t.clientY; st = Date.now();
+                mode = (e.target.closest && e.target.closest('input,textarea,select,[contenteditable="true"]')) ? -1 : 0;
+            }, { passive: true });
+            pg.addEventListener('touchmove', (e) => {
+                if (mode === -1) return;
+                const t = e.touches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+                if (mode === 0) {
+                    if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+                    if (dx > 0 && Math.abs(dx) > Math.abs(dy) * 1.4) { mode = 1; pg.classList.add('drag'); } else { mode = -1; return; }
+                }
+                e.preventDefault(); e.stopPropagation();
+                pg.style.transform = 'translateX(' + Math.max(dx, 0) + 'px)';
+            }, { passive: false });
+            const finish = (e) => {
+                if (mode !== 1) { mode = 0; return; }
+                mode = 0;
+                const t = e.changedTouches[0], dx = Math.max(t.clientX - sx, 0), v = dx / Math.max(Date.now() - st, 1);
+                pg.classList.remove('drag');
+                if (dx > pg.offsetWidth * 0.35 || (v > 0.5 && dx > 40)) closeSettingsPage();
+                else pg.style.transform = '';
+            };
+            pg.addEventListener('touchend', finish, { passive: true });
+            pg.addEventListener('touchcancel', () => { if (mode === 1) { pg.classList.remove('drag'); pg.style.transform = ''; } mode = 0; }, { passive: true });
+        }
         function renderSettingsPage() {
             if (!sgEl('plans-settings-card')) return;
+            document.querySelectorAll('.sg-page').forEach(sgBindSwipe);
+            const vc = sgEl('vat-settings-card'), tr = sgEl('sg-row-tax');
+            if (tr) tr.style.display = (vc && vc.style.display !== 'none') ? '' : 'none';
             sgEl('bp-name').value = currentTenantName || '';
             sgEl('bp-phone').value = currentBizProfile.phone || '';
             sgEl('bp-address').value = currentBizProfile.address || '';
             const st = planStatusText();
             sgEl('plans-settings-current').innerHTML = (currentPlanName ? 'Your plan: <b>' + escHtml(currentPlanName) + '</b>' : 'No plan chosen yet') + (st ? '<br>' + escHtml(st) : '');
             loadPaymentHistory();
+            const sp = sgEl('sg-sub-plan'); if (sp) sp.textContent = (currentPlanName || 'No plan chosen yet') + (st ? ' \u00b7 ' + st : '');
             sgEl('sr-header').value = currentBizProfile.receiptHeader || '';
             sgEl('sr-footer').value = currentBizProfile.receiptFooter || '';
             sgEl('sr-vat-row').style.display = state.vatRegistered ? 'block' : 'none';
@@ -6745,7 +6871,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             if (window.innerWidth <= 768) document.getElementById('sidebar').classList.add('collapsed');
 
             if (viewId === 'dashboard') renderAnalyticalDashboards();
-            if (viewId === 'settings') renderSettingsPage();
+            if (viewId === 'settings') { closeSettingsPage(true); renderSettingsPage(); } else { closeSettingsPage(true); }
             if (viewId === 'sales') applyDefaultVat();
             if (viewId === 'inventory') {
                 resetProductForm(); renderPerpetualInventoryTable();
