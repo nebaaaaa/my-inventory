@@ -76,6 +76,11 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 </script>
     <script src="business-types.config.js"></script>
     <link rel="manifest" href="manifest.json">
+    <script>
+    // The browser fires "beforeinstallprompt" only ONCE, and it can arrive before the big app script further down has started
+    // listening. Catch it here first; the app script picks it up from window.__mlyInstallEvt.
+    window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); window.__mlyInstallEvt = e; });
+    </script>
     <meta name="application-name" content="MELEYA">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -902,7 +907,6 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 <strong data-i18n="ui2.system_alerts">System Alerts</strong>
                 <button class="btn-small btn" onclick="clearAllNotifications()" data-i18n="misc.clear_all">Clear All</button>
             </div>
-            <div id="push-row" style="display:none; padding:10px 12px; border-bottom:1px solid var(--border); align-items:center; justify-content:space-between; gap:10px; font-size:12.5px;"><span id="push-row-text">Get alerts on this device even when the app is closed.</span><span style="display:flex; gap:6px; flex-shrink:0;"><button type="button" class="btn-small btn btn-outline" id="push-row-test" style="display:none;" onclick="mlyPushTest()">Test</button><button type="button" class="btn-small btn" id="push-row-btn" onclick="mlyPushToggle()">Turn on</button></span></div>
             <div id="notif-list"></div>
         </div>
 
@@ -1612,8 +1616,12 @@ a.sg-link{text-decoration:none}
 <div class="sg-label">Plan &amp; account</div>
 <div class="sg-list">
 <button type="button" class="sg-item" onclick="openSettingsPage('plan')"><svg class="sg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg><span><b>Plan &amp; billing</b><small id="sg-sub-plan">Your plan and payment history</small></span><span class="sg-chev">&#8250;</span></button>
-<button type="button" class="sg-item" onclick="openSettingsPage('security')"><svg class="sg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span><b>Security &amp; account</b><small id="sg-sub-security">Password, sign out and delete shop</small></span><span class="sg-chev">&#8250;</span></button>
+<button type="button" class="sg-item" onclick="openSettingsPage('security')"><svg class="sg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span><b>Security &amp; account</b><small id="sg-sub-security">Email, username and password</small></span><span class="sg-chev">&#8250;</span></button>
 </div>
+</div>
+<div class="sg-label">Preferences</div>
+<div class="sg-list">
+<button type="button" class="sg-item" onclick="openSettingsPage('notifications')"><svg class="sg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span><b>Notifications</b><small id="sg-sub-notifications">Phone alerts when the app is closed</small></span><span class="sg-chev">&#8250;</span></button>
 </div>
 <div class="sg-label">Support</div>
 <div class="sg-list">
@@ -1721,9 +1729,32 @@ a.sg-link{text-decoration:none}
                     <div id="accountant-links-list" style="margin-top:14px;"></div>
                 </div>
 </div>
+<div class="sg-page" id="sg-page-notifications">
+<div class="sg-head"><button type="button" class="sg-back" onclick="closeSettingsPage()" aria-label="Back">&#8249;</button><span>Notifications</span></div>
+<div class="card" id="notifications-card">
+<label class="switch-row" style="justify-content:space-between; align-items:center;">
+<span style="min-width:0; flex:1;"><b style="font-size:14px;">Phone alerts</b><span class="sg-hint" id="push-row-text" style="display:block; margin:2px 0 0;">Get alerts on this device even when the app is closed.</span></span>
+<span class="switch"><input type="checkbox" id="push-switch" onchange="mlyPushToggle()"><span class="slider"></span></span>
+</label>
+<div style="margin-top:14px;"><button type="button" class="btn btn-outline btn-small" id="push-row-test" style="display:none;" onclick="mlyPushTest()">Send a test alert</button></div>
+</div>
+</div>
 <div class="sg-page" id="sg-page-security">
 <div class="sg-head"><button type="button" class="sg-back" onclick="closeSettingsPage()" aria-label="Back">&#8249;</button><span>Security &amp; account</span></div>
 <div class="card" id="security-card">
+<label style="font-weight:600; font-size:13px;">Email</label>
+<div class="sg-hint" style="margin:4px 0 8px;">We send a confirmation link to the new address. Your email changes once you open it.</div>
+<div class="form-group" style="margin-bottom:10px;"><input type="email" id="sec-email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="you@example.com"></div>
+<button type="button" class="btn" onclick="changeMyEmail()">Save email</button>
+<div id="sec-email-msg" style="font-size:13px; margin-top:8px;"></div>
+<div style="margin-top:18px; border-top:1px solid var(--border); padding-top:14px;">
+<label style="font-weight:600; font-size:13px;">Username</label>
+<div class="sg-hint" style="margin:4px 0 8px;">You can type this instead of your email when you sign in.</div>
+<div class="form-group" style="margin-bottom:10px;"><input type="text" id="sec-username" maxlength="40" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Your username"></div>
+<button type="button" class="btn" onclick="changeMyUsername()">Save username</button>
+<div id="sec-username-msg" style="font-size:13px; margin-top:8px;"></div>
+</div>
+<div style="margin-top:18px; border-top:1px solid var(--border); padding-top:14px;">
 <label style="font-weight:600; font-size:13px;">Change password</label>
 <div class="sg-row2" style="margin-top:6px;">
 <div class="form-group"><input type="password" id="sec-pw1" placeholder="New password" autocomplete="new-password"></div>
@@ -1731,13 +1762,6 @@ a.sg-link{text-decoration:none}
 </div>
 <button type="button" class="btn" onclick="changeMyPassword()">Change password</button>
 <div id="sec-pw-msg" style="font-size:13px; margin-top:8px;"></div>
-<div style="margin-top:18px; border-top:1px solid var(--border); padding-top:14px;">
-<button type="button" class="btn btn-outline" onclick="settingsSignOut()">Sign out of this device</button>
-</div>
-<div class="sg-danger" style="margin-top:18px; border:1px solid #e3b9b9; border-radius:8px; padding:14px;">
-<div style="font-weight:600; margin-bottom:4px;">Delete this shop</div>
-<div class="sg-sub" style="margin-bottom:10px;">Permanently deletes the shop and all its products, sales, purchases, expenses, branches and team members. This cannot be undone.</div>
-<button type="button" class="btn btn-danger" onclick="deleteMyShop()">Delete shop</button>
 </div>
 </div>
 </div>
@@ -3325,7 +3349,8 @@ a.sg-link{text-decoration:none}
         // SETTINGS PAGE: business profile, plan & billing, sales & receipts, team links, security, about
         // ---------------------------------------------------------------
         // Fill these in to show contact details and links under Settings > About & help (blank = hidden).
-        const MELEYA_SUPPORT = { phone: '', telegram: '', email: '' };   // telegram: username without the @
+        // Customer support shown under Settings > About & help. phone e.g. '+251 911 000 000'; telegram = a username (without @) OR a full link like 'https://t.me/your_support'.
+        const MELEYA_SUPPORT = { phone: '+251 985172506', telegram: 'https://t.me/nebiyu_ee', email: '' };
         const MELEYA_TERMS_URL = '';
         const MELEYA_PRIVACY_URL = '';
         const UPG_STATUS = { pending: 'Waiting for receipt', needs_review: 'Being checked', rejected: 'Receipt not accepted', paid: 'Paid', handled: 'Handled', dismissed: 'Closed' };
@@ -3382,6 +3407,8 @@ a.sg-link{text-decoration:none}
             const pg = sgEl('sg-page-' + id); if (!pg) return;
             _sgOpen = id; pg.scrollTop = 0; pg.style.transform = ''; pg.classList.remove('drag'); pg.classList.add('open');
             sgSyncHeader(pg);
+            if (id === 'notifications' && typeof window.mlyPushPaint === 'function') window.mlyPushPaint();
+            if (id === 'security') fillSecurityFields();
             if (id === 'team' && typeof loadTeamView === 'function') Promise.resolve(loadTeamView()).catch(e => console.error('loadTeamView', e));
             if (!sgIsPhone()) window.scrollTo(0, 0);
             if (sgIsPhone() && !_sgPushed) { try { history.pushState({ sgPage: id }, ''); _sgPushed = true; } catch (e) { } }
@@ -3537,6 +3564,42 @@ a.sg-link{text-decoration:none}
             sgEl('sec-pw1').value = ''; sgEl('sec-pw2').value = '';
             msg.style.color = 'var(--success,#2e7d32)'; msg.textContent = 'Password changed.';
         }
+        async function fillSecurityFields() {
+            const u = sgEl('sec-username'), e = sgEl('sec-email'); if (!u || !e) return;
+            u.value = currentUsername || '';
+            ['sec-username-msg', 'sec-email-msg', 'sec-pw-msg'].forEach(id => { const m = sgEl(id); if (m) m.textContent = ''; });
+            try { const { data } = await supabaseClient.auth.getSession(); e.value = (data && data.session && data.session.user && data.session.user.email) || ''; } catch (err) { }
+        }
+        function secMsg(id, text, good) {
+            const m = sgEl(id); if (!m) return;
+            m.style.color = good ? 'var(--success,#2e7d32)' : 'var(--danger,#c0392b)'; m.textContent = text;
+        }
+        async function changeMyUsername() {
+            const v = (sgEl('sec-username').value || '').trim(), id = 'sec-username-msg';
+            if (!navigator.onLine) return secMsg(id, 'Connect to the internet to change your username.');
+            if (v.length < 3) return secMsg(id, 'The username must be at least 3 characters.');
+            if (/[\s@]/.test(v)) return secMsg(id, 'The username cannot contain spaces or the @ sign.');
+            if (v === currentUsername) return secMsg(id, 'That is already your username.', true);
+            if (!currentMemberId) return secMsg(id, 'Could not find your account. Please sign in again.');
+            const { data, error } = await supabaseClient.from('business_members').update({ username: v }).eq('id', currentMemberId).select('id');
+            if (error) return secMsg(id, (error.code === '23505' || /duplicate|unique/i.test(error.message || '')) ? 'That username is already taken. Try another one.' : (error.message || 'Could not save the username.'));
+            if (!data || !data.length) return secMsg(id, 'Could not save the username. Please try again.');
+            currentUsername = v;
+            try { cacheStateLocally(); } catch (e) { }
+            try { renderSettingsHome(); } catch (e) { }
+            secMsg(id, 'Username changed. Use it the next time you sign in.', true);
+        }
+        async function changeMyEmail() {
+            const v = (sgEl('sec-email').value || '').trim().toLowerCase(), id = 'sec-email-msg';
+            if (!navigator.onLine) return secMsg(id, 'Connect to the internet to change your email.');
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return secMsg(id, 'Please enter a valid email address.');
+            let cur = '';
+            try { const { data } = await supabaseClient.auth.getSession(); cur = ((data && data.session && data.session.user && data.session.user.email) || '').toLowerCase(); } catch (e) { }
+            if (v === cur) return secMsg(id, 'That is already your email.', true);
+            const { error } = await supabaseClient.auth.updateUser({ email: v });
+            if (error) return secMsg(id, error.message || 'Could not change the email.');
+            secMsg(id, 'We sent a confirmation link to ' + v + '. Open it to finish. Until then you keep signing in with your old email.', true);
+        }
         async function settingsSignOut() {
             if (await uiConfirm('Sign out of this device?', { title: 'Sign out', yes: 'Sign out', no: 'Stay signed in' })) handleSignOut(true);
         }
@@ -3559,10 +3622,11 @@ a.sg-link{text-decoration:none}
             const rows = [];
             const row = (label, sub, href) => `<a class="sg-link" href="${escHtml(href)}" target="_blank" rel="noopener"><span>${escHtml(label)}<small>${escHtml(sub)}</small></span><span>&#8250;</span></a>`;
             if (MELEYA_SUPPORT.phone) rows.push(row('Call support', MELEYA_SUPPORT.phone, 'tel:' + MELEYA_SUPPORT.phone.replace(/\s+/g, '')));
-            if (MELEYA_SUPPORT.telegram) rows.push(row('Message support on Telegram', '@' + MELEYA_SUPPORT.telegram.replace(/^@/, ''), 'https://t.me/' + MELEYA_SUPPORT.telegram.replace(/^@/, '')));
+            if (MELEYA_SUPPORT.telegram) { const tg = String(MELEYA_SUPPORT.telegram).trim(); const tgUrl = /^https?:\/\//i.test(tg) ? tg : 'https://t.me/' + tg.replace(/^@/, ''); rows.push(row('Chat with support on Telegram', /^https?:\/\//i.test(tg) ? tgUrl.replace(/^https?:\/\//i, '') : '@' + tg.replace(/^@/, ''), tgUrl)); }
             if (MELEYA_SUPPORT.email) rows.push(row('Email support', MELEYA_SUPPORT.email, 'mailto:' + MELEYA_SUPPORT.email));
             if (MELEYA_TERMS_URL) rows.push(row('Terms of use', '', MELEYA_TERMS_URL));
             if (MELEYA_PRIVACY_URL) rows.push(row('Privacy policy', '', MELEYA_PRIVACY_URL));
+            if (MELEYA_SUPPORT.phone || MELEYA_SUPPORT.telegram || MELEYA_SUPPORT.email) rows.unshift('<div class="sg-label" style="margin:4px 0 2px;">Customer support</div>');
             const le = sgEl('about-links'); if (le) le.innerHTML = rows.join('');
         }
         function requestUpgradeFor(key) { if (currentIsOwner) openUpgradeRequest(key); else showUpgrade(key); }
@@ -12557,7 +12621,7 @@ a.sg-link{text-decoration:none}
         // at all, so a short "Add to Home Screen" guide is shown instead. Pinning to the taskbar and starting with
         // Windows are the user's own choices in Chrome/Edge: after installing, a tips window shows the steps.
         // ---------------------------------------------------------------
-        let installEvt = null;
+        let installEvt = window.__mlyInstallEvt || null;   // may already have arrived (see the small script in <head>)
         const appIsStandalone = () => (window.matchMedia && (window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: window-controls-overlay)').matches)) || navigator.standalone === true;
         const appIsIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         const appIsDesktop = () => !/android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent) && !(navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -12565,7 +12629,8 @@ a.sg-link{text-decoration:none}
         const installLS = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } };
 
         window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; refreshInstallUI(); });
-        window.addEventListener('appinstalled', () => { installEvt = null; installLS('meleya_installed', '1'); refreshInstallUI(); if (appIsDesktop()) setTimeout(showPcTips, 800); });
+        window.addEventListener('appinstalled', () => { installEvt = null; window.__mlyInstallEvt = null; installLS('meleya_installed', '1'); refreshInstallUI(); if (appIsDesktop()) setTimeout(showPcTips, 800); });
+        if (installEvt) setTimeout(() => { try { refreshInstallUI(); } catch (e) { } }, 0);   // the event came before this script: show the Install button now
 
         function refreshInstallUI() {
             const never = installLS('meleya_install_never') === '1'; // "I already installed it" (iPhone cannot tell us itself)
@@ -12608,14 +12673,28 @@ a.sg-link{text-decoration:none}
         function installBannerLater() { installLS('meleya_install_snooze', String(Date.now() + 7 * 86400000)); refreshInstallUI(); }
         async function installApp() {
             if (installEvt) {
-                installEvt.prompt();
-                try { await installEvt.userChoice; } catch (e) { }
-                installEvt = null; refreshInstallUI();
+                // The browser lets an install prompt be shown only ONCE. Take it out of storage right away so a second tap can
+                // never hit a used-up prompt. Any refusal is caught and turned into the how-to window instead of failing silently.
+                const evt = installEvt; installEvt = null; window.__mlyInstallEvt = null;
+                try { await evt.prompt(); await evt.userChoice; }
+                catch (e) { console.warn('Install prompt failed:', e); refreshInstallUI(); installHowTo(); return; }
+                refreshInstallUI();
             } else if (appIsIOS()) {
                 showAppModal('Install MELEYA on your iPhone', installDemo('install-videos/install-iphone.mp4', '4 / 5', `<ol style="padding-left:20px; margin:0; line-height:1.7; font-size:14px;">
                     <li>Open this page in <b>Safari</b>.</li><li>Tap the <b>Share</b> button (the square with an arrow).</li>
                     <li>Scroll and tap <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b>. MELEYA now opens like an app.</li></ol>`, 'Open in Safari &rarr; Share &rarr; Add to Home Screen &rarr; Add<br><a href="#" onclick="installNever(); return false;" style="color:inherit; text-decoration:underline; display:inline-block; margin-top:8px;">I already installed it</a>'));
-            }
+            } else installHowTo();   // Android / PC without the one-tap prompt: never do nothing, explain the browser's own menu
+        }
+        // Shown when the browser's one-tap install is not available (already used, refused, or this browser does not offer it).
+        function installHowTo() {
+            const edge = appIsEdge();
+            const steps = appIsDesktop()
+                ? (edge ? 'Click the <b>&hellip;</b> menu (top right) &rarr; <b>Apps</b> &rarr; <b>Install this site as an app</b>.'
+                    : 'Click the <b>install icon</b> at the right end of the address bar (a screen with a down arrow), or open the <b>&#8942;</b> menu &rarr; <b>Cast, save and share</b> &rarr; <b>Install page as app</b>.')
+                : 'Tap the <b>&#8942;</b> menu (top right) &rarr; <b>Install app</b> (or <b>Add to Home screen</b>).';
+            showAppModal('Install MELEYA', `<p style="font-size:14px; line-height:1.6; margin:0 0 10px;">The one-tap install is not available right now, but your browser can still install MELEYA:</p>
+                <p style="font-size:14px; line-height:1.7; margin:0 0 10px;">${steps}</p>
+                <p style="font-size:12px; color:var(--text-light); margin:0;">No such option? MELEYA may already be installed on this device, or this browser cannot install apps (use Chrome or Edge).</p>`, 440, 'OK');
         }
         function installDemo(src, ratio, fallbackHtml, caption) {
             return `<div style="border-radius:10px; overflow:hidden; background:#eef0f4;"><video src="${src}" autoplay muted loop playsinline webkit-playsinline preload="auto" style="display:block; width:100%; aspect-ratio:${ratio}; max-height:62vh; object-fit:contain; background:#eef0f4;" onerror="this.parentNode.style.display='none'; this.parentNode.nextElementSibling.style.display='block';"></video></div>
@@ -17895,19 +17974,24 @@ function buildSteps() {
             catch (e) { lastError = errText(e); console.warn('Push register failed', e); return false; }
         }
 
+        let pushBusy = false;
         async function paint() {
-            const row = document.getElementById('push-row'); if (!row) return;
-            if (!ok || !currentTenantId) { row.style.display = 'none'; return; }
-            const t = document.getElementById('push-row-text'), b = document.getElementById('push-row-btn'), tb = document.getElementById('push-row-test');
-            row.style.display = 'flex'; b.style.display = ''; if (tb) tb.style.display = 'none';
-            if (Notification.permission === 'denied') { t.textContent = 'Alerts are blocked. Allow notifications for MELEYA in your phone settings.'; b.style.display = 'none'; return; }
-            const { sub } = await getSub();
-            if (Notification.permission === 'granted' && sub && syncedTenant === currentTenantId) { t.textContent = 'Phone alerts are on for this device.'; b.textContent = 'Turn off'; if (tb) tb.style.display = ''; }
-            else if (Notification.permission === 'granted' && lastError) { t.textContent = 'Alerts could not be turned on: ' + lastError; b.textContent = 'Try again'; }
-            else { t.textContent = 'Get alerts on this device even when the app is closed.'; b.textContent = 'Turn on'; }
+            const sw = document.getElementById('push-switch'); if (!sw || pushBusy) return;
+            const t = document.getElementById('push-row-text'), tb = document.getElementById('push-row-test'), sb = document.getElementById('sg-sub-notifications');
+            const say = (text, sub) => { if (t) t.textContent = text; if (sb) sb.textContent = sub; };
+            sw.disabled = false; if (tb) tb.style.display = 'none';
+            if (!ok) { sw.checked = false; sw.disabled = true; say('Phone alerts are not available on this device.', 'Not available on this device'); return; }
+            if (!currentTenantId) return;
+            if (Notification.permission === 'denied') { sw.checked = false; sw.disabled = true; say('Alerts are blocked. Allow notifications for MELEYA in your phone settings.', 'Blocked in phone settings'); return; }
+            const { sub: have } = await getSub();
+            if (Notification.permission === 'granted' && have && syncedTenant === currentTenantId) { sw.checked = true; say('Phone alerts are on for this device.', 'On'); if (tb) tb.style.display = ''; }
+            else if (Notification.permission === 'granted' && lastError) { sw.checked = false; say('Alerts could not be turned on: ' + lastError + ' Switch on to try again.', 'Off'); }
+            else { sw.checked = false; say('Get alerts on this device even when the app is closed.', 'Off'); }
         }
+        window.mlyPushPaint = paint;
 
         window.mlyPushToggle = async function () {
+            pushBusy = true; { const sw = document.getElementById('push-switch'); if (sw) sw.disabled = true; }
             try {
                 const { sub } = await getSub();
                 if (sub && syncedTenant === currentTenantId) {
@@ -17918,7 +18002,7 @@ function buildSteps() {
                     if (perm === 'granted') await register();
                 }
             } catch (e) { lastError = errText(e); console.warn('Push toggle failed', e); try { alert('Could not turn on phone alerts: ' + lastError); } catch (_) { } }
-            paint();
+            pushBusy = false; paint();
         };
 
         // Shows a notification made on THIS phone, with no server involved. If it appears, the phone side works and any
