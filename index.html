@@ -2481,6 +2481,213 @@ a.sg-link{text-decoration:none}
             const AM_EXACT = {};
             const normMsg = s => String(s).replace(/[\u2018\u2019]/g, "'").replace(/\s+/g, ' ').trim();
             AM_MSG.forEach(r => { if (typeof r[0] === 'string') AM_EXACT[normMsg(r[0])] = r[1]; });
+            // ---- Amharic for the Settings pages and the Upgrade plan flow (added only where no translation exists yet)
+            const AM_MSG_EXTRA = [
+                ["Settings", "ቅንብሮች"],
+                ["Your shop", "ሱቅዎ"],
+                ["Edit profile", "መገለጫ አስተካክል"],
+                ["Upgrade your plan", "ፕላንዎን ያሻሽሉ"],
+                ["Unlock more branches and team members, scanned receipts, accountant access and more.", "ተጨማሪ ቅርንጫፎችን እና የቡድን አባላትን፣ የተቃኙ ደረሰኞችን፣ የሂሳብ ሹም መዳረሻን እና ሌሎችንም ይክፈቱ።"],
+                ["Upgrade ›", "ያሻሽሉ ›"],
+                ["Shop", "ሱቅ"],
+                ["Tax", "ግብር"],
+                ["VAT registration", "የቫት ምዝገባ"],
+                ["Team & access", "ቡድን እና መዳረሻ"],
+                ["Branches, team, roles and your accountant", "ቅርንጫፎች፣ ቡድን፣ ሚናዎች እና የሂሳብ ሹምዎ"],
+                ["Plan & account", "ፕላን እና መለያ"],
+                ["Plan & billing", "ፕላን እና ክፍያ"],
+                ["Your plan and payment history", "ፕላንዎ እና የክፍያ ታሪክ"],
+                ["Security & account", "ደህንነት እና መለያ"],
+                ["Email, username and password", "ኢሜይል፣ የተጠቃሚ ስም እና የይለፍ ቃል"],
+                ["Preferences", "ምርጫዎች"],
+                ["Notifications", "ማሳወቂያዎች"],
+                ["Phone alerts when the app is closed", "መተግበሪያው ሲዘጋ በስልክ የሚደርሱ ማሳወቂያዎች"],
+                ["Support", "ድጋፍ"],
+                ["About & help", "ስለ መተግበሪያው እና እገዛ"],
+                ["Version, support, terms and privacy", "ስሪት፣ ድጋፍ፣ የአጠቃቀም ደንቦች እና ግላዊነት"],
+                ["Back", "ተመለስ"],
+                ["Business profile", "የንግድ መገለጫ"],
+                ["Shop name", "የሱቅ ስም"],
+                ["Phone", "ስልክ"],
+                ["Address", "አድራሻ"],
+                ["Save", "አስቀምጥ"],
+                ["Saved ✓", "ተቀምጧል ✓"],
+                ["Plan", "ፕላን"],
+                ["View plans", "ፕላኖችን ይመልከቱ"],
+                ["Payment history", "የክፍያ ታሪክ"],
+                ["Your plan:", "ፕላንዎ፦"],
+                ["Customer support", "የደንበኛ ድጋፍ"],
+                ["Call support", "ድጋፍ ይደውሉ"],
+                ["Chat with support on Telegram", "ድጋፍን በቴሌግራም ያናግሩ"],
+                ["Email support", "ድጋፍን በኢሜይል ያግኙ"],
+                ["Terms of use", "የአጠቃቀም ደንቦች"],
+                ["Privacy policy", "የግላዊነት ፖሊሲ"],
+                ["Phone alerts", "የስልክ ማሳወቂያዎች"],
+                ["Get alerts on this device even when the app is closed.", "መተግበሪያው ሲዘጋም በዚህ መሣሪያ ላይ ማሳወቂያዎችን ያግኙ።"],
+                ["Send a test alert", "የሙከራ ማሳወቂያ ላክ"],
+                ["Phone alerts are on for this device.", "በዚህ መሣሪያ ላይ የስልክ ማሳወቂያዎች በርተዋል።"],
+                ["Alerts are blocked. Allow notifications for MELEYA in your phone settings.", "ማሳወቂያዎች ታግደዋል። በስልክዎ ቅንብሮች ውስጥ ለMELEYA ማሳወቂያዎችን ይፍቀዱ።"],
+                ["Phone alerts are not available on this device.", "በዚህ መሣሪያ ላይ የስልክ ማሳወቂያዎች አይገኙም።"],
+                ["Not available on this device", "በዚህ መሣሪያ ላይ አይገኝም"],
+                ["Blocked in phone settings", "በስልክ ቅንብሮች ታግዷል"],
+                ["On", "በርቷል"],
+                ["Off", "ጠፍቷል"],
+                ["Email", "ኢሜይል"],
+                ["Username", "የተጠቃሚ ስም"],
+                ["Change password", "የይለፍ ቃል ቀይር"],
+                ["Save email", "ኢሜይል አስቀምጥ"],
+                ["Save username", "የተጠቃሚ ስም አስቀምጥ"],
+                ["We send a confirmation link to the new address. Your email changes once you open it.", "ወደ አዲሱ አድራሻ የማረጋገጫ አገናኝ እንልካለን። አገናኙን ሲከፍቱት ኢሜይልዎ ይቀየራል።"],
+                ["You can type this instead of your email when you sign in.", "ሲገቡ ከኢሜይልዎ ይልቅ ይህንን መጻፍ ይችላሉ።"],
+                ["Your username", "የእርስዎ የተጠቃሚ ስም"],
+                ["New password", "አዲስ የይለፍ ቃል"],
+                ["Confirm new password", "አዲሱን የይለፍ ቃል ያረጋግጡ"],
+                ["Connect to the internet to change your email.", "ኢሜይልዎን ለመቀየር ከኢንተርኔት ጋር ይገናኙ።"],
+                ["Connect to the internet to change your username.", "የተጠቃሚ ስምዎን ለመቀየር ከኢንተርኔት ጋር ይገናኙ።"],
+                ["Connect to the internet to change your password.", "የይለፍ ቃልዎን ለመቀየር ከኢንተርኔት ጋር ይገናኙ።"],
+                ["Connect to the internet to delete the shop.", "ሱቁን ለመሰረዝ ከኢንተርኔት ጋር ይገናኙ።"],
+                ["Connect to the internet to see your payments.", "ክፍያዎችዎን ለማየት ከኢንተርኔት ጋር ይገናኙ።"],
+                ["Connect to the internet to upgrade your plan.", "ፕላንዎን ለማሻሻል ከኢንተርኔት ጋር ይገናኙ።"],
+                ["Please enter a valid email address.", "እባክዎ ትክክለኛ የኢሜይል አድራሻ ያስገቡ።"],
+                ["That is already your email.", "ይህ አስቀድሞ ኢሜይልዎ ነው።"],
+                ["That is already your username.", "ይህ አስቀድሞ የተጠቃሚ ስምዎ ነው።"],
+                ["Could not change the email.", "ኢሜይሉን መቀየር አልተቻለም።"],
+                ["Could not save the username.", "የተጠቃሚ ስሙን ማስቀመጥ አልተቻለም።"],
+                ["Could not save the username. Please try again.", "የተጠቃሚ ስሙን ማስቀመጥ አልተቻለም። እባክዎ እንደገና ይሞክሩ።"],
+                ["Could not find your account. Please sign in again.", "መለያዎን ማግኘት አልተቻለም። እባክዎ እንደገና ይግቡ።"],
+                ["That username is already taken. Try another one.", "ይህ የተጠቃሚ ስም ተወስዷል። ሌላ ይሞክሩ።"],
+                ["The username cannot contain spaces or the @ sign.", "የተጠቃሚ ስሙ ባዶ ቦታ ወይም @ ምልክት መያዝ አይችልም።"],
+                ["The username must be at least 3 characters.", "የተጠቃሚ ስሙ ቢያንስ 3 ቁምፊዎች መሆን አለበት።"],
+                ["Username changed. Use it the next time you sign in.", "የተጠቃሚ ስም ተቀይሯል። በሚቀጥለው ጊዜ ሲገቡ ይጠቀሙበት።"],
+                ["The password must be at least 6 characters.", "የይለፍ ቃሉ ቢያንስ 6 ቁምፊዎች መሆን አለበት።"],
+                ["The two passwords do not match.", "ሁለቱ የይለፍ ቃሎች አይመሳሰሉም።"],
+                ["Password changed.", "የይለፍ ቃል ተቀይሯል።"],
+                ["The shop name cannot be empty.", "የሱቁ ስም ባዶ መሆን አይችልም።"],
+                ["Sign out", "ውጣ"],
+                ["Sign out of this device?", "ከዚህ መሣሪያ ይውጡ?"],
+                ["Stay signed in", "ገብቶ ይቆይ"],
+                ["Delete this shop?", "ይህ ሱቅ ይሰረዝ?"],
+                ["Confirm deletion", "ስረዛን ያረጋግጡ"],
+                ["Delete forever", "ለዘላለም ሰርዝ"],
+                ["This permanently deletes the shop and all its products, sales, purchases, expenses, branches and team members. It cannot be undone.", "ይህ ሱቁን እና ሁሉንም ምርቶቹን፣ ሽያጮቹን፣ ግዢዎቹን፣ ወጪዎቹን፣ ቅርንጫፎቹን እና የቡድን አባላቱን እስከ መጨረሻው ይሰርዛል። ከተሰረዘ በኋላ መመለስ አይቻልም።"],
+                ["Your shop has been deleted.", "ሱቅዎ ተሰርዟል።"],
+                ["Upgrade your plan to unlock this.", "ይህንን ለመክፈት ፕላንዎን ያሻሽሉ።"],
+                ["Upgrade plan", "ፕላን ያሻሽሉ"],
+                ["Not now", "አሁን አይደለም"],
+                ["Please ask the shop owner to upgrade the plan.", "እባክዎ የሱቁን ባለቤት ፕላኑን እንዲያሻሽል ይጠይቁ።"],
+                ["Upgrade to unlock", "ለመክፈት ያሻሽሉ"],
+                ["Loading plans...", "ፕላኖች በመጫን ላይ..."],
+                ["Could not load the plans.", "ፕላኖቹን መጫን አልተቻለም።"],
+                ["No plans are available right now. Please contact your provider.", "በአሁኑ ጊዜ ምንም ፕላን የለም። እባክዎ አቅራቢዎን ያነጋግሩ።"],
+                ["How long do you want to pay for?", "ለምን ያህል ጊዜ መክፈል ይፈልጋሉ?"],
+                ["You pay once for the period you choose. Nothing renews by itself.", "ለመረጡት ጊዜ አንድ ጊዜ ብቻ ይከፍላሉ። ምንም በራሱ አይታደስም።"],
+                ["(current)", "(የአሁኑ)"],
+                ["Choose a plan and how long you want to pay for.", "ፕላን እና ለምን ያህል ጊዜ መክፈል እንደሚፈልጉ ይምረጡ።"],
+                ["Send the money to", "ገንዘቡን ወደዚህ ይላኩ"],
+                ["Payment details", "የክፍያ ዝርዝር"],
+                ["We will contact you shortly with the payment details.", "የክፍያ ዝርዝሩን ይዘን በቅርቡ እናገኝዎታለን።"],
+                ["What to do next", "ቀጥሎ ምን ማድረግ እንዳለብዎት"],
+                ["Send exactly", "በትክክል ይላኩ"],
+                ["to the account above.", "ከላይ ወዳለው አካውንት።"],
+                ["Take a screenshot of the payment receipt.", "የክፍያ ደረሰኙን ስክሪንሾት ያንሱ።"],
+                ["We check it and activate your plan. You get a message when it is done.", "እኛ አይተን ፕላንዎን እናነቃለን። ሲጠናቀቅ መልዕክት ይደርስዎታል።"],
+                ["I sent the receipt - check status", "ደረሰኙን ልኬያለሁ - ሁኔታውን ይፈትሹ"],
+                ["Done", "ተጠናቋል"],
+                ["Your order", "ትዕዛዝዎ"],
+                ["Total to pay", "የሚከፈል ጠቅላላ"],
+                ["Months", "ወራት"],
+                ["Year", "ዓመት"],
+                ["current plan", "የአሁኑ ፕላን"],
+                ["learn more", "ተጨማሪ ይመልከቱ"],
+                ["hide", "ደብቅ"],
+                ["Renew this plan", "ይህንን ፕላን አድስ"],
+                ["Choose plan", "ፕላን ምረጥ"],
+                ["No plan chosen yet", "እስካሁን ፕላን አልተመረጠም"],
+                ["Not active", "ንቁ አይደለም"],
+                ["Waiting for receipt", "ደረሰኝ በመጠበቅ ላይ"],
+                ["Being checked", "በመፈተሽ ላይ"],
+                ["Receipt not accepted", "ደረሰኙ ተቀባይነት አላገኘም"],
+                ["Paid", "ተከፍሏል"],
+                ["Handled", "ተስተናግዷል"],
+                ["Loading...", "በመጫን ላይ..."],
+                ["Checking...", "በመፈተሽ ላይ..."],
+                ["Copy", "ቅዳ"],
+                ["Copied", "ተቀድቷል"],
+                ["Could not check. Try again.", "ማረጋገጥ አልተቻለም። እንደገና ይሞክሩ።"],
+                ["Could not send the request. Please try again.", "ጥያቄውን መላክ አልተቻለም። እባክዎ እንደገና ይሞክሩ።"],
+                ["No upgrade payments yet.", "እስካሁን የፕላን ማሻሻያ ክፍያ የለም።"],
+                ["Your plan is active! Reloading...", "ፕላንዎ ነቅቷል! እንደገና በመጫን ላይ..."],
+                ["We received your receipt and are checking it. You will get a Telegram message when your plan is active.", "ደረሰኝዎን ተቀብለናል፣ እየተመለከትነው ነው። ፕላንዎ ሲነቃ የቴሌግራም መልዕክት ይደርስዎታል።"],
+                ["No receipt received yet. Send the screenshot to the Telegram bot, then check again.", "እስካሁን ምንም ደረሰኝ አልደረሰንም። ስክሪንሾቱን ለቴሌግራም ቦቱ ይላኩ፣ ከዚያ እንደገና ይፈትሹ።"],
+                ["Open the Meleya bot on Telegram and send it the screenshot.", "የMeleya ቦትን በቴሌግራም ከፍተው ስክሪንሾቱን ይላኩለት።"],
+                ["Send the screenshot to us on Telegram.", "ስክሪንሾቱን በቴሌግራም ይላኩልን።"],
+                ["Unlimited branches", "ያልተገደበ ቅርንጫፎች"],
+                ["Unlimited team members", "ያልተገደበ የቡድን አባላት"],
+                ["All features", "ሁሉም ባህሪያት"],
+                ["This feature", "ይህ ባህሪ"],
+                ["Team", "ቡድን"],
+                ["Accounting", "ሂሳብ አያያዝ"],
+                ["Add product button", "የምርት አክል ቁልፍ"],
+                ["Add products in bulk", "ምርቶችን በጅምላ መጨመር"],
+                ["Backup & restore", "ምትኬ እና መልሶ ማግኘት"],
+                ["Cash & stock value positions", "የጥሬ ገንዘብ እና የክምችት ዋጋ ሁኔታ"],
+                ["Chart of accounts", "የሂሳብ ዝርዝር"],
+                ["Cost of Goods Sold box", "የተሸጡ ዕቃዎች ወጪ ሳጥን"],
+                ["Dashboard", "ዳሽቦርድ"],
+                ["Download Excel report", "የኤክሴል ሪፖርት አውርድ"],
+                ["Drafts", "ረቂቆች"],
+                ["Estimated VAT box", "የግምት ቫት ሳጥን"],
+                ["Expense history", "የወጪ ታሪክ"],
+                ["Expenses", "ወጪዎች"],
+                ["General ledger", "ጠቅላላ ሌጀር"],
+                ["Gross Profit box", "ጠቅላላ ትርፍ ሳጥን"],
+                ["Inventory & stock", "ዕቃ እና ክምችት"],
+                ["Item Performance table", "የዕቃ አፈጻጸም ሰንጠረዥ"],
+                ["Journal entries", "የጆርናል ግቤቶች"],
+                ["Net Profit box", "የተጣራ ትርፍ ሳጥን"],
+                ["Period filters", "የጊዜ ማጣሪያዎች"],
+                ["Print & share order lists", "የትዕዛዝ ዝርዝሮችን አትም እና አጋራ"],
+                ["Purchase history", "የግዢ ታሪክ"],
+                ["Purchases", "ግዢዎች"],
+                ["Record a purchase", "ግዢ መዝግብ"],
+                ["Record a sale", "ሽያጭ መዝግብ"],
+                ["Record an expense", "ወጪ መዝግብ"],
+                ["Revenue & Profit History graph", "የገቢ እና ትርፍ ታሪክ ግራፍ"],
+                ["Roles & permissions", "ሚናዎች እና ፈቃዶች"],
+                ["Sales", "ሽያጭ"],
+                ["Sales history", "የሽያጭ ታሪክ"],
+                ["Sales type graph", "የሽያጭ ዓይነት ግራፍ"],
+                ["Scan expense receipt", "የወጪ ደረሰኝ ቃኝ"],
+                ["Settings & data", "ቅንብሮች እና ውሂብ"],
+                ["Slowest-selling items graph", "በዝግታ የሚሸጡ ዕቃዎች ግራፍ"],
+                ["Statement of financial position", "የፋይናንስ አቋም መግለጫ"],
+                ["Stock list", "የክምችት ዝርዝር"],
+                ["Team members", "የቡድን አባላት"],
+                ["Top-selling items graph", "በብዛት የሚሸጡ ዕቃዎች ግራፍ"],
+                ["Total Expenses box", "ጠቅላላ ወጪ ሳጥን"],
+                ["Total Revenue box", "ጠቅላላ ገቢ ሳጥን"],
+                ["Transfer stock between branches", "ክምችትን በቅርንጫፎች መካከል ማዛወር"],
+                ["Trash & restore", "መጣያ እና መልሶ ማግኘት"],
+                ["Trial balance", "የሙከራ ሚዛን"],
+                ["VAT details & reports", "የቫት ዝርዝሮች እና ሪፖርቶች"],
+                [/^We sent a confirmation link to (.+)\. Open it to finish\. Until then you keep signing in with your old email\.$/, "ወደ $1 የማረጋገጫ አገናኝ ልከናል። ለመጨረስ አገናኙን ይክፈቱ። እስከዚያው በቀድሞው ኢሜይልዎ መግባትዎን ይቀጥላሉ።"],
+                [/^Meleya version (.+)$/, "የMeleya ስሪት $1"],
+                [/^Could not delete the shop: ?(.*)$/, "ሱቁን መሰረዝ አልተቻለም፦ $1"],
+                [/^Could not load your payments\.\s*(.*)$/, "ክፍያዎችዎን መጫን አልተቻለም። $1"],
+                [/^Type the shop name exactly to confirm: ?(.*)$/, "ለማረጋገጥ የሱቁን ስም በትክክል ይጻፉ፦ $1"],
+                [/^Receipt not accepted: (.*)$/, "ደረሰኙ ተቀባይነት አላገኘም፦ $1"],
+                [/^please send a correct receipt on Telegram\.$/, "እባክዎ ትክክለኛ ደረሰኝ በቴሌግራም ይላኩ።"],
+                [/^please try again\.$/, "እባክዎ እንደገና ይሞክሩ።"],
+                [/^Alerts could not be turned on: (.*) Switch on to try again\.$/, "ማሳወቂያዎችን ማብራት አልተቻለም፦ $1 እንደገና ለመሞከር ያብሩ።"],
+                [/^Not included in your plan\.$/, "በፕላንዎ ውስጥ አልተካተተም።"],
+                [/^Not included in your (.+) plan\.$/, "በ$1 ፕላንዎ ውስጥ አልተካተተም።"],
+                [/^is not included in your plan\.$/, "በፕላንዎ ውስጥ አልተካተተም።"],
+                [/^is not included in your (.+) plan\.$/, "በ$1 ፕላንዎ ውስጥ አልተካተተም።"],
+                [/^(?:Unlimited|\d+) (?:branch|branches|team members)\b.*$/, $0 => $0.replace(/Unlimited branches/, "ያልተገደበ ቅርንጫፎች").replace(/Unlimited team members/, "ያልተገደበ የቡድን አባላት").replace(/(\d+) branch(?:es)?/, "$1 ቅርንጫፍ").replace(/(\d+) team members/, "$1 የቡድን አባላት")],
+                [/^([\u2713\u2715]) (.+?)(?: \((\d+) of (\d+)\))?$/, ($0, mk, name, a, b) => mk + ' ' + amMsg(name) + (a ? ' (' + a + ' ከ ' + b + ')' : '')],
+                [/^(?=.*(?:\d+ months?\b|\b1 year\b|ETB credit|ETB total|ETB\/month|\/month)).*$/, $0 => $0.replace(/(\d+) months?\b/g, "$1 ወራት").replace(/\b1 year\b/g, "1 ዓመት").replace(/ETB credit applied/g, "ETB ክሬዲት ተተግብሯል").replace(/ETB credit from your current plan/g, "ETB ክሬዲት ከአሁኑ ፕላንዎ").replace(/ETB total/g, "ETB ጠቅላላ").replace(/ETB\/month/g, "ETB/ወር").replace(/\/month/g, "/ወር")],
+            ];
+            AM_MSG_EXTRA.forEach(r => { if (typeof r[0] === 'string') { const k = normMsg(r[0]); if (!AM_EXACT[k]) AM_EXACT[k] = r[1]; } else AM_MSG.push(r); });
             function amMsg(text) {
                 try {
                     if (typeof currentLang === 'undefined' || currentLang !== 'am' || text == null || text === '') return text;
@@ -2730,7 +2937,7 @@ a.sg-link{text-decoration:none}
         // ---- Amharic for text that the Scanned Stock and print screens build while running ----
         // Watches only these screens. The receipts themselves (the paper copies and the printed sales receipts) are never changed.
         (function () {
-            const ROOTS = ['view-scanned', 'scn-modal', 'buyer-info-modal'];
+            const ROOTS = ['view-scanned', 'scn-modal', 'buyer-info-modal', 'view-settings'];
             const SKIP_TEXT = '.scn-paper, iframe, script, style, textarea';
             const ATTRS = ['placeholder', 'title', 'aria-label'];
             const isAm = () => { try { return currentLang === 'am'; } catch (e) { return false; } };
@@ -2769,8 +2976,13 @@ a.sg-link{text-decoration:none}
                 else if (m.type === 'characterData') doText(m.target);
                 else if (m.type === 'attributes') doAttr(m.target);
             }));
+            const OBS = { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ATTRS };
             function start() {
-                ROOTS.forEach(id => { const r = document.getElementById(id); if (r) { mo.observe(r, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ATTRS }); walk(r); } });
+                ROOTS.forEach(id => { const r = document.getElementById(id); if (r) { mo.observe(r, OBS); walk(r); } });
+                // The Upgrade plan screen is created and removed while the app runs: watch it as soon as it appears.
+                new MutationObserver(list => list.forEach(m => m.addedNodes.forEach(n => {
+                    if (n.nodeType === 1 && n.id === 'upgrade-flow') { mo.observe(n, OBS); walk(n); }
+                }))).observe(document.body, { childList: true });
             }
             window.amDomRefresh = () => ROOTS.forEach(id => { const r = document.getElementById(id); if (r) walk(r); });
             window.amDomApply = walk;
@@ -2963,6 +3175,7 @@ a.sg-link{text-decoration:none}
                 <p style="font-size:14px; margin:0 0 6px;">${why}</p>
                 ${action}</div>`;
             m.style.display = 'flex';
+            try { if (window.amDomApply) window.amDomApply(m); } catch (e) { }
         }
         // ---------------------------------------------------------------
         // UPGRADE PLAN: choose a plan, choose how long (3 months / 6 months / 1 year), get the payment details,
@@ -3644,6 +3857,7 @@ a.sg-link{text-decoration:none}
             ov.setAttribute('data-feature', key);
             ov.innerHTML = `<div class="po-inner">${planLockSvg.replace('width="13" height="13"', 'width="24" height="24"')}<div class="po-title">${escHtml(PLAN_FEATURE_LABELS[key] || 'This feature')}</div><div class="po-msg">${escHtml(planLockMessage(key))}</div><button type="button" class="btn btn-small po-btn" onclick="requestUpgradeFor('${key}')">Upgrade plan</button></div>`;
             el.appendChild(ov);
+            try { if (window.amDomApply) window.amDomApply(ov); } catch (e) { }
         }
         function clearPlanLocks() {
             document.querySelectorAll('.plan-overlay').forEach(e => e.remove());
