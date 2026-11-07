@@ -18285,12 +18285,14 @@ function buildSteps() {
         let deviceTenant = null;
         async function noteDevice() {
             if (!currentTenantId || deviceTenant === currentTenantId || !navigator.onLine) return;
+            // A platform admin logged in as the owner, or an owner viewing as an employee, must never be reported to the owner as a "new device".
+            try { if (sessionStorage.getItem('neba_admin_impersonation_active') || sessionStorage.getItem('neba_owner_session_backup')) return; } catch (e) { }
             try {
                 let id = localStorage.getItem('mly_device_id');
                 if (!id) { id = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)); localStorage.setItem('mly_device_id', id); }
                 const ua = navigator.userAgent || '';
                 const os = /iPhone|iPad|iPod/.test(ua) ? 'iPhone' : /Android/.test(ua) ? 'Android phone' : /Windows/.test(ua) ? 'Windows PC' : /Mac OS/.test(ua) ? 'Mac' : /Linux/.test(ua) ? 'Linux PC' : 'device';
-                const { error } = await supabaseClient.rpc('note_device', { p_tenant: String(currentTenantId), p_device: id, p_label: os });
+                const { error } = await supabaseClient.rpc('note_device', { p_tenant: String(currentTenantId), p_device: id, p_label: (window.mlyDeviceName ? window.mlyDeviceName() : os), p_installed: (window.mlyIsInstalled ? window.mlyIsInstalled() : false) });
                 if (!error) deviceTenant = currentTenantId;
             } catch (e) { }
         }
@@ -18341,15 +18343,15 @@ function buildSteps() {
 <script>
 /* =====================================================================
    DEVICE TRACKING (track only: nothing is blocked or limited)
-   Each browser keeps a random ID in localStorage ('neba_device_id'). When a
-   person is signed in, that ID is saved to the user_devices table together with
+   Each browser keeps a random ID in localStorage ('mly_device_id', shared with the new-device alert). When a
+   person is signed in, that ID is saved to the member_devices table (the one note_device already fills) together with
    a readable name ("Android · Chrome") and the last time it was used. The owner
    sees every device in the shop (Settings > Security & account); an employee
    sees only their own. Clearing browser data makes a new ID, so that browser
    counts as a new device.
    ===================================================================== */
 (function () {
-    var LS = 'neba_device_id';
+    var LS = 'mly_device_id';   // the SAME ID the app's existing new-device alert (noteDevice) uses: one ID per browser
     function newId() {
         try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch (e) { }
         return 'd-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
@@ -18378,6 +18380,7 @@ function buildSteps() {
         else if (/safari/i.test(ua)) br = 'Safari';
         return os + ' \u00b7 ' + (isInstalled() ? 'Installed app' : br);
     }
+    window.mlyDeviceName = deviceName; window.mlyIsInstalled = isInstalled;
     var lastReg = 0;
     // force = true on sign-in; otherwise it refreshes "last active" at most once every 6 hours.
     window.mlyRegisterDevice = async function (force) {
@@ -18385,14 +18388,11 @@ function buildSteps() {
             if (window.MLY_DEMO || !navigator.onLine) return;
             // A platform admin logged in as the owner, or an owner viewing as an employee, is not that person's own device: never record it.
             try { if (sessionStorage.getItem('neba_admin_impersonation_active') || sessionStorage.getItem('neba_owner_session_backup')) return; } catch (e) { }
-            if (typeof currentTenantId === 'undefined' || !currentTenantId || !currentMemberId) return;
+            if (typeof currentTenantId === 'undefined' || !currentTenantId) return;
             if (!force && Date.now() - lastReg < 6 * 3600 * 1000) return;
             var id = deviceId(); if (!id) return;
             lastReg = Date.now();
-            var r = await supabaseClient.from('user_devices').upsert({
-                business_id: currentTenantId, member_id: currentMemberId, device_id: id,
-                device_name: deviceName(), is_installed: isInstalled(), last_seen: new Date().toISOString()
-            }, { onConflict: 'member_id,device_id' });
+            var r = await supabaseClient.rpc('note_device', { p_tenant: String(currentTenantId), p_device: id, p_label: deviceName(), p_installed: isInstalled() });
             if (r && r.error) console.warn('Device register failed:', r.error.message || r.error);
         } catch (e) { console.warn('Device register failed:', e); }
     };
@@ -18415,27 +18415,20 @@ function buildSteps() {
         sum.textContent = 'Loading...'; box.innerHTML = '';
         try {
             var owner = !!currentIsOwner, myDev = deviceId();
-            var q = supabaseClient.from('user_devices').select('member_id, device_id, device_name, is_installed, first_seen, last_seen').order('last_seen', { ascending: false });
-            q = owner ? q.eq('business_id', currentTenantId) : q.eq('member_id', currentMemberId);
-            var res = await Promise.all([
-                q,
-                owner ? supabaseClient.from('business_members').select('id, username, display_name').eq('business_id', currentTenantId) : Promise.resolve({ data: [] })
-            ]);
+            var res = [await supabaseClient.rpc('list_devices', { p_tenant: String(currentTenantId) })];
             var devs = res[0].data, err = res[0].error;
             if (err) { sum.textContent = 'Could not load devices. Please try again later.'; console.warn('Devices:', err); return; }
             devs = devs || [];
-            var names = {};
-            ((res[1] && res[1].data) || []).forEach(function (m) { names[m.id] = m.display_name || m.username || 'Team member'; });
             if (ttl) ttl.textContent = owner ? 'Devices in this shop' : 'Your devices';
             if (!devs.length) { sum.textContent = 'No devices recorded yet.'; return; }
             var cut = Date.now() - 30 * 86400000;
             var recent = devs.filter(function (d) { return new Date(d.last_seen).getTime() >= cut; }).length;
             sum.textContent = devs.length + (devs.length === 1 ? ' device' : ' devices') + ' in total, ' + recent + ' used in the last 30 days.';
             box.innerHTML = devs.map(function (d) {
-                var me = d.device_id === myDev;
-                var who = owner ? (names[d.member_id] || 'Team member') : '';
+                var me = d.is_mine && d.device_id === myDev;
+                var who = owner ? (d.who || 'Team member') : '';
                 return '<div style="display:flex; justify-content:space-between; gap:10px; padding:10px 0; border-top:1px solid var(--border);">' +
-                    '<div style="min-width:0;"><div style="font-weight:600; font-size:13px;">' + h(d.device_name || 'Device') +
+                    '<div style="min-width:0;"><div style="font-weight:600; font-size:13px;">' + h(d.label || 'Device') +
                     (me ? ' <span style="font-size:11px; font-weight:700; color:var(--primary); border:1px solid var(--primary); border-radius:999px; padding:1px 7px; margin-left:4px;">This device</span>' : '') + '</div>' +
                     (who ? '<div class="sg-hint" style="margin:2px 0 0;">' + h(who) + '</div>' : '') + '</div>' +
                     '<div class="sg-hint" style="margin:0; text-align:right; flex-shrink:0;">Last used<br>' + h(when(d.last_seen)) + '</div></div>';
