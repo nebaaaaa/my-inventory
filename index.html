@@ -2584,6 +2584,9 @@ a.sg-link{text-decoration:none}
                 ["Please ask the shop owner to upgrade the plan.", "እባክዎ የሱቁን ባለቤት ፕላኑን እንዲያሻሽል ይጠይቁ።"],
                 ["Upgrade to unlock", "ለመክፈት ያሻሽሉ"],
                 ["Loading plans...", "ፕላኖች በመጫን ላይ..."],
+                ["How many branches?", "ስንት ቅርንጫፍ ያስፈልግዎታል?"],
+                ["Branches", "ቅርንጫፎች"],
+                ["Has fewer branches than you chose", "ከመረጡት ያነሱ ቅርንጫፎች አሉት"],
                 ["Could not load the plans.", "ፕላኖቹን መጫን አልተቻለም።"],
                 ["No plans are available right now. Please contact your provider.", "በአሁኑ ጊዜ ምንም ፕላን የለም። እባክዎ አቅራቢዎን ያነጋግሩ።"],
                 ["How long do you want to pay for?", "ለምን ያህል ጊዜ መክፈል ይፈልጋሉ?"],
@@ -2690,6 +2693,9 @@ a.sg-link{text-decoration:none}
                 [/^Not included in your (.+) plan\.$/, "በ$1 ፕላንዎ ውስጥ አልተካተተም።"],
                 [/^is not included in your plan\.$/, "በፕላንዎ ውስጥ አልተካተተም።"],
                 [/^is not included in your (.+) plan\.$/, "በ$1 ፕላንዎ ውስጥ አልተካተተም።"],
+                [/^\+([\d,]+) ETB per extra branch$/, `+$1 ETB ለእያንዳንዱ ተጨማሪ ቅርንጫፍ`],
+                [/^([\d,.]+) ETB per branch$/, `$1 ETB በቅርንጫፍ`],
+                [/^You already have (\d+) open branches\.$/, `አስቀድሞ $1 ክፍት ቅርንጫፎች አሉዎት።`],
                 [/^(?:Unlimited|\d+) (?:branch|branches|team members)\b.*$/, $0 => $0.replace(/Unlimited branches/, "ያልተገደበ ቅርንጫፎች").replace(/Unlimited team members/, "ያልተገደበ የቡድን አባላት").replace(/(\d+) branch(?:es)?/, "$1 ቅርንጫፍ").replace(/(\d+) team members/, "$1 የቡድን አባላት")],
                 [/^([\u2713\u2715]) (.+?)(?: \((\d+) of (\d+)\))?$/, ($0, mk, name, a, b) => mk + ' ' + amMsg(name) + (a ? ' (' + a + ' ከ ' + b + ')' : '')],
                 [/^(?=.*(?:\d+ months?\b|\b1 year\b|ETB credit|ETB total|ETB\/month|\/month)).*$/, $0 => $0.replace(/(\d+) months?\b/g, "$1 ወራት").replace(/\b1 year\b/g, "1 ዓመት").replace(/ETB credit applied/g, "ETB ክሬዲት ተተግብሯል").replace(/ETB credit from your current plan/g, "ETB ክሬዲት ከአሁኑ ፕላንዎ").replace(/ETB total/g, "ETB ጠቅላላ").replace(/ETB\/month/g, "ETB/ወር").replace(/\/month/g, "/ወር")],
@@ -3069,6 +3075,7 @@ a.sg-link{text-decoration:none}
         let currentVerticalModule = null;         // resolved by loadVerticalModule() after login; null for business types with no extra module
         let currentBranchId = null;      // which branch this session is VIEWING — can be a real branch id, or 'all'
         let writeBranchId = null;        // which branch a specific write goes to — always a real branch, never 'all'
+        let currentBoughtBranches = null;   // branches the shop paid for (null = the plan's own limit applies)
         let currentPlanMaxBranches = null;   // null = unlimited (no plan, or plan has no cap)
         let currentPlanMaxEmployees = null;  // null = unlimited (no plan, or plan has no cap)
         // ---------------------------------------------------------------
@@ -3191,19 +3198,44 @@ a.sg-link{text-decoration:none}
         //   Computer : one page with the length switch on top and the plans side by side -> choose -> payment page.
         // A plan's price is PRICE PER MONTH. The server works out the real amount; the numbers here are only for display.
         // ---------------------------------------------------------------
-        const UF = { plans: [], discounts: { 3: 0, 6: 10, 12: 20 }, currentPlanId: null, planId: null, months: 6, feature: '', req: null, phone: false, open: {}, busy: false, timer: null };
+        const UF = { plans: [], discounts: { 3: 0, 6: 10, 12: 20 }, currentPlanId: null, planId: null, months: 6, branches: 1, multi: false, openBranches: 0, maxBranches: 1, feature: '', req: null, phone: false, open: {}, busy: false, timer: null };
         const UF_MONTHS = [3, 6, 12];
         const ufMoney = n => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
         const ufMonthsText = m => m === 12 ? '1 year' : m + ' months';
         const ufMoney2 = n => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
         const ufPlan = () => UF.plans.find(p => String(p.id) === String(UF.planId));
+        const UF_MAX_BRANCHES = 20;   // keep this number the same as MAX_BRANCHES in the request-upgrade function
+        const ufExtra = p => (p && Number(p.extraBranchPriceEtb) > 0) ? Number(p.extraBranchPriceEtb) : 0;   // ETB per month for each branch after the first (0 = this plan has one flat price)
+        const ufCap = p => ufExtra(p) ? (p.maxBranches == null ? UF_MAX_BRANCHES : Math.max(1, Math.min(p.maxBranches, UF_MAX_BRANCHES))) : (p.maxBranches == null ? UF_MAX_BRANCHES : p.maxBranches);
+        const ufFits = p => !UF.multi || UF.branches <= ufCap(p);
+        const ufMonthly = p => Number(p.priceEtb) + (ufExtra(p) ? (Math.min(UF.branches, ufCap(p)) - 1) * ufExtra(p) : 0);   // per month for the branches chosen, before the period discount
+        const ufExtraLine = (p, center) => ufExtra(p) ? `<div class="uf-extra"${center ? ' style="text-align:center;"' : ''}>+${ufMoney(ufExtra(p))} ETB per extra branch</div>` : '';
+        function ufSetupBranches(r) {
+            UF.openBranches = Number(r && r.openBranches) || 0;
+            UF.multi = UF.plans.some(p => ufExtra(p) > 0);
+            UF.maxBranches = UF.plans.reduce((m, p) => Math.max(m, ufCap(p)), 1);
+            UF.branches = Math.min(Math.max(Number(r && r.currentBranches) || 1, UF.openBranches, 1), UF.maxBranches);
+        }
+        function ufBranchBox() {
+            if (!UF.multi) return '';
+            const min = Math.max(1, UF.openBranches || 1);
+            return `<div class="uf-brbox"><div class="uf-stepper"><span class="lbl">How many branches?</span><button type="button" onclick="ufSetBranches(-1)" aria-label="Fewer branches" ${UF.branches <= min ? 'disabled' : ''}>&minus;</button><span class="n">${UF.branches}</span><button type="button" onclick="ufSetBranches(1)" aria-label="More branches" ${UF.branches >= UF.maxBranches ? 'disabled' : ''}>+</button></div>${UF.openBranches > 1 ? `<div class="uf-brhint">You already have ${UF.openBranches} open branches.</div>` : ''}</div>`;
+        }
+        function ufSetBranches(d) {
+            const min = Math.max(1, UF.openBranches || 1);
+            UF.branches = Math.min(Math.max(UF.branches + d, min), UF.maxBranches);
+            const bx = document.getElementById('uf-brslot'); if (bx) bx.innerHTML = ufBranchBox();
+            const l = document.getElementById('uf-list'); if (l) l.innerHTML = UF.plans.map(ufPhoneCard).join('');
+            const g = document.getElementById('uf-grid'); if (g) g.innerHTML = UF.plans.map(ufPcCard).join('');
+        }
         function ufPrice(plan, months) {
-            const list = Math.round(plan.priceEtb * months), pct = Number(UF.discounts[months]) || 0, total = Math.round(list * (100 - pct) / 100);
+            const list = Math.round(ufMonthly(plan) * months), pct = Number(UF.discounts[months]) || 0, total = Math.round(list * (100 - pct) / 100);
             const credit = Number(UF.credit) || 0, net = Math.max(total - credit, 0);
             return { list, pct, total, credit, net, perMonth: credit ? net / months : Math.round(total / months) };
         }
         function ufLimits(p) {
-            return (p.maxBranches == null ? 'Unlimited branches' : p.maxBranches + (p.maxBranches === 1 ? ' branch' : ' branches')) + ' \u00B7 ' + (p.maxEmployees == null ? 'Unlimited team members' : p.maxEmployees + ' team members');
+            const n = ufExtra(p) ? Math.min(UF.branches, ufCap(p)) : p.maxBranches;
+            return (n == null ? 'Unlimited branches' : n + (n === 1 ? ' branch' : ' branches')) + ' \u00B7 ' + (p.maxEmployees == null ? 'Unlimited team members' : p.maxEmployees + ' team members');
         }
         // One line per area of the app: all / some / none of its features are in the plan.
         function ufChecks(p) {
@@ -3293,6 +3325,17 @@ a.sg-link{text-decoration:none}
 .uf-pcard .list { border-top: 1px solid var(--border); padding-top: 14px; display: grid; gap: 8px; font-size: 14px; }
 .uf-pc-pay { display: grid; grid-template-columns: 1fr 1.2fr; gap: 24px; margin-top: 18px; align-items: start; }
 .uf-sumtotal { font-size: 36px; font-weight: 700; margin: 6px 0 2px; }
+.uf-brbox { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 16px 0 0; }
+.uf-brwrap { padding: 4px 16px 0; max-width: 560px; margin: 0 auto; }
+.uf-stepper { display: inline-flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 100px; padding: 6px 8px 6px 18px; }
+.uf-stepper .lbl { font-size: 14px; font-weight: 600; }
+.uf-stepper .n { min-width: 26px; text-align: center; font-size: 20px; font-weight: 700; }
+.uf-stepper button { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 20px; line-height: 1; cursor: pointer; }
+.uf-stepper button:disabled { opacity: .4; cursor: default; }
+.uf-brhint { font-size: 12px; color: var(--text-light); }
+.uf-extra { font-size: 12px; color: var(--accent); margin-top: 2px; }
+.uf-plan.off, .uf-pcard.off { opacity: .55; }
+.uf-plan.off { cursor: default; }
 @media (max-width: 720px) { .uf-pc-pay { grid-template-columns: 1fr; } }`;
             document.head.appendChild(st);
         }
@@ -3361,6 +3404,7 @@ a.sg-link{text-decoration:none}
                 UF.plans = ((r && r.plans) || []).slice().sort((a, b) => a.priceEtb - b.priceEtb);
                 UF.discounts = Object.assign({ 3: 0, 6: 10, 12: 20 }, (r && r.discounts) || {});
                 UF.currentPlanId = r && r.currentPlanId != null ? String(r.currentPlanId) : null;
+                ufSetupBranches(r);
                 UF.credit = Number(r && r.creditEtb) || 0;   // money still unused on the current paid plan; taken off the price
             } catch (e) {
                 el.innerHTML = `<div class="uf-top"><button class="uf-back" onclick="ufClose()" aria-label="Close">&#8249;</button><div class="uf-title">Upgrade plan</div></div><p style="text-align:center; padding:0 20px;">Could not load the plans.<br><small>${escHtml(e.message || 'Please try again.')}</small></p>`;
@@ -3376,16 +3420,18 @@ a.sg-link{text-decoration:none}
 
         // ---- PHONE: plan list
         function ufPhoneCard(p) {
-            const id = escHtml(String(p.id)), cur = String(p.id) === String(UF.currentPlanId), open = !!UF.open[p.id];
-            return `<div class="uf-plan${String(UF.planId) === String(p.id) ? ' sel' : ''}" role="button" tabindex="0" onclick="ufPickPlan('${id}')">
-                <div class="uf-row"><span class="uf-pname">${escHtml(p.name)}</span><span class="uf-pprice">${ufMoney(p.priceEtb)} ETB<small>/month</small></span></div>
-                <div class="uf-pdesc">${escHtml(ufLimits(p))}</div>${UF.credit > 0 ? `<div class="uf-credit" style="text-align:left;">&minus;${ufMoney(UF.credit)} ETB credit from your current plan</div>` : ''}
-                <div class="uf-row"><span class="uf-cur">${cur ? 'current plan' : ''}</span><span class="uf-link" onclick="event.stopPropagation(); ufToggleInfo('${id}')">${open ? 'hide' : 'learn more'} &#8250;</span></div>
+            const id = escHtml(String(p.id)), cur = String(p.id) === String(UF.currentPlanId), open = !!UF.open[p.id], fit = ufFits(p);
+            const click = fit ? "ufPickPlan('" + id + "')" : '';
+            return `<div class="uf-plan${String(UF.planId) === String(p.id) ? ' sel' : ''}${fit ? '' : ' off'}" role="button" tabindex="0" onclick="${click}">
+                <div class="uf-row"><span class="uf-pname">${escHtml(p.name)}</span><span class="uf-pprice">${ufMoney(ufMonthly(p))} ETB<small>/month</small></span></div>
+                <div class="uf-pdesc" style="margin-bottom:${ufExtra(p) || !fit ? '4px' : '12px'};">${escHtml(ufLimits(p))}</div>${ufExtraLine(p)}${fit ? '' : '<div class="uf-brhint">Has fewer branches than you chose</div>'}${UF.credit > 0 ? `<div class="uf-credit" style="text-align:left;">&minus;${ufMoney(UF.credit)} ETB credit from your current plan</div>` : ''}
+                <div class="uf-row" style="margin-top:8px;"><span class="uf-cur">${cur ? 'current plan' : ''}</span><span class="uf-link" onclick="event.stopPropagation(); ufToggleInfo('${id}')">${open ? 'hide' : 'learn more'} &#8250;</span></div>
                 ${open ? `<div class="uf-info">${ufChecks(p)}</div>` : ''}</div>`;
         }
         function ufPhonePlans() {
             const el = ufEl();
             el.innerHTML = `<div class="uf-top"><button class="uf-back" onclick="ufClose()" aria-label="Close">&#8249;</button><div class="uf-title">Upgrade plan</div></div>
+                <div class="uf-brwrap" id="uf-brslot">${ufBranchBox()}</div>
                 <div class="uf-list" id="uf-list">${UF.plans.map(ufPhoneCard).join('')}</div>
                 <div class="uf-dim" id="uf-dim" onclick="ufCloseSheet()"></div><div class="uf-sheet" id="uf-sheet"></div>`;
         }
@@ -3410,7 +3456,7 @@ a.sg-link{text-decoration:none}
         function ufOpenSheet() {
             const p = ufPlan(); const sh = document.getElementById('uf-sheet'), dim = document.getElementById('uf-dim'); if (!p || !sh) return;
             sh.innerHTML = `<div class="uf-grab"></div><button class="uf-x" onclick="ufCloseSheet()" aria-label="Close">&#10005;</button>
-                <div class="uf-stitle">${escHtml(p.name)}</div><div class="uf-ssub">How long do you want to pay for?</div>${UF.credit > 0 ? `<div class="uf-credit">${ufMoney(UF.credit)} ETB credit from your current plan is already taken off.</div>` : ''}
+                <div class="uf-stitle">${escHtml(p.name)}</div>${ufExtra(p) ? `<div class="uf-ssub" style="margin:-2px 0 2px;">${Math.min(UF.branches, ufCap(p))} ${Math.min(UF.branches, ufCap(p)) === 1 ? 'branch' : 'branches'}</div>` : ''}<div class="uf-ssub">How long do you want to pay for?</div>${UF.credit > 0 ? `<div class="uf-credit">${ufMoney(UF.credit)} ETB credit from your current plan is already taken off.</div>` : ''}
                 <div class="uf-durs" id="uf-durs">${ufDurHTML()}</div>
                 <button class="uf-cta" id="uf-continue" onclick="ufContinue()">Continue</button>
                 <div class="uf-fine">You pay once for the period you choose. Nothing renews by itself.</div>`;
@@ -3460,13 +3506,14 @@ a.sg-link{text-decoration:none}
 
         // ---- COMPUTER: all plans side by side with the length switch on top
         function ufPcCard(p) {
-            const id = escHtml(String(p.id)), cur = String(p.id) === String(UF.currentPlanId), pr = ufPrice(p, UF.months);
-            return `<div class="uf-pcard${cur ? ' cur' : ''}">
+            const id = escHtml(String(p.id)), cur = String(p.id) === String(UF.currentPlanId), pr = ufPrice(p, UF.months), fit = ufFits(p);
+            const b = ufExtra(p) ? Math.min(UF.branches, ufCap(p)) : 0;
+            return `<div class="uf-pcard${cur ? ' cur' : ''}${fit ? '' : ' off'}">
                 <h3>${escHtml(p.name)}${cur ? ' <span class="uf-cur">(current)</span>' : ''}</h3>
-                <div class="lim">${escHtml(ufLimits(p))}</div>
+                <div class="lim">${escHtml(ufLimits(p))}</div>${ufExtraLine(p, true)}
                 <div class="price">${ufMoney2(pr.perMonth)}<small> ETB/month</small></div>
-                <div class="bill">${pr.pct ? `<s>${ufMoney(p.priceEtb)}</s> &middot; ` : ''}${ufMoney(pr.net)} ETB for ${ufMonthsText(UF.months)}</div>${pr.credit ? `<div class="uf-credit" style="text-align:left;">Includes &minus;${ufMoney(pr.credit)} ETB credit from your current plan</div>` : ''}
-                <button class="pick" onclick="ufPcChoose('${id}')">${cur ? 'Renew this plan' : 'Choose plan'}</button>
+                <div class="bill">${pr.pct ? `<s>${ufMoney(ufMonthly(p))}</s> &middot; ` : ''}${ufMoney(pr.net)} ETB for ${ufMonthsText(UF.months)}</div>${b > 1 ? `<div class="lim">${ufMoney(pr.total / UF.months / b)} ETB per branch</div>` : ''}${pr.credit ? `<div class="uf-credit" style="text-align:left;">Includes &minus;${ufMoney(pr.credit)} ETB credit from your current plan</div>` : ''}${fit ? '' : '<div class="uf-brhint" style="text-align:center; margin-top:6px;">Has fewer branches than you chose</div>'}
+                <button class="pick"${fit ? '' : ' disabled'} onclick="ufPcChoose('${id}')">${cur ? 'Renew this plan' : 'Choose plan'}</button>
                 <div class="list">${ufChecks(p)}</div></div>`;
         }
         function ufPcSeg() {
@@ -3475,7 +3522,7 @@ a.sg-link{text-decoration:none}
         function ufPcPlans() {
             const el = ufEl();
             el.innerHTML = `<div class="uf-pc"><button class="uf-pc-x" onclick="ufClose()" aria-label="Close">&#10005;</button>
-                <div class="uf-pc-head"><h2>Upgrade your plan</h2><p>Choose a plan and how long you want to pay for.</p><div class="uf-seg" id="uf-seg">${ufPcSeg()}</div></div>
+                <div class="uf-pc-head"><h2>Upgrade your plan</h2><p>Choose a plan and how long you want to pay for.</p><div class="uf-seg" id="uf-seg">${ufPcSeg()}</div><div id="uf-brslot">${ufBranchBox()}</div></div>
                 <div class="uf-grid" id="uf-grid">${UF.plans.map(ufPcCard).join('')}</div></div>`;
         }
         function ufPcMonths(m) {
@@ -3492,10 +3539,10 @@ a.sg-link{text-decoration:none}
             UF.busy = true;
             const btns = document.querySelectorAll('#upgrade-flow .uf-cta, #upgrade-flow .pick'); btns.forEach(b => { b.disabled = true; });
             try {
-                UF.req = await callEdgeFunction('request-upgrade', { action: 'request', businessId: currentTenantId, planId: UF.planId, months: UF.months, featureKey: UF.feature || null });
+                UF.req = await callEdgeFunction('request-upgrade', { action: 'request', businessId: currentTenantId, planId: UF.planId, months: UF.months, branches: UF.multi ? UF.branches : null, featureKey: UF.feature || null });
                 UF.busy = false; return true;
             } catch (e) {
-                UF.busy = false; btns.forEach(b => { b.disabled = false; });
+                UF.busy = false; btns.forEach(b => { b.disabled = !!b.closest('.off'); });
                 alert(e.message || 'Could not send the request. Please try again.');
                 return false;
             }
@@ -3523,10 +3570,10 @@ a.sg-link{text-decoration:none}
                     <button type="button" class="uf-btn" onclick="ufCheckStatus(false)">I sent the receipt - check status</button>
                     <button type="button" class="uf-btn" onclick="ufClose()">Done</button></div>
                     <div class="uf-status" id="uf-status"></div>`;
-            const summaryRows = `${kv('Plan', pl.name)}${kv('Length', ufMonthsText(Number(pl.months) || 1))}${pl.discountPct ? kv('Discount', pl.discountPct + '%') : ''}${pl.creditEtb ? kv('Credit from current plan', '-' + ufMoney(pl.creditEtb) + ' ETB') : ''}`;
+            const summaryRows = `${kv('Plan', pl.name)}${kv('Length', ufMonthsText(Number(pl.months) || 1))}${pl.branches ? kv('Branches', pl.branches) : ''}${pl.discountPct ? kv('Discount', pl.discountPct + '%') : ''}${pl.creditEtb ? kv('Credit from current plan', '-' + ufMoney(pl.creditEtb) + ' ETB') : ''}`;
             if (UF.phone) {
                 el.innerHTML = `<div class="uf-top"><button class="uf-back" onclick="ufPhonePlans()" aria-label="Back">&#8249;</button><div class="uf-title">Payment</div></div>
-                    <div class="uf-pay"><div class="uf-amount"><div class="big">${ufMoney(pl.amountEtb)} ETB</div><div class="sub">${escHtml(pl.name || '')} &middot; ${ufMonthsText(Number(pl.months) || 1)}${pl.creditEtb ? ' &middot; ' + ufMoney(pl.creditEtb) + ' ETB credit applied' : ''}</div></div>
+                    <div class="uf-pay"><div class="uf-amount"><div class="big">${ufMoney(pl.amountEtb)} ETB</div><div class="sub">${escHtml(pl.name || '')} &middot; ${ufMonthsText(Number(pl.months) || 1)}${pl.branches > 1 ? ' &middot; ' + pl.branches + ' branches' : ''}${pl.creditEtb ? ' &middot; ' + ufMoney(pl.creditEtb) + ' ETB credit applied' : ''}</div></div>
                     ${details}${steps}${buttons}</div>`;
             } else {
                 el.innerHTML = `<div class="uf-pc"><button class="uf-pc-x" onclick="ufClose()" aria-label="Close">&#10005;</button>
@@ -3687,7 +3734,7 @@ a.sg-link{text-decoration:none}
             sgEl('bp-phone').value = currentBizProfile.phone || '';
             sgEl('bp-address').value = currentBizProfile.address || '';
             const st = planStatusText();
-            sgEl('plans-settings-current').innerHTML = (currentPlanName ? 'Your plan: <b>' + escHtml(currentPlanName) + '</b>' : 'No plan chosen yet') + (st ? '<br>' + escHtml(st) : '');
+            sgEl('plans-settings-current').innerHTML = (currentPlanName ? 'Your plan: <b>' + escHtml(currentPlanName) + '</b>' + (currentBoughtBranches > 1 ? ' &middot; ' + currentBoughtBranches + ' branches' : '') : 'No plan chosen yet') + (st ? '<br>' + escHtml(st) : '');
             if (currentIsOwner) loadPaymentHistory();
             const sp = sgEl('sg-sub-plan'); if (sp) sp.textContent = (currentPlanName || 'No plan chosen yet') + (st ? ' \u00b7 ' + st : '');
             renderAboutCard();
@@ -3764,7 +3811,7 @@ a.sg-link{text-decoration:none}
                 const r = await callEdgeFunction('request-upgrade', { action: 'history', businessId: currentTenantId });
                 const rows = (r && r.history) || [];
                 if (!rows.length) { box.textContent = 'No upgrade payments yet.'; return; }
-                box.innerHTML = rows.map(x => `<div class="sg-hist"><div><b>${escHtml(x.planName || 'Plan')}</b> &middot; ${escHtml(ufMonthsText(Number(x.months) || 1))}<div class="sg-sub">${escHtml(sgDate(new Date(x.createdAt).getTime()))}</div></div><div style="text-align:right;"><div>${ufMoney(x.amountEtb)} ETB</div><span class="sg-pill sg-${escHtml(String(x.status))}">${escHtml(UPG_STATUS[x.status] || String(x.status))}</span></div></div>`).join('');
+                box.innerHTML = rows.map(x => `<div class="sg-hist"><div><b>${escHtml(x.planName || 'Plan')}</b> &middot; ${escHtml(ufMonthsText(Number(x.months) || 1))}${x.branches > 1 ? ' &middot; ' + escHtml(String(x.branches)) + ' branches' : ''}<div class="sg-sub">${escHtml(sgDate(new Date(x.createdAt).getTime()))}</div></div><div style="text-align:right;"><div>${ufMoney(x.amountEtb)} ETB</div><span class="sg-pill sg-${escHtml(String(x.status))}">${escHtml(UPG_STATUS[x.status] || String(x.status))}</span></div></div>`).join('');
             } catch (e) { box.textContent = 'Could not load your payments. ' + (e.message || ''); }
         }
         // ---- Sales defaults (the Settings page for these was removed; values already saved keep working)
@@ -5552,6 +5599,9 @@ a.sg-link{text-decoration:none}
             if (biz.subscription_plan_id) {
                 const { data: planRow } = await supabaseClient.from('subscription_plans').select('max_branches, max_employees').eq('id', biz.subscription_plan_id).maybeSingle();
                 currentPlanMaxBranches = planRow ? planRow.max_branches : null;
+                // Branches the shop paid for count only while it is still on the plan they were bought for.
+                currentBoughtBranches = null;
+                if (planRow && biz.subscription_branches != null && String(biz.subscription_branches_plan_id || '') === String(biz.subscription_plan_id)) { currentBoughtBranches = Number(biz.subscription_branches); currentPlanMaxBranches = currentBoughtBranches; }
                 currentPlanMaxEmployees = planRow ? planRow.max_employees : null;
                 // Separate lookup so a missing is_premium column (SQL not run yet) never breaks the limits above.
                 try {
