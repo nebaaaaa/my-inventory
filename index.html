@@ -849,8 +849,8 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 <button onclick="switchView('purchase')" id="nav-purchase"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg> <span data-i18n="nav.purchase">Purchase</span></button>
                 <button onclick="switchView('drafts')" id="nav-drafts" style="display:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="13" y2="17"></line></svg> <span data-i18n="nav.drafts">Drafts</span><span id="drafts-badge" style="display:none; margin-left:auto; background:var(--accent); color:#fff; border-radius:10px; padding:0 7px; font-size:11px; line-height:18px;"></span></button>
                 <button onclick="switchView('expenses')" id="nav-expenses"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline><polyline points="17 18 23 18 23 12"></polyline></svg> <span data-i18n="nav.expense">Expense</span></button>
-                <button class="nav-group-toggle" onclick="toggleNavGroup('accounting')" id="nav-group-accounting-toggle"><span style="display:flex; align-items:center; gap:12px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Accounting</span><svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
-                <div class="nav-group" id="nav-group-accounting">
+                <button class="nav-group-toggle collapsed" onclick="toggleNavGroup('accounting')" id="nav-group-accounting-toggle"><span style="display:flex; align-items:center; gap:12px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Accounting</span><svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+                <div class="nav-group collapsed" id="nav-group-accounting">
                     <button onclick="switchView('coa')" id="nav-coa"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Chart of Accounts</button>
                     <button onclick="switchView('journal')" id="nav-journal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg> Journal Entries</button>
                     <button onclick="switchView('ledger')" id="nav-ledger"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg> General Ledger</button>
@@ -1608,8 +1608,8 @@ a.sg-link{text-decoration:none}
 <div id="sg-grp-shop">
 <div class="sg-label">Shop</div>
 <div class="sg-list">
-<button type="button" class="sg-item" id="sg-row-tax" onclick="openSettingsPage('tax')"><svg class="sg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg><span><b>Tax</b><small id="sg-sub-tax">VAT registration</small></span><span class="sg-chev">&#8250;</span></button>
-<button type="button" class="sg-item" onclick="openSettingsPage('team')"><svg class="sg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span><b>Team &amp; access</b><small id="sg-sub-team">Branches, team, roles and your accountant</small></span><span class="sg-chev">&#8250;</span></button>
+<button type="button" class="sg-item" id="sg-row-tax" onclick="openSettingsPage('tax')"><svg class="sg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg><span><b>Tax</b><small id="sg-sub-tax">VAT registration and accountant access</small></span><span class="sg-chev">&#8250;</span></button>
+<button type="button" class="sg-item" onclick="openSettingsPage('team')"><svg class="sg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span><b>Team &amp; access</b><small id="sg-sub-team">Branches, team and roles</small></span><span class="sg-chev">&#8250;</span></button>
 </div>
 </div>
 <div id="sg-grp-account">
@@ -1673,6 +1673,17 @@ a.sg-link{text-decoration:none}
                         <span id="settings-vat-details-saved" style="display:none; color:var(--success); font-size:13px; margin-left:10px;" data-i18n="ui2.saved">Saved ✓</span>
                     </div>
                 </div>
+<div class="card" id="accountant-access-card" style="display:none;">
+                    <h2 style="border:none; margin-bottom:10px;" data-i18n="ui2.accountant_access">Accountant Access</h2>
+                    <p style="font-size:13px; color:var(--text-light); margin-bottom:12px;" data-i18n="ui2.give_your_accountant_read_only_acc">Give your accountant read-only access to your inventory list. Search for them below, or approve a request they've already sent you.</p>
+                    <div style="display:flex; gap:8px; margin-bottom:6px;">
+                        <input type="text" id="accountant-search-input" placeholder="Search accountant by name or phone…" data-i18n-placeholder="ui2.search_accountant_by_name_or_phone" style="flex:1;" oninput="runAccountantSearch(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault(); submitAccountantSearch();}" onfocus="renderAccountantSearchHistory()">
+                        <button class="btn" style="padding:0 14px;" onclick="submitAccountantSearch()" data-i18n="ui2.search">Search</button>
+                    </div>
+                    <div id="accountant-search-history"></div>
+                    <div id="accountant-search-results" style="margin-bottom:6px;"></div>
+                    <div id="accountant-links-list" style="margin-top:14px;"></div>
+                </div>
 </div>
 <div class="sg-page" id="sg-page-team">
 <div class="sg-head"><button type="button" class="sg-back" onclick="closeSettingsPage()" aria-label="Back">&#8249;</button><span>Team &amp; access</span></div>
@@ -1717,17 +1728,6 @@ a.sg-link{text-decoration:none}
                     <p style="font-size:13px; color:var(--text-light); margin-top:8px;" data-i18n="team.roles_desc">Toggle what each role is allowed to do. Changes apply immediately to everyone with that role.</p>
                     <div id="roles-permission-editor" style="margin-top:16px;"></div>
                 </div>
-<div class="card" id="accountant-access-card" style="display:none;">
-                    <h2 style="border:none; margin-bottom:10px;" data-i18n="ui2.accountant_access">Accountant Access</h2>
-                    <p style="font-size:13px; color:var(--text-light); margin-bottom:12px;" data-i18n="ui2.give_your_accountant_read_only_acc">Give your accountant read-only access to your inventory list. Search for them below, or approve a request they've already sent you.</p>
-                    <div style="display:flex; gap:8px; margin-bottom:6px;">
-                        <input type="text" id="accountant-search-input" placeholder="Search accountant by name or phone…" data-i18n-placeholder="ui2.search_accountant_by_name_or_phone" style="flex:1;" oninput="runAccountantSearch(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault(); submitAccountantSearch();}" onfocus="renderAccountantSearchHistory()">
-                        <button class="btn" style="padding:0 14px;" onclick="submitAccountantSearch()" data-i18n="ui2.search">Search</button>
-                    </div>
-                    <div id="accountant-search-history"></div>
-                    <div id="accountant-search-results" style="margin-bottom:6px;"></div>
-                    <div id="accountant-links-list" style="margin-top:14px;"></div>
-                </div>
 </div>
 <div class="sg-page" id="sg-page-notifications">
 <div class="sg-head"><button type="button" class="sg-back" onclick="closeSettingsPage()" aria-label="Back">&#8249;</button><span>Notifications</span></div>
@@ -1762,6 +1762,11 @@ a.sg-link{text-decoration:none}
 </div>
 <button type="button" class="btn" onclick="changeMyPassword()">Change password</button>
 <div id="sec-pw-msg" style="font-size:13px; margin-top:8px;"></div>
+</div>
+<div style="margin-top:18px; border-top:1px solid var(--border); padding-top:14px;">
+<label style="font-weight:600; font-size:13px;" id="sec-devices-title">Your devices</label>
+<div class="sg-hint" id="sec-devices-summary" style="margin:4px 0 8px;">Devices that have signed in to this shop.</div>
+<div id="sec-devices-list"></div>
 </div>
 </div>
 </div>
@@ -2483,6 +2488,8 @@ a.sg-link{text-decoration:none}
             AM_MSG.forEach(r => { if (typeof r[0] === 'string') AM_EXACT[normMsg(r[0])] = r[1]; });
             // ---- Amharic for the Settings pages and the Upgrade plan flow (added only where no translation exists yet)
             const AM_MSG_EXTRA = [
+                ["VAT registration and accountant access", "የቫት ምዝገባ እና የሂሳብ ሹም መዳረሻ"],
+                ["Branches, team and roles", "ቅርንጫፎች፣ ቡድን እና ሚናዎች"],
                 ["Settings", "ቅንብሮች"],
                 ["Your shop", "ሱቅዎ"],
                 ["Edit profile", "መገለጫ አስተካክል"],
@@ -3621,7 +3628,7 @@ a.sg-link{text-decoration:none}
             _sgOpen = id; pg.scrollTop = 0; pg.style.transform = ''; pg.classList.remove('drag'); pg.classList.add('open');
             sgSyncHeader(pg);
             if (id === 'notifications' && typeof window.mlyPushPaint === 'function') window.mlyPushPaint();
-            if (id === 'security') fillSecurityFields();
+            if (id === 'security') { fillSecurityFields(); if (window.mlyLoadDevices) window.mlyLoadDevices(); }
             if (id === 'team' && typeof loadTeamView === 'function') Promise.resolve(loadTeamView()).catch(e => console.error('loadTeamView', e));
             if (!sgIsPhone()) window.scrollTo(0, 0);
             if (sgIsPhone() && !_sgPushed) { try { history.pushState({ sgPage: id }, ''); _sgPushed = true; } catch (e) { } }
@@ -3675,7 +3682,7 @@ a.sg-link{text-decoration:none}
             if (!sgEl('plans-settings-card')) return;
             document.querySelectorAll('.sg-page').forEach(sgBindSwipe);
             const vc = sgEl('vat-settings-card'), tr = sgEl('sg-row-tax');
-            if (tr) tr.style.display = (vc && vc.style.display !== 'none') ? '' : 'none';
+            if (tr) tr.style.display = ((vc && vc.style.display !== 'none') || currentIsOwner) ? '' : 'none';
             sgEl('bp-name').value = currentTenantName || '';
             sgEl('bp-phone').value = currentBizProfile.phone || '';
             sgEl('bp-address').value = currentBizProfile.address || '';
@@ -4911,6 +4918,7 @@ a.sg-link{text-decoration:none}
         function applyVatUIVisibility() {
             const isVat = !!state.vatRegistered;
             const isRental = currentBusinessType === 'rental';
+            try { syncSaleTypesDropdown(); syncCartSaleTypeDropdown(); } catch (e) { }
             const saleVatGroup = document.getElementById('sale-vat-group');
             if (saleVatGroup) saleVatGroup.style.display = isVat ? 'block' : 'none';
             const cartVatGroup = document.getElementById('cart-sale-vat-group');
@@ -5469,6 +5477,7 @@ a.sg-link{text-decoration:none}
                     // them as normal tenant_update patches once currentTenantId
                     // is known, a few lines below in this same function on the
                     // recursive call.
+                    onbBegin();   // brand-new account: the install request comes next
                     try { sessionStorage.setItem('neba_pending_vat_registered', pending.vatRegistered ? '1' : '0'); } catch (e) {}
                     try { sessionStorage.setItem('neba_pending_business_type', pending.businessType || 'retail'); } catch (e) {}
                     try { if (pending.vatRegistered && pending.vatDetails) sessionStorage.setItem('neba_pending_vat_details', JSON.stringify(pending.vatDetails)); } catch (e) {}
@@ -5487,6 +5496,7 @@ a.sg-link{text-decoration:none}
             currentUsername = member.username;
             currentIsOwner = member.is_owner;
             currentRoleId = member.role_id;
+            try { if (window.mlyRegisterDevice) window.mlyRegisterDevice(true); } catch (e) { }
             state.currentUserRole = member.roles ? member.roles.key : (member.is_owner ? 'owner' : null);
 
             if (currentIsOwner) {
@@ -5662,6 +5672,7 @@ a.sg-link{text-decoration:none}
             const { error } = await supabaseClient.rpc('create_business_with_owner', { p_business_name: bizName, p_phone: phone, p_username: username, p_display_name: bizName });
             setAuthLoading(false);
             if (error) return showAuthError(error.message);
+            onbBegin();   // brand-new account: the install request comes next
             try { sessionStorage.setItem('neba_pending_vat_registered', '0'); sessionStorage.setItem('neba_pending_business_type', g('auth-business-type').value || 'retail'); } catch (e) {}
             signupProfileMode = false; applySignupProfileMode();
             g('auth-overlay').style.display = 'none';
@@ -7255,15 +7266,12 @@ a.sg-link{text-decoration:none}
             if (!group || !toggle) return;
             const collapsed = group.classList.toggle('collapsed');
             toggle.classList.toggle('collapsed', collapsed);
-            try { localStorage.setItem(`neba_nav_group_${name}_collapsed`, collapsed ? '1' : '0'); } catch (e) {}
+            // Not remembered: the section always starts closed when the app opens.
         }
         function restoreNavGroupState(name) {
-            try {
-                if (localStorage.getItem(`neba_nav_group_${name}_collapsed`) === '1') {
-                    document.getElementById(`nav-group-${name}`)?.classList.add('collapsed');
-                    document.getElementById(`nav-group-${name}-toggle`)?.classList.add('collapsed');
-                }
-            } catch (e) {}
+            // The section starts closed (see the markup); nothing to restore.
+            document.getElementById(`nav-group-${name}`)?.classList.add('collapsed');
+            document.getElementById(`nav-group-${name}-toggle`)?.classList.add('collapsed');
         }
 
         function switchView(viewId) {
@@ -7369,10 +7377,12 @@ a.sg-link{text-decoration:none}
             state.categories.forEach(cat => { dl.innerHTML += `<option value="${escHtml(cat)}"></option>`; });
         }
 
+        // Proforma and Tender only make sense for VAT-registered shops; everyone else just sees Walk in and Customer.
+        function saleTypeDefaults() { return state.vatRegistered ? ['Walk in', 'Proforma', 'Customer', 'Tender'] : ['Walk in', 'Customer']; }
         function syncSaleTypesDropdown() {
             const sel = document.getElementById('sale-type');
             if (!sel) return;
-            const defaults = ['Walk in', 'Proforma', 'Customer', 'Tender'];
+            const defaults = saleTypeDefaults();
             const currentVal = sel.value;
             let opts = defaults.map(d => `<option value="${escHtml(d)}">${escHtml(d)}</option>`);
             (state.saleTypes || []).forEach(t => opts.push(`<option value="${escHtml(t)}">${escHtml(t)}</option>`));
@@ -10809,7 +10819,7 @@ a.sg-link{text-decoration:none}
         function syncCartSaleTypeDropdown() {
             const sel = document.getElementById('cart-sale-type');
             if (!sel) return;
-            const defaults = ['Walk in', 'Proforma', 'Customer', 'Tender'];
+            const defaults = saleTypeDefaults();
             const cur = sel.value;
             let opts = defaults.map(d => `<option value="${escHtml(d)}">${escHtml(d)}</option>`);
             (state.saleTypes || []).forEach(t => opts.push(`<option value="${escHtml(t)}">${escHtml(t)}</option>`));
@@ -12842,8 +12852,20 @@ a.sg-link{text-decoration:none}
         const appIsEdge = () => /\bEdg\//.test(navigator.userAgent);
         const installLS = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } };
 
+        // ONBOARDING ORDER. New visitor: demo shop -> create account -> install request -> (if they install) notification request.
+        // The stage is kept in localStorage 'mly_onb': 'install' (ask to install next), 'notify' (installed: ask for alerts next),
+        // 'later' (said no to installing), 'done'. People who already use the app have NO stage, so an update never starts this
+        // flow. The first time a device opens this version it stays completely quiet for that session; after that, an existing
+        // user is only reminded if the app is still not installed (small banner) or alerts are still off (asked at most weekly).
+        const onbStage = () => installLS('mly_onb');
+        const onbSet = (v) => installLS('mly_onb', v);
+        function onbBegin() { try { localStorage.setItem('mly_onb', 'install'); localStorage.removeItem('meleya_install_auto_shown'); sessionStorage.removeItem('mly_onb_quiet'); } catch (e) { } }
+        function onbLater() { onbSet('later'); try { sessionStorage.setItem('mly_onb_quiet', '1'); } catch (e) { } }
+        (function () { try { if (!localStorage.getItem('mly_onb_v2')) { localStorage.setItem('mly_onb_v2', '1'); sessionStorage.setItem('mly_onb_quiet', '1'); } } catch (e) { } })();
+        const onbQuiet = () => { const st = onbStage(); if (st === 'install' || st === 'notify') return false; try { return sessionStorage.getItem('mly_onb_quiet') === '1'; } catch (e) { return false; } };
+
         window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; refreshInstallUI(); });
-        window.addEventListener('appinstalled', () => { installEvt = null; window.__mlyInstallEvt = null; installLS('meleya_installed', '1'); refreshInstallUI(); if (appIsDesktop()) setTimeout(showPcTips, 800); });
+        window.addEventListener('appinstalled', () => { installEvt = null; window.__mlyInstallEvt = null; if (onbStage() !== 'done') onbSet('notify'); installLS('meleya_installed', '1'); refreshInstallUI(); if (appIsDesktop()) setTimeout(showPcTips, 800); });
         if (installEvt) setTimeout(() => { try { refreshInstallUI(); } catch (e) { } }, 0);   // the event came before this script: show the Install button now
 
         function refreshInstallUI() {
@@ -12853,8 +12875,9 @@ a.sg-link{text-decoration:none}
             const bar = document.getElementById('install-app-banner');
             const loggedIn = typeof currentTenantId !== 'undefined' && !!currentTenantId;
             const snoozed = Number(installLS('meleya_install_snooze') || 0) > Date.now();
-            if (bar) bar.style.display = (can && loggedIn && !snoozed) ? 'flex' : 'none';
-            if (can && loggedIn && !snoozed) installAutoOnce();
+            const hold = !!window.MLY_DEMO || onbQuiet();   // demo shop, or the first session after an update: do not interrupt
+            if (bar) bar.style.display = (can && loggedIn && !snoozed && !hold) ? 'flex' : 'none';
+            if (can && loggedIn && !snoozed && !hold && onbStage() === 'install') installAutoOnce();
         }
         // First time on a device that has not installed MELEYA yet (including people who already use the app in the browser):
         // open the install prompt (Android / PC) or the how-to video (iPhone) by itself, once. After that only the banner and the
@@ -12862,17 +12885,18 @@ a.sg-link{text-decoration:none}
         let installAutoTimer = null;
         function installAutoOnce(tries) {
             tries = tries || 0;
-            if (installLS('meleya_install_auto_shown') || installAutoTimer) return;
+            if (installLS('meleya_install_auto_shown') || installAutoTimer || onbStage() !== 'install') return;
             installAutoTimer = setTimeout(() => {
                 installAutoTimer = null;
                 try {
-                    if (appIsStandalone() || installLS('meleya_install_auto_shown') || installLS('meleya_install_never') === '1') return;
+                    if (onbStage() !== 'install' || appIsStandalone() || installLS('meleya_install_auto_shown') || installLS('meleya_install_never') === '1') return;
                     if (!(installEvt || appIsIOS())) return;
                     const am = document.getElementById('app-info-modal');
                     const busy = document.querySelector('[id$="-modal"].active') || (am && am.style.display === 'flex');
                     if (busy) { if (tries < 6) installAutoOnce(tries + 1); return; } // another window is open: try again in a few seconds
                     installLS('meleya_install_auto_shown', String(Date.now()));
                     if (installEvt) {
+                        window.__onbAutoModal = true;
                         showAppModal('Install MELEYA', `<p style="font-size:14px; line-height:1.6; margin:0 0 14px;">Put MELEYA on this device. It opens faster, works like an app and is always one tap away.</p>
                             <div style="text-align:center;"><button type="button" class="btn" style="padding:10px 28px;" onclick="document.getElementById('app-info-modal').style.display='none'; installApp();">Install now</button></div>`, 440, 'Not now');
                     } else if (appIsIOS()) installApp();
@@ -12889,9 +12913,10 @@ a.sg-link{text-decoration:none}
             if (installEvt) {
                 // The browser lets an install prompt be shown only ONCE. Take it out of storage right away so a second tap can
                 // never hit a used-up prompt. Any refusal is caught and turned into the how-to window instead of failing silently.
-                const evt = installEvt; installEvt = null; window.__mlyInstallEvt = null;
-                try { await evt.prompt(); await evt.userChoice; }
-                catch (e) { console.warn('Install prompt failed:', e); refreshInstallUI(); installHowTo(); return; }
+                const evt = installEvt; installEvt = null; window.__mlyInstallEvt = null; window.__onbInstalling = true;
+                try { await evt.prompt(); const ch = await evt.userChoice; if (onbStage() === 'install') { if (ch && ch.outcome === 'accepted') onbSet('notify'); else onbLater(); } }
+                catch (e) { console.warn('Install prompt failed:', e); window.__onbInstalling = false; refreshInstallUI(); installHowTo(); return; }
+                window.__onbInstalling = false;
                 refreshInstallUI();
             } else if (appIsIOS()) {
                 showAppModal('Install MELEYA on your iPhone', installDemo('install-videos/install-iphone.mp4', '4 / 5', `<ol style="padding-left:20px; margin:0; line-height:1.7; font-size:14px;">
@@ -12943,8 +12968,28 @@ a.sg-link{text-decoration:none}
                 + `<p style="font-size:12px; color:var(--text-light); margin:12px 0 0;">These are your computer's own settings, so the browser asks you to switch them on yourself.</p>`, 620);
             installLS('meleya_pc_tips_shown', '1');
         }
-        // First time MELEYA opens as an installed app on a PC (even if it was installed from the browser menu)
-        if (appIsStandalone() && appIsDesktop() && !installLS('meleya_pc_tips_shown')) setTimeout(() => { if (typeof currentTenantId !== 'undefined' && currentTenantId) showPcTips(); }, 4000);
+        // First time MELEYA opens as an installed app on a PC (even if it was installed from the browser menu).
+        // People who installed it before this update are not shown the tips again.
+        if (appIsStandalone() && appIsDesktop() && !installLS('meleya_pc_tips_shown')) {
+            if (onbStage() !== 'install' && onbStage() !== 'notify') installLS('meleya_pc_tips_shown', '1');
+            else setTimeout(() => { if (typeof currentTenantId !== 'undefined' && currentTenantId && !window.MLY_DEMO) showPcTips(); }, 4000);
+        }
+        // Moves a NEW account along: install request first, then (only if they installed) the notification request.
+        (function () {
+            let seen = 0;
+            setInterval(() => {
+                try {
+                    if (window.MLY_DEMO || typeof currentTenantId === 'undefined' || !currentTenantId || onbStage() !== 'install') return;
+                    if (!seen) seen = Date.now();
+                    if (appIsStandalone()) { onbSet('notify'); return; }                                    // opened as an installed app
+                    if (installLS('meleya_install_never') === '1') { onbLater(); return; }                  // "I already installed it"
+                    const m = document.getElementById('app-info-modal'), open = !!m && m.style.display === 'flex';
+                    if (window.__onbAutoModal && !open && !window.__onbInstalling) { window.__onbAutoModal = false; onbLater(); return; }   // "Not now"
+                    if (!installEvt && !appIsIOS() && Date.now() - seen > 25000) { onbLater(); return; }   // this browser cannot install apps
+                    refreshInstallUI();
+                } catch (e) { }
+            }, 3000);
+        })();
 
         function togglePurchaseCartMode(showCart) {
             document.getElementById('purchase-entry-card').style.display = showCart ? 'none' : 'block';
@@ -17919,6 +17964,7 @@ window.startMeleyaDemo = function () {
   const ft = $('.aside-footer .footer-buttons'); if (ft) ft.style.display = 'none';
   const eb = $('#btn-export-hub'); if (eb) eb.style.display = 'none';
   if (!$('#dm-demo-cta')) { const b = document.createElement('button'); b.id = 'dm-demo-cta'; b.className = 'dm-btn p'; b.textContent = '✨ Create my real account'; b.onclick = () => exit(true); $('.aside-footer').appendChild(b); }
+  if (!$('#dm-demo-signin')) { const b2 = document.createElement('button'); b2.id = 'dm-demo-signin'; b2.className = 'dm-btn g'; b2.style.marginTop = '6px'; b2.textContent = 'I already have an account — sign in'; b2.onclick = () => exit(false); $('.aside-footer').appendChild(b2); }
   safe(() => switchView('dashboard')); renderAll(); buildHud(); safe(() => $('#cloud-sync-status').innerHTML = '🎮 Demo mode, nothing is saved');
   setTimeout(startTour, 700);
 };
@@ -18264,12 +18310,16 @@ function buildSteps() {
             document.getElementById('push-ask-yes').onclick = async function () { hideCard(); await window.mlyPushToggle(); };
         }
         async function maybeAsk() {
-            if (!ok || !currentTenantId || !navigator.onLine) return;
+            if (!ok || !currentTenantId || !navigator.onLine || window.MLY_DEMO) return;
             if (typeof currentIsOwner === 'undefined' || !currentIsOwner) return;      // employees can still use the bell
-            if (Notification.permission !== 'default') return;
+            let st = null, quiet = false; try { st = localStorage.getItem('mly_onb'); quiet = sessionStorage.getItem('mly_onb_quiet') === '1'; } catch (e) { }
+            if (Notification.permission !== 'default') { if (st === 'notify') { try { localStorage.setItem('mly_onb', 'done'); } catch (e) { } } return; }
+            if (st === 'install') return;                       // new account: the install request comes first
+            if (st !== 'notify' && quiet) return;               // first session after an update: never interrupt
+            const am = document.getElementById('app-info-modal'); if (am && am.style.display === 'flex') return;   // another window is open: try again shortly
             let last = 0; try { last = Number(localStorage.getItem('mly_push_asked')) || 0; } catch (e) { }
-            if (Date.now() - last < 7 * 86400000) return;
-            try { localStorage.setItem('mly_push_asked', String(Date.now())); } catch (e) { }
+            if (st !== 'notify' && Date.now() - last < 7 * 86400000) return;
+            try { localStorage.setItem('mly_push_asked', String(Date.now())); if (st === 'notify') localStorage.setItem('mly_onb', 'done'); } catch (e) { }
             if (IOS) { showCard(); return; }
             try { if ((await Notification.requestPermission()) === 'granted') await tryRegister(); } catch (e) { }
             paint();
@@ -18288,5 +18338,112 @@ function buildSteps() {
         }
     })();
     </script>
+<script>
+/* =====================================================================
+   DEVICE TRACKING (track only: nothing is blocked or limited)
+   Each browser keeps a random ID in localStorage ('neba_device_id'). When a
+   person is signed in, that ID is saved to the user_devices table together with
+   a readable name ("Android · Chrome") and the last time it was used. The owner
+   sees every device in the shop (Settings > Security & account); an employee
+   sees only their own. Clearing browser data makes a new ID, so that browser
+   counts as a new device.
+   ===================================================================== */
+(function () {
+    var LS = 'neba_device_id';
+    function newId() {
+        try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch (e) { }
+        return 'd-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
+    }
+    function deviceId() {
+        try { var id = localStorage.getItem(LS); if (!id) { id = newId(); localStorage.setItem(LS, id); } return id; }
+        catch (e) { return null; }
+    }
+    function isInstalled() {
+        try { return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true; }
+        catch (e) { return false; }
+    }
+    function deviceName() {
+        var ua = navigator.userAgent, os = 'Device', br = 'Browser';
+        if (/iphone/i.test(ua)) os = 'iPhone';
+        else if (/ipad/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) os = 'iPad';
+        else if (/android/i.test(ua)) os = 'Android';
+        else if (/windows/i.test(ua)) os = 'Windows';
+        else if (/mac/i.test(ua)) os = 'Mac';
+        else if (/linux/i.test(ua)) os = 'Linux';
+        if (/\bEdg\//.test(ua)) br = 'Edge';
+        else if (/OPR\//.test(ua)) br = 'Opera';
+        else if (/SamsungBrowser/i.test(ua)) br = 'Samsung Internet';
+        else if (/chrome|crios/i.test(ua)) br = 'Chrome';
+        else if (/firefox|fxios/i.test(ua)) br = 'Firefox';
+        else if (/safari/i.test(ua)) br = 'Safari';
+        return os + ' \u00b7 ' + (isInstalled() ? 'Installed app' : br);
+    }
+    var lastReg = 0;
+    // force = true on sign-in; otherwise it refreshes "last active" at most once every 6 hours.
+    window.mlyRegisterDevice = async function (force) {
+        try {
+            if (window.MLY_DEMO || !navigator.onLine) return;
+            // A platform admin logged in as the owner, or an owner viewing as an employee, is not that person's own device: never record it.
+            try { if (sessionStorage.getItem('neba_admin_impersonation_active') || sessionStorage.getItem('neba_owner_session_backup')) return; } catch (e) { }
+            if (typeof currentTenantId === 'undefined' || !currentTenantId || !currentMemberId) return;
+            if (!force && Date.now() - lastReg < 6 * 3600 * 1000) return;
+            var id = deviceId(); if (!id) return;
+            lastReg = Date.now();
+            var r = await supabaseClient.from('user_devices').upsert({
+                business_id: currentTenantId, member_id: currentMemberId, device_id: id,
+                device_name: deviceName(), is_installed: isInstalled(), last_seen: new Date().toISOString()
+            }, { onConflict: 'member_id,device_id' });
+            if (r && r.error) console.warn('Device register failed:', r.error.message || r.error);
+        } catch (e) { console.warn('Device register failed:', e); }
+    };
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) window.mlyRegisterDevice(false); });
+
+    function h(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); }
+    function when(iso) {
+        if (!iso) return '';
+        var d = new Date(iso); if (isNaN(d)) return '';
+        return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    window.mlyLoadDevices = async function () {
+        var box = document.getElementById('sec-devices-list');
+        var sum = document.getElementById('sec-devices-summary');
+        var ttl = document.getElementById('sec-devices-title');
+        if (!box || !sum) return;
+        if (window.MLY_DEMO) { box.innerHTML = ''; sum.textContent = 'Not available in the demo shop.'; return; }
+        if (!navigator.onLine) { box.innerHTML = ''; sum.textContent = 'Connect to the internet to see your devices.'; return; }
+        sum.textContent = 'Loading...'; box.innerHTML = '';
+        try {
+            var owner = !!currentIsOwner, myDev = deviceId();
+            var q = supabaseClient.from('user_devices').select('member_id, device_id, device_name, is_installed, first_seen, last_seen').order('last_seen', { ascending: false });
+            q = owner ? q.eq('business_id', currentTenantId) : q.eq('member_id', currentMemberId);
+            var res = await Promise.all([
+                q,
+                owner ? supabaseClient.from('business_members').select('id, username, display_name').eq('business_id', currentTenantId) : Promise.resolve({ data: [] })
+            ]);
+            var devs = res[0].data, err = res[0].error;
+            if (err) { sum.textContent = 'Could not load devices. Please try again later.'; console.warn('Devices:', err); return; }
+            devs = devs || [];
+            var names = {};
+            ((res[1] && res[1].data) || []).forEach(function (m) { names[m.id] = m.display_name || m.username || 'Team member'; });
+            if (ttl) ttl.textContent = owner ? 'Devices in this shop' : 'Your devices';
+            if (!devs.length) { sum.textContent = 'No devices recorded yet.'; return; }
+            var cut = Date.now() - 30 * 86400000;
+            var recent = devs.filter(function (d) { return new Date(d.last_seen).getTime() >= cut; }).length;
+            sum.textContent = devs.length + (devs.length === 1 ? ' device' : ' devices') + ' in total, ' + recent + ' used in the last 30 days.';
+            box.innerHTML = devs.map(function (d) {
+                var me = d.device_id === myDev;
+                var who = owner ? (names[d.member_id] || 'Team member') : '';
+                return '<div style="display:flex; justify-content:space-between; gap:10px; padding:10px 0; border-top:1px solid var(--border);">' +
+                    '<div style="min-width:0;"><div style="font-weight:600; font-size:13px;">' + h(d.device_name || 'Device') +
+                    (me ? ' <span style="font-size:11px; font-weight:700; color:var(--primary); border:1px solid var(--primary); border-radius:999px; padding:1px 7px; margin-left:4px;">This device</span>' : '') + '</div>' +
+                    (who ? '<div class="sg-hint" style="margin:2px 0 0;">' + h(who) + '</div>' : '') + '</div>' +
+                    '<div class="sg-hint" style="margin:0; text-align:right; flex-shrink:0;">Last used<br>' + h(when(d.last_seen)) + '</div></div>';
+            }).join('');
+        } catch (e) { sum.textContent = 'Could not load devices. Please try again later.'; console.warn('Devices:', e); }
+    };
+})();
+</script>
+
 </body>
 </html>
