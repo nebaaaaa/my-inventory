@@ -44,6 +44,16 @@ const BUSINESS_TYPES = {
         // it no longer records plain sales for this vertical.
         labelOverrides: { 'nav.sales': 'Booking' },
         modulePath: './verticals/rental.js'
+    },
+    restaurant: {
+        label: 'Restaurant / Bar',
+        // Adds its own "Restaurant" page (floor map, menu, kitchen/bar
+        // screen) mounted in #restaurant-mount. The normal pages stay:
+        // paid bills are recorded as ordinary sales, so they show up in
+        // Sales, VAT and reports like any other sale. These two keys give
+        // the new nav item and page title their English text.
+        labelOverrides: { 'nav.restaurant': 'Restaurant', 'pagetitle.restaurant': 'Restaurant / Bar' },
+        modulePath: './verticals/restaurant.js'
     }
 };
 
