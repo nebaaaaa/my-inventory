@@ -1165,7 +1165,7 @@ const ACT = {
     },
     startorder: el => { UI.pickTarget = { tableId: el.dataset.id }; UI.view = 'order'; UI.sheet = null; render(); },
     addmore: el => { UI.pickTarget = { tabId: el.dataset.id }; UI.view = 'order'; UI.sheet = null; render(); },
-    serve: async el => { try { await db(sb().from('rest_tab_items').update(UI.p2 ? { status: 'served', served_by: username() } : { status: 'served' }).eq('id', el.dataset.id).eq('status', 'ready')); await load(); render(); } catch (e) { } },
+    serve: async el => { try { await db(sb().from('rest_tab_items').update(D.items.some(i => 'served_by' in i) ? { status: 'served', served_by: username() } : { status: 'served' }).eq('id', el.dataset.id).eq('status', 'ready')); await load(); render(); } catch (e) { } },
     void: el => voidItem(el.dataset.id),
     reqbill: async el => { const t = tabById(el.dataset.id); try { await db(sb().from('rest_tabs').update({ bill_requested: !t.bill_requested }).eq('id', t.id)); await load(); render(); } catch (e) { } },
     closeempty: async el => { try { await db(sb().from('rest_tabs').update({ status: 'closed', closed_at: new Date().toISOString() }).eq('id', el.dataset.id)); UI.sheet = null; await load(); render(); } catch (e) { } },
