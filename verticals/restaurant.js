@@ -4,8 +4,11 @@
 // business-types.config.js -> loadVerticalModule).
 //
 // Phase 1: floor map, tabs, kitchen / bar screen, bill and close.
-// Not in this phase: recipes and stock deduction (Phase 2), counts,
-// variance and waste log (Phase 3).
+// Phase 2: recipes, ingredient units, stock deducted once when an item is
+//          marked Ready (server function), real cost of goods on each bill,
+//          recipe cost / margin and sales reports. Switches on by itself
+//          once restaurant-phase2.sql has been run.
+// Not yet: counts, variance and waste log (Phase 3).
 //
 // ONLINE ONLY (decision for this version): every read and write goes
 // straight to Supabase. There is no offline queue here. If the phone has
@@ -142,7 +145,7 @@ function beep() {
 // ---------------------------------------------------------------
 // Data
 // ---------------------------------------------------------------
-const D = { zones: [], tables: [], menu: [], tabs: [], tabTables: [], items: [] };
+const D = { zones: [], tables: [], menu: [], tabs: [], tabTables: [], items: [], recipes: [], units: [] };
 const UI = {
     view: null, zoneId: null, cat: 'All', q: '', cart: [], pickTarget: null,
     sheet: null, edit: false, sel: null, list: false, join: null, station: 'kitchen',
@@ -162,6 +165,11 @@ async function load() {
     const bad = [z, t, m, tb, tt].find(r => r.error);
     if (bad) { UI.error = bad.error.message || 'Could not load.'; return; }
     UI.error = null;
+    // Phase 2 tables are optional: if they are not there yet, Phase 2 stays off.
+    const [rc, un] = await Promise.all([q('rest_recipe_lines'), q('rest_stock_units')]);
+    UI.p2 = !(rc.error || un.error);
+    D.recipes = rc.error ? [] : rc.data;
+    D.units = un.error ? [] : un.data;
     D.zones = z.data.filter(okBranch);
     D.tables = t.data.filter(okBranch);
     D.menu = m.data;
@@ -241,11 +249,45 @@ const canMenu = () => perm('restaurant.manage_menu');
 const canLayout = () => perm('restaurant.manage_tables');
 const canJoin = () => perm('restaurant.join_tables') || canLayout();
 const canVoidSent = () => perm('restaurant.void_sent');
+const canCosts = () => perm('restaurant.view_costs');
+
+// Phase 2 helpers
+const unitText = u => ({ ml: 'ml', g: 'g', piece: 'pcs' }[u] || 'units');
+const invItems = () => (S().inventory || []).slice().sort((a, b) => String(a.desc).localeCompare(String(b.desc)));
+const invById = id => (S().inventory || []).find(i => i.id === id);
+const invName = id => { const i = invById(id); return i ? i.desc : 'Unknown item'; };
+const unitRow = id => D.units.find(u => u.stock_item_id === id);
+const unitOf = id => unitText((unitRow(id) || {}).base_unit);
+const recipeLines = menuId => D.recipes.filter(r => r.menu_item_id === menuId);
+function stockCost(id) {
+    const it = invById(id);
+    if (!it) return 0;
+    const b = (typeof writeBranchId !== 'undefined' && writeBranchId) || null;
+    const lots = (it.lots || []).filter(l => !b || l.branchId === b);
+    const have = lots.filter(l => l.qty > 0);
+    const q = have.reduce((s, l) => s + l.qty, 0);
+    if (q > 0) return have.reduce((s, l) => s + l.qty * l.cost, 0) / q;
+    const all = it.lots || [];
+    return all.length ? Number(all[all.length - 1].cost) || 0 : 0;
+}
+// cost of one serving from today's stock cost; null when the item has no recipe or link
+function recipeCost(m) {
+    const lines = recipeLines(m.id);
+    if (lines.length) return lines.reduce((s, r) => s + r.qty * stockCost(r.stock_item_id), 0);
+    if (m.stock_item_id) return stockCost(m.stock_item_id);
+    return null;
+}
+const waitingForStock = i => UI.p2 && i.status === 'new' && !!(menuById(i.menu_item_id) || {}).uses_stock;
+function showShort(res) {
+    const sh = res && res.short;
+    if (sh && sh.length) toast('Low stock: ' + sh.map(x => `${x.name} short by ${x.qty}`).join(', ') + '. The order went through.', true);
+}
 
 function availableViews() {
     const v = [];
     if (canOrder()) { v.push(['order', 'Menu']); v.push(['floor', 'Tables']); }
     if (canKitchen()) v.push(['kitchen', 'Kitchen / Bar']);
+    if (canCosts() && UI.p2) v.push(['reports', 'Reports']);
     if (canMenu() || canLayout()) v.push(['manage', 'Manage']);
     return v;
 }
@@ -267,7 +309,7 @@ function render() {
     if (!views.length) { root.innerHTML = '<div class="rs"><div class="rs-card">Your role does not have restaurant access. Ask the owner to turn it on under Roles.</div></div>'; return; }
     if (!UI.view || !views.some(v => v[0] === UI.view)) UI.view = views[0][0];
     if (!UI.zoneId || !D.zones.some(z => z.id === UI.zoneId)) UI.zoneId = D.zones[0]?.id || null;
-    const body = UI.view === 'order' ? orderView() : UI.view === 'floor' ? floorView() : UI.view === 'kitchen' ? kitchenView() : manageView();
+    const body = UI.view === 'order' ? orderView() : UI.view === 'floor' ? floorView() : UI.view === 'kitchen' ? kitchenView() : UI.view === 'reports' ? reportView() : manageView();
     const nav = views.map(([k, l]) => `<button class="rs-tab ${UI.view === k ? 'on' : ''}" data-act="view" data-v="${k}">${l}${k === 'order' && UI.cart.length ? ` (${UI.cart.reduce((s, c) => s + c.qty, 0)})` : ''}</button>`).join('');
     const off = navigator.onLine ? '' : '<div class="rs-offline">No connection. Orders cannot be sent until the internet is back.</div>';
     root.innerHTML = `<div class="rs"><div class="rs-bar">${nav}</div>${off}${body}</div>${sheetHtml()}`;
@@ -533,6 +575,7 @@ function sheetHtml() {
     else if (sh.type === 'bill') inner = billSheet();
     else if (sh.type === 'move') inner = moveSheet();
     else if (sh.type === 'menuedit') inner = menuEditSheet();
+    else if (sh.type === 'unit') inner = unitSheet();
     return `<div class="rs-ov" data-act="closesheet"><div class="rs-sheet rs">${inner}</div></div>`;
 }
 
@@ -606,7 +649,9 @@ function billSheet() {
     const lines = unpaidItems(tab.id);
     const sub = lines.filter(i => B.sel.has(i.id)).reduce((s, i) => s + i.qty * i.unit_price, 0);
     const svc = round2(sub * (Number(B.svc) || 0) / 100);
-    const rows = lines.map(i => `<tr><td><input type="checkbox" data-act="billsel" data-id="${i.id}" ${B.sel.has(i.id) ? 'checked' : ''}></td><td>${i.qty} × ${esc(i.name)}</td><td style="text-align:right">${fmt(i.qty * i.unit_price)}</td></tr>`).join('');
+    const rows = lines.map(i => waitingForStock(i)
+        ? `<tr style="opacity:.6"><td><input type="checkbox" disabled></td><td>${i.qty} × ${esc(i.name)} <span class="rs-st new">waiting for Ready</span></td><td style="text-align:right">${fmt(i.qty * i.unit_price)}</td></tr>`
+        : `<tr><td><input type="checkbox" data-act="billsel" data-id="${i.id}" ${B.sel.has(i.id) ? 'checked' : ''}></td><td>${i.qty} × ${esc(i.name)}</td><td style="text-align:right">${fmt(i.qty * i.unit_price)}</td></tr>`).join('');
     const chans = billChannels().map(c => `<option ${B.chan === c ? 'selected' : ''}>${esc(c)}</option>`).join('');
     return `<h3>Bill: ${esc(tabLabel(tab))}</h3>
         <div class="rs-muted" style="margin-bottom:6px">Untick items to leave them for later (split bill).</div>
@@ -635,18 +680,74 @@ function moveSheet() {
 }
 
 function menuEditSheet() {
-    const m = UI.sheet.id ? menuById(UI.sheet.id) : {};
+    const sh = UI.sheet;
+    const m = sh.id ? menuById(sh.id) : {};
+    if (!sh.draft) sh.draft = { f: null, lines: recipeLines(m.id || '').map(r => ({ stock_item_id: r.stock_item_id, qty: r.qty })), link: m.stock_item_id || '' };
+    const d = sh.draft, f = d.f || {};
+    const v = (k, def) => (f[k] !== undefined ? f[k] : def);
     const cats = [...new Set(D.menu.map(x => x.category || 'General'))].map(c => `<option value="${esc(c)}">`).join('');
+    const stockOpts = sel => '<option value="">Choose stock item…</option>' + invItems().map(x => `<option value="${x.id}" ${x.id === sel ? 'selected' : ''}>${esc(x.desc)}</option>`).join('');
+    let recipe = '';
+    if (UI.p2 && canMenu()) {
+        const rows = d.lines.map((l, k) => `<div class="rs-row" style="margin:4px 0">
+            <select data-act="rcp-item" data-i="${k}" style="flex:1;min-width:0">${stockOpts(l.stock_item_id)}</select>
+            <input data-bind="rcpqty" data-i="${k}" type="number" min="1" step="1" value="${l.qty ?? ''}" style="width:76px">
+            <span class="rs-muted" style="width:30px">${l.stock_item_id ? unitOf(l.stock_item_id) : ''}</span>
+            <button class="rs-btn sm" data-act="rcp-del" data-i="${k}">✕</button></div>`).join('');
+        let costLine = '';
+        if (canCosts()) {
+            const c = d.lines.reduce((s, l) => s + (Number(l.qty) || 0) * (l.stock_item_id ? stockCost(l.stock_item_id) : 0), 0)
+                || (d.link ? stockCost(d.link) : 0);
+            const price = parseFloat(v('price', m.price)) || 0;
+            if (c > 0) costLine = `<div class="rs-muted" style="margin-top:6px">Cost per serving about <b>${fmt(c)}</b>${price > 0 ? `, margin <b>${fmt(price - c)}</b> (${Math.round((price - c) / price * 100)}%)` : ''}. Based on your current stock cost.</div>`;
+        }
+        recipe = `<div class="rs-card" style="margin-top:10px"><b>What one serving uses</b>
+            <div class="rs-muted">Whole numbers in the stock unit (ml, g or pieces). Stock is taken when the kitchen or bar taps Ready.</div>
+            ${rows}<button class="rs-btn sm" data-act="rcp-add" style="margin-top:6px">+ Ingredient</button>
+            <div style="margin-top:10px"><div class="rs-muted">Or, for a bottled or packed item sold as it is (beer, soda): link it to one stock item, 1 for 1.</div>
+            <select data-act="rcp-link" style="width:100%;margin-top:4px">${stockOpts(d.link)}</select></div>${costLine}</div>`;
+    }
     return `<h3>${m.id ? 'Edit' : 'New'} menu item</h3>
         <div style="display:grid;gap:8px">
-        <input id="rs-m-name" placeholder="Name (e.g. Mojito)" value="${esc(m.name || '')}">
-        <input id="rs-m-cat" list="rs-cats" placeholder="Category (e.g. Cocktails)" value="${esc(m.category || '')}"><datalist id="rs-cats">${cats}</datalist>
-        <input id="rs-m-price" type="number" min="0" step="0.01" placeholder="Price" value="${m.price ?? ''}">
-        <select id="rs-m-station"><option value="kitchen" ${m.station !== 'bar' ? 'selected' : ''}>Kitchen</option><option value="bar" ${m.station === 'bar' ? 'selected' : ''}>Bar</option></select>
-        <label><input id="rs-m-noprep" type="checkbox" ${m.no_prep ? 'checked' : ''}> No preparation (bottled drink: skips the kitchen/bar screen)</label>
-        <label><input id="rs-m-fav" type="checkbox" ${m.favourite ? 'checked' : ''}> Show first (popular)</label>
-        <label><input id="rs-m-active" type="checkbox" ${m.id ? (m.active ? 'checked' : '') : 'checked'}> On the menu</label></div>
+        <input id="rs-m-name" placeholder="Name (e.g. Mojito)" value="${esc(v('name', m.name || ''))}">
+        <input id="rs-m-cat" list="rs-cats" placeholder="Category (e.g. Cocktails)" value="${esc(v('category', m.category || ''))}"><datalist id="rs-cats">${cats}</datalist>
+        <input id="rs-m-price" type="number" min="0" step="0.01" placeholder="Price" value="${v('price', m.price ?? '')}">
+        <select id="rs-m-station"><option value="kitchen" ${v('station', m.station) !== 'bar' ? 'selected' : ''}>Kitchen</option><option value="bar" ${v('station', m.station) === 'bar' ? 'selected' : ''}>Bar</option></select>
+        <label><input id="rs-m-noprep" type="checkbox" ${v('no_prep', !!m.no_prep) ? 'checked' : ''}> No preparation (bottled drink: skips the kitchen/bar screen)</label>
+        <label><input id="rs-m-fav" type="checkbox" ${v('favourite', !!m.favourite) ? 'checked' : ''}> Show first (popular)</label>
+        <label><input id="rs-m-active" type="checkbox" ${v('active', m.id ? !!m.active : true) ? 'checked' : ''}> On the menu</label></div>
+        ${recipe}
         <div class="rs-row" style="margin-top:12px"><button class="rs-btn pri" data-act="mm-save">Save</button><button class="rs-btn" data-act="closesheet-btn">Cancel</button></div>`;
+}
+function captureMenuForm() {
+    const sh = UI.sheet;
+    if (!sh || sh.type !== 'menuedit' || !sh.draft) return;
+    const g = id => root.querySelector('#' + id);
+    if (!g('rs-m-name')) return;
+    sh.draft.f = { name: g('rs-m-name').value, category: g('rs-m-cat').value, price: g('rs-m-price').value, station: g('rs-m-station').value,
+        no_prep: g('rs-m-noprep').checked, favourite: g('rs-m-fav').checked, active: g('rs-m-active').checked };
+}
+
+// Ingredient units: how a stock item is measured
+function unitSheet() {
+    const id = UI.sheet.id, it = invById(id), u = unitRow(id) || {};
+    if (!it) return '<div class="rs-muted">Item not found.</div><button class="rs-btn" data-act="closesheet-btn">Close</button>';
+    return `<h3>${esc(it.desc)}</h3>
+        <div class="rs-muted" style="margin-bottom:8px">Stock for this item must be counted in the small unit. A 750 ml bottle is stock of 750.</div>
+        <div style="display:grid;gap:8px">
+        <label>Measured in <select id="rs-u-base" data-bind="unitcalc"><option value="ml" ${u.base_unit === 'ml' ? 'selected' : ''}>ml (liquids)</option><option value="g" ${u.base_unit === 'g' ? 'selected' : ''}>g (food by weight)</option><option value="piece" ${!u.base_unit || u.base_unit === 'piece' ? 'selected' : ''}>pieces</option></select></label>
+        <input id="rs-u-pack" data-bind="unitcalc" placeholder="Pack name (e.g. bottle, sack, crate)" value="${esc(u.pack_name || '')}">
+        <input id="rs-u-size" data-bind="unitcalc" type="number" min="1" placeholder="Units in one pack (e.g. 750)" value="${u.pack_size ?? ''}">
+        <input id="rs-u-cost" data-bind="unitcalc" type="number" min="0" step="0.01" placeholder="Price of one pack (to work out cost per unit)">
+        <div id="rs-u-calc" class="rs-muted"></div></div>
+        <div class="rs-row" style="margin-top:12px"><button class="rs-btn pri" data-act="unit-save">Save</button><button class="rs-btn" data-act="closesheet-btn">Cancel</button></div>`;
+}
+function updateUnitCalc() {
+    const el = root.querySelector('#rs-u-calc'); if (!el) return;
+    const size = parseFloat(root.querySelector('#rs-u-size').value), cost = parseFloat(root.querySelector('#rs-u-cost').value);
+    const base = unitText(root.querySelector('#rs-u-base').value);
+    if (size > 0 && cost >= 0) el.innerHTML = `Cost per ${base}: <b>${(cost / size).toFixed(4)}</b>. When you buy on the Purchase page, enter the quantity in ${base} (packs × ${size}) and this cost per ${base}.`;
+    else el.textContent = '';
 }
 
 // ---------------------------------------------------------------
@@ -671,14 +772,77 @@ function kitchenView() {
 }
 
 // ---------------------------------------------------------------
+// Reports: recipe cost / margin, and sales by menu item and category
+// ---------------------------------------------------------------
+function monthStart() { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).toLocaleDateString('en-CA'); }
+function reportView() {
+    const r = UI.rep || { from: monthStart(), to: todayISO(), rows: null };
+    let out = '';
+    if (r.rows) {
+        const tot = r.rows.reduce((a, x) => ({ q: a.q + x.qty, rev: a.rev + x.rev, cost: a.cost + x.cost }), { q: 0, rev: 0, cost: 0 });
+        const line = x => `<tr><td>${esc(x.name)}</td><td style="text-align:right">${x.qty}</td><td style="text-align:right">${fmt(x.rev)}</td><td style="text-align:right">${fmt(x.cost)}</td><td style="text-align:right">${x.rev > 0 ? Math.round((x.rev - x.cost) / x.rev * 100) + '%' : ''}</td></tr>`;
+        const byCat = {};
+        r.rows.forEach(x => { const c = x.category; byCat[c] = byCat[c] || { name: c, qty: 0, rev: 0, cost: 0 }; byCat[c].qty += x.qty; byCat[c].rev += x.rev; byCat[c].cost += x.cost; });
+        const head = '<tr><th>Item</th><th style="text-align:right">Sold</th><th style="text-align:right">Sales</th><th style="text-align:right">Cost</th><th style="text-align:right">Margin</th></tr>';
+        out = `<div class="rs-card" style="margin-top:10px"><b>Total</b>: ${tot.q} sold, sales ${fmt(tot.rev)}, cost ${fmt(tot.cost)}, margin ${tot.rev > 0 ? Math.round((tot.rev - tot.cost) / tot.rev * 100) : 0}%
+            <div class="rs-muted">Paid items only. Items without a recipe show cost 0.</div></div>
+            <div class="rs-card" style="margin-top:10px"><b>By category</b><table class="rs-tbl">${head}${Object.values(byCat).sort((a, b) => b.rev - a.rev).map(line).join('')}</table></div>
+            <div class="rs-card" style="margin-top:10px"><b>By menu item</b><table class="rs-tbl">${head}${r.rows.slice().sort((a, b) => b.rev - a.rev).map(line).join('')}</table></div>`;
+    }
+    const recipeRows = D.menu.filter(m => m.active).map(m => ({ m, c: recipeCost(m) })).filter(x => x.c !== null).sort((a, b) => a.m.name.localeCompare(b.m.name))
+        .map(({ m, c }) => `<tr><td>${esc(m.name)}</td><td style="text-align:right">${fmt(m.price)}</td><td style="text-align:right">${fmt(c)}</td><td style="text-align:right">${m.price > 0 ? Math.round((m.price - c) / m.price * 100) + '%' : ''}</td></tr>`).join('');
+    return `<div class="rs-card"><div class="rs-row"><label>From <input id="rs-rep-from" type="date" value="${r.from}"></label><label>To <input id="rs-rep-to" type="date" value="${r.to}"></label><button class="rs-btn pri" data-act="rep-run">Show</button></div></div>${out}
+        <div class="rs-card" style="margin-top:10px"><b>Recipe cost and margin today</b><div class="rs-muted">Uses the current average cost of your stock.</div>
+        ${recipeRows ? `<table class="rs-tbl"><tr><th>Item</th><th style="text-align:right">Price</th><th style="text-align:right">Cost</th><th style="text-align:right">Margin</th></tr>${recipeRows}</table>` : '<div class="rs-muted">No recipes yet.</div>'}</div>`;
+}
+async function runReport() {
+    const from = root.querySelector('#rs-rep-from').value, to = root.querySelector('#rs-rep-to').value;
+    if (!from || !to || from > to) { toast('Choose a valid date range.', true); return; }
+    try {
+        const tid = ctx.tenantId;
+        const start = new Date(from + 'T00:00:00').toISOString(), end = new Date(new Date(to + 'T00:00:00').getTime() + 86400000).toISOString();
+        const items = await db(sb().from('rest_tab_items').select('*').eq('tenant_id', tid).eq('paid', true).neq('status', 'void').gte('sent_at', start).lt('sent_at', end).range(0, 4999));
+        const cost = {};
+        for (let k = 0; k < items.length; k += 150) {
+            const ids = items.slice(k, k + 150).map(x => x.id);
+            const mv = await db(sb().from('rest_stock_moves').select('tab_item_id,qty,unit_cost').eq('tenant_id', tid).in('tab_item_id', ids));
+            mv.forEach(x => { cost[x.tab_item_id] = (cost[x.tab_item_id] || 0) + Number(x.qty) * Number(x.unit_cost); });
+        }
+        const by = {};
+        items.forEach(x => {
+            const m = menuById(x.menu_item_id), key = x.menu_item_id || x.name;
+            const row = by[key] = by[key] || { name: m ? m.name : x.name, category: m ? (m.category || 'General') : 'Other', qty: 0, rev: 0, cost: 0 };
+            row.qty += x.qty; row.rev += x.qty * Number(x.unit_price); row.cost += cost[x.id] || 0;
+        });
+        UI.rep = { from, to, rows: Object.values(by) };
+        render();
+    } catch (e) { }
+}
+
+// ---------------------------------------------------------------
 // Manage: menu, zones and tables
 // ---------------------------------------------------------------
+function recipeNote(m) {
+    const n = recipeLines(m.id).length;
+    const base = n ? `${n} ingredient${n > 1 ? 's' : ''}` : (m.stock_item_id ? 'linked to stock' : 'no recipe');
+    const c = canCosts() ? recipeCost(m) : null;
+    if (c === null || !(m.price > 0)) return base;
+    return `${base} · cost ${fmt(c)} · margin ${Math.round((m.price - c) / m.price * 100)}%`;
+}
 function manageView() {
     let html = '';
     if (canMenu()) {
-        const rows = D.menu.slice().sort((a, b) => (a.category || '').localeCompare(b.category || '') || a.name.localeCompare(b.name)).map(m => `<tr data-act="mm-edit" data-id="${m.id}" style="cursor:pointer;${m.active ? '' : 'opacity:.5'}"><td><b>${esc(m.name)}</b><div class="rs-muted">${esc(m.category || 'General')}${m.no_prep ? ' · no prep' : ''}</div></td><td>${m.station === 'bar' ? 'Bar' : 'Kitchen'}</td><td style="text-align:right">${fmt(m.price)}</td></tr>`).join('');
+        const rows = D.menu.slice().sort((a, b) => (a.category || '').localeCompare(b.category || '') || a.name.localeCompare(b.name)).map(m => `<tr data-act="mm-edit" data-id="${m.id}" style="cursor:pointer;${m.active ? '' : 'opacity:.5'}"><td><b>${esc(m.name)}</b><div class="rs-muted">${esc(m.category || 'General')}${m.no_prep ? ' · no prep' : ''}${UI.p2 ? ' · ' + recipeNote(m) : ''}</div></td><td>${m.station === 'bar' ? 'Bar' : 'Kitchen'}</td><td style="text-align:right">${fmt(m.price)}</td></tr>`).join('');
         html += `<div class="rs-card" style="margin-bottom:12px"><div class="rs-row"><b>Menu</b><span class="rs-sp"></span><button class="rs-btn pri sm" data-act="mm-new">+ Menu item</button></div>
             ${rows ? `<table class="rs-tbl" style="margin-top:8px">${rows}</table>` : '<div class="rs-muted" style="margin-top:8px">No items yet.</div>'}</div>`;
+    }
+    if (canMenu() && UI.p2) {
+        const q = (UI.unitq || '').trim().toLowerCase();
+        const list = invItems().filter(x => !q || String(x.desc).toLowerCase().includes(q)).slice(0, 40);
+        const rows = list.map(x => { const u = unitRow(x.id); return `<tr data-act="unit-edit" data-id="${x.id}" style="cursor:pointer"><td><b>${esc(x.desc)}</b></td><td>${u ? unitText(u.base_unit) : '<span class="rs-muted">not set</span>'}</td><td>${u && u.pack_size ? esc(u.pack_name || 'pack') + ' = ' + u.pack_size : ''}</td></tr>`; }).join('');
+        html += `<div class="rs-card" style="margin-bottom:12px"><div class="rs-row"><b>Ingredient units</b><span class="rs-sp"></span><input data-bind="unitq" value="${esc(UI.unitq || '')}" placeholder="Search stock" style="max-width:180px"></div>
+            <div class="rs-muted" style="margin:4px 0 6px">Tell the system how each ingredient is measured (ml, g or pieces) and how big a pack is.</div>
+            <div id="rs-unitlist">${rows ? `<table class="rs-tbl">${rows}</table>` : '<span class="rs-muted">No stock items yet. Add them on the Purchase page first.</span>'}</div></div>`;
     }
     if (canLayout()) {
         const zrows = D.zones.map(z => `<tr><td><b>${esc(z.name)}</b></td><td>${D.tables.filter(t => t.zone_id === z.id).length} tables</td><td style="text-align:right"><button class="rs-btn sm" data-act="setup" data-id="${z.id}">Lay out a grid</button></td></tr>`).join('');
@@ -740,6 +904,13 @@ async function sendCart(target) {
         const rows = UI.cart.map(c => ({ id: uid(), tenant_id: ctx.tenantId, tab_id: tab.id, menu_item_id: c.id, name: c.name,
             qty: c.qty, unit_price: c.price, note: c.note || null, station: c.station, status: c.no_prep ? 'served' : 'new', added_by: username() }));
         await db(sb().from('rest_tab_items').insert(rows));
+        if (UI.p2) {
+            const quick = rows.filter(r => r.status === 'served').map(r => r.id);
+            if (quick.length) {
+                try { showShort(await db(sb().rpc('rest_deduct_items', { p_ids: quick }))); }
+                catch (e) { toast('Order sent, but stock was not updated for the drinks. Tell a manager.', true); }
+            }
+        }
         const where = tabLabelSafe(tab, target);
         UI.cart = []; UI.pickTarget = null; UI.sheet = null; UI.pickq = '';
         toast('Sent to ' + where);
@@ -756,7 +927,12 @@ function tabLabelSafe(tab, target) {
 
 async function markReady(ids) {
     try {
-        await db(sb().from('rest_tab_items').update({ status: 'ready', ready_at: new Date().toISOString(), ready_by: username() }).in('id', ids).eq('status', 'new'));
+        if (UI.p2) {
+            // Status change and stock deduction happen together on the server, once per item.
+            showShort(await db(sb().rpc('rest_mark_ready', { p_ids: ids, p_by: username() })));
+        } else {
+            await db(sb().from('rest_tab_items').update({ status: 'ready', ready_at: new Date().toISOString(), ready_by: username() }).in('id', ids).eq('status', 'new'));
+        }
         await load(); render();
     } catch (e) { }
 }
@@ -812,18 +988,18 @@ async function joinTap(t) {
     } catch (e) { }
 }
 
-async function recordSale(tab, lines, svc, chan) {
+async function recordSale(tab, lines, svc, chan, costs = {}) {
     const codes = ctx.channelAccountCodes || (typeof CHANNEL_ACCOUNT_CODES !== 'undefined' ? CHANNEL_ACCOUNT_CODES : {});
     const code = codes[chan];
     const st = (S().saleTypes || [])[0];
     const sType = typeof st === 'string' ? st : (st && (st.name || st.label)) || 'Sale';
     const date = todayISO(), groupId = 'RB-' + Date.now(), branchId = branch(), customer = tabLabel(tab) || 'Walk-in';
-    const rows = lines.map(i => ({ desc: i.name, qty: i.qty, price: Number(i.unit_price) }));
+    const rows = lines.map(i => ({ desc: i.name, qty: i.qty, price: Number(i.unit_price), cogs: round2(costs[i.id] || 0) }));
     if (svc > 0) rows.push({ desc: 'Service charge', qty: 1, price: svc });
-    let total = 0;
+    let total = 0, cogsTotal = 0;
     const made = rows.map((r, idx) => {
-        const amt = round2(r.qty * r.price); total += amt;
-        const row = { id: `SL-${Date.now().toString().slice(-5)}-${idx}`, date, customer, desc: r.desc, qty: r.qty, price: r.price, total: amt, cogs: 0,
+        const amt = round2(r.qty * r.price); total += amt; cogsTotal += (r.cogs || 0);
+        const row = { id: `SL-${Date.now().toString().slice(-5)}-${idx}`, date, customer, desc: r.desc, qty: r.qty, price: r.price, total: amt, cogs: r.cogs || 0,
             channel: chan, type: sType, paid: true, paidChannel: chan, amountPaid: amt, payments: [{ date, amount: amt, channel: chan }],
             restorationLayers: [], branchId, groupId, vatIncluded: false };
         S().salesLog.push(row);
@@ -832,6 +1008,7 @@ async function recordSale(tab, lines, svc, chan) {
     });
     const journal = { id: made[0].id, date, desc: window.stampDesc(`Restaurant bill: ${customer}`), branchId,
         lines: [{ account: code, dr: round2(total), cr: 0 }, { account: '4010', cr: round2(total), dr: 0 }] };
+    if (cogsTotal > 0) journal.lines.push({ account: '5010', dr: round2(cogsTotal), cr: 0 }, { account: '1200', cr: round2(cogsTotal), dr: 0 });
     S().journal.push(journal);
     window.queueWrite({ kind: 'insert', table: 'journal_entries', row: window.toDbJournal(journal) });
     if (typeof window.addNotification === 'function') window.addNotification('Restaurant bill paid', `ETB ${fmt(total)} (${chan})`, `${customer}: ${lines.length} item(s)`);
@@ -842,7 +1019,7 @@ async function recordSale(tab, lines, svc, chan) {
 async function payBill() {
     const tab = tabById(UI.sheet.tabId), B = UI.bill;
     if (!tab || UI.paying) return;
-    const lines = unpaidItems(tab.id).filter(i => B.sel.has(i.id));
+    const lines = unpaidItems(tab.id).filter(i => B.sel.has(i.id) && !waitingForStock(i));
     if (!lines.length) { toast('Select at least one item.', true); return; }
     const codes = ctx.channelAccountCodes || (typeof CHANNEL_ACCOUNT_CODES !== 'undefined' ? CHANNEL_ACCOUNT_CODES : {});
     if (!codes[B.chan]) { toast('Choose how it was paid.', true); return; }
@@ -851,6 +1028,9 @@ async function payBill() {
         const sub = lines.reduce((s, i) => s + i.qty * i.unit_price, 0);
         const svc = round2(sub * (Number(B.svc) || 0) / 100);
         const ids = lines.map(i => i.id);
+        // Real cost of what was used (Phase 2). Fetched first: if this fails nothing is marked paid.
+        const costs = {};
+        if (UI.p2) (await db(sb().rpc('rest_item_costs', { p_ids: ids })) || []).forEach(r => { costs[r.tab_item_id] = Number(r.cost) || 0; });
         // Claim the items first. If someone else paid some of them a moment ago, stop.
         const got = await db(sb().from('rest_tab_items').update({ paid: true }).in('id', ids).eq('paid', false).select('id'));
         if (got.length !== ids.length) {
@@ -858,7 +1038,7 @@ async function payBill() {
             toast('Some of these items were just paid by someone else. Reloading.', true);
             await load(); render(); return;
         }
-        await recordSale(tab, lines, svc, B.chan);
+        await recordSale(tab, lines, svc, B.chan, costs);
         try { localStorage.setItem('rs_svc_' + ctx.tenantId, String(B.svc)); } catch (e) { }
         await load();
         if (!unpaidItems(tab.id).length) {
@@ -935,7 +1115,7 @@ const ACT = {
     bill: el => {
         const tab = tabById(el.dataset.id); if (!tab) return;
         let svc = 0; try { svc = Number(localStorage.getItem('rs_svc_' + ctx.tenantId)) || 0; } catch (e) { }
-        UI.bill = { sel: new Set(unpaidItems(tab.id).map(i => i.id)), svc, chan: billChannels()[0] };
+        UI.bill = { sel: new Set(unpaidItems(tab.id).filter(i => !waitingForStock(i)).map(i => i.id)), svc, chan: billChannels()[0] };
         UI.sheet = { type: 'bill', tabId: tab.id }; render();
     },
     billsel: el => { if (el.checked) UI.bill.sel.add(el.dataset.id); else UI.bill.sel.delete(el.dataset.id); updateBillTotals(); },
@@ -985,6 +1165,19 @@ const ACT = {
     },
     undo: async () => { if (!UI.undo) return; const id = UI.undo.id; UI.undo = null; try { await db(sb().from('rest_tables').update({ active: true }).eq('id', id)); await load(); render(); } catch (e) { } },
     // menu management
+    'rep-run': () => runReport(),
+    'unit-edit': el => { UI.sheet = { type: 'unit', id: el.dataset.id }; render(); },
+    'unit-save': async () => {
+        const g = id => root.querySelector('#' + id);
+        const size = parseFloat(g('rs-u-size').value);
+        const row = { stock_item_id: UI.sheet.id, tenant_id: ctx.tenantId, base_unit: g('rs-u-base').value,
+            pack_name: g('rs-u-pack').value.trim() || null, pack_size: size > 0 ? size : null };
+        try { await db(sb().from('rest_stock_units').upsert(row, { onConflict: 'stock_item_id' })); UI.sheet = null; await load(); render(); } catch (e) { }
+    },
+    'rcp-add': () => { captureMenuForm(); UI.sheet.draft.lines.push({ stock_item_id: '', qty: '' }); render(); },
+    'rcp-del': el => { captureMenuForm(); UI.sheet.draft.lines.splice(+el.dataset.i, 1); render(); },
+    'rcp-item': el => { captureMenuForm(); UI.sheet.draft.lines[+el.dataset.i].stock_item_id = el.value; render(); },
+    'rcp-link': el => { captureMenuForm(); UI.sheet.draft.link = el.value; render(); },
     'mm-new': () => { UI.sheet = { type: 'menuedit' }; render(); },
     'mm-edit': el => { UI.sheet = { type: 'menuedit', id: el.dataset.id }; render(); },
     'mm-save': async () => {
@@ -993,9 +1186,23 @@ const ACT = {
         if (!name || isNaN(price) || price < 0) { toast('Enter a name and a price.', true); return; }
         const row = { tenant_id: ctx.tenantId, name, category: g('rs-m-cat').value.trim() || 'General', price, station: g('rs-m-station').value,
             no_prep: g('rs-m-noprep').checked, favourite: g('rs-m-fav').checked, active: g('rs-m-active').checked };
+        let lines = [], link = null;
+        if (UI.p2 && canMenu() && UI.sheet.draft) {
+            lines = UI.sheet.draft.lines.filter(l => l.stock_item_id || l.qty);
+            if (lines.some(l => !l.stock_item_id || !(Number(l.qty) >= 1) || !Number.isInteger(Number(l.qty)))) { toast('Each ingredient needs a stock item and a whole quantity of at least 1.', true); return; }
+            if (new Set(lines.map(l => l.stock_item_id)).size !== lines.length) { toast('The same stock item is listed twice.', true); return; }
+            link = UI.sheet.draft.link || null;
+            if (link && lines.length) { toast('Use either a recipe or a stock link, not both.', true); return; }
+            row.stock_item_id = link; row.uses_stock = lines.length > 0 || !!link;
+        }
         try {
-            if (UI.sheet.id) await db(sb().from('rest_menu_items').update(row).eq('id', UI.sheet.id));
-            else await db(sb().from('rest_menu_items').insert({ ...row, id: uid(), sort: D.menu.length }));
+            const id = UI.sheet.id || uid();
+            if (UI.sheet.id) await db(sb().from('rest_menu_items').update(row).eq('id', id));
+            else await db(sb().from('rest_menu_items').insert({ ...row, id, sort: D.menu.length }));
+            if (UI.p2 && canMenu() && UI.sheet.draft) {
+                await db(sb().from('rest_recipe_lines').delete().eq('menu_item_id', id));
+                if (lines.length) await db(sb().from('rest_recipe_lines').insert(lines.map(l => ({ id: uid(), tenant_id: ctx.tenantId, menu_item_id: id, stock_item_id: l.stock_item_id, qty: Number(l.qty) }))));
+            }
             UI.sheet = null; await load(); render();
         } catch (e) { }
     }
@@ -1025,6 +1232,9 @@ function wireEvents() {
         if (b === 'q') { UI.q = el.value; updateOrderParts(); }
         else if (b === 'pickq') { UI.pickq = el.value; const c = root.querySelector('#rs-pickchips'); if (c) c.innerHTML = pickChips(); }
         else if (b === 'svc') { UI.bill.svc = el.value; updateBillTotals(); }
+        else if (b === 'rcpqty') { UI.sheet.draft.lines[+el.dataset.i].qty = el.value; }
+        else if (b === 'unitcalc') updateUnitCalc();
+        else if (b === 'unitq') { UI.unitq = el.value; render(); const n = root.querySelector('[data-bind="unitq"]'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }
     });
     root.addEventListener('focusout', () => { if (UI.dirty) setTimeout(() => { const a = document.activeElement; if (!(a && root.contains(a) && /INPUT|TEXTAREA|SELECT/.test(a.tagName))) render(); }, 150); });
     setInterval(() => { if (UI.view === 'kitchen' && root && root.offsetParent !== null && !UI.sheet) render(); }, 30000);
