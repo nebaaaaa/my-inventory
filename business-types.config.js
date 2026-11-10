@@ -52,7 +52,7 @@ const BUSINESS_TYPES = {
         // paid bills are recorded as ordinary sales, so they show up in
         // Sales, VAT and reports like any other sale. These two keys give
         // the new nav item and page title their English text.
-        labelOverrides: { 'nav.restaurant': 'Restaurant', 'pagetitle.restaurant': 'Restaurant / Bar' },
+        labelOverrides: { 'nav.restaurant': 'Restaurant', 'pagetitle.restaurant': 'Restaurant / Bar', 'nav.sales': 'Sales History' },
         modulePath: './verticals/restaurant.js'
     }
 };

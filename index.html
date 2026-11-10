@@ -4924,6 +4924,15 @@ a.sg-link{text-decoration:none}
             if (stockListCard) stockListCard.style.display = isRental ? 'none' : '';
             const salesDefault = document.getElementById('sales-default-content');
             if (salesDefault) salesDefault.style.display = isRental ? 'none' : '';
+            // Restaurants and bars sell only through the Restaurant page (every bill is recorded as a
+            // sale automatically). Hide the manual sale forms; the Sales History stays visible.
+            let restHide = document.getElementById('rest-hide-manual-sales');
+            if (currentBusinessType === 'restaurant' && !restHide) {
+                restHide = document.createElement('style');
+                restHide.id = 'rest-hide-manual-sales';
+                restHide.textContent = '#sales-entry-card, #sale-cart-card { display: none !important; }';
+                document.head.appendChild(restHide);
+            }
         }
 
         let accessibleBranches = [];     // branches this session is allowed to work in (open only)
@@ -6530,6 +6539,12 @@ a.sg-link{text-decoration:none}
         const lotRank = l => (l.acquiredOn || '') + '|' + (l.createdAt || '');
         function sortLotsFifo(lots) {
             return lots.map((l, i) => ({ l, i })).sort((a, b) => { const x = lotRank(a.l), y = lotRank(b.l); return x < y ? -1 : x > y ? 1 : a.i - b.i; }).map(o => o.l);
+        }
+        // Restaurant / bar: ingredients are bought in packs (bottle, sack...) but stocked in small
+        // units (ml, g, pieces). The pack size comes from verticals/restaurant.js. Returns 1 for
+        // everything else, so other business types are unaffected.
+        function restPackFactor(itemId) {
+            try { return (currentBusinessType === 'restaurant' && typeof window.restaurantPackSize === 'function' && window.restaurantPackSize(itemId)) || 1; } catch (e) { return 1; }
         }
         function stampLot(lot, dateStr) {
             lot.acquiredOn = /^\d{4}-\d{2}-\d{2}/.test(String(dateStr || '')) ? String(dateStr).slice(0, 10) : new Date().toISOString().slice(0, 10);
@@ -10631,7 +10646,7 @@ a.sg-link{text-decoration:none}
                         }
                         item.lots = item.lots.filter(l => l.qty > 0);
                     } else {
-                        item.lots.push(stampLot({ id: row.id, qty: row.qty, cost: row.cost, branchId: row.branchId }, row.date));
+                        { const packF = restPackFactor(item.id); item.lots.push(stampLot({ id: row.id, qty: Math.round(row.qty * packF), cost: row.cost / packF, branchId: row.branchId }, row.date)); }
                     }
                     syncItemLots(item, beforeLots);
                     arr.push(row);
@@ -13154,7 +13169,8 @@ a.sg-link{text-decoration:none}
             purchaseCart.forEach((c, i) => {
                 const item = state.inventory.find(it => `[${it.category}] ${it.desc}` === c.comp);
                 const rowId = `PR-${Date.now().toString().slice(-5)}-${i}`;
-                const newLot = stampLot({ id: rowId, qty: c.qty, cost: c.cost, branchId: targetBranchId, expiry: c.expiry || null }, date);
+                const packF = restPackFactor(item.id);
+                const newLot = stampLot({ id: rowId, qty: Math.round(c.qty * packF), cost: c.cost / packF, branchId: targetBranchId, expiry: c.expiry || null }, date);
                 item.lots.push(newLot);
                 if (c.sellingPrice !== null) {
                     item.sellingPrice = c.sellingPrice;
@@ -13241,7 +13257,8 @@ a.sg-link{text-decoration:none}
 
             let id = `PR-${Date.now().toString().slice(-5)}`;
             const expiryInput = document.getElementById('pur-expiry');
-            const newLot = stampLot({ id: id, qty: qty, cost: cost, branchId: targetBranchId, expiry: (expiryInput && expiryInput.value) ? expiryInput.value : null }, date);
+            const packF = restPackFactor(item.id);
+            const newLot = stampLot({ id: id, qty: Math.round(qty * packF), cost: cost / packF, branchId: targetBranchId, expiry: (expiryInput && expiryInput.value) ? expiryInput.value : null }, date);
             item.lots.push(newLot);
             let priceChanged = false;
             if (spInput !== "" && !isNaN(parseFloat(spInput))) { item.sellingPrice = parseFloat(spInput); priceChanged = true; }

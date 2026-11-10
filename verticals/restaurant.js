@@ -259,23 +259,54 @@ const invName = id => { const i = invById(id); return i ? i.desc : 'Unknown item
 const unitRow = id => D.units.find(u => u.stock_item_id === id);
 const unitOf = id => unitText((unitRow(id) || {}).base_unit);
 const recipeLines = menuId => D.recipes.filter(r => r.menu_item_id === menuId);
-function stockCost(id) {
+// Cost of using `qty` units of a stock item, oldest stock first (FIFO), at this branch.
+// If the shelf holds less than needed, the rest is priced at the newest known cost.
+function fifoCost(id, qty) {
     const it = invById(id);
-    if (!it) return 0;
+    if (!it || !(qty > 0)) return 0;
     const b = (typeof writeBranchId !== 'undefined' && writeBranchId) || null;
-    const lots = (it.lots || []).filter(l => !b || l.branchId === b);
-    const have = lots.filter(l => l.qty > 0);
-    const q = have.reduce((s, l) => s + l.qty, 0);
-    if (q > 0) return have.reduce((s, l) => s + l.qty * l.cost, 0) / q;
-    const all = it.lots || [];
-    return all.length ? Number(all[all.length - 1].cost) || 0 : 0;
+    let lots = (it.lots || []).filter(l => !b || l.branchId === b);
+    if (typeof window.sortLotsFifo === 'function') lots = window.sortLotsFifo(lots);
+    let need = qty, cost = 0, last = 0;
+    for (const l of lots) {
+        last = Number(l.cost) || last;
+        if (need <= 0) break;
+        if (!(l.qty > 0)) continue;
+        const take = Math.min(need, l.qty);
+        cost += take * Number(l.cost);
+        need -= take;
+    }
+    return cost + (need > 0 ? need * last : 0);
 }
-// cost of one serving from today's stock cost; null when the item has no recipe or link
+// cost of the next serving; null when the item has no recipe or link
 function recipeCost(m) {
     const lines = recipeLines(m.id);
-    if (lines.length) return lines.reduce((s, r) => s + r.qty * stockCost(r.stock_item_id), 0);
-    if (m.stock_item_id) return stockCost(m.stock_item_id);
+    if (lines.length) return lines.reduce((s, r) => s + fifoCost(r.stock_item_id, r.qty), 0);
+    if (m.stock_item_id) return fifoCost(m.stock_item_id, 1);
     return null;
+}
+const pct = (profit, price) => (price > 0 ? Math.round(profit / price * 100) + '%' : '');
+function matchStock(name) {
+    const n = String(name || '').trim().toLowerCase();
+    if (!n) return '';
+    const hit = invItems().find(x => String(x.desc).toLowerCase() === n || `[${x.category}] ${x.desc}`.toLowerCase() === n);
+    return hit ? hit.id : '';
+}
+function createIngredient(name) {
+    const st = S(), cat = 'Ingredients';
+    if (st.categories && !st.categories.includes(cat)) { st.categories.push(cat); window.queueWrite({ kind: 'tenant_update', patch: { categories: st.categories } }); }
+    const item = { id: uid(), category: cat, desc: name.trim(), sellingPrice: 0, lots: [], history: [] };
+    st.inventory.push(item);
+    window.queueWrite({ kind: 'insert', table: 'inventory_items', row: window.toDbInventoryItem(item) });
+    ['syncTransactionalProductDropdownOptions', 'renderInventoryTable'].forEach(fn => { if (typeof window[fn] === 'function') { try { window[fn](); } catch (e) { } } });
+    return item;
+}
+function lastPurchase(id) {
+    const it = invById(id);
+    if (!it) return null;
+    const comp = `[${it.category}] ${it.desc}`;
+    const rows = (S().purchaseLog || []).filter(p => p.desc === comp);
+    return rows.length ? rows[rows.length - 1] : null;
 }
 const waitingForStock = i => UI.p2 && i.status === 'new' && !!(menuById(i.menu_item_id) || {}).uses_stock;
 function showShort(res) {
@@ -607,7 +638,8 @@ function itemRow(i) {
     const acts = [];
     if (i.status === 'ready') acts.push(`<button class="rs-btn sm pri" data-act="serve" data-id="${i.id}">Served</button>`);
     if (i.status === 'new' || canVoidSent()) if (i.status !== 'void' && !i.paid) acts.push(`<button class="rs-btn sm" data-act="void" data-id="${i.id}">Void</button>`);
-    return `<tr><td>${i.qty} × ${esc(i.name)}${i.note ? `<div class="rs-muted">${esc(i.note)}</div>` : ''}</td>
+    const who = [i.added_by ? 'Ordered by ' + esc(i.added_by) : '', i.ready_by ? (i.station === 'bar' ? 'Poured' : 'Prepared') + ' by ' + esc(i.ready_by) : '', i.served_by ? 'Served by ' + esc(i.served_by) : '', i.status === 'void' && i.voided_by ? 'Voided by ' + esc(i.voided_by) + (i.void_reason ? ': ' + esc(i.void_reason) : '') : ''].filter(Boolean).join(' · ');
+    return `<tr><td>${i.qty} × ${esc(i.name)}${i.note ? `<div class="rs-muted">${esc(i.note)}</div>` : ''}${who ? `<div class="rs-muted">${who}</div>` : ''}</td>
         <td><span class="rs-st ${i.status}">${i.paid ? 'paid' : i.status}</span></td><td style="text-align:right">${fmt(i.qty * i.unit_price)}</td><td>${acts.join(' ')}</td></tr>`;
 }
 function tableSheet() {
@@ -679,39 +711,50 @@ function moveSheet() {
         <div class="rs-row" style="margin-top:10px"><button class="rs-btn" data-act="closesheet-btn">Cancel</button></div>`;
 }
 
+// Cost, profit and margin of one serving (oldest stock first)
+function costCardHtml(d, price) {
+    if (!canCosts()) return '';
+    const c = d.lines.reduce((s, l) => s + (l.stock_item_id ? fifoCost(l.stock_item_id, Number(l.qty) || 0) : 0), 0)
+        || (d.link ? fifoCost(d.link, 1) : 0);
+    if (!(c > 0)) return '';
+    return `<div class="rs-card" style="margin-top:8px;background:var(--bg)"><div class="rs-row"><span>Cost <b>${fmt(c)}</b></span><span>Profit <b>${fmt(price - c)}</b></span><span>Margin <b>${pct(price - c, price) || '-'}</b></span></div><div class="rs-muted">Per serving, oldest stock first (FIFO). New ingredients with no stock yet count as 0 until you purchase them.</div></div>`;
+}
+function updateCostLine() {
+    const el = root.querySelector('#rs-costline'), pr = root.querySelector('#rs-m-price');
+    if (el && UI.sheet && UI.sheet.draft) el.innerHTML = costCardHtml(UI.sheet.draft, parseFloat(pr && pr.value) || 0);
+}
 function menuEditSheet() {
     const sh = UI.sheet;
     const m = sh.id ? menuById(sh.id) : {};
-    if (!sh.draft) sh.draft = { f: null, lines: recipeLines(m.id || '').map(r => ({ stock_item_id: r.stock_item_id, qty: r.qty })), link: m.stock_item_id || '' };
+    if (!sh.draft) sh.draft = { f: null, lines: recipeLines(m.id || '').map(r => ({ stock_item_id: r.stock_item_id, name: invName(r.stock_item_id), qty: r.qty, newUnit: '' })), link: m.stock_item_id || '' };
     const d = sh.draft, f = d.f || {};
     const v = (k, def) => (f[k] !== undefined ? f[k] : def);
     const cats = [...new Set(D.menu.map(x => x.category || 'General'))].map(c => `<option value="${esc(c)}">`).join('');
     const stockOpts = sel => '<option value="">Choose stock item…</option>' + invItems().map(x => `<option value="${x.id}" ${x.id === sel ? 'selected' : ''}>${esc(x.desc)}</option>`).join('');
     let recipe = '';
     if (UI.p2 && canMenu()) {
-        const rows = d.lines.map((l, k) => `<div class="rs-row" style="margin:4px 0">
-            <select data-act="rcp-item" data-i="${k}" style="flex:1;min-width:0">${stockOpts(l.stock_item_id)}</select>
-            <input data-bind="rcpqty" data-i="${k}" type="number" min="1" step="1" value="${l.qty ?? ''}" style="width:76px">
-            <span class="rs-muted" style="width:30px">${l.stock_item_id ? unitOf(l.stock_item_id) : ''}</span>
-            <button class="rs-btn sm" data-act="rcp-del" data-i="${k}">✕</button></div>`).join('');
-        let costLine = '';
-        if (canCosts()) {
-            const c = d.lines.reduce((s, l) => s + (Number(l.qty) || 0) * (l.stock_item_id ? stockCost(l.stock_item_id) : 0), 0)
-                || (d.link ? stockCost(d.link) : 0);
-            const price = parseFloat(v('price', m.price)) || 0;
-            if (c > 0) costLine = `<div class="rs-muted" style="margin-top:6px">Cost per serving about <b>${fmt(c)}</b>${price > 0 ? `, margin <b>${fmt(price - c)}</b> (${Math.round((price - c) / price * 100)}%)` : ''}. Based on your current stock cost.</div>`;
-        }
+        const rows = d.lines.map((l, k) => {
+            const isNew = !l.stock_item_id && String(l.name || '').trim();
+            return `<div class="rs-row" style="margin:4px 0">
+            <input data-bind="rcpname" data-i="${k}" list="rs-stock-list" placeholder="Search, or type a new ingredient" value="${esc(l.name || '')}" style="flex:1;min-width:120px">
+            <input data-bind="rcpqty" data-i="${k}" type="number" min="1" step="1" placeholder="Qty" value="${l.qty ?? ''}" style="width:70px">
+            ${l.stock_item_id ? `<span class="rs-muted" style="width:34px">${unitOf(l.stock_item_id)}</span>`
+                : isNew ? `<select data-act="rcp-newunit" data-i="${k}" style="width:92px"><option value="">Unit…</option><option value="ml" ${l.newUnit === 'ml' ? 'selected' : ''}>ml</option><option value="g" ${l.newUnit === 'g' ? 'selected' : ''}>g</option><option value="piece" ${l.newUnit === 'piece' ? 'selected' : ''}>pieces</option></select>` : '<span style="width:34px"></span>'}
+            <button class="rs-btn sm" data-act="rcp-del" data-i="${k}">✕</button></div>${isNew ? '<div class="rs-muted" style="margin:-2px 0 4px">New ingredient: it will be added to your inventory (category Ingredients).</div>' : ''}`;
+        }).join('');
+        const costLine = costCardHtml(d, parseFloat(v('price', m.price)) || 0);
         recipe = `<div class="rs-card" style="margin-top:10px"><b>What one serving uses</b>
             <div class="rs-muted">Whole numbers in the stock unit (ml, g or pieces). Stock is taken when the kitchen or bar taps Ready.</div>
+            <datalist id="rs-stock-list">${invItems().map(x => `<option value="${esc(x.desc)}">`).join('')}</datalist>
             ${rows}<button class="rs-btn sm" data-act="rcp-add" style="margin-top:6px">+ Ingredient</button>
             <div style="margin-top:10px"><div class="rs-muted">Or, for a bottled or packed item sold as it is (beer, soda): link it to one stock item, 1 for 1.</div>
-            <select data-act="rcp-link" style="width:100%;margin-top:4px">${stockOpts(d.link)}</select></div>${costLine}</div>`;
+            <select data-act="rcp-link" style="width:100%;margin-top:4px">${stockOpts(d.link)}</select></div><div id="rs-costline">${costLine}</div></div>`;
     }
     return `<h3>${m.id ? 'Edit' : 'New'} menu item</h3>
         <div style="display:grid;gap:8px">
         <input id="rs-m-name" placeholder="Name (e.g. Mojito)" value="${esc(v('name', m.name || ''))}">
         <input id="rs-m-cat" list="rs-cats" placeholder="Category (e.g. Cocktails)" value="${esc(v('category', m.category || ''))}"><datalist id="rs-cats">${cats}</datalist>
-        <input id="rs-m-price" type="number" min="0" step="0.01" placeholder="Price" value="${v('price', m.price ?? '')}">
+        <input id="rs-m-price" data-bind="mprice" type="number" min="0" step="0.01" placeholder="Price" value="${v('price', m.price ?? '')}">
         <select id="rs-m-station"><option value="kitchen" ${v('station', m.station) !== 'bar' ? 'selected' : ''}>Kitchen</option><option value="bar" ${v('station', m.station) === 'bar' ? 'selected' : ''}>Bar</option></select>
         <label><input id="rs-m-noprep" type="checkbox" ${v('no_prep', !!m.no_prep) ? 'checked' : ''}> No preparation (bottled drink: skips the kitchen/bar screen)</label>
         <label><input id="rs-m-fav" type="checkbox" ${v('favourite', !!m.favourite) ? 'checked' : ''}> Show first (popular)</label>
@@ -728,26 +771,52 @@ function captureMenuForm() {
         no_prep: g('rs-m-noprep').checked, favourite: g('rs-m-fav').checked, active: g('rs-m-active').checked };
 }
 
-// Ingredient units: how a stock item is measured
+// Ingredient units: how a stock item is measured. Prices come from purchases / inventory.
 function unitSheet() {
     const id = UI.sheet.id, it = invById(id), u = unitRow(id) || {};
     if (!it) return '<div class="rs-muted">Item not found.</div><button class="rs-btn" data-act="closesheet-btn">Close</button>';
+    const lp = lastPurchase(id);
+    const size = Number(u.pack_size) || 0, unit = unitText(u.base_unit);
+    const info = [];
+    if (lp) info.push(`Last purchase: ${lp.qty} × ${fmt(lp.cost)} each (${esc(lp.date || '')})`);
+    if (size) info.push(`Next ${esc(u.pack_name || 'pack')} costs ${fmt(fifoCost(id, size))} (oldest stock first), ${fmt(fifoCost(id, 1))} per ${unit}`);
     return `<h3>${esc(it.desc)}</h3>
-        <div class="rs-muted" style="margin-bottom:8px">Stock for this item must be counted in the small unit. A 750 ml bottle is stock of 750.</div>
+        <div class="rs-muted" style="margin-bottom:8px">Stock is counted in the small unit (a 750 ml bottle is stock of 750). On the Purchase page you enter packs; the system converts them using the pack size below.</div>
         <div style="display:grid;gap:8px">
-        <label>Measured in <select id="rs-u-base" data-bind="unitcalc"><option value="ml" ${u.base_unit === 'ml' ? 'selected' : ''}>ml (liquids)</option><option value="g" ${u.base_unit === 'g' ? 'selected' : ''}>g (food by weight)</option><option value="piece" ${!u.base_unit || u.base_unit === 'piece' ? 'selected' : ''}>pieces</option></select></label>
-        <input id="rs-u-pack" data-bind="unitcalc" placeholder="Pack name (e.g. bottle, sack, crate)" value="${esc(u.pack_name || '')}">
-        <input id="rs-u-size" data-bind="unitcalc" type="number" min="1" placeholder="Units in one pack (e.g. 750)" value="${u.pack_size ?? ''}">
-        <input id="rs-u-cost" data-bind="unitcalc" type="number" min="0" step="0.01" placeholder="Price of one pack (to work out cost per unit)">
-        <div id="rs-u-calc" class="rs-muted"></div></div>
+        <label>Measured in <select id="rs-u-base"><option value="ml" ${u.base_unit === 'ml' ? 'selected' : ''}>ml (liquids)</option><option value="g" ${u.base_unit === 'g' ? 'selected' : ''}>g (food by weight)</option><option value="piece" ${!u.base_unit || u.base_unit === 'piece' ? 'selected' : ''}>pieces</option></select></label>
+        <input id="rs-u-pack" placeholder="Pack name (e.g. bottle, sack, crate)" value="${esc(u.pack_name || '')}">
+        <input id="rs-u-size" type="number" min="1" placeholder="Units in one pack (e.g. 750)" value="${u.pack_size ?? ''}"></div>
+        ${info.length ? `<div class="rs-muted" style="margin-top:8px">${info.join('<br>')}</div>` : ''}
+        <div class="rs-muted" style="margin-top:8px">Changing the pack size only affects purchases made from now on. Stock already in the system is not changed.</div>
         <div class="rs-row" style="margin-top:12px"><button class="rs-btn pri" data-act="unit-save">Save</button><button class="rs-btn" data-act="closesheet-btn">Cancel</button></div>`;
 }
-function updateUnitCalc() {
-    const el = root.querySelector('#rs-u-calc'); if (!el) return;
-    const size = parseFloat(root.querySelector('#rs-u-size').value), cost = parseFloat(root.querySelector('#rs-u-cost').value);
-    const base = unitText(root.querySelector('#rs-u-base').value);
-    if (size > 0 && cost >= 0) el.innerHTML = `Cost per ${base}: <b>${(cost / size).toFixed(4)}</b>. When you buy on the Purchase page, enter the quantity in ${base} (packs × ${size}) and this cost per ${base}.`;
-    else el.textContent = '';
+
+// Purchase page helper: show the conversion under the quantity box.
+function updatePurchaseHint(pre) {
+    const itemEl = document.getElementById(pre + '-item'), qtyEl = document.getElementById(pre + '-qty'), costEl = document.getElementById(pre + '-price');
+    if (!itemEl || !qtyEl) return;
+    let hint = document.getElementById('rs-hint-' + pre);
+    if (!hint) {
+        hint = document.createElement('div');
+        hint.id = 'rs-hint-' + pre;
+        hint.style.cssText = 'font-size:12px;color:var(--text-light);margin-top:4px';
+        qtyEl.parentElement.appendChild(hint);
+    }
+    const it = (S().inventory || []).find(i => `[${i.category}] ${i.desc}` === itemEl.value);
+    const u = it && D.units.find(x => x.stock_item_id === it.id);
+    if (!u || !(Number(u.pack_size) > 0)) { hint.textContent = ''; return; }
+    const q = parseFloat(qtyEl.value) || 0, c = costEl ? parseFloat(String(costEl.value).replace(/,/g, '')) : NaN, unit = unitText(u.base_unit);
+    hint.textContent = `Enter ${u.pack_name ? u.pack_name + 's' : 'packs'}. ${q} × ${u.pack_size} = ${Math.round(q * u.pack_size)} ${unit} into stock` + (c > 0 ? `. Cost per ${unit}: ${(c / u.pack_size).toFixed(4)}` : '') + '.';
+}
+function wirePurchaseHints() {
+    if (window.__restHints) return;
+    window.__restHints = true;
+    const h = e => { const id = e.target && e.target.id; if (['pur-item', 'pur-qty', 'pur-price'].includes(id)) updatePurchaseHint('pur'); else if (['cart-pur-item', 'cart-pur-qty', 'cart-pur-price'].includes(id)) updatePurchaseHint('cart-pur'); };
+    document.addEventListener('input', h);
+    document.addEventListener('change', h);
+}
+async function loadUnitsQuiet() {
+    try { const r = await sb().from('rest_stock_units').select('*').eq('tenant_id', ctx.tenantId); if (!r.error) D.units = r.data; } catch (e) { }
 }
 
 // ---------------------------------------------------------------
@@ -765,7 +834,7 @@ function kitchenView() {
         const age = mins(its[0].sent_at);
         return `<div class="rs-kt ${age >= 15 ? 'late' : ''}"><div class="rs-row"><b style="font-size:18px">${esc(tabLabel(tab))}</b><span class="rs-muted">${age} min</span><span class="rs-sp"></span>
             ${its.length > 1 ? `<button class="rs-btn sm" data-act="readyall" data-id="${tab.id}">All ready</button>` : ''}</div>
-            ${its.map(i => `<div class="rs-kitem"><div class="n">${i.qty} × ${esc(i.name)}${i.note ? `<div class="rs-muted" style="font-size:13px">${esc(i.note)}</div>` : ''}</div><button class="rs-btn pri" data-act="ready" data-id="${i.id}">Ready</button></div>`).join('')}</div>`;
+            ${its.map(i => `<div class="rs-kitem"><div class="n">${i.qty} × ${esc(i.name)}${i.note ? `<div class="rs-muted" style="font-size:13px">${esc(i.note)}</div>` : ''}${i.added_by ? `<div class="rs-muted" style="font-size:12px">Ordered by ${esc(i.added_by)}</div>` : ''}</div><button class="rs-btn pri" data-act="ready" data-id="${i.id}">Ready</button></div>`).join('')}</div>`;
     }).join('');
     return `<div class="rs-row"><div class="rs-chips" style="margin:0">${seg}</div><span class="rs-sp"></span><span class="rs-muted">${navigator.onLine ? (UI.live ? 'Live' : 'Refreshing every 20 s') : 'Offline'}</span></div>
         ${cards || '<div class="rs-card rs-muted" style="margin-top:10px">No orders waiting.</div>'}`;
@@ -780,20 +849,20 @@ function reportView() {
     let out = '';
     if (r.rows) {
         const tot = r.rows.reduce((a, x) => ({ q: a.q + x.qty, rev: a.rev + x.rev, cost: a.cost + x.cost }), { q: 0, rev: 0, cost: 0 });
-        const line = x => `<tr><td>${esc(x.name)}</td><td style="text-align:right">${x.qty}</td><td style="text-align:right">${fmt(x.rev)}</td><td style="text-align:right">${fmt(x.cost)}</td><td style="text-align:right">${x.rev > 0 ? Math.round((x.rev - x.cost) / x.rev * 100) + '%' : ''}</td></tr>`;
+        const line = x => `<tr><td>${esc(x.name)}</td><td style="text-align:right">${x.qty}</td><td style="text-align:right">${fmt(x.rev)}</td><td style="text-align:right">${fmt(x.cost)}</td><td style="text-align:right">${fmt(x.rev - x.cost)}</td><td style="text-align:right">${pct(x.rev - x.cost, x.rev)}</td></tr>`;
         const byCat = {};
         r.rows.forEach(x => { const c = x.category; byCat[c] = byCat[c] || { name: c, qty: 0, rev: 0, cost: 0 }; byCat[c].qty += x.qty; byCat[c].rev += x.rev; byCat[c].cost += x.cost; });
-        const head = '<tr><th>Item</th><th style="text-align:right">Sold</th><th style="text-align:right">Sales</th><th style="text-align:right">Cost</th><th style="text-align:right">Margin</th></tr>';
-        out = `<div class="rs-card" style="margin-top:10px"><b>Total</b>: ${tot.q} sold, sales ${fmt(tot.rev)}, cost ${fmt(tot.cost)}, margin ${tot.rev > 0 ? Math.round((tot.rev - tot.cost) / tot.rev * 100) : 0}%
+        const head = '<tr><th>Item</th><th style="text-align:right">Sold</th><th style="text-align:right">Sales</th><th style="text-align:right">Cost</th><th style="text-align:right">Profit</th><th style="text-align:right">Margin</th></tr>';
+        out = `<div class="rs-card" style="margin-top:10px"><b>Total</b>: ${tot.q} sold, sales ${fmt(tot.rev)}, cost ${fmt(tot.cost)}, profit ${fmt(tot.rev - tot.cost)}, margin ${tot.rev > 0 ? Math.round((tot.rev - tot.cost) / tot.rev * 100) : 0}%
             <div class="rs-muted">Paid items only. Items without a recipe show cost 0.</div></div>
             <div class="rs-card" style="margin-top:10px"><b>By category</b><table class="rs-tbl">${head}${Object.values(byCat).sort((a, b) => b.rev - a.rev).map(line).join('')}</table></div>
             <div class="rs-card" style="margin-top:10px"><b>By menu item</b><table class="rs-tbl">${head}${r.rows.slice().sort((a, b) => b.rev - a.rev).map(line).join('')}</table></div>`;
     }
     const recipeRows = D.menu.filter(m => m.active).map(m => ({ m, c: recipeCost(m) })).filter(x => x.c !== null).sort((a, b) => a.m.name.localeCompare(b.m.name))
-        .map(({ m, c }) => `<tr><td>${esc(m.name)}</td><td style="text-align:right">${fmt(m.price)}</td><td style="text-align:right">${fmt(c)}</td><td style="text-align:right">${m.price > 0 ? Math.round((m.price - c) / m.price * 100) + '%' : ''}</td></tr>`).join('');
+        .map(({ m, c }) => `<tr><td>${esc(m.name)}</td><td style="text-align:right">${fmt(m.price)}</td><td style="text-align:right">${fmt(c)}</td><td style="text-align:right">${fmt(m.price - c)}</td><td style="text-align:right">${pct(m.price - c, m.price)}</td></tr>`).join('');
     return `<div class="rs-card"><div class="rs-row"><label>From <input id="rs-rep-from" type="date" value="${r.from}"></label><label>To <input id="rs-rep-to" type="date" value="${r.to}"></label><button class="rs-btn pri" data-act="rep-run">Show</button></div></div>${out}
-        <div class="rs-card" style="margin-top:10px"><b>Recipe cost and margin today</b><div class="rs-muted">Uses the current average cost of your stock.</div>
-        ${recipeRows ? `<table class="rs-tbl"><tr><th>Item</th><th style="text-align:right">Price</th><th style="text-align:right">Cost</th><th style="text-align:right">Margin</th></tr>${recipeRows}</table>` : '<div class="rs-muted">No recipes yet.</div>'}</div>`;
+        <div class="rs-card" style="margin-top:10px"><b>Recipe cost and margin today</b><div class="rs-muted">Cost of the next serving, oldest stock first (FIFO).</div>
+        ${recipeRows ? `<table class="rs-tbl"><tr><th>Item</th><th style="text-align:right">Price</th><th style="text-align:right">Cost</th><th style="text-align:right">Profit</th><th style="text-align:right">Margin</th></tr>${recipeRows}</table>` : '<div class="rs-muted">No recipes yet.</div>'}</div>`;
 }
 async function runReport() {
     const from = root.querySelector('#rs-rep-from').value, to = root.querySelector('#rs-rep-to').value;
@@ -827,7 +896,7 @@ function recipeNote(m) {
     const base = n ? `${n} ingredient${n > 1 ? 's' : ''}` : (m.stock_item_id ? 'linked to stock' : 'no recipe');
     const c = canCosts() ? recipeCost(m) : null;
     if (c === null || !(m.price > 0)) return base;
-    return `${base} · cost ${fmt(c)} · margin ${Math.round((m.price - c) / m.price * 100)}%`;
+    return `${base} · cost ${fmt(c)} · profit ${fmt(m.price - c)} · margin ${pct(m.price - c, m.price)}`;
 }
 function manageView() {
     let html = '';
@@ -839,9 +908,9 @@ function manageView() {
     if (canMenu() && UI.p2) {
         const q = (UI.unitq || '').trim().toLowerCase();
         const list = invItems().filter(x => !q || String(x.desc).toLowerCase().includes(q)).slice(0, 40);
-        const rows = list.map(x => { const u = unitRow(x.id); return `<tr data-act="unit-edit" data-id="${x.id}" style="cursor:pointer"><td><b>${esc(x.desc)}</b></td><td>${u ? unitText(u.base_unit) : '<span class="rs-muted">not set</span>'}</td><td>${u && u.pack_size ? esc(u.pack_name || 'pack') + ' = ' + u.pack_size : ''}</td></tr>`; }).join('');
+        const rows = list.map(x => { const u = unitRow(x.id); return `<tr data-act="unit-edit" data-id="${x.id}" style="cursor:pointer"><td><b>${esc(x.desc)}</b></td><td>${u ? unitText(u.base_unit) : '<span class="rs-muted">not set</span>'}</td><td>${u && u.pack_size ? esc(u.pack_name || 'pack') + ' = ' + u.pack_size : ''}</td><td style="text-align:right">${u && u.pack_size ? fmt(fifoCost(x.id, Number(u.pack_size))) : (fifoCost(x.id, 1) ? fmt(fifoCost(x.id, 1)) + ' / ' + (u ? unitText(u.base_unit) : 'unit') : '')}</td></tr>`; }).join('');
         html += `<div class="rs-card" style="margin-bottom:12px"><div class="rs-row"><b>Ingredient units</b><span class="rs-sp"></span><input data-bind="unitq" value="${esc(UI.unitq || '')}" placeholder="Search stock" style="max-width:180px"></div>
-            <div class="rs-muted" style="margin:4px 0 6px">Tell the system how each ingredient is measured (ml, g or pieces) and how big a pack is.</div>
+            <div class="rs-muted" style="margin:4px 0 6px">How each ingredient is measured (ml, g or pieces) and how big a pack is. The last column is the cost of the next pack from your stock, oldest first, taken from purchases.</div>
             <div id="rs-unitlist">${rows ? `<table class="rs-tbl">${rows}</table>` : '<span class="rs-muted">No stock items yet. Add them on the Purchase page first.</span>'}</div></div>`;
     }
     if (canLayout()) {
@@ -1096,7 +1165,7 @@ const ACT = {
     },
     startorder: el => { UI.pickTarget = { tableId: el.dataset.id }; UI.view = 'order'; UI.sheet = null; render(); },
     addmore: el => { UI.pickTarget = { tabId: el.dataset.id }; UI.view = 'order'; UI.sheet = null; render(); },
-    serve: async el => { try { await db(sb().from('rest_tab_items').update({ status: 'served' }).eq('id', el.dataset.id).eq('status', 'ready')); await load(); render(); } catch (e) { } },
+    serve: async el => { try { await db(sb().from('rest_tab_items').update(UI.p2 ? { status: 'served', served_by: username() } : { status: 'served' }).eq('id', el.dataset.id).eq('status', 'ready')); await load(); render(); } catch (e) { } },
     void: el => voidItem(el.dataset.id),
     reqbill: async el => { const t = tabById(el.dataset.id); try { await db(sb().from('rest_tabs').update({ bill_requested: !t.bill_requested }).eq('id', t.id)); await load(); render(); } catch (e) { } },
     closeempty: async el => { try { await db(sb().from('rest_tabs').update({ status: 'closed', closed_at: new Date().toISOString() }).eq('id', el.dataset.id)); UI.sheet = null; await load(); render(); } catch (e) { } },
@@ -1174,9 +1243,9 @@ const ACT = {
             pack_name: g('rs-u-pack').value.trim() || null, pack_size: size > 0 ? size : null };
         try { await db(sb().from('rest_stock_units').upsert(row, { onConflict: 'stock_item_id' })); UI.sheet = null; await load(); render(); } catch (e) { }
     },
-    'rcp-add': () => { captureMenuForm(); UI.sheet.draft.lines.push({ stock_item_id: '', qty: '' }); render(); },
+    'rcp-add': () => { captureMenuForm(); UI.sheet.draft.lines.push({ stock_item_id: '', name: '', qty: '', newUnit: '' }); render(); },
     'rcp-del': el => { captureMenuForm(); UI.sheet.draft.lines.splice(+el.dataset.i, 1); render(); },
-    'rcp-item': el => { captureMenuForm(); UI.sheet.draft.lines[+el.dataset.i].stock_item_id = el.value; render(); },
+    'rcp-newunit': el => { UI.sheet.draft.lines[+el.dataset.i].newUnit = el.value; },
     'rcp-link': el => { captureMenuForm(); UI.sheet.draft.link = el.value; render(); },
     'mm-new': () => { UI.sheet = { type: 'menuedit' }; render(); },
     'mm-edit': el => { UI.sheet = { type: 'menuedit', id: el.dataset.id }; render(); },
@@ -1188,14 +1257,23 @@ const ACT = {
             no_prep: g('rs-m-noprep').checked, favourite: g('rs-m-fav').checked, active: g('rs-m-active').checked };
         let lines = [], link = null;
         if (UI.p2 && canMenu() && UI.sheet.draft) {
-            lines = UI.sheet.draft.lines.filter(l => l.stock_item_id || l.qty);
-            if (lines.some(l => !l.stock_item_id || !(Number(l.qty) >= 1) || !Number.isInteger(Number(l.qty)))) { toast('Each ingredient needs a stock item and a whole quantity of at least 1.', true); return; }
-            if (new Set(lines.map(l => l.stock_item_id)).size !== lines.length) { toast('The same stock item is listed twice.', true); return; }
+            lines = UI.sheet.draft.lines.filter(l => l.stock_item_id || String(l.name || '').trim() || l.qty);
+            lines.forEach(l => { l.stock_item_id = matchStock(l.name) || l.stock_item_id || ''; });
+            if (lines.some(l => (!l.stock_item_id && !String(l.name || '').trim()) || !(Number(l.qty) >= 1) || !Number.isInteger(Number(l.qty)))) { toast('Each ingredient needs a name and a whole quantity of at least 1.', true); return; }
+            if (lines.some(l => !l.stock_item_id && !l.newUnit)) { toast('Choose a unit (ml, g or pieces) for each new ingredient.', true); return; }
+            const keys = lines.map(l => l.stock_item_id || 'new:' + String(l.name).trim().toLowerCase());
+            if (new Set(keys).size !== lines.length) { toast('The same ingredient is listed twice.', true); return; }
             link = UI.sheet.draft.link || null;
             if (link && lines.length) { toast('Use either a recipe or a stock link, not both.', true); return; }
             row.stock_item_id = link; row.uses_stock = lines.length > 0 || !!link;
         }
         try {
+            // Register typed-in ingredients in the inventory, with their unit
+            for (const l of lines.filter(x => !x.stock_item_id)) {
+                const created = createIngredient(l.name);
+                l.stock_item_id = created.id;
+                await db(sb().from('rest_stock_units').upsert({ stock_item_id: created.id, tenant_id: ctx.tenantId, base_unit: l.newUnit }, { onConflict: 'stock_item_id' }));
+            }
             const id = UI.sheet.id || uid();
             if (UI.sheet.id) await db(sb().from('rest_menu_items').update(row).eq('id', id));
             else await db(sb().from('rest_menu_items').insert({ ...row, id, sort: D.menu.length }));
@@ -1224,6 +1302,7 @@ function wireEvents() {
         if (el.dataset && el.dataset.act && (el.tagName === 'SELECT' || el.type === 'checkbox')) { const fn = ACT[el.dataset.act]; if (fn) fn(el, e); return; }
         if (el.dataset && el.dataset.f) { editField(el); return; }
         if (el.dataset && el.dataset.bind === 'chan') { UI.bill.chan = el.value; }
+        if (el.dataset && el.dataset.bind === 'rcpname') { captureMenuForm(); render(); }
         if (UI.dirty) { /* a refresh was held back while typing */ }
     });
     root.addEventListener('input', e => {
@@ -1232,8 +1311,9 @@ function wireEvents() {
         if (b === 'q') { UI.q = el.value; updateOrderParts(); }
         else if (b === 'pickq') { UI.pickq = el.value; const c = root.querySelector('#rs-pickchips'); if (c) c.innerHTML = pickChips(); }
         else if (b === 'svc') { UI.bill.svc = el.value; updateBillTotals(); }
-        else if (b === 'rcpqty') { UI.sheet.draft.lines[+el.dataset.i].qty = el.value; }
-        else if (b === 'unitcalc') updateUnitCalc();
+        else if (b === 'rcpqty') { UI.sheet.draft.lines[+el.dataset.i].qty = el.value; updateCostLine(); }
+        else if (b === 'mprice') updateCostLine();
+        else if (b === 'rcpname') { const l = UI.sheet.draft.lines[+el.dataset.i]; l.name = el.value; l.stock_item_id = matchStock(el.value); }
         else if (b === 'unitq') { UI.unitq = el.value; render(); const n = root.querySelector('[data-bind="unitq"]'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }
     });
     root.addEventListener('focusout', () => { if (UI.dirty) setTimeout(() => { const a = document.activeElement; if (!(a && root.contains(a) && /INPUT|TEXTAREA|SELECT/.test(a.tagName))) render(); }, 150); });
@@ -1261,7 +1341,13 @@ function injectCss() {
 
 // Called once after login by loadVerticalModule(). Nothing to draw on the
 // dashboard for this vertical.
-export function init(c) { ctx = c; }
+export function init(c) {
+    ctx = c;
+    // Pack sizes are needed by the Purchase page before the Restaurant page is ever opened.
+    window.restaurantPackSize = id => { const u = D.units.find(x => x.stock_item_id === id); return u && Number(u.pack_size) > 0 ? Number(u.pack_size) : 0; };
+    wirePurchaseHints();
+    loadUnitsQuiet();
+}
 export function refresh(c) { if (c) ctx = c; }
 
 // Called by switchView('restaurant') in index.html.
