@@ -11,6 +11,12 @@
 // Phase 3: stock counts (open bottles in tenths), variance report, waste log,
 //          voids after Ready logged as waste. Switches on once restaurant-phase3.sql has run.
 //
+// Order bell: a new kitchen / bar item rings a chime on every device that has the
+// kitchen screen permission and is set to that station (Kitchen, Bar or Both).
+// It rings on any Restaurant screen, and also while the app is on another page
+// (a small realtime listener starts at login). Phones only allow sound after one
+// tap, so the Kitchen screen shows a "tap once" banner until sound is unlocked.
+//
 // ONLINE ONLY (decision for this version): every read and write goes
 // straight to Supabase. There is no offline queue here. If the phone has
 // no connection the waiter sees "No connection. Nothing was sent." and
@@ -69,7 +75,8 @@ const css = `
 .rs-t.ready ellipse{fill:#DDF1E6;stroke:#3E9B78}
 .rs-t.bill ellipse{fill:#E6E3F7;stroke:#6a5fc0}
 .rs-t.sel ellipse{stroke:#d33;stroke-dasharray:6 3}
-.rs-t.held ellipse{stroke:#d33;stroke-width:4;filter:drop-shadow(0 4px 6px rgba(0,0,0,.35))}
+.rs-t.held ellipse{stroke:#d33;stroke-width:4}
+.rs-t.held{will-change:transform}
 .rs-t.magnet ellipse{stroke:#2a9d6f;stroke-width:4}
 .rs-legend{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--text-light);margin:8px 0}
 .rs-dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
@@ -138,14 +145,111 @@ async function db(query) {
     return r.data;
 }
 
-function beep() {
-    try {
-        const a = new (window.AudioContext || window.webkitAudioContext)();
-        const o = a.createOscillator(), g = a.createGain();
-        o.connect(g); g.connect(a.destination);
-        o.frequency.value = 880; g.gain.value = 0.15;
-        o.start(); setTimeout(() => { o.stop(); a.close(); }, 250);
-    } catch (e) { }
+// ---------------------------------------------------------------
+// Order bell
+// ---------------------------------------------------------------
+// One shared audio engine for the whole app. Browsers keep it muted until the
+// person has tapped the screen once, so we unlock it on the first tap anywhere.
+let AC = null;
+const RUNG = new Set();          // item ids that have already rung (or were already waiting when we started)
+let ringQ = new Set(), ringT = null;
+
+function audio() {
+    if (!AC) { try { const C = window.AudioContext || window.webkitAudioContext; if (C) AC = new C(); } catch (e) { } }
+    return AC;
+}
+function unlockAudio() {
+    const a = audio();
+    if (!a) return;
+    try { if (a.state !== 'running') a.resume().catch(() => { }); } catch (e) { }
+    // iPhones want a sound started inside the tap itself, so play one silent sample.
+    try { const b = a.createBuffer(1, 1, 22050), src = a.createBufferSource(); src.buffer = b; src.connect(a.destination); src.start(0); } catch (e) { }
+}
+const soundOn = () => UI.sound !== false;
+const soundLocked = () => soundOn() && !(AC && AC.state === 'running');
+function setSound(on) {
+    UI.sound = !!on;
+    try { localStorage.setItem('rs_sound_' + ctx.tenantId, on ? 'on' : 'off'); } catch (e) { }
+}
+function setStation(st) {
+    UI.station = st;
+    try { localStorage.setItem('rs_station_' + ctx.tenantId, st); } catch (e) { }
+}
+
+// Kitchen: lower two-note "ding-dong". Bar: higher pair, so "Both" screens can tell them apart by ear.
+function chime(a, station, delay, reps) {
+    const notes = station === 'bar' ? [1047, 1568] : [659, 880];
+    const base = a.currentTime + 0.05 + (delay || 0);
+    for (let r = 0; r < (reps || 3); r++) notes.forEach((f, k) => {
+        const t = base + r * 0.95 + k * 0.3;
+        [[f, 'sine', 0.5], [f * 2, 'triangle', 0.12]].forEach(([hz, type, vol]) => {
+            const o = a.createOscillator(), g = a.createGain();
+            o.type = type; o.frequency.value = hz;
+            g.gain.setValueAtTime(0.0001, t);
+            g.gain.exponentialRampToValueAtTime(vol, t + 0.015);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + 0.75);
+            o.connect(g); g.connect(a.destination);
+            o.start(t); o.stop(t + 0.8);
+        });
+    });
+}
+
+// Should this device ring for an item at this station?
+const wantsRing = st => canKitchen() && soundOn() && (UI.station === 'all' || UI.station === (st === 'bar' ? 'bar' : 'kitchen'));
+
+// Items of one order arrive a few milliseconds apart: collect them and ring once.
+function ringSoon(st) {
+    (st instanceof Set ? [...st] : [st]).forEach(x => ringQ.add(x === 'bar' ? 'bar' : 'kitchen'));
+    if (ringT) return;
+    ringT = setTimeout(() => { const list = [...ringQ]; ringQ = new Set(); ringT = null; ring(list); }, 500);
+}
+function ring(list) {
+    try { toast('New order · ' + list.map(s => s === 'bar' ? 'Bar' : 'Kitchen').join(' + ')); } catch (e) { }
+    try { if (navigator.vibrate) navigator.vibrate([250, 120, 250, 120, 250]); } catch (e) { }
+    const a = audio();
+    if (!a) return;
+    const play = () => list.forEach((s, k) => chime(a, s, k * 2.9));
+    if (a.state === 'running') { play(); return; }
+    // Locked by the phone: try to wake it. If that needs a tap, the Kitchen screen shows the banner.
+    const t0 = Date.now();
+    try { a.resume().then(() => { if (a.state === 'running' && Date.now() - t0 < 3000) play(); }).catch(() => { }); } catch (e) { }
+    if (UI.view === 'kitchen' && root && root.offsetParent !== null && !UI.sheet) render();
+}
+
+// Called after every full load (covers the 20 second fallback refresh too).
+function checkNewOrders() {
+    const first = !UI.ringReady;
+    const st = new Set();
+    D.items.forEach(i => {
+        if (i.status !== 'new' || RUNG.has(i.id)) return;
+        if (D.menu.find(m => m.id === i.menu_item_id)?.no_prep) return;
+        RUNG.add(i.id);
+        if (!first && wantsRing(i.station)) st.add(i.station);
+    });
+    UI.ringReady = true;
+    if (st.size) ringSoon(st);
+}
+
+// Small listener that starts at login, so the bell works on any page of the app,
+// not only after someone has opened the Restaurant page.
+async function onNewItemRow(row) {
+    if (!row || row.status !== 'new' || RUNG.has(row.id)) return;
+    RUNG.add(row.id);
+    if (!wantsRing(row.station)) return;
+    let ok = true;
+    const tab = tabById(row.tab_id);
+    if (tab) ok = okBranch(tab);
+    else {
+        try { const r = await sb().from('rest_tabs').select('branch_id').eq('id', row.tab_id).maybeSingle(); if (r && r.data) ok = okBranch(r.data); } catch (e) { }
+    }
+    if (ok) ringSoon(row.station);
+}
+function startOrderWatch() {
+    if (UI.watch || !ctx || !ctx.supabaseClient) return;
+    const tid = ctx.tenantId;
+    UI.watch = sb().channel('rest_ring_' + tid)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rest_tab_items', filter: 'tenant_id=eq.' + tid }, p => { onNewItemRow(p.new); })
+        .subscribe();
 }
 
 // ---------------------------------------------------------------
@@ -155,7 +259,7 @@ const D = { zones: [], tables: [], menu: [], tabs: [], tabTables: [], items: [],
 const UI = {
     view: null, zoneId: null, cat: 'All', q: '', cart: [], pickTarget: null,
     sheet: null, edit: false, sel: null, list: false, join: null, station: 'kitchen',
-    vb: null, error: null, count: { loc: 'Bar', q: '', vals: {} }, counts: [], waste: [], varSel: { open: '', close: '' }, variance: null, chan: null, seenNew: null, undo: null, dirty: false, booted: false, loadedOnce: false
+    vb: null, error: null, count: { loc: 'Bar', q: '', vals: {} }, counts: [], waste: [], varSel: { open: '', close: '' }, variance: null, chan: null, ringReady: false, sound: true, mutedTablesUntil: 0, undo: null, dirty: false, booted: false, loadedOnce: false
 };
 
 async function load() {
@@ -189,12 +293,7 @@ async function load() {
         D.items = it.error ? [] : it.data;
     } else D.items = [];
 
-    // New-order sound on the kitchen screen
-    const nowNew = new Set(D.items.filter(i => i.status === 'new' && !D.menu.find(m => m.id === i.menu_item_id)?.no_prep).map(i => i.id));
-    if (UI.seenNew && UI.view === 'kitchen') {
-        for (const id of nowNew) if (!UI.seenNew.has(id)) { beep(); break; }
-    }
-    UI.seenNew = nowNew;
+    checkNewOrders();
     UI.loadedOnce = true;
 }
 
@@ -203,7 +302,9 @@ function scheduleLoad() {
     clearTimeout(loadTimer);
     loadTimer = setTimeout(async () => {
         if (!root || !document.body.contains(root)) return;
+        if (UI.drag) { scheduleLoad(); return; }      // a table is being dragged: wait until it is dropped
         await load();
+        if (UI.drag) return;                          // a drag started while loading: the drop will redraw
         // Don't wipe a form someone is typing in
         const a = document.activeElement;
         if (a && root.contains(a) && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) { UI.dirty = true; return; }
@@ -216,7 +317,10 @@ function subscribe() {
     const tid = ctx.tenantId;
     let ch = sb().channel('rest_live_' + tid);
     ['rest_zones', 'rest_tables', 'rest_menu_items', 'rest_tabs', 'rest_tab_tables', 'rest_tab_items'].forEach(t => {
-        ch = ch.on('postgres_changes', { event: '*', schema: 'public', table: t, filter: 'tenant_id=eq.' + tid }, () => scheduleLoad());
+        ch = ch.on('postgres_changes', { event: '*', schema: 'public', table: t, filter: 'tenant_id=eq.' + tid }, () => {
+            if (t === 'rest_tables' && Date.now() < UI.mutedTablesUntil) return;   // that is just our own drag coming back
+            scheduleLoad();
+        });
     });
     ch.subscribe(st => { UI.live = (st === 'SUBSCRIBED'); });
     UI.chan = ch;
@@ -655,13 +759,35 @@ function wireOne(svg) {
     let g1 = null, pinch = null, drag = null, holdT = null, lastTap = { t: 0, x: 0, y: 0 };
     const cancelHold = () => { clearTimeout(holdT); holdT = null; };
 
+    // While a table is held, only that one SVG group is moved (a transform), nothing is redrawn.
+    // It follows the finger exactly; the "snap" part (grid / magnet) glides in over a few frames.
+    let ease = null;
+    function paintHeld() { if (ease) ease.el.setAttribute('transform', `translate(${ease.fx + ease.cx} ${ease.fy + ease.cy})`); }
+    function easeStep() {
+        if (!ease) return;
+        ease.raf = 0;
+        ease.cx += (ease.tx - ease.cx) * 0.4; ease.cy += (ease.ty - ease.cy) * 0.4;
+        const done = Math.abs(ease.tx - ease.cx) < 0.05 && Math.abs(ease.ty - ease.cy) < 0.05;
+        if (done) { ease.cx = ease.tx; ease.cy = ease.ty; }
+        paintHeld();
+        if (!done) ease.raf = requestAnimationFrame(easeStep);
+    }
+    function stopEase() { if (ease && ease.raf) cancelAnimationFrame(ease.raf); ease = null; }
+    function paintMagnet() {
+        g.querySelectorAll('.magnet').forEach(n => { if (n.dataset.uid !== UI.magnet) n.classList.remove('magnet'); });
+        if (UI.magnet) { const n = g.querySelector('[data-uid="' + UI.magnet + '"]'); if (n) n.classList.add('magnet'); }
+    }
+
     function beginDrag() {
         const u = unitByKey(zoneId, g1.key);
         if (!u) return;
+        stopEase();
         drag = { key: u.key, ids: u.ms.map(m => m.id), base: u.ms.map(m => ({ id: m.id, x: m.x, y: m.y })) };
         UI.drag = { key: u.key }; UI.sel = u.key;
         try { if (navigator.vibrate) navigator.vibrate(35); } catch (e) { }
-        redraw();
+        redraw();   // once: draws the "held" look
+        const el = g.querySelector('[data-uid="' + u.key + '"]');
+        if (el) { g.appendChild(el); ease = { el, fx: 0, fy: 0, cx: 0, cy: 0, tx: 0, ty: 0, raf: 0 }; }   // appended last = drawn above its neighbours
     }
     function moveDrag(dxw, dyw) {
         drag.base.forEach(b => { const m = tableById(b.id); m.x = b.x + dxw; m.y = b.y + dyw; });
@@ -671,15 +797,24 @@ function wireOne(svg) {
         if (!sn.join && !ay) { const m0 = tableById(drag.ids[0]); ay = Math.round(m0.y / 10) * 10 - m0.y; }
         drag.ids.forEach(id => { const m = tableById(id); m.x += ax; m.y += ay; });
         UI.magnet = sn.join;
-        redraw();
+        if (ease) {
+            ease.fx = dxw; ease.fy = dyw; ease.tx = ax; ease.ty = ay;
+            paintHeld();
+            if (!ease.raf && (ease.cx !== ease.tx || ease.cy !== ease.ty)) ease.raf = requestAnimationFrame(easeStep);
+        }
+        paintMagnet();
     }
     function abortDrag() {
+        stopEase();
         drag.base.forEach(b => { const m = tableById(b.id); m.x = b.x; m.y = b.y; });
         drag = null; UI.drag = null; UI.magnet = null; redraw();
     }
     async function endDrag() {
         const d = drag; drag = null; UI.drag = null;
         const join = UI.magnet; UI.magnet = null;
+        UI.mutedTablesUntil = Date.now() + 4000;   // ignore the live-update echo of our own move
+        stopEase();
+        redraw();   // drop at once: the table is already where it belongs, the save happens behind it
         const moved = d.base.some(b => { const m = tableById(b.id); return m.x !== b.x || m.y !== b.y; });
         let key = d.key;
         try {
@@ -1035,7 +1170,10 @@ function kitchenView() {
             ${its.length > 1 ? `<button class="rs-btn sm" data-act="readyall" data-id="${tab.id}">All ready</button>` : ''}</div>
             ${its.map(i => `<div class="rs-kitem"><div class="n">${i.qty} × ${esc(i.name)}${i.note ? `<div class="rs-muted" style="font-size:13px">${esc(i.note)}</div>` : ''}${i.added_by ? `<div class="rs-muted" style="font-size:12px">Ordered by ${esc(i.added_by)}</div>` : ''}</div><button class="rs-btn pri" data-act="ready" data-id="${i.id}">Ready</button></div>`).join('')}</div>`;
     }).join('');
-    return `<div class="rs-row"><div class="rs-chips" style="margin:0">${seg}</div><span class="rs-sp"></span><span class="rs-muted">${navigator.onLine ? (UI.live ? 'Live' : 'Refreshing every 20 s') : 'Offline'}</span></div>
+    const snd = `<button class="rs-btn sm ${soundOn() ? 'pri' : ''}" data-act="soundtoggle">${soundOn() ? 'Sound on' : 'Sound off'}</button><button class="rs-btn sm" data-act="soundtest">Test</button>`;
+    const lock = soundLocked() ? `<button class="rs-offline" style="width:100%;text-align:left;cursor:pointer;margin-top:8px" data-act="soundtest">The phone is keeping the order bell silent. <b>Tap here once</b> to turn it on.</button>` : '';
+    return `<div class="rs-row"><div class="rs-chips" style="margin:0">${seg}</div><span class="rs-sp"></span>${snd}<span class="rs-muted">${navigator.onLine ? (UI.live ? 'Live' : 'Refreshing every 20 s') : 'Offline'}</span></div>
+        ${lock}
         ${cards || '<div class="rs-card rs-muted" style="margin-top:10px">No orders waiting.</div>'}`;
 }
 
@@ -1385,13 +1523,26 @@ async function relabel(tabId) {
 async function moveTab(tabId, table) {
     const ms = membersOf(table.id);
     if (ms.some(m => tabForTable(m.id))) { toast(unitLabelOf(ms) + ' already has a tab.', true); return; }
+    if (!navigator.onLine) { toast('No connection. Nothing was sent.', true); return; }
+    const tab = tabById(tabId);
+    const keepTT = D.tabTables.slice(), keepLabel = tab ? tab.label : null;
+    const newIds = new Set(ms.map(m => m.id));
+    const old = tablesOfTab(tabId).filter(t => !newIds.has(t.id)).map(t => t.id);
+    const label = unitLabelOf(ms);
+    // Show the move at once; the database catches up behind it and we undo it if that fails.
+    D.tabTables = D.tabTables.filter(x => !(x.tab_id === tabId && old.includes(x.table_id)))
+        .concat(ms.map(m => ({ tab_id: tabId, table_id: m.id, tenant_id: ctx.tenantId })));
+    if (tab) tab.label = label;
+    UI.sheet = null; render(); toast('Moved to ' + label);
     try {
         await db(sb().from('rest_tab_tables').insert(ms.map(m => ({ tab_id: tabId, table_id: m.id, tenant_id: ctx.tenantId }))));
-        const old = tablesOfTab(tabId).filter(t => !ms.some(m => m.id === t.id)).map(t => t.id);
         if (old.length) await db(sb().from('rest_tab_tables').delete().eq('tab_id', tabId).in('table_id', old));
-        await db(sb().from('rest_tabs').update({ label: unitLabelOf(ms) }).eq('id', tabId));
-        UI.sheet = null; await load(); render(); toast('Moved to ' + unitLabelOf(ms));
-    } catch (e) { }
+        await db(sb().from('rest_tabs').update({ label }).eq('id', tabId));
+        scheduleLoad();
+    } catch (e) {
+        D.tabTables = keepTT; if (tab) tab.label = keepLabel;
+        await load(); render();
+    }
 }
 
 async function joinTap(t) {
@@ -1562,7 +1713,15 @@ const ACT = {
     },
     billsel: el => { if (el.checked) UI.bill.sel.add(el.dataset.id); else UI.bill.sel.delete(el.dataset.id); updateBillTotals(); },
     pay: () => payBill(),
-    station: el => { UI.station = el.dataset.s; render(); },
+    station: el => { setStation(el.dataset.s); render(); },
+    soundtoggle: () => { setSound(!soundOn()); if (soundOn()) unlockAudio(); render(); },
+    soundtest: () => {
+        unlockAudio();
+        const a = audio();
+        if (!a) { toast('This phone cannot play sound here.', true); return; }
+        const go = () => { chime(a, UI.station === 'bar' ? 'bar' : 'kitchen', 0, 1); render(); };
+        if (a.state === 'running') go(); else a.resume().then(go, () => render());
+    },
     ready: el => markReady([el.dataset.id]),
     readyall: el => markReady(D.items.filter(i => i.tab_id === el.dataset.id && i.status === 'new' && (UI.station === 'all' || i.station === UI.station)).map(i => i.id)),
     // layout editing
@@ -1787,6 +1946,19 @@ function injectCss() {
 // dashboard for this vertical.
 export function init(c) {
     ctx = c;
+    // Order bell: restore this device's choices, unlock sound on the first tap, listen for new orders.
+    injectCss();
+    try {
+        const st = localStorage.getItem('rs_station_' + ctx.tenantId);
+        if (st === 'kitchen' || st === 'bar' || st === 'all') UI.station = st;
+        UI.sound = localStorage.getItem('rs_sound_' + ctx.tenantId) !== 'off';
+    } catch (e) { }
+    if (!window._rsAudioHooked) {
+        window._rsAudioHooked = true;
+        const wake = () => { if (!(AC && AC.state === 'running')) unlockAudio(); };
+        ['pointerdown', 'touchend', 'click', 'keydown'].forEach(ev => document.addEventListener(ev, wake, { capture: true, passive: true }));
+    }
+    try { startOrderWatch(); } catch (e) { console.warn('Order bell listener not started:', e); }
     // Pack sizes are needed by the Purchase page before the Restaurant page is ever opened.
     window.restaurantPackSize = id => { const u = D.units.find(x => x.stock_item_id === id); return u && Number(u.pack_size) > 0 ? Number(u.pack_size) : 0; };
     loadUnitsQuiet();
