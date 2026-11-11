@@ -11,7 +11,7 @@
 // Phase 3: stock counts (open bottles in tenths), variance report, waste log,
 //          voids after Ready logged as waste. Switches on once restaurant-phase3.sql has run.
 //
-// Order bell: a new kitchen / bar item rings a chime on every device that has the
+// Order alarm: a new kitchen / bar item sounds a loud siren, repeating until the ticket is tapped, on every device that has the
 // kitchen screen permission and is set to that station (Kitchen, Bar or Both).
 // It rings on any Restaurant screen, and also while the app is on another page
 // (a small realtime listener starts at login). Phones only allow sound after one
@@ -91,6 +91,11 @@ const css = `
 .rs-st.new{background:#FCEEDD;color:#8a4b0f}.rs-st.ready{background:#DDF1E6;color:#1f6b4c}.rs-st.void{background:#FAECE7;color:#8d2b1c}
 .rs-kt{border:1px solid var(--border);border-radius:12px;background:var(--surface);padding:12px;margin-bottom:10px}
 .rs-kt.late{border-color:#B23A2E}
+.rs-kt.alarm{border:3px solid #B23A2E;animation:rsflash .7s infinite;cursor:pointer}
+.rs-ackhint{font-weight:700;color:#B23A2E;font-size:15px;margin-bottom:6px}
+@keyframes rsflash{0%,100%{background:var(--surface)}50%{background:#F9CFC8}}
+.rs-alarm{position:fixed;left:0;right:0;top:0;z-index:4000;background:#B23A2E;color:#fff;padding:calc(16px + env(safe-area-inset-top)) 16px 16px;font-size:18px;font-weight:700;text-align:center;cursor:pointer;animation:rsbanner .7s infinite;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+@keyframes rsbanner{0%,100%{background:#B23A2E}50%{background:#E0402F}}
 .rs-kitem{display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--border)}
 .rs-kitem .n{flex:1;font-size:16px}
 .rs-kitem .rs-btn{min-width:96px;min-height:48px;font-size:15px}
@@ -152,7 +157,6 @@ async function db(query) {
 // person has tapped the screen once, so we unlock it on the first tap anywhere.
 let AC = null;
 const RUNG = new Set();          // item ids that have already rung (or were already waiting when we started)
-let ringQ = new Set(), ringT = null;
 
 function audio() {
     if (!AC) { try { const C = window.AudioContext || window.webkitAudioContext; if (C) AC = new C(); } catch (e) { } }
@@ -176,61 +180,112 @@ function setStation(st) {
     try { localStorage.setItem('rs_station_' + ctx.tenantId, st); } catch (e) { }
 }
 
-// Kitchen: lower two-note "ding-dong". Bar: higher pair, so "Both" screens can tell them apart by ear.
-function chime(a, station, delay, reps) {
-    const notes = station === 'bar' ? [1047, 1568] : [659, 880];
-    const base = a.currentTime + 0.05 + (delay || 0);
-    for (let r = 0; r < (reps || 3); r++) notes.forEach((f, k) => {
-        const t = base + r * 0.95 + k * 0.3;
-        [[f, 'sine', 0.5], [f * 2, 'triangle', 0.12]].forEach(([hz, type, vol]) => {
-            const o = a.createOscillator(), g = a.createGain();
-            o.type = type; o.frequency.value = hz;
-            g.gain.setValueAtTime(0.0001, t);
-            g.gain.exponentialRampToValueAtTime(vol, t + 0.015);
-            g.gain.exponentialRampToValueAtTime(0.0001, t + 0.75);
-            o.connect(g); g.connect(a.destination);
-            o.start(t); o.stop(t + 0.8);
-        });
-    });
+// ALARM. Loud two-tone siren (square wave through a limiter). Kitchen and Bar use different pitches.
+// It repeats until somebody taps the order's ticket on this device. UI.pending holds the items still waiting.
+const ALARM_NOTES = { kitchen: [880, 1175], bar: [1319, 1760] };
+function alarmBurst(a, station, delay) {
+    const [f1, f2] = ALARM_NOTES[station === 'bar' ? 'bar' : 'kitchen'];
+    const comp = a.createDynamicsCompressor();
+    try { comp.threshold.value = -18; comp.ratio.value = 12; comp.attack.value = 0.002; comp.release.value = 0.08; } catch (e) { }
+    const out = a.createGain(); out.gain.value = 1.0;
+    comp.connect(out); out.connect(a.destination);
+    const t0 = a.currentTime + 0.05 + (delay || 0), step = 0.16;
+    for (let k = 0; k < 8; k++) {                       // 8 alternating beeps = about 1.3 s
+        const t = t0 + k * step, o = a.createOscillator(), g = a.createGain();
+        o.type = 'square'; o.frequency.value = k % 2 ? f2 : f1;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.9, t + 0.008);
+        g.gain.setValueAtTime(0.9, t + step - 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + step - 0.004);
+        o.connect(g); g.connect(comp);
+        o.start(t); o.stop(t + step);
+    }
 }
+const BURST = 1.35;   // seconds one burst lasts (8 x 0.16 plus a little)
 
-// Should this device ring for an item at this station?
+// Should this device raise the alarm for an item at this station?
 const wantsRing = st => canKitchen() && soundOn() && (UI.station === 'all' || UI.station === (st === 'bar' ? 'bar' : 'kitchen'));
 
-// Items of one order arrive a few milliseconds apart: collect them and ring once.
-function ringSoon(st) {
-    (st instanceof Set ? [...st] : [st]).forEach(x => ringQ.add(x === 'bar' ? 'bar' : 'kitchen'));
-    if (ringT) return;
-    ringT = setTimeout(() => { const list = [...ringQ]; ringQ = new Set(); ringT = null; ring(list); }, 500);
+function raise(id, tab, station) {
+    if (UI.pending.has(id)) return;
+    UI.pending.set(id, { tab, station: station === 'bar' ? 'bar' : 'kitchen', at: Date.now() });
+    startAlarm();
+    syncAlarmUI();
 }
-function ring(list) {
-    try { toast('New order · ' + list.map(s => s === 'bar' ? 'Bar' : 'Kitchen').join(' + ')); } catch (e) { }
-    try { if (navigator.vibrate) navigator.vibrate([250, 120, 250, 120, 250]); } catch (e) { }
+function stationsPending() { return [...new Set([...UI.pending.values()].map(p => p.station))]; }
+function alarmTick() {
+    UI.alarmT = null;
+    if (!UI.pending.size || !soundOn()) { stopAlarm(); return; }
+    const sts = stationsPending();
+    try { if (navigator.vibrate) navigator.vibrate([400, 150, 400]); } catch (e) { }
     const a = audio();
-    if (!a) return;
-    const play = () => list.forEach((s, k) => chime(a, s, k * 2.9));
-    if (a.state === 'running') { play(); return; }
-    // Locked by the phone: try to wake it. If that needs a tap, the Kitchen screen shows the banner.
-    const t0 = Date.now();
-    try { a.resume().then(() => { if (a.state === 'running' && Date.now() - t0 < 3000) play(); }).catch(() => { }); } catch (e) { }
-    if (UI.view === 'kitchen' && root && root.offsetParent !== null && !UI.sheet) render();
+    if (a) {
+        if (a.state === 'running') sts.forEach((s, k) => alarmBurst(a, s, k * BURST));
+        else { try { a.resume().catch(() => { }); } catch (e) { } }   // still locked: the tap banner / next tap unlocks it
+    }
+    syncAlarmUI();
+    UI.alarmT = setTimeout(alarmTick, (sts.length * BURST + 0.6) * 1000);
+}
+function startAlarm() { if (!UI.alarmT) alarmTick(); }
+function alarmNow() { clearTimeout(UI.alarmT); UI.alarmT = null; if (UI.pending.size) alarmTick(); }
+function stopAlarm() {
+    clearTimeout(UI.alarmT); UI.alarmT = null;
+    try { if (navigator.vibrate) navigator.vibrate(0); } catch (e) { }
+    syncAlarmUI();
+}
+// Someone tapped a ticket (or its Ready button): that order is seen, stop its part of the alarm.
+function ackTab(tabId) {
+    let any = false;
+    for (const [id, p] of UI.pending) if (p.tab === tabId) { UI.pending.delete(id); any = true; }
+    if (!any) return false;
+    if (!UI.pending.size) stopAlarm();
+    syncAlarmUI();
+    return true;
+}
+function prunePending(loadStartedAt) {
+    for (const [id, p] of UI.pending) {
+        const it = D.items.find(i => i.id === id);
+        // gone from "new" (made ready / voided somewhere else), but only judge items the load could already see
+        if ((it && it.status !== 'new') || (!it && p.at < loadStartedAt)) UI.pending.delete(id);
+        else if (!wantsRing(p.station)) UI.pending.delete(id);   // station or sound setting changed on this device
+    }
+    if (!UI.pending.size) stopAlarm(); else syncAlarmUI();
+}
+
+// Red banner over the whole app when an order is waiting and the Kitchen screen is not what is showing.
+function onKitchenScreen() { return !!(UI.view === 'kitchen' && root && root.offsetParent !== null); }
+function syncAlarmUI() {
+    let el = document.getElementById('rs-alarm');
+    const show = UI.pending.size > 0 && !onKitchenScreen();
+    if (!show) { if (el) el.remove(); return; }
+    const sts = stationsPending().map(s => s === 'bar' ? 'BAR' : 'KITCHEN').join(' + ');
+    if (!el) {
+        el = document.createElement('div'); el.id = 'rs-alarm'; el.className = 'rs-alarm';
+        el.addEventListener('click', openKitchen);
+        document.body.appendChild(el);
+    }
+    el.textContent = 'NEW ORDER · ' + sts + ' · tap to open';
+}
+function openKitchen() {
+    UI.view = 'kitchen';
+    if (typeof window.switchView === 'function' && !(root && root.offsetParent !== null)) window.switchView('restaurant');
+    else if (root) render();
 }
 
 // Called after every full load (covers the 20 second fallback refresh too).
-function checkNewOrders() {
+function checkNewOrders(loadStartedAt) {
     const first = !UI.ringReady;
-    const st = new Set();
     D.items.forEach(i => {
         if (i.status !== 'new' || RUNG.has(i.id)) return;
         if (D.menu.find(m => m.id === i.menu_item_id)?.no_prep) return;
         RUNG.add(i.id);
-        if (!first && wantsRing(i.station)) st.add(i.station);
+        if (!first && wantsRing(i.station)) raise(i.id, i.tab_id, i.station);
     });
     UI.ringReady = true;
-    if (st.size) ringSoon(st);
+    prunePending(loadStartedAt);
 }
 
-// Small listener that starts at login, so the bell works on any page of the app,
+// Small listener that starts at login, so the alarm works on any page of the app,
 // not only after someone has opened the Restaurant page.
 async function onNewItemRow(row) {
     if (!row || row.status !== 'new' || RUNG.has(row.id)) return;
@@ -242,7 +297,7 @@ async function onNewItemRow(row) {
     else {
         try { const r = await sb().from('rest_tabs').select('branch_id').eq('id', row.tab_id).maybeSingle(); if (r && r.data) ok = okBranch(r.data); } catch (e) { }
     }
-    if (ok) ringSoon(row.station);
+    if (ok) raise(row.id, row.tab_id, row.station);
 }
 function startOrderWatch() {
     if (UI.watch || !ctx || !ctx.supabaseClient) return;
@@ -259,10 +314,11 @@ const D = { zones: [], tables: [], menu: [], tabs: [], tabTables: [], items: [],
 const UI = {
     view: null, zoneId: null, cat: 'All', q: '', cart: [], pickTarget: null,
     sheet: null, edit: false, sel: null, list: false, join: null, station: 'kitchen',
-    vb: null, error: null, count: { loc: 'Bar', q: '', vals: {} }, counts: [], waste: [], varSel: { open: '', close: '' }, variance: null, chan: null, ringReady: false, sound: true, mutedTablesUntil: 0, undo: null, dirty: false, booted: false, loadedOnce: false
+    vb: null, error: null, count: { loc: 'Bar', q: '', vals: {} }, counts: [], waste: [], varSel: { open: '', close: '' }, variance: null, chan: null, ringReady: false, pending: new Map() /* item id -> { tab, station, at } */, alarmT: null, sound: true, mutedTablesUntil: 0, undo: null, dirty: false, booted: false, loadedOnce: false
 };
 
 async function load() {
+    const loadStartedAt = Date.now();
     const tid = ctx.tenantId;
     const q = t => sb().from(t).select('*').eq('tenant_id', tid);
     const [z, t, m, tb, tt] = await Promise.all([
@@ -293,7 +349,7 @@ async function load() {
         D.items = it.error ? [] : it.data;
     } else D.items = [];
 
-    checkNewOrders();
+    checkNewOrders(loadStartedAt);
     UI.loadedOnce = true;
 }
 
@@ -469,6 +525,7 @@ function render() {
     if (hasRealDom() && !root.querySelector('#rs-page')) root.innerHTML = '<div id="rs-page"></div><div id="rs-host"></div>';
     renderPage();
     renderSheet();
+    syncAlarmUI();
 }
 
 function pageHtml() {
@@ -1166,7 +1223,8 @@ function kitchenView() {
     const seg = [['kitchen', 'Kitchen'], ['bar', 'Bar'], ['all', 'Both']].map(([k, l]) => `<button class="rs-chip ${st === k ? 'on' : ''}" data-act="station" data-s="${k}">${l}</button>`).join('');
     const cards = tickets.map(({ tab, its }) => {
         const age = mins(its[0].sent_at);
-        return `<div class="rs-kt ${age >= 15 ? 'late' : ''}"><div class="rs-row"><b style="font-size:18px">${esc(tabLabel(tab))}</b><span class="rs-muted">${age} min</span><span class="rs-sp"></span>
+        const ringing = [...UI.pending.values()].some(p => p.tab === tab.id);
+        return `<div class="rs-kt ${age >= 15 ? 'late' : ''} ${ringing ? 'alarm' : ''}" data-tab="${tab.id}">${ringing ? '<div class="rs-ackhint">NEW ORDER · tap here to stop the alarm</div>' : ''}<div class="rs-row"><b style="font-size:18px">${esc(tabLabel(tab))}</b><span class="rs-muted">${age} min</span><span class="rs-sp"></span>
             ${its.length > 1 ? `<button class="rs-btn sm" data-act="readyall" data-id="${tab.id}">All ready</button>` : ''}</div>
             ${its.map(i => `<div class="rs-kitem"><div class="n">${i.qty} × ${esc(i.name)}${i.note ? `<div class="rs-muted" style="font-size:13px">${esc(i.note)}</div>` : ''}${i.added_by ? `<div class="rs-muted" style="font-size:12px">Ordered by ${esc(i.added_by)}</div>` : ''}</div><button class="rs-btn pri" data-act="ready" data-id="${i.id}">Ready</button></div>`).join('')}</div>`;
     }).join('');
@@ -1713,13 +1771,13 @@ const ACT = {
     },
     billsel: el => { if (el.checked) UI.bill.sel.add(el.dataset.id); else UI.bill.sel.delete(el.dataset.id); updateBillTotals(); },
     pay: () => payBill(),
-    station: el => { setStation(el.dataset.s); render(); },
-    soundtoggle: () => { setSound(!soundOn()); if (soundOn()) unlockAudio(); render(); },
+    station: el => { setStation(el.dataset.s); prunePending(0); render(); },
+    soundtoggle: () => { setSound(!soundOn()); if (soundOn()) unlockAudio(); prunePending(0); render(); },
     soundtest: () => {
         unlockAudio();
         const a = audio();
         if (!a) { toast('This phone cannot play sound here.', true); return; }
-        const go = () => { chime(a, UI.station === 'bar' ? 'bar' : 'kitchen', 0, 1); render(); };
+        const go = () => { alarmBurst(a, UI.station === 'bar' ? 'bar' : 'kitchen', 0); render(); };
         if (a.state === 'running') go(); else a.resume().then(go, () => render());
     },
     ready: el => markReady([el.dataset.id]),
@@ -1877,6 +1935,8 @@ function wireEvents() {
     if (root.dataset.wired) return;
     root.dataset.wired = '1';
     root.addEventListener('click', e => {
+        const kt = e.target.closest && e.target.closest('.rs-kt[data-tab]');
+        if (kt && ackTab(kt.dataset.tab)) render();     // tapping the order (or its Ready button) stops its alarm
         const el = e.target.closest('[data-act]');
         if (!el || !root.contains(el)) return;
         if (el.tagName === 'SELECT' || (el.tagName === 'INPUT' && el.type !== 'checkbox')) return; // those use 'change'
@@ -1955,7 +2015,7 @@ export function init(c) {
     } catch (e) { }
     if (!window._rsAudioHooked) {
         window._rsAudioHooked = true;
-        const wake = () => { if (!(AC && AC.state === 'running')) unlockAudio(); };
+        const wake = () => { if (!(AC && AC.state === 'running')) { unlockAudio(); if (UI.pending.size) setTimeout(alarmNow, 80); } };
         ['pointerdown', 'touchend', 'click', 'keydown'].forEach(ev => document.addEventListener(ev, wake, { capture: true, passive: true }));
     }
     try { startOrderWatch(); } catch (e) { console.warn('Order bell listener not started:', e); }
