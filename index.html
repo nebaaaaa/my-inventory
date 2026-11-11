@@ -4918,7 +4918,7 @@ a.sg-link{text-decoration:none}
             });
             ['pur-selling-price-group', 'cart-pur-selling-price-group'].forEach(id => {
                 const el = document.getElementById(id);
-                if (el) el.style.display = isRental ? 'none' : '';
+                if (el) el.style.display = (isRental || currentBusinessType === 'restaurant') ? 'none' : '';
             });
             const stockListCard = document.getElementById('inventory-default-stocklist-card');
             if (stockListCard) stockListCard.style.display = isRental ? 'none' : '';
@@ -4930,7 +4930,7 @@ a.sg-link{text-decoration:none}
             if (currentBusinessType === 'restaurant' && !restHide) {
                 restHide = document.createElement('style');
                 restHide.id = 'rest-hide-manual-sales';
-                restHide.textContent = '#sales-entry-card, #sale-cart-card { display: none !important; }';
+                restHide.textContent = '#sales-entry-card, #sale-cart-card { display: none !important; } #inventory-default-stocklist-card th:nth-child(5), #inventory-default-stocklist-card td:nth-child(5) { display: none; } #chart-sales-type { display: none !important; } div:has(> #chart-sales-type) { display: none !important; }';
                 document.head.appendChild(restHide);
             }
         }
@@ -5782,7 +5782,7 @@ a.sg-link{text-decoration:none}
             const isPharmacy = currentBusinessType === 'pharmacy';
             const isRental = currentBusinessType === 'rental';
             document.getElementById('init-inv-expiry-group').style.display = isPharmacy ? '' : 'none';
-            document.getElementById('init-inv-selling-price-group').style.display = isRental ? 'none' : '';
+            document.getElementById('init-inv-selling-price-group').style.display = (isRental || currentBusinessType === 'restaurant') ? 'none' : ''; // restaurants price dishes on the menu, not stock
             ['init-inv-daily-rate-group', 'init-inv-weekly-rate-group', 'init-inv-monthly-rate-group'].forEach(id => {
                 document.getElementById(id).style.display = isRental ? '' : 'none';
             });

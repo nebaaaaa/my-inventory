@@ -29,7 +29,7 @@
 const css = `
 .rs{font-family:inherit;color:var(--text);max-width:1100px}
 .rs *{box-sizing:border-box}
-.rs button{font-family:inherit}
+.rs button{font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .rs-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
 .rs-tab{flex:1 1 auto;min-width:90px;padding:11px 12px;border:1px solid var(--border);background:var(--surface);border-radius:8px;font-size:14px;cursor:pointer;color:var(--text)}
 .rs-tab.on{background:var(--primary,#1d4d4f);color:#fff;border-color:transparent}
@@ -57,22 +57,27 @@ const css = `
 .rs-line .n{flex:1;min-width:0}
 .rs-qty{display:flex;align-items:center;gap:6px}
 .rs-qty button{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--surface);font-size:16px;cursor:pointer;color:var(--text)}
-.rs-mapwrap{border:1px solid var(--border);border-radius:10px;background:var(--bg);overflow:hidden;touch-action:none}
+.rs-mapwrap{border:1px solid var(--border);border-radius:10px;background:var(--bg);overflow:hidden;touch-action:none;overscroll-behavior:contain}
 .rs-map{width:100%;height:58vh;min-height:320px;display:block;touch-action:none;user-select:none;-webkit-user-select:none}
-.rs-t rect,.rs-t ellipse{stroke-width:2}
+.rs-t ellipse{stroke-width:2}
 .rs-t text{font-size:15px;font-weight:600;text-anchor:middle;dominant-baseline:middle;pointer-events:none;fill:#222}
 .rs-t text.s{font-size:11px;font-weight:400}
-.rs-t.free rect,.rs-t.free ellipse{fill:#EDF0EC;stroke:#b9c2b8}
-.rs-t.seated rect,.rs-t.seated ellipse,.rs-t.served rect,.rs-t.served ellipse{fill:#E6EEF7;stroke:#7f9cc0}
-.rs-t.ordered rect,.rs-t.ordered ellipse{fill:#FCEEDD;stroke:#C97A22}
-.rs-t.ready rect,.rs-t.ready ellipse{fill:#DDF1E6;stroke:#3E9B78}
-.rs-t.bill rect,.rs-t.bill ellipse{fill:#E6E3F7;stroke:#6a5fc0}
-.rs-t.sel rect,.rs-t.sel ellipse{stroke:#d33;stroke-dasharray:6 3}
+.rs-t.free ellipse{fill:#EDF0EC;stroke:#b9c2b8}
+.rs-t.seated ellipse,.rs-t.served ellipse{fill:#E6EEF7;stroke:#7f9cc0}
+.rs-t.ordered ellipse{fill:#FCEEDD;stroke:#C97A22}
+.rs-t.ready ellipse{fill:#DDF1E6;stroke:#3E9B78}
+.rs-t.bill ellipse{fill:#E6E3F7;stroke:#6a5fc0}
+.rs-t.sel ellipse{stroke:#d33;stroke-dasharray:6 3}
+.rs-t.held ellipse{stroke:#d33;stroke-width:4;filter:drop-shadow(0 4px 6px rgba(0,0,0,.35))}
+.rs-t.magnet ellipse{stroke:#2a9d6f;stroke-width:4}
 .rs-legend{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--text-light);margin:8px 0}
 .rs-dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
-.rs-ov{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:2000;display:flex;align-items:flex-end;justify-content:center}
-.rs-sheet{background:var(--surface);width:100%;max-width:560px;max-height:88vh;overflow:auto;border-radius:16px 16px 0 0;padding:16px;color:var(--text)}
-@media(min-width:700px){.rs-ov{align-items:center}.rs-sheet{border-radius:16px}}
+.rs-ov{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:2000;display:flex;align-items:flex-end;justify-content:center;opacity:0;transition:opacity .3s}
+.rs-ov.on{opacity:1}
+.rs-sheet{background:var(--surface);width:100%;max-width:560px;max-height:88vh;overflow-y:auto;border-radius:24px 24px 0 0;padding:14px 16px calc(16px + env(safe-area-inset-bottom));color:var(--text);transform:translateY(105%);transition:transform .32s cubic-bezier(.2,.8,.2,1);box-shadow:0 -8px 30px rgba(0,0,0,.25);overscroll-behavior:contain}
+.rs-ov.on .rs-sheet{transform:translateY(0)}
+.rs-grab{width:40px;height:4px;border-radius:2px;background:var(--border);margin:0 auto 12px}
+.rs-btn.busy{opacity:.55;pointer-events:none}
 .rs-sheet h3{margin:0 0 8px;font-size:17px}
 .rs-st{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;background:#eee;color:#555}
 .rs-st.new{background:#FCEEDD;color:#8a4b0f}.rs-st.ready{background:#DDF1E6;color:#1f6b4c}.rs-st.void{background:#FAECE7;color:#8d2b1c}
@@ -165,6 +170,7 @@ async function load() {
     const bad = [z, t, m, tb, tt].find(r => r.error);
     if (bad) { UI.error = bad.error.message || 'Could not load.'; return; }
     UI.error = null;
+    if (UI.joinCol === undefined) { const pr = await sb().from('rest_tables').select('join_group').limit(1); UI.joinCol = !pr.error; }
     // Phase 2 tables are optional: if they are not there yet, Phase 2 stays off.
     const [rc, un] = await Promise.all([q('rest_recipe_lines'), q('rest_stock_units')]);
     UI.p2 = !(rc.error || un.error);
@@ -225,7 +231,8 @@ const itemsOf = tabId => D.items.filter(i => i.tab_id === tabId);
 const liveItems = tabId => itemsOf(tabId).filter(i => i.status !== 'void');
 const tablesOfTab = tabId => D.tabTables.filter(x => x.tab_id === tabId).map(x => tableById(x.table_id)).filter(Boolean);
 function tabForTable(tableId) {
-    const link = D.tabTables.find(x => x.table_id === tableId);
+    const ms = membersOf(tableId);
+    const link = D.tabTables.find(x => ms.some(m => m.id === x.table_id));
     return link ? tabById(link.tab_id) : null;
 }
 function tabLabel(tab) {
@@ -326,25 +333,116 @@ function availableViews() {
 // ---------------------------------------------------------------
 // Rendering
 // ---------------------------------------------------------------
+function scrollSpots() {
+    const out = [];
+    try {
+        let el = root;
+        while (el && el !== document.body) {
+            const cs = getComputedStyle(el);
+            if (/(auto|scroll)/.test(cs.overflowY) && el.scrollHeight > el.clientHeight) out.push([el, el.scrollTop]);
+            el = el.parentElement;
+        }
+        if (document.scrollingElement) out.push([document.scrollingElement, document.scrollingElement.scrollTop]);
+    } catch (e) { }
+    return out;
+}
+function restoreScroll(spots) {
+    const go = () => spots.forEach(([el, y]) => { if (el.scrollTop !== y) el.scrollTop = y; });
+    go();
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(go);
+}
+const hasRealDom = () => root && root.children !== undefined;
+
 function render() {
     if (!root) return;
     UI.dirty = false;
+    if (hasRealDom() && !root.querySelector('#rs-page')) root.innerHTML = '<div id="rs-page"></div><div id="rs-host"></div>';
+    renderPage();
+    renderSheet();
+}
+
+function pageHtml() {
     if (UI.error) {
         const missing = /rest_|relation|schema cache/i.test(UI.error);
-        root.innerHTML = `<div class="rs"><div class="rs-err">${missing
+        return `<div class="rs"><div class="rs-err">${missing
             ? 'The restaurant tables are not in the database yet. Run <b>restaurant-phase1.sql</b> in the Supabase SQL editor, then reload.'
             : 'Could not load: ' + esc(UI.error)}</div></div>`;
-        return;
     }
     const views = availableViews();
-    if (!views.length) { root.innerHTML = '<div class="rs"><div class="rs-card">Your role does not have restaurant access. Ask the owner to turn it on under Roles.</div></div>'; return; }
+    if (!views.length) return '<div class="rs"><div class="rs-card">Your role does not have restaurant access. Ask the owner to turn it on under Roles.</div></div>';
     if (!UI.view || !views.some(v => v[0] === UI.view)) UI.view = views[0][0];
     if (!UI.zoneId || !D.zones.some(z => z.id === UI.zoneId)) UI.zoneId = D.zones[0]?.id || null;
     const body = UI.view === 'order' ? orderView() : UI.view === 'floor' ? floorView() : UI.view === 'kitchen' ? kitchenView() : UI.view === 'reports' ? reportView() : manageView();
     const nav = views.map(([k, l]) => `<button class="rs-tab ${UI.view === k ? 'on' : ''}" data-act="view" data-v="${k}">${l}${k === 'order' && UI.cart.length ? ` (${UI.cart.reduce((s, c) => s + c.qty, 0)})` : ''}</button>`).join('');
     const off = navigator.onLine ? '' : '<div class="rs-offline">No connection. Orders cannot be sent until the internet is back.</div>';
-    root.innerHTML = `<div class="rs"><div class="rs-bar">${nav}</div>${off}${body}</div>${sheetHtml()}`;
+    return `<div class="rs"><div class="rs-bar">${nav}</div>${off}${body}</div>`;
+}
+function renderPage() {
+    const el = hasRealDom() ? root.querySelector('#rs-page') : null;
+    const html = pageHtml();
+    if (!el) { root.innerHTML = html + (UI.sheet ? `<div class="rs-ov on" data-act="closesheet"><div class="rs-sheet rs">${sheetInner()}</div></div>` : ''); afterRender(); return; }
+    const spots = scrollSpots();
+    el.innerHTML = html;
+    restoreScroll(spots);
     afterRender();
+}
+
+// Bottom sheet: slides up, follows the finger when swiped down (same feel as the plan card).
+function renderSheet() {
+    const host = hasRealDom() ? root.querySelector('#rs-host') : null;
+    if (!host) return;
+    let ov = host.firstElementChild;
+    if (UI.sheet) {
+        clearTimeout(UI.closeT);
+        const key = UI.sheet.type + ':' + (UI.sheet.id || UI.sheet.tabId || UI.sheet.tableId || '');
+        let fresh = false;
+        if (!ov) {
+            host.innerHTML = '<div class="rs-ov" data-act="closesheet"><div class="rs-sheet rs"><div class="rs-grab"></div><div class="rs-in"></div></div></div>';
+            ov = host.firstElementChild; fresh = true;
+            setTimeout(() => ov.classList.add('on'), 20);
+            bindSheetDrag(ov.querySelector('.rs-sheet'), ov);
+        } else ov.classList.add('on');
+        const sh = ov.querySelector('.rs-sheet'), inner = ov.querySelector('.rs-in');
+        const keep = sh.scrollTop;
+        inner.innerHTML = sheetInner();
+        sh.scrollTop = (fresh || UI.sheetKey !== key) ? 0 : keep;
+        UI.sheetKey = key;
+        wireMap();
+    } else if (ov) {
+        ov.classList.remove('on');
+        UI.sheetKey = null;
+        UI.closeT = setTimeout(() => { if (!UI.sheet) host.innerHTML = ''; }, 340);
+    }
+}
+function bindSheetDrag(sh, ov) {
+    let sy = 0, sx = 0, st = 0, mode = 0;
+    sh.addEventListener('touchstart', e => {
+        if (e.touches.length !== 1) { mode = -1; return; }
+        sy = e.touches[0].clientY; sx = e.touches[0].clientX; st = Date.now();
+        const blocked = e.target.closest && e.target.closest('svg.rs-map,input,textarea,select');
+        mode = (!blocked && sh.scrollTop <= 0) ? 0 : -1;
+    }, { passive: true });
+    sh.addEventListener('touchmove', e => {
+        if (mode === -1) return;
+        const dy = e.touches[0].clientY - sy, dx = e.touches[0].clientX - sx;
+        if (mode === 0) {
+            if (Math.abs(dy) < 8 && Math.abs(dx) < 8) return;
+            if (dy > 0 && Math.abs(dy) > Math.abs(dx)) { mode = 1; sh.style.transition = 'none'; } else { mode = -1; return; }
+        }
+        e.preventDefault(); e.stopPropagation();
+        const d = Math.max(dy, 0);
+        sh.style.transform = 'translateY(' + d + 'px)';
+        ov.style.transition = 'none'; ov.style.opacity = String(Math.max(0, 1 - d / Math.max(sh.offsetHeight, 1)));
+    }, { passive: false });
+    const end = (e, cancelled) => {
+        if (mode !== 1) { mode = 0; return; }
+        mode = 0;
+        const dy = cancelled ? 0 : Math.max(e.changedTouches[0].clientY - sy, 0), v = dy / Math.max(Date.now() - st, 1);
+        sh.style.transition = ''; sh.style.transform = ''; ov.style.transition = ''; ov.style.opacity = '';
+        if (dy > sh.offsetHeight * 0.3 || (v > 0.5 && dy > 40)) { UI.sheet = null; UI.join = null; render(); }
+    };
+    sh.addEventListener('touchend', e => end(e, false), { passive: true });
+    sh.addEventListener('touchcancel', e => end(e, true), { passive: true });
 }
 
 function afterRender() {
@@ -412,146 +510,259 @@ function updateOrderParts() {
 // Floor map (SVG, no library). Pinch / wheel to zoom, drag to pan.
 // Service mode: tap only. Edit layout (managers): drag tables.
 // ---------------------------------------------------------------
-function fitBox(zoneId) {
-    const ts = D.tables.filter(t => t.zone_id === zoneId);
-    if (!ts.length) return { x: 0, y: 0, w: 600, h: 400 };
-    const x0 = Math.min(...ts.map(t => t.x)) - 50, y0 = Math.min(...ts.map(t => t.y)) - 50;
-    const x1 = Math.max(...ts.map(t => t.x + t.width)) + 50, y1 = Math.max(...ts.map(t => t.y + t.height)) + 50;
-    return { x: x0, y: y0, w: Math.max(300, x1 - x0), h: Math.max(220, y1 - y0) };
+// Tables are round. A table can be joined to its neighbours (magnet), and the joined
+// tables are drawn as one longer ellipse with every table number on it.
+const DIAM = 80;
+const tw = x => Number(x.width) || DIAM;
+const th = x => Number(x.height) || DIAM;
+const clampScale = s => Math.min(5, Math.max(0.2, s));
+
+function membersOf(tableId) {
+    const t = tableById(tableId);
+    if (!t) return [];
+    if (!t.join_group) return [t];
+    return D.tables.filter(x => x.join_group === t.join_group);
 }
-function getVb(zoneId) {
-    if (UI.vb && UI.vbZone === zoneId) return UI.vb;
-    let v = null;
-    try { v = JSON.parse(localStorage.getItem(`rs_vb_${ctx.tenantId}_${zoneId}`) || 'null'); } catch (e) { }
-    UI.vb = v && v.w ? v : fitBox(zoneId);
-    UI.vbZone = zoneId;
-    return UI.vb;
+const unitKeyOf = ms => ms.map(m => m.id).sort()[0];
+function unitLabelOf(ms) {
+    return ms.slice().sort((a, b) => a.x - b.x || a.y - b.y).map(m => m.label).join(' + ');
 }
-function saveVb() { try { localStorage.setItem(`rs_vb_${ctx.tenantId}_${UI.vbZone}`, JSON.stringify(UI.vb)); } catch (e) { } }
-const vbStr = v => `${v.x} ${v.y} ${v.w} ${v.h}`;
+function layoutUnits(zoneId) {
+    const seen = new Set(), out = [];
+    D.tables.filter(t => t.zone_id === zoneId).forEach(t => {
+        if (seen.has(t.id)) return;
+        const ms = membersOf(t.id).filter(m => m.zone_id === zoneId);
+        ms.forEach(m => seen.add(m.id));
+        const x0 = Math.min(...ms.map(m => m.x)), y0 = Math.min(...ms.map(m => m.y));
+        const x1 = Math.max(...ms.map(m => m.x + tw(m))), y1 = Math.max(...ms.map(m => m.y + th(m)));
+        out.push({ key: unitKeyOf(ms), ms, x0, y0, x1, y1, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, w: x1 - x0, h: y1 - y0, label: unitLabelOf(ms) });
+    });
+    return out;
+}
+const unitByKey = (zoneId, key) => layoutUnits(zoneId).find(u => u.key === key);
+function allUnits() {
+    const out = [];
+    D.zones.forEach(z => layoutUnits(z.id).forEach(u => out.push(u)));
+    return out.sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }));
+}
+
+// ----- camera: screen = world * s + (x, y). Pan and zoom are exact, anchored on the fingers.
+function fitCam(zoneId, W, H) {
+    const us = layoutUnits(zoneId);
+    if (!us.length) return { s: 1, x: W / 2 - 150, y: H / 2 };
+    const x0 = Math.min(...us.map(u => u.x0)) - 50, y0 = Math.min(...us.map(u => u.y0)) - 50;
+    const x1 = Math.max(...us.map(u => u.x1)) + 50, y1 = Math.max(...us.map(u => u.y1)) + 50;
+    const bw = x1 - x0, bh = y1 - y0;
+    const s = Math.min(1.6, clampScale(Math.min(W / bw, H / bh)));
+    return { s, x: (W - bw * s) / 2 - x0 * s, y: (H - bh * s) / 2 - y0 * s };
+}
+function getCam(zoneId) {
+    if (UI.cam && UI.camZone === zoneId) return UI.cam;
+    let c = null;
+    try { c = JSON.parse(localStorage.getItem(`rs_cam_${ctx.tenantId}_${zoneId}`) || 'null'); } catch (e) { }
+    UI.camAuto = !(c && c.s);
+    UI.cam = c && c.s ? c : fitCam(zoneId, 360, 420);
+    UI.camZone = zoneId;
+    return UI.cam;
+}
+function saveCam() { try { localStorage.setItem(`rs_cam_${ctx.tenantId}_${UI.camZone}`, JSON.stringify(UI.cam)); } catch (e) { } }
 
 function mapInner(zoneId) {
-    const ts = D.tables.filter(t => t.zone_id === zoneId);
-    const v = getVb(zoneId);
-    if (!ts.length) return `<text x="${v.x + v.w / 2}" y="${v.y + v.h / 2}" text-anchor="middle" fill="#888" font-size="16">No tables in this zone yet</text>`;
-    const detail = v.w < 520;
-    return ts.map(t => {
-        const st = tableStatus(t), cx = t.x + t.width / 2, cy = t.y + t.height / 2;
-        const rot = `transform="rotate(${t.rotation || 0} ${cx} ${cy})"`;
-        const shape = t.shape === 'round'
-            ? `<ellipse cx="${cx}" cy="${cy}" rx="${t.width / 2}" ry="${t.height / 2}" ${rot}/>`
-            : `<rect x="${t.x}" y="${t.y}" width="${t.width}" height="${t.height}" rx="10" ${rot}/>`;
-        const tab = tabForTable(t.id);
-        const sub = detail && tab ? `<text class="s" x="${cx}" y="${cy + 14}">${fmt(tabAmount(tab.id))} · ${mins(tab.opened_at)}m</text>` : '';
-        const cls = (UI.edit && UI.sel === t.id) || (UI.join && tab && tab.id === UI.join.tabId) ? ' sel' : '';
-        return `<g class="rs-t ${st}${cls}" data-tid="${t.id}">${shape}<text x="${cx}" y="${detail && tab ? cy - 6 : cy}">${esc(t.label)}</text>${sub}</g>`;
+    const us = layoutUnits(zoneId), cam = UI.cam || getCam(zoneId);
+    if (!us.length) return '<text x="150" y="0" text-anchor="middle" fill="#888" font-size="16">No tables in this zone yet</text>';
+    const detail = cam.s > 1.2;
+    return us.map(u => {
+        const t = u.ms[0], st = tableStatus(t), tab = tabForTable(t.id);
+        const cls = [st];
+        if ((UI.edit && UI.sel === u.key) || (UI.join && tab && tab.id === UI.join.tabId)) cls.push('sel');
+        if (UI.drag && UI.drag.key === u.key) cls.push('held');
+        if (UI.magnet === u.key) cls.push('magnet');
+        const sub = detail && tab ? `<text class="s" x="${u.cx}" y="${u.cy + 16}">${fmt(tabAmount(tab.id))} · ${mins(tab.opened_at)}m</text>` : '';
+        let label;
+        if (u.ms.length > 1 && u.h > u.w * 1.25) {
+            const ls = u.ms.slice().sort((a, b) => a.y - b.y || a.x - b.x).map(m => m.label);
+            const y0 = u.cy - (ls.length - 1) * 10;
+            label = ls.map((l, k) => `<text x="${u.cx}" y="${y0 + k * 20}">${esc(l)}</text>`).join('');
+        } else label = `<text x="${u.cx}" y="${detail && tab ? u.cy - 6 : u.cy}">${esc(u.label)}</text>`;
+        return `<g class="rs-t ${cls.join(' ')}" data-uid="${u.key}"><ellipse cx="${u.cx}" cy="${u.cy}" rx="${u.w / 2}" ry="${u.h / 2}"/>${label}${sub}</g>`;
     }).join('');
 }
+function camAttr(c) { return `translate(${c.x} ${c.y}) scale(${c.s})`; }
 function mapHtml(zoneId) {
-    const v = getVb(zoneId);
-    return `<div class="rs-mapwrap"><svg class="rs-map" viewBox="${vbStr(v)}">${mapInner(zoneId)}</svg></div>`;
+    const c = getCam(zoneId);
+    return `<div class="rs-mapwrap"><svg class="rs-map" data-zone="${zoneId}"><g class="rs-cam" transform="${camAttr(c)}">${mapInner(zoneId)}</g></svg></div>`;
 }
 const LEGEND = `<div class="rs-legend"><span><i class="rs-dot" style="background:#EDF0EC;border:1px solid #b9c2b8"></i>Free</span><span><i class="rs-dot" style="background:#FCEEDD;border:1px solid #C97A22"></i>Ordered</span><span><i class="rs-dot" style="background:#DDF1E6;border:1px solid #3E9B78"></i>Food ready</span><span><i class="rs-dot" style="background:#E6E3F7;border:1px solid #6a5fc0"></i>Bill requested</span></div>`;
 
+// Magnet: while a table (or joined group) is dragged, snap it flush against a neighbour
+// (so it can join) or line it up straight with the others.
+function magnetSnap(zoneId, key) {
+    const us = layoutUnits(zoneId), me = us.find(u => u.key === key);
+    if (!me) return { dx: 0, dy: 0, join: null };
+    const others = us.filter(u => u.key !== key), s = UI.cam.s;
+    const JOIN = 26 / s, ALIGN = 14 / s;
+    let best = null;
+    const offer = (d, dx, dy, join) => { if (!best || d < best.d) best = { d, dx, dy, join }; };
+    for (const o of others) {
+        const dyc = o.cy - me.cy, dxc = o.cx - me.cx;
+        if (Math.abs(dyc) < Math.max(me.h, o.h) * 0.45) {
+            const gR = o.x0 - me.x1, gL = me.x0 - o.x1;
+            if (Math.abs(gR) <= JOIN) offer(Math.abs(gR) + Math.abs(dyc) * 0.5, gR, dyc, o.key);
+            if (Math.abs(gL) <= JOIN) offer(Math.abs(gL) + Math.abs(dyc) * 0.5, -gL, dyc, o.key);
+        }
+        if (Math.abs(dxc) < Math.max(me.w, o.w) * 0.45) {
+            const gB = o.y0 - me.y1, gT = me.y0 - o.y1;
+            if (Math.abs(gB) <= JOIN) offer(Math.abs(gB) + Math.abs(dxc) * 0.5, dxc, gB, o.key);
+            if (Math.abs(gT) <= JOIN) offer(Math.abs(gT) + Math.abs(dxc) * 0.5, dxc, -gT, o.key);
+        }
+    }
+    if (best) return { dx: best.dx, dy: best.dy, join: best.join };
+    let dx = 0, dy = 0, bx = ALIGN, by = ALIGN;
+    for (const o of others) {
+        for (const a of [o.cx - me.cx, o.x0 - me.x0, o.x1 - me.x1]) if (Math.abs(a) < bx) { bx = Math.abs(a); dx = a; }
+        for (const b of [o.cy - me.cy, o.y0 - me.y0, o.y1 - me.y1]) if (Math.abs(b) < by) { by = Math.abs(b); dy = b; }
+    }
+    return { dx, dy, join: null };
+}
+
 function wireMap() {
-    root.querySelectorAll('svg.rs-map').forEach(wireOne);
+    root.querySelectorAll('svg.rs-map').forEach(svg => { if (!svg._rsWired) { svg._rsWired = true; wireOne(svg); } });
 }
 function wireOne(svg) {
+    const zoneId = svg.dataset.zone;
+    const g = svg.querySelector('.rs-cam');
+    const apply = () => g.setAttribute('transform', camAttr(UI.cam));
+    const redraw = () => { g.innerHTML = mapInner(zoneId); };
+    if (UI.camAuto && svg.clientWidth) { UI.cam = fitCam(zoneId, svg.clientWidth, svg.clientHeight); apply(); redraw(); }
+    const local = e => { const r = svg.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+    const unitAt = e => { const el = e.target.closest && e.target.closest('[data-uid]'); return el ? el.dataset.uid : null; };
+    const zoomAt = (p, factor) => {
+        const wx = (p.x - UI.cam.x) / UI.cam.s, wy = (p.y - UI.cam.y) / UI.cam.s, s = clampScale(UI.cam.s * factor);
+        UI.cam = { s, x: p.x - wx * s, y: p.y - wy * s };
+        apply();
+    };
+    // keep the page from scrolling while a finger is on the map
+    svg.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+    svg.addEventListener('contextmenu', e => e.preventDefault());
+
     const P = new Map();
-    let drag = null, pinch = null, lastTap = 0;
-    const upp = () => 1 / Math.min(svg.clientWidth / UI.vb.w, svg.clientHeight / UI.vb.h || 1);
-    const setVb = () => svg.setAttribute('viewBox', vbStr(UI.vb));
-    const redraw = () => { svg.innerHTML = mapInner(UI.vbZone); };
-    const clamp = w => Math.min(4000, Math.max(150, w));
+    let g1 = null, pinch = null, drag = null, holdT = null, lastTap = { t: 0, x: 0, y: 0 };
+    const cancelHold = () => { clearTimeout(holdT); holdT = null; };
+
+    function beginDrag() {
+        const u = unitByKey(zoneId, g1.key);
+        if (!u) return;
+        drag = { key: u.key, ids: u.ms.map(m => m.id), base: u.ms.map(m => ({ id: m.id, x: m.x, y: m.y })) };
+        UI.drag = { key: u.key }; UI.sel = u.key;
+        try { if (navigator.vibrate) navigator.vibrate(35); } catch (e) { }
+        redraw();
+    }
+    function moveDrag(dxw, dyw) {
+        drag.base.forEach(b => { const m = tableById(b.id); m.x = b.x + dxw; m.y = b.y + dyw; });
+        const sn = magnetSnap(zoneId, drag.key);
+        let ax = sn.dx, ay = sn.dy;
+        if (!sn.join && !ax) { const m0 = tableById(drag.ids[0]); ax = Math.round(m0.x / 10) * 10 - m0.x; }
+        if (!sn.join && !ay) { const m0 = tableById(drag.ids[0]); ay = Math.round(m0.y / 10) * 10 - m0.y; }
+        drag.ids.forEach(id => { const m = tableById(id); m.x += ax; m.y += ay; });
+        UI.magnet = sn.join;
+        redraw();
+    }
+    function abortDrag() {
+        drag.base.forEach(b => { const m = tableById(b.id); m.x = b.x; m.y = b.y; });
+        drag = null; UI.drag = null; UI.magnet = null; redraw();
+    }
+    async function endDrag() {
+        const d = drag; drag = null; UI.drag = null;
+        const join = UI.magnet; UI.magnet = null;
+        const moved = d.base.some(b => { const m = tableById(b.id); return m.x !== b.x || m.y !== b.y; });
+        let key = d.key;
+        try {
+            if (moved) await Promise.all(d.ids.map(id => { const m = tableById(id); return db(sb().from('rest_tables').update({ x: Math.round(m.x), y: Math.round(m.y) }).eq('id', id)); }));
+            if (join && UI.joinCol) {
+                const o = unitByKey(zoneId, join);
+                const tabsInvolved = new Set([...d.ids, ...o.ms.map(m => m.id)].map(id => { const tb = tabForTable(id); return tb ? tb.id : null; }).filter(Boolean));
+                if (tabsInvolved.size > 1) toast('Both have open tabs. Close or merge one first, then join.', true);
+                else {
+                    const gid = o.ms[0].join_group || uid();
+                    const ids = [...d.ids, ...o.ms.map(m => m.id)];
+                    await db(sb().from('rest_tables').update({ join_group: gid }).in('id', ids));
+                    ids.forEach(id => { tableById(id).join_group = gid; });
+                    key = unitKeyOf(ids.map(id => tableById(id)));
+                    toast('Joined: ' + unitLabelOf(ids.map(id => tableById(id))));
+                }
+            }
+        } catch (e) { await load(); }
+        UI.sel = key; render();
+    }
 
     svg.addEventListener('pointerdown', e => {
-        svg.setPointerCapture(e.pointerId);
-        P.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        if (P.size === 1) {
-            const g = e.target.closest('[data-tid]');
-            const t = g ? tableById(g.dataset.tid) : null;
-            drag = { tid: t ? t.id : null, moved: false, sx: e.clientX, sy: e.clientY, vb: { ...UI.vb }, ox: t ? t.x : 0, oy: t ? t.y : 0 };
-            if (UI.edit && t && canLayout()) { UI.sel = t.id; }
-        } else if (P.size === 2) {
-            const [a, b] = [...P.values()];
-            const r = svg.getBoundingClientRect();
-            const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-            const k = upp();
-            pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), vb: { ...UI.vb },
-                fx: UI.vb.x + (mx - r.left) * k, fy: UI.vb.y + (my - r.top) * k,
-                rx: (mx - r.left) / r.width, ry: (my - r.top) / r.height };
-            drag = null;
+        try { svg.setPointerCapture(e.pointerId); } catch (er) { }
+        const p = local(e);
+        P.set(e.pointerId, p);
+        if (P.size === 2) {
+            cancelHold(); if (drag) abortDrag();
+            const [a, b] = [...P.values()], mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+            pinch = { d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, s0: UI.cam.s, wx: (mid.x - UI.cam.x) / UI.cam.s, wy: (mid.y - UI.cam.y) / UI.cam.s };
+            g1 = null; return;
+        }
+        if (P.size > 2) return;
+        const key = unitAt(e);
+        g1 = { key, start: p, cam: { ...UI.cam }, moved: false, type: e.pointerType, armed: false };
+        if (UI.edit && key && canLayout()) {
+            if (e.pointerType === 'mouse') g1.armed = true;                       // mouse: drag at once
+            else holdT = setTimeout(() => { if (g1 && !g1.moved) beginDrag(); }, 380); // touch: press and hold
         }
     });
     svg.addEventListener('pointermove', e => {
         if (!P.has(e.pointerId)) return;
-        P.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        const p = local(e);
+        P.set(e.pointerId, p);
         if (pinch && P.size >= 2) {
-            const [a, b] = [...P.values()];
-            const d = Math.hypot(a.x - b.x, a.y - b.y) || 1;
-            const w = clamp(pinch.vb.w * pinch.d / d), h = w * pinch.vb.h / pinch.vb.w;
-            UI.vb = { x: pinch.fx - pinch.rx * w, y: pinch.fy - pinch.ry * h, w, h };
-            setVb(); return;
+            const [a, b] = [...P.values()], mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+            const s = clampScale(pinch.s0 * (Math.hypot(a.x - b.x, a.y - b.y) || 1) / pinch.d0);
+            UI.cam = { s, x: mid.x - pinch.wx * s, y: mid.y - pinch.wy * s };
+            apply(); return;
         }
-        if (!drag) return;
-        const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
-        if (!drag.moved && Math.hypot(dx, dy) < 6) return;
-        drag.moved = true;
-        const k = upp();
-        if (UI.edit && drag.tid && canLayout()) {
-            const t = tableById(drag.tid);
-            t.x = Math.round((drag.ox + dx * k) / 10) * 10;
-            t.y = Math.round((drag.oy + dy * k) / 10) * 10;
-            redraw();
-        } else {
-            UI.vb = { ...drag.vb, x: drag.vb.x - dx * k, y: drag.vb.y - dy * k };
-            setVb();
+        if (!g1) return;
+        const dx = p.x - g1.start.x, dy = p.y - g1.start.y;
+        if (!g1.moved && Math.hypot(dx, dy) > (g1.type === 'mouse' ? 3 : 8)) {
+            g1.moved = true;
+            if (g1.armed) beginDrag(); else if (!drag) cancelHold();
         }
+        if (!g1.moved && !drag) return;
+        if (drag) { moveDrag(dx / UI.cam.s, dy / UI.cam.s); return; }
+        UI.cam = { s: g1.cam.s, x: g1.cam.x + dx, y: g1.cam.y + dy }; // one to one with the finger
+        apply();
     });
-    const end = async e => {
+    const end = e => {
         if (!P.has(e.pointerId)) return;
-        P.delete(e.pointerId);
-        if (pinch) { if (P.size < 2) { pinch = null; saveVb(); redraw(); } return; }
-        const d = drag; drag = null;
-        if (!d) return;
-        if (!d.moved) {
-            const now = Date.now();
-            if (!d.tid && now - lastTap < 350) { // double tap on empty space: zoom in
-                const k = upp(), r = svg.getBoundingClientRect();
-                const fx = UI.vb.x + (e.clientX - r.left) * k, fy = UI.vb.y + (e.clientY - r.top) * k;
-                const w = clamp(UI.vb.w / 2), h = w * UI.vb.h / UI.vb.w;
-                UI.vb = { x: fx - (e.clientX - r.left) / r.width * w, y: fy - (e.clientY - r.top) / r.height * h, w, h };
-                setVb(); redraw(); saveVb();
-            }
-            lastTap = now;
-            if (d.tid) onTableTap(d.tid);
-        } else if (UI.edit && d.tid && canLayout()) {
-            const t = tableById(d.tid);
-            try { await db(sb().from('rest_tables').update({ x: t.x, y: t.y }).eq('id', t.id)); } catch (er) { await load(); }
-            render();
-        } else { saveVb(); redraw(); }
+        P.delete(e.pointerId); cancelHold();
+        if (pinch) { if (P.size < 2) { pinch = null; saveCam(); redraw(); } return; }
+        const gg = g1; g1 = null;
+        if (drag) { endDrag(); return; }
+        if (!gg) return;
+        if (!gg.moved) {
+            if (gg.key) { onTableTap(gg.key); return; }
+            const now = Date.now(), p = local(e);
+            if (now - lastTap.t < 320 && Math.hypot(p.x - lastTap.x, p.y - lastTap.y) < 30) { zoomAt(p, 2); saveCam(); redraw(); lastTap = { t: 0, x: 0, y: 0 }; }
+            else lastTap = { t: now, x: p.x, y: p.y };
+        } else { saveCam(); redraw(); }
     };
     svg.addEventListener('pointerup', end);
-    svg.addEventListener('pointercancel', end);
+    svg.addEventListener('pointercancel', e => { if (drag) abortDrag(); end(e); });
     svg.addEventListener('wheel', e => {
         e.preventDefault();
-        const k = upp(), r = svg.getBoundingClientRect();
-        const fx = UI.vb.x + (e.clientX - r.left) * k, fy = UI.vb.y + (e.clientY - r.top) * k;
-        const w = clamp(UI.vb.w * (e.deltaY < 0 ? 0.87 : 1.15)), h = w * UI.vb.h / UI.vb.w;
-        UI.vb = { x: fx - (e.clientX - r.left) / r.width * w, y: fy - (e.clientY - r.top) / r.height * h, w, h };
-        setVb(); redraw(); saveVb();
+        zoomAt(local(e), e.deltaY < 0 ? 1.12 : 1 / 1.12);
+        clearTimeout(svg._wt); svg._wt = setTimeout(() => { saveCam(); redraw(); }, 150);
     }, { passive: false });
 }
 
 function onTableTap(tid) {
     const t = tableById(tid);
     if (!t) return;
-    if (UI.edit && canLayout()) { render(); return; }
-    // Joining tables: tap the tables to add to the group
+    if (UI.edit && canLayout()) { UI.sel = unitKeyOf(membersOf(tid)); render(); return; }
     if (UI.join) { joinTap(t); return; }
-    // Picking a table for the waiter's cart
     if (UI.sheet && UI.sheet.type === 'pick') { sendCart({ tableId: t.id }); return; }
-    // Moving a tab to another table
     if (UI.sheet && UI.sheet.type === 'move') { moveTab(UI.sheet.tabId, t); return; }
     const tab = tabForTable(tid);
     UI.sheet = { type: 'table', tableId: tid, tabId: tab ? tab.id : null };
@@ -575,16 +786,14 @@ function floorView() {
     } else body = LEGEND + mapHtml(UI.zoneId);
     let edit = '';
     if (UI.edit && canLayout()) {
-        const t = UI.sel ? tableById(UI.sel) : null;
-        edit = `<div class="rs-card" style="margin-top:10px"><div class="rs-row"><button class="rs-btn pri" data-act="addtable">+ Table</button><button class="rs-btn" data-act="addzone">+ Zone</button><button class="rs-btn" data-act="renamezone">Rename zone</button><span class="rs-muted">Drag tables to move them.</span></div>
-        ${t ? `<div class="rs-row" style="margin-top:10px">
-            <label>Name <input data-f="label" value="${esc(t.label)}" size="8"></label>
-            <label>Shape <select data-f="shape"><option value="square" ${t.shape === 'square' ? 'selected' : ''}>Square</option><option value="wide" ${t.shape === 'wide' ? 'selected' : ''}>Wide</option><option value="round" ${t.shape === 'round' ? 'selected' : ''}>Round</option></select></label>
-            <label>Seats <input data-f="seats" type="number" min="1" value="${t.seats || 4}" style="width:64px"></label>
-            <label>W <input data-f="width" type="number" min="40" step="10" value="${t.width}" style="width:70px"></label>
-            <label>H <input data-f="height" type="number" min="40" step="10" value="${t.height}" style="width:70px"></label>
-            <button class="rs-btn sm" data-act="rot">Rotate 90°</button><button class="rs-btn sm" data-act="dup">Duplicate</button><button class="rs-btn sm dan" data-act="deltable">Delete</button></div>` : '<div class="rs-muted" style="margin-top:8px">Tap a table to edit it.</div>'}
-        ${UI.undo ? `<div class="rs-row" style="margin-top:8px"><span>Deleted ${esc(UI.undo.label)}</span><button class="rs-btn sm" data-act="undo">Undo</button></div>` : ''}</div>`;
+        const u = UI.sel ? unitByKey(UI.zoneId, UI.sel) : null;
+        let sel;
+        if (!u) sel = '<div class="rs-muted" style="margin-top:8px">Tap a table to edit it.</div>';
+        else if (u.ms.length === 1) sel = `<div class="rs-row" style="margin-top:10px"><label>Name <input data-f="label" value="${esc(u.ms[0].label)}" size="8"></label><button class="rs-btn sm" data-act="dup">Duplicate</button><button class="rs-btn sm dan" data-act="deltable">Delete</button></div>`;
+        else sel = `<div class="rs-row" style="margin-top:10px"><b>${esc(u.label)}</b><span class="rs-muted">joined</span><button class="rs-btn sm" data-act="unjoin">Separate</button></div>`;
+        edit = `<div class="rs-card" style="margin-top:10px"><div class="rs-row"><button class="rs-btn pri" data-act="addtable">+ Table</button><button class="rs-btn" data-act="addzone">+ Zone</button><button class="rs-btn" data-act="renamezone">Rename zone</button></div>
+        <div class="rs-muted" style="margin-top:6px">Press and hold a table, feel the buzz, then drag it. Bring tables side by side to join them.</div>
+        ${sel}${UI.undo ? `<div class="rs-row" style="margin-top:8px"><span>Deleted ${esc(UI.undo.label)}</span><button class="rs-btn sm" data-act="undo">Undo</button></div>` : ''}</div>`;
     }
     return `${join}<div class="rs-row"><div class="rs-chips" style="margin:0;flex:1">${zoneChips()}</div>
         <button class="rs-btn sm" data-act="listtoggle">${UI.list ? 'Map' : 'List'}</button>
@@ -597,17 +806,16 @@ function floorView() {
 // ---------------------------------------------------------------
 // Bottom sheets: table picker, table / tab, bill, move, menu item
 // ---------------------------------------------------------------
-function sheetHtml() {
+function sheetInner() {
     const sh = UI.sheet;
     if (!sh) return '';
-    let inner = '';
-    if (sh.type === 'pick') inner = pickSheet();
-    else if (sh.type === 'table') inner = tableSheet();
-    else if (sh.type === 'bill') inner = billSheet();
-    else if (sh.type === 'move') inner = moveSheet();
-    else if (sh.type === 'menuedit') inner = menuEditSheet();
-    else if (sh.type === 'unit') inner = unitSheet();
-    return `<div class="rs-ov" data-act="closesheet"><div class="rs-sheet rs">${inner}</div></div>`;
+    if (sh.type === 'pick') return pickSheet();
+    if (sh.type === 'table') return tableSheet();
+    if (sh.type === 'bill') return billSheet();
+    if (sh.type === 'move') return moveSheet();
+    if (sh.type === 'menuedit') return menuEditSheet();
+    if (sh.type === 'unit') return unitSheet();
+    return '';
 }
 
 function statusWord(t) {
@@ -616,13 +824,11 @@ function statusWord(t) {
 }
 function pickChips() {
     const q = (UI.pickq || '').trim().toLowerCase();
-    const list = D.tables.filter(t => !q || t.label.toLowerCase().includes(q))
-        .sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }));
-    return list.map(t => `<button class="rs-chip" data-act="pick-table" data-id="${t.id}">${esc(t.label)} <span class="rs-muted">${statusWord(t)}</span></button>`).join('') || '<span class="rs-muted">No table matches.</span>';
+    return allUnits().filter(u => !q || u.label.toLowerCase().includes(q))
+        .map(u => `<button class="rs-chip" data-act="pick-table" data-id="${u.key}">${esc(u.label)} <span class="rs-muted">${statusWord(u.ms[0])}</span></button>`).join('') || '<span class="rs-muted">No table matches.</span>';
 }
 function pickSheet() {
-    const opts = D.tables.slice().sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }))
-        .map(t => `<option value="${t.id}">${esc(t.label)} (${statusWord(t)})</option>`).join('');
+    const opts = allUnits().map(u => `<option value="${u.key}">${esc(u.label)} (${statusWord(u.ms[0])})</option>`).join('');
     const total = UI.cart.reduce((s, c) => s + c.qty * c.price, 0);
     return `<h3>Which table? <span class="rs-muted">${fmt(total)}</span></h3>
         <input data-bind="pickq" value="${esc(UI.pickq || '')}" placeholder="Search table or number" style="width:100%">
@@ -715,7 +921,7 @@ function moveSheet() {
 function costCardHtml(d, price) {
     if (!canCosts()) return '';
     const c = d.lines.reduce((s, l) => s + (l.stock_item_id ? fifoCost(l.stock_item_id, Number(l.qty) || 0) : 0), 0)
-        || (d.link ? fifoCost(d.link, 1) : 0);
+        || (d.link && !d.lines.length ? fifoCost(d.link, 1) : 0);
     if (!(c > 0)) return '';
     return `<div class="rs-card" style="margin-top:8px;background:var(--bg)"><div class="rs-row"><span>Cost <b>${fmt(c)}</b></span><span>Profit <b>${fmt(price - c)}</b></span><span>Margin <b>${pct(price - c, price) || '-'}</b></span></div><div class="rs-muted">Per serving, oldest stock first (FIFO). New ingredients with no stock yet count as 0 until you purchase them.</div></div>`;
 }
@@ -726,29 +932,39 @@ function updateCostLine() {
 function menuEditSheet() {
     const sh = UI.sheet;
     const m = sh.id ? menuById(sh.id) : {};
-    if (!sh.draft) sh.draft = { f: null, lines: recipeLines(m.id || '').map(r => ({ stock_item_id: r.stock_item_id, name: invName(r.stock_item_id), qty: r.qty, newUnit: '' })), link: m.stock_item_id || '' };
+    if (!sh.draft) sh.draft = { f: null, lines: recipeLines(m.id || '').map(r => ({ stock_item_id: r.stock_item_id, name: invName(r.stock_item_id), qty: r.qty, newUnit: '' })), link: m.stock_item_id || '', linkName: m.stock_item_id ? invName(m.stock_item_id) : '', linkUnit: 'piece' };
     const d = sh.draft, f = d.f || {};
     const v = (k, def) => (f[k] !== undefined ? f[k] : def);
     const cats = [...new Set(D.menu.map(x => x.category || 'General'))].map(c => `<option value="${esc(c)}">`).join('');
     const stockOpts = sel => '<option value="">Choose stock item…</option>' + invItems().map(x => `<option value="${x.id}" ${x.id === sel ? 'selected' : ''}>${esc(x.desc)}</option>`).join('');
     let recipe = '';
+    const noPrep = !!v('no_prep', !!m.no_prep);
     if (UI.p2 && canMenu()) {
-        const rows = d.lines.map((l, k) => {
-            const isNew = !l.stock_item_id && String(l.name || '').trim();
-            return `<div class="rs-row" style="margin:4px 0">
-            <input data-bind="rcpname" data-i="${k}" list="rs-stock-list" placeholder="Search, or type a new ingredient" value="${esc(l.name || '')}" style="flex:1;min-width:120px">
-            <input data-bind="rcpqty" data-i="${k}" type="number" min="1" step="1" placeholder="Qty" value="${l.qty ?? ''}" style="width:70px">
-            ${l.stock_item_id ? `<span class="rs-muted" style="width:34px">${unitOf(l.stock_item_id)}</span>`
-                : isNew ? `<select data-act="rcp-newunit" data-i="${k}" style="width:92px"><option value="">Unit…</option><option value="ml" ${l.newUnit === 'ml' ? 'selected' : ''}>ml</option><option value="g" ${l.newUnit === 'g' ? 'selected' : ''}>g</option><option value="piece" ${l.newUnit === 'piece' ? 'selected' : ''}>pieces</option></select>` : '<span style="width:34px"></span>'}
-            <button class="rs-btn sm" data-act="rcp-del" data-i="${k}">✕</button></div>${isNew ? '<div class="rs-muted" style="margin:-2px 0 4px">New ingredient: it will be added to your inventory (category Ingredients).</div>' : ''}`;
-        }).join('');
-        const costLine = costCardHtml(d, parseFloat(v('price', m.price)) || 0);
-        recipe = `<div class="rs-card" style="margin-top:10px"><b>What one serving uses</b>
-            <div class="rs-muted">Whole numbers in the stock unit (ml, g or pieces). Stock is taken when the kitchen or bar taps Ready.</div>
-            <datalist id="rs-stock-list">${invItems().map(x => `<option value="${esc(x.desc)}">`).join('')}</datalist>
-            ${rows}<button class="rs-btn sm" data-act="rcp-add" style="margin-top:6px">+ Ingredient</button>
-            <div style="margin-top:10px"><div class="rs-muted">Or, for a bottled or packed item sold as it is (beer, soda): link it to one stock item, 1 for 1.</div>
-            <select data-act="rcp-link" style="width:100%;margin-top:4px">${stockOpts(d.link)}</select></div><div id="rs-costline">${costLine}</div></div>`;
+        const price = parseFloat(v('price', m.price)) || 0;
+        const list = `<datalist id="rs-stock-list">${invItems().map(x => `<option value="${esc(x.desc)}">`).join('')}</datalist>`;
+        if (noPrep) {
+            const isNewLink = !d.link && String(d.linkName || '').trim();
+            recipe = `<div class="rs-card" style="margin-top:10px"><b>Bottled or packed item sold as it is</b>
+                <div class="rs-muted">Link it to one stock item: each one sold takes 1 from stock. Leave empty if you do not track its stock.</div>${list}
+                <div class="rs-row" style="margin-top:6px"><input data-bind="linkname" list="rs-stock-list" placeholder="Search, or type a new item" value="${esc(d.linkName || '')}" style="flex:1;min-width:120px">
+                ${isNewLink ? `<select data-act="link-newunit" style="width:92px"><option value="piece" ${d.linkUnit === 'piece' ? 'selected' : ''}>pieces</option><option value="ml" ${d.linkUnit === 'ml' ? 'selected' : ''}>ml</option><option value="g" ${d.linkUnit === 'g' ? 'selected' : ''}>g</option></select>` : ''}</div>
+                ${isNewLink ? '<div class="rs-muted" style="margin-top:4px">New item: it will be added to your inventory (category Ingredients).</div>' : ''}
+                <div id="rs-costline">${costCardHtml(d, price)}</div></div>`;
+        } else {
+            const rows = d.lines.map((l, k) => {
+                const isNew = !l.stock_item_id && String(l.name || '').trim();
+                return `<div class="rs-row" style="margin:4px 0">
+                <input data-bind="rcpname" data-i="${k}" list="rs-stock-list" placeholder="Search, or type a new ingredient" value="${esc(l.name || '')}" style="flex:1;min-width:120px">
+                <input data-bind="rcpqty" data-i="${k}" type="number" min="1" step="1" placeholder="Qty" value="${l.qty ?? ''}" style="width:70px">
+                ${l.stock_item_id ? `<span class="rs-muted" style="width:34px">${unitOf(l.stock_item_id)}</span>`
+                    : isNew ? `<select data-act="rcp-newunit" data-i="${k}" style="width:92px"><option value="">Unit…</option><option value="ml" ${l.newUnit === 'ml' ? 'selected' : ''}>ml</option><option value="g" ${l.newUnit === 'g' ? 'selected' : ''}>g</option><option value="piece" ${l.newUnit === 'piece' ? 'selected' : ''}>pieces</option></select>` : '<span style="width:34px"></span>'}
+                <button class="rs-btn sm" data-act="rcp-del" data-i="${k}">✕</button></div>${isNew ? '<div class="rs-muted" style="margin:-2px 0 4px">New ingredient: it will be added to your inventory (category Ingredients).</div>' : ''}`;
+            }).join('');
+            recipe = `<div class="rs-card" style="margin-top:10px"><b>What one serving uses</b>
+                <div class="rs-muted">Whole numbers in the stock unit (ml, g or pieces). Stock is taken when the kitchen or bar taps Ready.</div>${list}
+                ${rows}<button class="rs-btn sm" data-act="rcp-add" style="margin-top:6px">+ Ingredient</button>
+                <div id="rs-costline">${costCardHtml(d, price)}</div></div>`;
+        }
     }
     return `<h3>${m.id ? 'Edit' : 'New'} menu item</h3>
         <div style="display:grid;gap:8px">
@@ -756,7 +972,7 @@ function menuEditSheet() {
         <input id="rs-m-cat" list="rs-cats" placeholder="Category (e.g. Cocktails)" value="${esc(v('category', m.category || ''))}"><datalist id="rs-cats">${cats}</datalist>
         <input id="rs-m-price" data-bind="mprice" type="number" min="0" step="0.01" placeholder="Price" value="${v('price', m.price ?? '')}">
         <select id="rs-m-station"><option value="kitchen" ${v('station', m.station) !== 'bar' ? 'selected' : ''}>Kitchen</option><option value="bar" ${v('station', m.station) === 'bar' ? 'selected' : ''}>Bar</option></select>
-        <label><input id="rs-m-noprep" type="checkbox" ${v('no_prep', !!m.no_prep) ? 'checked' : ''}> No preparation (bottled drink: skips the kitchen/bar screen)</label>
+        <label><input id="rs-m-noprep" data-act="mm-noprep" type="checkbox" ${v('no_prep', !!m.no_prep) ? 'checked' : ''}> No preparation (bottled drink: skips the kitchen/bar screen)</label>
         <label><input id="rs-m-fav" type="checkbox" ${v('favourite', !!m.favourite) ? 'checked' : ''}> Show first (popular)</label>
         <label><input id="rs-m-active" type="checkbox" ${v('active', m.id ? !!m.active : true) ? 'checked' : ''}> On the menu</label></div>
         ${recipe}
@@ -780,7 +996,7 @@ function unitSheet() {
     const info = [];
     if (lp) info.push(`Last purchase: ${lp.qty} × ${fmt(lp.cost)} each (${esc(lp.date || '')})`);
     if (size) info.push(`Next ${esc(u.pack_name || 'pack')} costs ${fmt(fifoCost(id, size))} (oldest stock first), ${fmt(fifoCost(id, 1))} per ${unit}`);
-    return `<h3>${esc(it.desc)}</h3>
+    return `<h3>${esc(it.desc)} <span class="rs-muted" style="font-size:13px;font-weight:400">${esc(it.category || '')}</span></h3>
         <div class="rs-muted" style="margin-bottom:8px">Stock is counted in the small unit (a 750 ml bottle is stock of 750). On the Purchase page you enter packs; the system converts them using the pack size below.</div>
         <div style="display:grid;gap:8px">
         <label>Measured in <select id="rs-u-base"><option value="ml" ${u.base_unit === 'ml' ? 'selected' : ''}>ml (liquids)</option><option value="g" ${u.base_unit === 'g' ? 'selected' : ''}>g (food by weight)</option><option value="piece" ${!u.base_unit || u.base_unit === 'piece' ? 'selected' : ''}>pieces</option></select></label>
@@ -791,30 +1007,6 @@ function unitSheet() {
         <div class="rs-row" style="margin-top:12px"><button class="rs-btn pri" data-act="unit-save">Save</button><button class="rs-btn" data-act="closesheet-btn">Cancel</button></div>`;
 }
 
-// Purchase page helper: show the conversion under the quantity box.
-function updatePurchaseHint(pre) {
-    const itemEl = document.getElementById(pre + '-item'), qtyEl = document.getElementById(pre + '-qty'), costEl = document.getElementById(pre + '-price');
-    if (!itemEl || !qtyEl) return;
-    let hint = document.getElementById('rs-hint-' + pre);
-    if (!hint) {
-        hint = document.createElement('div');
-        hint.id = 'rs-hint-' + pre;
-        hint.style.cssText = 'font-size:12px;color:var(--text-light);margin-top:4px';
-        qtyEl.parentElement.appendChild(hint);
-    }
-    const it = (S().inventory || []).find(i => `[${i.category}] ${i.desc}` === itemEl.value);
-    const u = it && D.units.find(x => x.stock_item_id === it.id);
-    if (!u || !(Number(u.pack_size) > 0)) { hint.textContent = ''; return; }
-    const q = parseFloat(qtyEl.value) || 0, c = costEl ? parseFloat(String(costEl.value).replace(/,/g, '')) : NaN, unit = unitText(u.base_unit);
-    hint.textContent = `Enter ${u.pack_name ? u.pack_name + 's' : 'packs'}. ${q} × ${u.pack_size} = ${Math.round(q * u.pack_size)} ${unit} into stock` + (c > 0 ? `. Cost per ${unit}: ${(c / u.pack_size).toFixed(4)}` : '') + '.';
-}
-function wirePurchaseHints() {
-    if (window.__restHints) return;
-    window.__restHints = true;
-    const h = e => { const id = e.target && e.target.id; if (['pur-item', 'pur-qty', 'pur-price'].includes(id)) updatePurchaseHint('pur'); else if (['cart-pur-item', 'cart-pur-qty', 'cart-pur-price'].includes(id)) updatePurchaseHint('cart-pur'); };
-    document.addEventListener('input', h);
-    document.addEventListener('change', h);
-}
 async function loadUnitsQuiet() {
     try { const r = await sb().from('rest_stock_units').select('*').eq('tenant_id', ctx.tenantId); if (!r.error) D.units = r.data; } catch (e) { }
 }
@@ -908,7 +1100,7 @@ function manageView() {
     if (canMenu() && UI.p2) {
         const q = (UI.unitq || '').trim().toLowerCase();
         const list = invItems().filter(x => !q || String(x.desc).toLowerCase().includes(q)).slice(0, 40);
-        const rows = list.map(x => { const u = unitRow(x.id); return `<tr data-act="unit-edit" data-id="${x.id}" style="cursor:pointer"><td><b>${esc(x.desc)}</b></td><td>${u ? unitText(u.base_unit) : '<span class="rs-muted">not set</span>'}</td><td>${u && u.pack_size ? esc(u.pack_name || 'pack') + ' = ' + u.pack_size : ''}</td><td style="text-align:right">${u && u.pack_size ? fmt(fifoCost(x.id, Number(u.pack_size))) : (fifoCost(x.id, 1) ? fmt(fifoCost(x.id, 1)) + ' / ' + (u ? unitText(u.base_unit) : 'unit') : '')}</td></tr>`; }).join('');
+        const rows = list.map(x => { const u = unitRow(x.id); return `<tr data-act="unit-edit" data-id="${x.id}" style="cursor:pointer"><td><b>${esc(x.desc)}</b><div class="rs-muted">${esc(x.category || '')}</div></td><td>${u ? unitText(u.base_unit) : '<span class="rs-muted">not set</span>'}</td><td>${u && u.pack_size ? esc(u.pack_name || 'pack') + ' = ' + u.pack_size : ''}</td><td style="text-align:right">${u && u.pack_size ? fmt(fifoCost(x.id, Number(u.pack_size))) : (fifoCost(x.id, 1) ? fmt(fifoCost(x.id, 1)) + ' / ' + (u ? unitText(u.base_unit) : 'unit') : '')}</td></tr>`; }).join('');
         html += `<div class="rs-card" style="margin-bottom:12px"><div class="rs-row"><b>Ingredient units</b><span class="rs-sp"></span><input data-bind="unitq" value="${esc(UI.unitq || '')}" placeholder="Search stock" style="max-width:180px"></div>
             <div class="rs-muted" style="margin:4px 0 6px">How each ingredient is measured (ml, g or pieces) and how big a pack is. The last column is the cost of the next pack from your stock, oldest first, taken from purchases.</div>
             <div id="rs-unitlist">${rows ? `<table class="rs-tbl">${rows}</table>` : '<span class="rs-muted">No stock items yet. Add them on the Purchase page first.</span>'}</div></div>`;
@@ -930,12 +1122,15 @@ const nextLabel = () => {
 };
 async function addTable(temp) {
     if (!UI.zoneId) { toast('Add a zone first.', true); return; }
-    const v = getVb(UI.zoneId);
+    const svg = root.querySelector ? root.querySelector('svg.rs-map') : null, cam = getCam(UI.zoneId);
+    const W = (svg && svg.clientWidth) || 360, H = (svg && svg.clientHeight) || 420;
+    let x = Math.round(((W / 2 - cam.x) / cam.s - DIAM / 2) / 10) * 10, y = Math.round(((H / 2 - cam.y) / cam.s - DIAM / 2) / 10) * 10;
+    const us = layoutUnits(UI.zoneId);
+    for (let k = 0; k < 60 && us.some(u => x < u.x1 + 10 && x + DIAM > u.x0 - 10 && y < u.y1 + 10 && y + DIAM > u.y0 - 10); k++) { x += 100; if (k % 6 === 5) { x -= 600; y += 100; } }
     const n = D.tables.filter(t => t.is_temporary).length + 1;
     const row = { id: uid(), tenant_id: ctx.tenantId, branch_id: branch(), zone_id: UI.zoneId,
-        label: temp ? 'Temp ' + n : nextLabel(), shape: 'square',
-        x: Math.round((v.x + v.w / 2 - 40) / 10) * 10, y: Math.round((v.y + v.h / 2 - 40) / 10) * 10,
-        width: 80, height: 80, rotation: 0, seats: 4, is_temporary: !!temp, active: true };
+        label: temp ? 'Temp ' + n : nextLabel(), shape: 'round', x, y, width: DIAM, height: DIAM, rotation: 0, seats: 4, is_temporary: !!temp, active: true };
+    if (UI.joinCol) row.join_group = null;
     await db(sb().from('rest_tables').insert(row));
     await load(); UI.sel = row.id; return row;
 }
@@ -947,6 +1142,11 @@ async function patchTable(id, patch) {
 async function sendCart(target) {
     if (!UI.cart.length || UI.sending) return;
     UI.sending = true;
+    // Instant feedback: the screen clears at once; if saving fails the order comes back.
+    const cartCopy = UI.cart.slice(), pt = UI.pickTarget;
+    UI.cart = []; UI.pickTarget = null; UI.sheet = null; UI.pickq = '';
+    render();
+    toast('Sending…');
     let created = null;
     try {
         let tab = null;
@@ -954,11 +1154,11 @@ async function sendCart(target) {
         else if (target.tableId) {
             tab = tabForTable(target.tableId);
             if (!tab) {
-                const t = tableById(target.tableId);
-                tab = { id: uid(), tenant_id: ctx.tenantId, branch_id: branch(), label: t.label, status: 'open', opened_by: username() };
+                const ms = membersOf(target.tableId);
+                tab = { id: uid(), tenant_id: ctx.tenantId, branch_id: branch(), label: unitLabelOf(ms), status: 'open', opened_by: username() };
                 await db(sb().from('rest_tabs').insert(tab));
                 created = tab;
-                await db(sb().from('rest_tab_tables').insert({ tab_id: tab.id, table_id: t.id, tenant_id: ctx.tenantId }));
+                await db(sb().from('rest_tab_tables').insert(ms.map(m => ({ tab_id: tab.id, table_id: m.id, tenant_id: ctx.tenantId }))));
             }
         } else if (target.quick) {
             const name = target.quick.trim();
@@ -969,8 +1169,8 @@ async function sendCart(target) {
                 created = tab;
             }
         }
-        if (!tab) { toast('Pick a table.', true); return; }
-        const rows = UI.cart.map(c => ({ id: uid(), tenant_id: ctx.tenantId, tab_id: tab.id, menu_item_id: c.id, name: c.name,
+        if (!tab) throw new Error('no table');
+        const rows = cartCopy.map(c => ({ id: uid(), tenant_id: ctx.tenantId, tab_id: tab.id, menu_item_id: c.id, name: c.name,
             qty: c.qty, unit_price: c.price, note: c.note || null, station: c.station, status: c.no_prep ? 'served' : 'new', added_by: username() }));
         await db(sb().from('rest_tab_items').insert(rows));
         if (UI.p2) {
@@ -980,21 +1180,25 @@ async function sendCart(target) {
                 catch (e) { toast('Order sent, but stock was not updated for the drinks. Tell a manager.', true); }
             }
         }
-        const where = tabLabelSafe(tab, target);
-        UI.cart = []; UI.pickTarget = null; UI.sheet = null; UI.pickq = '';
-        toast('Sent to ' + where);
+        toast('Sent to ' + tabLabelSafe(tab, target));
         await load(); render();
     } catch (e) {
         if (created) { try { await sb().from('rest_tabs').delete().eq('id', created.id); } catch (x) { } }
+        UI.cart = cartCopy; UI.pickTarget = pt;
         render();
     } finally { UI.sending = false; }
 }
 function tabLabelSafe(tab, target) {
-    if (target.tableId) { const t = tableById(target.tableId); if (t) return t.label; }
+    if (target.tableId) { const ms = membersOf(target.tableId); if (ms.length) return unitLabelOf(ms); }
     return tab.label || 'tab';
 }
 
+function snapItems() { return D.items.map(i => ({ ...i })); }
 async function markReady(ids) {
+    if (!ids.length) return;
+    const snap = snapItems();
+    D.items.forEach(i => { if (ids.includes(i.id) && i.status === 'new') { i.status = 'ready'; i.ready_by = username(); } });
+    render();
     try {
         if (UI.p2) {
             // Status change and stock deduction happen together on the server, once per item.
@@ -1002,8 +1206,8 @@ async function markReady(ids) {
         } else {
             await db(sb().from('rest_tab_items').update({ status: 'ready', ready_at: new Date().toISOString(), ready_by: username() }).in('id', ids).eq('status', 'new'));
         }
-        await load(); render();
-    } catch (e) { }
+        scheduleLoad();
+    } catch (e) { D.items = snap; await load(); render(); }
 }
 
 async function voidItem(id) {
@@ -1015,10 +1219,13 @@ async function voidItem(id) {
         reason = (prompt('Why is this being voided? (required)') || '').trim();
         if (!reason) return;
     } else if (!confirm('Remove ' + it.name + '?')) return;
+    const snap = snapItems();
+    it.status = 'void'; it.voided_by = username(); it.void_reason = reason;
+    render();
     try {
         await db(sb().from('rest_tab_items').update({ status: 'void', voided_by: username(), void_reason: reason }).eq('id', id).neq('status', 'void'));
-        await load(); render();
-    } catch (e) { }
+        scheduleLoad();
+    } catch (e) { D.items = snap; await load(); render(); }
 }
 
 async function relabel(tabId) {
@@ -1029,13 +1236,14 @@ async function relabel(tabId) {
 }
 
 async function moveTab(tabId, table) {
-    if (tabForTable(table.id)) { toast(table.label + ' already has a tab.', true); return; }
+    const ms = membersOf(table.id);
+    if (ms.some(m => tabForTable(m.id))) { toast(unitLabelOf(ms) + ' already has a tab.', true); return; }
     try {
-        await db(sb().from('rest_tab_tables').insert({ tab_id: tabId, table_id: table.id, tenant_id: ctx.tenantId }));
-        const old = tablesOfTab(tabId).filter(t => t.id !== table.id).map(t => t.id);
+        await db(sb().from('rest_tab_tables').insert(ms.map(m => ({ tab_id: tabId, table_id: m.id, tenant_id: ctx.tenantId }))));
+        const old = tablesOfTab(tabId).filter(t => !ms.some(m => m.id === t.id)).map(t => t.id);
         if (old.length) await db(sb().from('rest_tab_tables').delete().eq('tab_id', tabId).in('table_id', old));
-        await db(sb().from('rest_tabs').update({ label: table.label }).eq('id', tabId));
-        UI.sheet = null; await load(); render(); toast('Moved to ' + table.label);
+        await db(sb().from('rest_tabs').update({ label: unitLabelOf(ms) }).eq('id', tabId));
+        UI.sheet = null; await load(); render(); toast('Moved to ' + unitLabelOf(ms));
     } catch (e) { }
 }
 
@@ -1046,7 +1254,8 @@ async function joinTap(t) {
     const other = tabForTable(t.id);
     try {
         if (!other) {
-            await db(sb().from('rest_tab_tables').insert({ tab_id: main.id, table_id: t.id, tenant_id: ctx.tenantId }));
+            const have = new Set(tablesOfTab(main.id).map(x => x.id));
+            await db(sb().from('rest_tab_tables').insert(membersOf(t.id).filter(m => !have.has(m.id)).map(m => ({ tab_id: main.id, table_id: m.id, tenant_id: ctx.tenantId }))));
         } else {
             // Items keep who ordered them and their kitchen status, so nothing is re-sent.
             await db(sb().from('rest_tab_items').update({ tab_id: main.id }).eq('tab_id', other.id));
@@ -1142,9 +1351,9 @@ const ACT = {
     pickmap: () => { UI.pickMap = !UI.pickMap; render(); },
     closesheet: (el, e) => { if (e.target === el) { UI.sheet = null; render(); } },
     'closesheet-btn': () => { UI.sheet = null; render(); },
-    zone: el => { UI.zoneId = el.dataset.id; UI.vb = null; render(); },
+    zone: el => { UI.zoneId = el.dataset.id; UI.cam = null; UI.camZone = null; render(); },
     listtoggle: () => { UI.list = !UI.list; render(); },
-    fit: () => { UI.vb = fitBox(UI.zoneId); UI.vbZone = UI.zoneId; saveVb(); render(); },
+    fit: () => { try { localStorage.removeItem(`rs_cam_${ctx.tenantId}_${UI.zoneId}`); } catch (e) { } UI.cam = null; UI.camZone = null; render(); },
     edittoggle: () => { UI.edit = !UI.edit; UI.sel = null; render(); },
     goedit: () => { UI.view = 'floor'; UI.edit = true; render(); },
     'tab-open': el => { UI.sheet = { type: 'table', tabId: el.dataset.id }; render(); },
@@ -1165,9 +1374,22 @@ const ACT = {
     },
     startorder: el => { UI.pickTarget = { tableId: el.dataset.id }; UI.view = 'order'; UI.sheet = null; render(); },
     addmore: el => { UI.pickTarget = { tabId: el.dataset.id }; UI.view = 'order'; UI.sheet = null; render(); },
-    serve: async el => { try { await db(sb().from('rest_tab_items').update(D.items.some(i => 'served_by' in i) ? { status: 'served', served_by: username() } : { status: 'served' }).eq('id', el.dataset.id).eq('status', 'ready')); await load(); render(); } catch (e) { } },
+    serve: async el => {
+        const it = D.items.find(i => i.id === el.dataset.id); if (!it) return;
+        const withWho = D.items.some(i => 'served_by' in i), snap = snapItems();
+        it.status = 'served'; if (withWho) it.served_by = username();
+        render();
+        try { await db(sb().from('rest_tab_items').update(withWho ? { status: 'served', served_by: username() } : { status: 'served' }).eq('id', it.id).eq('status', 'ready')); scheduleLoad(); }
+        catch (e) { D.items = snap; await load(); render(); }
+    },
     void: el => voidItem(el.dataset.id),
-    reqbill: async el => { const t = tabById(el.dataset.id); try { await db(sb().from('rest_tabs').update({ bill_requested: !t.bill_requested }).eq('id', t.id)); await load(); render(); } catch (e) { } },
+    reqbill: async el => {
+        const tb = tabById(el.dataset.id); if (!tb) return;
+        const was = !!tb.bill_requested;
+        tb.bill_requested = !was; render();
+        try { await db(sb().from('rest_tabs').update({ bill_requested: !was }).eq('id', tb.id)); scheduleLoad(); }
+        catch (e) { tb.bill_requested = was; await load(); render(); }
+    },
     closeempty: async el => { try { await db(sb().from('rest_tabs').update({ status: 'closed', closed_at: new Date().toISOString() }).eq('id', el.dataset.id)); UI.sheet = null; await load(); render(); } catch (e) { } },
     move: el => { UI.sheet = { type: 'move', tabId: el.dataset.id }; render(); },
     join: el => { UI.join = { tabId: el.dataset.id }; UI.sheet = null; UI.view = 'floor'; UI.list = false; render(); },
@@ -1198,7 +1420,7 @@ const ACT = {
         const n = (prompt('Zone name (e.g. Main hall, Terrace)') || '').trim(); if (!n) return;
         try {
             const z = { id: uid(), tenant_id: ctx.tenantId, branch_id: branch(), name: n, sort: D.zones.length, active: true };
-            await db(sb().from('rest_zones').insert(z)); await load(); UI.zoneId = z.id; UI.vb = null; render();
+            await db(sb().from('rest_zones').insert(z)); await load(); UI.zoneId = z.id; UI.cam = null; UI.camZone = null; render();
         } catch (e) { }
     },
     renamezone: async () => {
@@ -1212,18 +1434,22 @@ const ACT = {
         const zoneId = el.dataset.id, cols = Math.ceil(Math.sqrt(n));
         const start = D.tables.filter(t => !t.is_temporary).length;
         const rows = Array.from({ length: n }, (_, i) => ({ id: uid(), tenant_id: ctx.tenantId, branch_id: branch(), zone_id: zoneId,
-            label: 'T' + (start + i + 1), shape: 'square', x: (i % cols) * 110, y: Math.floor(i / cols) * 110, width: 80, height: 80, rotation: 0, seats: 4, is_temporary: false, active: true }));
-        try { await db(sb().from('rest_tables').insert(rows)); await load(); UI.zoneId = zoneId; UI.vb = null; UI.view = 'floor'; UI.edit = true; render(); } catch (e) { }
+            label: 'T' + (start + i + 1), shape: 'round', x: (i % cols) * 100, y: Math.floor(i / cols) * 100, width: DIAM, height: DIAM, rotation: 0, seats: 4, is_temporary: false, active: true, ...(UI.joinCol ? { join_group: null } : {}) }));
+        try { await db(sb().from('rest_tables').insert(rows)); await load(); UI.zoneId = zoneId; UI.cam = null; UI.camZone = null; UI.view = 'floor'; UI.edit = true; render(); } catch (e) { }
     },
-    rot: async () => { const t = tableById(UI.sel); if (!t) return; try { await patchTable(t.id, { rotation: ((t.rotation || 0) + 90) % 360 }); render(); } catch (e) { } },
     dup: async () => {
-        const t = tableById(UI.sel); if (!t) return;
-        const row = { ...t, id: uid(), label: nextLabel(), x: t.x + 20, y: t.y + 20, created_at: undefined };
-        delete row.created_at;
+        const t0 = tableById(UI.sel); if (!t0) return;
+        const row = { ...t0, id: uid(), label: nextLabel(), x: t0.x + 100, y: t0.y, join_group: UI.joinCol ? null : undefined };
+        delete row.created_at; if (!UI.joinCol) delete row.join_group;
         try { await db(sb().from('rest_tables').insert(row)); await load(); UI.sel = row.id; render(); } catch (e) { }
+    },
+    unjoin: async () => {
+        const u = unitByKey(UI.zoneId, UI.sel); if (!u || u.ms.length < 2) return;
+        try { await db(sb().from('rest_tables').update({ join_group: null }).in('id', u.ms.map(m => m.id))); u.ms.forEach(m => { m.join_group = null; }); UI.sel = null; toast('Separated'); render(); } catch (e) { }
     },
     deltable: async () => {
         const t = tableById(UI.sel); if (!t) return;
+        if (t.join_group) { toast('Separate this table first, then delete it.', true); return; }
         if (tabForTable(t.id)) { toast(t.label + ' has an open tab. Close it first.', true); return; }
         try {
             await patchTable(t.id, { active: false });
@@ -1246,7 +1472,8 @@ const ACT = {
     'rcp-add': () => { captureMenuForm(); UI.sheet.draft.lines.push({ stock_item_id: '', name: '', qty: '', newUnit: '' }); render(); },
     'rcp-del': el => { captureMenuForm(); UI.sheet.draft.lines.splice(+el.dataset.i, 1); render(); },
     'rcp-newunit': el => { UI.sheet.draft.lines[+el.dataset.i].newUnit = el.value; },
-    'rcp-link': el => { captureMenuForm(); UI.sheet.draft.link = el.value; render(); },
+    'link-newunit': el => { UI.sheet.draft.linkUnit = el.value; },
+    'mm-noprep': () => { captureMenuForm(); render(); },
     'mm-new': () => { UI.sheet = { type: 'menuedit' }; render(); },
     'mm-edit': el => { UI.sheet = { type: 'menuedit', id: el.dataset.id }; render(); },
     'mm-save': async () => {
@@ -1255,17 +1482,21 @@ const ACT = {
         if (!name || isNaN(price) || price < 0) { toast('Enter a name and a price.', true); return; }
         const row = { tenant_id: ctx.tenantId, name, category: g('rs-m-cat').value.trim() || 'General', price, station: g('rs-m-station').value,
             no_prep: g('rs-m-noprep').checked, favourite: g('rs-m-fav').checked, active: g('rs-m-active').checked };
-        let lines = [], link = null;
+        let lines = [], link = null, newLinkName = '';
         if (UI.p2 && canMenu() && UI.sheet.draft) {
-            lines = UI.sheet.draft.lines.filter(l => l.stock_item_id || String(l.name || '').trim() || l.qty);
-            lines.forEach(l => { l.stock_item_id = matchStock(l.name) || l.stock_item_id || ''; });
-            if (lines.some(l => (!l.stock_item_id && !String(l.name || '').trim()) || !(Number(l.qty) >= 1) || !Number.isInteger(Number(l.qty)))) { toast('Each ingredient needs a name and a whole quantity of at least 1.', true); return; }
-            if (lines.some(l => !l.stock_item_id && !l.newUnit)) { toast('Choose a unit (ml, g or pieces) for each new ingredient.', true); return; }
-            const keys = lines.map(l => l.stock_item_id || 'new:' + String(l.name).trim().toLowerCase());
-            if (new Set(keys).size !== lines.length) { toast('The same ingredient is listed twice.', true); return; }
-            link = UI.sheet.draft.link || null;
-            if (link && lines.length) { toast('Use either a recipe or a stock link, not both.', true); return; }
-            row.stock_item_id = link; row.uses_stock = lines.length > 0 || !!link;
+            const dd = UI.sheet.draft;
+            if (row.no_prep) {
+                link = matchStock(dd.linkName) || null;
+                if (!link && String(dd.linkName || '').trim()) newLinkName = dd.linkName.trim();
+            } else {
+                lines = dd.lines.filter(l => l.stock_item_id || String(l.name || '').trim() || l.qty);
+                lines.forEach(l => { l.stock_item_id = matchStock(l.name) || l.stock_item_id || ''; });
+                if (lines.some(l => (!l.stock_item_id && !String(l.name || '').trim()) || !(Number(l.qty) >= 1) || !Number.isInteger(Number(l.qty)))) { toast('Each ingredient needs a name and a whole quantity of at least 1.', true); return; }
+                if (lines.some(l => !l.stock_item_id && !l.newUnit)) { toast('Choose a unit (ml, g or pieces) for each new ingredient.', true); return; }
+                const keys = lines.map(l => l.stock_item_id || 'new:' + String(l.name).trim().toLowerCase());
+                if (new Set(keys).size !== lines.length) { toast('The same ingredient is listed twice.', true); return; }
+            }
+            row.stock_item_id = link; row.uses_stock = lines.length > 0 || !!link || !!newLinkName;
         }
         try {
             // Register typed-in ingredients in the inventory, with their unit
@@ -1273,6 +1504,11 @@ const ACT = {
                 const created = createIngredient(l.name);
                 l.stock_item_id = created.id;
                 await db(sb().from('rest_stock_units').upsert({ stock_item_id: created.id, tenant_id: ctx.tenantId, base_unit: l.newUnit }, { onConflict: 'stock_item_id' }));
+            }
+            if (newLinkName) {
+                const created = createIngredient(newLinkName);
+                row.stock_item_id = created.id;
+                await db(sb().from('rest_stock_units').upsert({ stock_item_id: created.id, tenant_id: ctx.tenantId, base_unit: UI.sheet.draft.linkUnit || 'piece' }, { onConflict: 'stock_item_id' }));
             }
             const id = UI.sheet.id || uid();
             if (UI.sheet.id) await db(sb().from('rest_menu_items').update(row).eq('id', id));
@@ -1295,14 +1531,19 @@ function wireEvents() {
         if (el.tagName === 'SELECT' || (el.tagName === 'INPUT' && el.type !== 'checkbox')) return; // those use 'change'
         if (el.tagName === 'INPUT') return; // checkbox uses change
         const fn = ACT[el.dataset.act];
-        if (fn) fn(el, e);
+        if (!fn) return;
+        const r = fn(el, e);
+        if (r && typeof r.finally === 'function' && el.classList && el.classList.contains('rs-btn')) {
+            el.classList.add('busy');
+            r.finally(() => el.classList.remove('busy'));
+        }
     });
     root.addEventListener('change', e => {
         const el = e.target;
         if (el.dataset && el.dataset.act && (el.tagName === 'SELECT' || el.type === 'checkbox')) { const fn = ACT[el.dataset.act]; if (fn) fn(el, e); return; }
         if (el.dataset && el.dataset.f) { editField(el); return; }
         if (el.dataset && el.dataset.bind === 'chan') { UI.bill.chan = el.value; }
-        if (el.dataset && el.dataset.bind === 'rcpname') { captureMenuForm(); render(); }
+        if (el.dataset && (el.dataset.bind === 'rcpname' || el.dataset.bind === 'linkname')) { captureMenuForm(); render(); }
         if (UI.dirty) { /* a refresh was held back while typing */ }
     });
     root.addEventListener('input', e => {
@@ -1313,6 +1554,7 @@ function wireEvents() {
         else if (b === 'svc') { UI.bill.svc = el.value; updateBillTotals(); }
         else if (b === 'rcpqty') { UI.sheet.draft.lines[+el.dataset.i].qty = el.value; updateCostLine(); }
         else if (b === 'mprice') updateCostLine();
+        else if (b === 'linkname') { const d = UI.sheet.draft; d.linkName = el.value; d.link = matchStock(el.value); updateCostLine(); }
         else if (b === 'rcpname') { const l = UI.sheet.draft.lines[+el.dataset.i]; l.name = el.value; l.stock_item_id = matchStock(el.value); }
         else if (b === 'unitq') { UI.unitq = el.value; render(); const n = root.querySelector('[data-bind="unitq"]'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }
     });
@@ -1345,7 +1587,6 @@ export function init(c) {
     ctx = c;
     // Pack sizes are needed by the Purchase page before the Restaurant page is ever opened.
     window.restaurantPackSize = id => { const u = D.units.find(x => x.stock_item_id === id); return u && Number(u.pack_size) > 0 ? Number(u.pack_size) : 0; };
-    wirePurchaseHints();
     loadUnitsQuiet();
 }
 export function refresh(c) { if (c) ctx = c; }
