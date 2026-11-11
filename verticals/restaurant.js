@@ -8,7 +8,8 @@
 //          marked Ready (server function), real cost of goods on each bill,
 //          recipe cost / margin and sales reports. Switches on by itself
 //          once restaurant-phase2.sql has been run.
-// Not yet: counts, variance and waste log (Phase 3).
+// Phase 3: stock counts (open bottles in tenths), variance report, waste log,
+//          voids after Ready logged as waste. Switches on once restaurant-phase3.sql has run.
 //
 // ONLINE ONLY (decision for this version): every read and write goes
 // straight to Supabase. There is no offline queue here. If the phone has
@@ -154,7 +155,7 @@ const D = { zones: [], tables: [], menu: [], tabs: [], tabTables: [], items: [],
 const UI = {
     view: null, zoneId: null, cat: 'All', q: '', cart: [], pickTarget: null,
     sheet: null, edit: false, sel: null, list: false, join: null, station: 'kitchen',
-    vb: null, error: null, chan: null, seenNew: null, undo: null, dirty: false, booted: false, loadedOnce: false
+    vb: null, error: null, count: { loc: 'Bar', q: '', vals: {} }, counts: [], waste: [], varSel: { open: '', close: '' }, variance: null, chan: null, seenNew: null, undo: null, dirty: false, booted: false, loadedOnce: false
 };
 
 async function load() {
@@ -171,6 +172,7 @@ async function load() {
     if (bad) { UI.error = bad.error.message || 'Could not load.'; return; }
     UI.error = null;
     if (UI.joinCol === undefined) { const pr = await sb().from('rest_tables').select('join_group').limit(1); UI.joinCol = !pr.error; }
+    if (!UI.p3) { const pr3 = await sb().from('rest_waste_log').select('id').limit(1); UI.p3 = !pr3.error; }
     // Phase 2 tables are optional: if they are not there yet, Phase 2 stays off.
     const [rc, un] = await Promise.all([q('rest_recipe_lines'), q('rest_stock_units')]);
     UI.p2 = !(rc.error || un.error);
@@ -257,6 +259,9 @@ const canLayout = () => perm('restaurant.manage_tables');
 const canJoin = () => perm('restaurant.join_tables') || canLayout();
 const canVoidSent = () => perm('restaurant.void_sent');
 const canCosts = () => perm('restaurant.view_costs');
+const canCount = () => perm('restaurant.stock_count');
+const canWaste = () => perm('restaurant.waste_log');
+const REASONS = { spilled_broken: 'Spilled / broken', expired: 'Expired', over_pour: 'Over-pour', free_drink: 'Free drink for a customer', staff_drink: 'Staff drink', void_after_ready: 'Void after Ready' };
 
 // Phase 2 helpers
 const unitText = u => ({ ml: 'ml', g: 'g', piece: 'pcs' }[u] || 'units');
@@ -325,6 +330,7 @@ function availableViews() {
     const v = [];
     if (canOrder()) { v.push(['order', 'Menu']); v.push(['floor', 'Tables']); }
     if (canKitchen()) v.push(['kitchen', 'Kitchen / Bar']);
+    if (UI.p3 && (canCount() || canWaste())) v.push(['stock', 'Stock']);
     if (canCosts() && UI.p2) v.push(['reports', 'Reports']);
     if (canMenu() || canLayout()) v.push(['manage', 'Manage']);
     return v;
@@ -372,7 +378,7 @@ function pageHtml() {
     if (!views.length) return '<div class="rs"><div class="rs-card">Your role does not have restaurant access. Ask the owner to turn it on under Roles.</div></div>';
     if (!UI.view || !views.some(v => v[0] === UI.view)) UI.view = views[0][0];
     if (!UI.zoneId || !D.zones.some(z => z.id === UI.zoneId)) UI.zoneId = D.zones[0]?.id || null;
-    const body = UI.view === 'order' ? orderView() : UI.view === 'floor' ? floorView() : UI.view === 'kitchen' ? kitchenView() : UI.view === 'reports' ? reportView() : manageView();
+    const body = UI.view === 'order' ? orderView() : UI.view === 'floor' ? floorView() : UI.view === 'kitchen' ? kitchenView() : UI.view === 'stock' ? stockView() : UI.view === 'reports' ? reportView() : manageView();
     const nav = views.map(([k, l]) => `<button class="rs-tab ${UI.view === k ? 'on' : ''}" data-act="view" data-v="${k}">${l}${k === 'order' && UI.cart.length ? ` (${UI.cart.reduce((s, c) => s + c.qty, 0)})` : ''}</button>`).join('');
     const off = navigator.onLine ? '' : '<div class="rs-offline">No connection. Orders cannot be sent until the internet is back.</div>';
     return `<div class="rs"><div class="rs-bar">${nav}</div>${off}${body}</div>`;
@@ -815,6 +821,7 @@ function sheetInner() {
     if (sh.type === 'move') return moveSheet();
     if (sh.type === 'menuedit') return menuEditSheet();
     if (sh.type === 'unit') return unitSheet();
+    if (sh.type === 'waste') return wasteSheet();
     return '';
 }
 
@@ -1033,8 +1040,143 @@ function kitchenView() {
 }
 
 // ---------------------------------------------------------------
+// Stock: counts (open bottles in tenths) and waste log
+// ---------------------------------------------------------------
+const trackedItems = () => invItems().filter(i => unitRow(i.id));
+function countQty(id) {
+    const v = UI.count.vals[id] || {}, u = unitRow(id) || {}, size = Number(u.pack_size) || 0;
+    const has = x => x !== undefined && x !== '' && !isNaN(Number(x));
+    if (size) {
+        if (!has(v.packs) && !has(v.tenths)) return null;
+        return round2((has(v.packs) ? Number(v.packs) : 0) * size + (has(v.tenths) ? Math.min(10, Number(v.tenths)) : 0) / 10 * size);
+    }
+    return has(v.qty) ? Number(v.qty) : null;
+}
+function countRows() {
+    const q = (UI.count.q || '').trim().toLowerCase();
+    const list = trackedItems().filter(i => !q || String(i.desc).toLowerCase().includes(q)).slice(0, 80);
+    if (!list.length) return '<div class="rs-muted">No ingredients with a unit yet. Set units in Manage, Ingredient units.</div>';
+    return list.map(i => {
+        const u = unitRow(i.id), size = Number(u.pack_size) || 0, v = UI.count.vals[i.id] || {}, cq = countQty(i.id);
+        const inputs = size
+            ? `<input data-bind="cpacks" data-id="${i.id}" type="number" min="0" step="1" placeholder="Full ${esc(u.pack_name || 'packs')}" value="${v.packs ?? ''}" style="width:96px"><input data-bind="ctenths" data-id="${i.id}" type="number" min="0" max="10" step="1" placeholder="Open /10" value="${v.tenths ?? ''}" style="width:84px">`
+            : `<input data-bind="cqty" data-id="${i.id}" type="number" min="0" step="1" placeholder="${unitText(u.base_unit)}" value="${v.qty ?? ''}" style="width:110px">`;
+        return `<div class="rs-line"><div class="n"><b>${esc(i.desc)}</b><div class="rs-muted">${esc(i.category || '')}</div></div>${inputs}<span class="rs-muted" id="rs-ct-${i.id}" style="min-width:70px;text-align:right">${cq === null ? '' : '= ' + cq + ' ' + unitText(u.base_unit)}</span></div>`;
+    }).join('');
+}
+function stockView() {
+    let html = '';
+    if (canCount()) {
+        const locs = [...new Set(['Bar', 'Store room', ...UI.counts.map(c => c.location)])].map(l => `<option value="${esc(l)}">`).join('');
+        html += `<div class="rs-card" style="margin-bottom:12px"><b>Stock count</b>
+            <div class="rs-muted" style="margin:4px 0 8px">Count what is physically there. For an open bottle, enter its level in tenths (0 empty, 5 half, 10 full). Count first thing, before deliveries arrive.</div>
+            <div class="rs-row"><label>Location <input data-bind="cloc" list="rs-locs" value="${esc(UI.count.loc)}" style="width:150px"></label><datalist id="rs-locs">${locs}</datalist>
+            <input data-bind="cq" value="${esc(UI.count.q)}" placeholder="Search item" style="flex:1;min-width:120px"></div>
+            <div id="rs-countlist" style="margin-top:8px">${countRows()}</div>
+            <div class="rs-row" style="margin-top:10px"><button class="rs-btn pri" data-act="count-save">Save count</button></div></div>`;
+    }
+    if (canWaste()) {
+        const rows = UI.waste.slice(0, 30).map(w => `<tr><td>${esc(invName(w.stock_item_id))}<div class="rs-muted">${esc(REASONS[w.reason] || w.reason)} · ${esc(w.logged_by || '')} · ${new Date(w.created_at).toLocaleDateString()}</div></td><td style="text-align:right">${w.qty} ${unitOf(w.stock_item_id)}</td><td style="text-align:right">${fmt(w.cost)}</td></tr>`).join('');
+        html += `<div class="rs-card"><div class="rs-row"><b>Waste</b><span class="rs-sp"></span><button class="rs-btn pri sm" data-act="w-open">+ Log waste</button></div>
+            <div class="rs-muted" style="margin-top:4px">Spills, breakage, expired stock, over-pours, free and staff drinks. Each entry takes the stock out and records the cost.</div>
+            ${canCosts() ? (rows ? `<table class="rs-tbl" style="margin-top:8px">${rows}</table>` : '<div class="rs-muted" style="margin-top:8px">Nothing logged yet.</div>') : ''}</div>`;
+    }
+    return html || '<div class="rs-card">Your role cannot count stock or log waste.</div>';
+}
+async function loadCounts() {
+    try {
+        const r = await sb().from('rest_counts').select('*').eq('tenant_id', ctx.tenantId).order('created_at', { ascending: false }).range(0, 59);
+        if (!r.error) UI.counts = r.data.filter(okBranch);
+    } catch (e) { }
+}
+async function loadWaste() {
+    if (!canCosts()) return;
+    try {
+        const r = await sb().from('rest_waste_log').select('*').eq('tenant_id', ctx.tenantId).order('created_at', { ascending: false }).range(0, 49);
+        if (!r.error) UI.waste = r.data;
+    } catch (e) { }
+}
+function wasteSheet() {
+    const d = UI.sheet.draft;
+    const reasons = Object.entries(REASONS).filter(([k]) => k !== 'void_after_ready').map(([k, l]) => `<option value="${k}" ${d.reason === k ? 'selected' : ''}>${l}</option>`).join('');
+    const names = d.mode === 'menu' ? D.menu.filter(m => m.active).map(m => m.name) : trackedItems().map(i => i.desc);
+    const sid = d.mode === 'stock' ? matchStock(d.name) : '';
+    const u = sid ? unitRow(sid) : null;
+    const unitSel = d.mode === 'stock' ? `<select data-act="w-unit" style="width:110px"><option value="base">${u ? unitText(u.base_unit) : 'units'}</option>${u && Number(u.pack_size) > 0 ? `<option value="pack" ${d.unit === 'pack' ? 'selected' : ''}>${esc(u.pack_name || 'pack')}</option>` : ''}</select>` : '<span class="rs-muted">servings</span>';
+    return `<h3>Log waste</h3><div style="display:grid;gap:8px">
+        <label>Reason <select data-act="w-reason" style="width:100%">${reasons}</select></label>
+        <label>What was lost <select data-act="w-mode" style="width:100%"><option value="stock" ${d.mode === 'stock' ? 'selected' : ''}>A stock item (ml, g, pieces)</option><option value="menu" ${d.mode === 'menu' ? 'selected' : ''}>A menu item (free or staff drink, spilled cocktail)</option></select></label>
+        <datalist id="rs-wlist">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
+        <input data-bind="wname" list="rs-wlist" placeholder="${d.mode === 'menu' ? 'Search the menu' : 'Search stock'}" value="${esc(d.name)}">
+        <div class="rs-row"><input data-bind="wqty" type="number" min="1" step="1" placeholder="Quantity" value="${d.qty}" style="flex:1">${unitSel}</div>
+        <input data-bind="wnote" placeholder="Note (optional)" value="${esc(d.note)}"></div>
+        <div class="rs-row" style="margin-top:12px"><button class="rs-btn pri" data-act="w-save">Log waste</button><button class="rs-btn" data-act="closesheet-btn">Cancel</button></div>`;
+}
+
+// Variance: what the counts say was used, against what sales say should have been used.
+function varianceHtml() {
+    const opts = sel => '<option value="">Choose…</option>' + UI.counts.map(c => `<option value="${c.id}" ${sel === c.id ? 'selected' : ''}>${esc(c.location)} · ${new Date(c.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}${c.counted_by ? ' · ' + esc(c.counted_by) : ''}</option>`).join('');
+    let out = '';
+    const v = UI.variance;
+    if (v) {
+        const head = '<tr><th>Item</th><th style="text-align:right">Used (count)</th><th style="text-align:right">Sold</th><th style="text-align:right">Waste</th><th style="text-align:right">Unexplained</th><th style="text-align:right">Bottles</th><th style="text-align:right">Money</th><th style="text-align:right">%</th></tr>';
+        const rows = v.rows.map(r => `<tr><td>${esc(r.name)}<div class="rs-muted">${esc(r.category)} · ${r.open} + ${r.purch} − ${r.close}</div></td><td style="text-align:right">${r.actual} ${r.unit}</td><td style="text-align:right">${r.sold}</td><td style="text-align:right">${r.waste}</td><td style="text-align:right;${r.unexplained > 0 ? 'color:#B23A2E' : ''}"><b>${r.unexplained}</b></td><td style="text-align:right">${r.bottles === null ? '' : r.bottles}</td><td style="text-align:right">${fmt(r.money)}</td><td style="text-align:right">${r.pct === null ? '' : r.pct + '%'}</td></tr>`).join('');
+        const tot = v.rows.reduce((s, r) => s + r.money, 0);
+        out = `<div style="overflow-x:auto;margin-top:8px"><table class="rs-tbl">${head}${rows}</table></div>
+            <div class="rs-muted" style="margin-top:6px">Unexplained = used − sold − logged waste. Positive means more went than the sales explain. Total ${fmt(tot)}.${v.skipped ? ` ${v.skipped} item(s) were not counted both times and are left out.` : ''}</div>`;
+    }
+    return `<div class="rs-card" style="margin-top:10px"><b>Stock variance</b>
+        <div class="rs-muted">Pick two counts at the same location. Purchases dated from the opening day to the closing day are included, so count before deliveries arrive.</div>
+        <div class="rs-row" style="margin-top:6px"><label>Opening <select data-act="var-open">${opts(UI.varSel.open)}</select></label><label>Closing <select data-act="var-close">${opts(UI.varSel.close)}</select></label><button class="rs-btn pri" data-act="var-run">Show</button></div>${out}</div>`;
+}
+async function runVariance() {
+    const o = UI.counts.find(c => c.id === UI.varSel.open), c = UI.counts.find(c => c.id === UI.varSel.close);
+    if (!o || !c) { toast('Choose an opening and a closing count.', true); return; }
+    if (o.location !== c.location) { toast('Both counts must be at the same location.', true); return; }
+    if (new Date(o.created_at) >= new Date(c.created_at)) { toast('The opening count must be earlier than the closing count.', true); return; }
+    try {
+        const tid = ctx.tenantId;
+        const between = q => { q = q.gte('created_at', o.created_at).lte('created_at', c.created_at); return o.branch_id ? q.eq('branch_id', o.branch_id) : q; };
+        const [ol, cl, mv, wl] = await Promise.all([
+            db(sb().from('rest_count_lines').select('stock_item_id,qty').eq('count_id', o.id)),
+            db(sb().from('rest_count_lines').select('stock_item_id,qty').eq('count_id', c.id)),
+            db(between(sb().from('rest_stock_moves').select('stock_item_id,qty,unit_cost').eq('tenant_id', tid)).range(0, 9999)),
+            db(between(sb().from('rest_waste_log').select('stock_item_id,qty').eq('tenant_id', tid).eq('deducted', true)).range(0, 9999))
+        ]);
+        const sum = (rows, k = 'qty') => { const m = {}; rows.forEach(r => { m[r.stock_item_id] = (m[r.stock_item_id] || 0) + Number(r[k]); }); return m; };
+        const om = sum(ol), cm = sum(cl), soldM = sum(mv), wasteM = sum(wl);
+        const costM = {}; mv.forEach(r => { costM[r.stock_item_id] = (costM[r.stock_item_id] || 0) + Number(r.qty) * Number(r.unit_cost); });
+        const d0 = new Date(o.created_at).toLocaleDateString('en-CA'), d1 = new Date(c.created_at).toLocaleDateString('en-CA');
+        const rows = []; let skipped = 0;
+        new Set([...Object.keys(om), ...Object.keys(cm)]).forEach(id => {
+            if (!(id in om) || !(id in cm)) { skipped++; return; }
+            const it = invById(id), u = unitRow(id) || {}, size = Number(u.pack_size) || 0;
+            const comp = it ? `[${it.category}] ${it.desc}` : '';
+            const purch = (S().purchaseLog || []).filter(p => p.desc === comp && p.date >= d0 && p.date <= d1).reduce((s, p) => s + Number(p.qty) * (size || 1), 0);
+            const open = om[id], close = cm[id], actual = round2(open + purch - close), sold = round2(soldM[id] || 0), waste = round2(wasteM[id] || 0);
+            const unexplained = round2(actual - sold - waste);
+            const unitCost = sold > 0 ? (costM[id] || 0) / sold : fifoCost(id, 1);
+            rows.push({ id, name: it ? it.desc : 'Unknown item', category: it ? (it.category || '') : '', unit: unitText(u.base_unit), open, purch: round2(purch), close, actual, sold, waste, unexplained,
+                bottles: size ? round2(unexplained / size) : null, money: round2(unexplained * unitCost), pct: sold > 0 ? Math.round(unexplained / sold * 100) : null });
+        });
+        rows.sort((a, b) => Math.abs(b.money) - Math.abs(a.money));
+        UI.variance = { rows, skipped };
+        render();
+    } catch (e) { }
+}
+
+// ---------------------------------------------------------------
 // Reports: recipe cost / margin, and sales by menu item and category
 // ---------------------------------------------------------------
+function wasteReportHtml(rows) {
+    const group = fn => { const m = {}; rows.forEach(w => { const k = fn(w); m[k] = m[k] || { name: k, qty: 0, cost: 0, n: 0 }; m[k].cost += Number(w.cost); m[k].n++; }); return Object.values(m).sort((a, b) => b.cost - a.cost); };
+    const tbl = list => `<table class="rs-tbl">${list.map(x => `<tr><td>${esc(x.name)}</td><td style="text-align:right">${x.n}×</td><td style="text-align:right">${fmt(x.cost)}</td></tr>`).join('')}</table>`;
+    const total = rows.reduce((s, w) => s + Number(w.cost), 0);
+    return `<div class="rs-card" style="margin-top:10px"><b>Waste</b>: ${rows.length} entries, cost ${fmt(total)}
+        <div class="rs-muted" style="margin-top:6px">By reason</div>${tbl(group(w => REASONS[w.reason] || w.reason))}
+        <div class="rs-muted" style="margin-top:6px">By product</div>${tbl(group(w => invName(w.stock_item_id)).slice(0, 15))}
+        <div class="rs-muted" style="margin-top:6px">By person</div>${tbl(group(w => w.logged_by || 'Unknown'))}</div>`;
+}
 function monthStart() { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).toLocaleDateString('en-CA'); }
 function reportView() {
     const r = UI.rep || { from: monthStart(), to: todayISO(), rows: null };
@@ -1045,7 +1187,7 @@ function reportView() {
         const byCat = {};
         r.rows.forEach(x => { const c = x.category; byCat[c] = byCat[c] || { name: c, qty: 0, rev: 0, cost: 0 }; byCat[c].qty += x.qty; byCat[c].rev += x.rev; byCat[c].cost += x.cost; });
         const head = '<tr><th>Item</th><th style="text-align:right">Sold</th><th style="text-align:right">Sales</th><th style="text-align:right">Cost</th><th style="text-align:right">Profit</th><th style="text-align:right">Margin</th></tr>';
-        out = `<div class="rs-card" style="margin-top:10px"><b>Total</b>: ${tot.q} sold, sales ${fmt(tot.rev)}, cost ${fmt(tot.cost)}, profit ${fmt(tot.rev - tot.cost)}, margin ${tot.rev > 0 ? Math.round((tot.rev - tot.cost) / tot.rev * 100) : 0}%
+        out = `<div class="rs-card" style="margin-top:10px"><b>Total</b>: ${tot.q} sold, sales ${fmt(tot.rev)}, cost ${fmt(tot.cost)}, profit ${fmt(tot.rev - tot.cost)}, margin ${tot.rev > 0 ? Math.round((tot.rev - tot.cost) / tot.rev * 100) : 0}%, pour cost ${tot.rev > 0 ? Math.round(tot.cost / tot.rev * 100) : 0}%
             <div class="rs-muted">Paid items only. Items without a recipe show cost 0.</div></div>
             <div class="rs-card" style="margin-top:10px"><b>By category</b><table class="rs-tbl">${head}${Object.values(byCat).sort((a, b) => b.rev - a.rev).map(line).join('')}</table></div>
             <div class="rs-card" style="margin-top:10px"><b>By menu item</b><table class="rs-tbl">${head}${r.rows.slice().sort((a, b) => b.rev - a.rev).map(line).join('')}</table></div>`;
@@ -1053,6 +1195,8 @@ function reportView() {
     const recipeRows = D.menu.filter(m => m.active).map(m => ({ m, c: recipeCost(m) })).filter(x => x.c !== null).sort((a, b) => a.m.name.localeCompare(b.m.name))
         .map(({ m, c }) => `<tr><td>${esc(m.name)}</td><td style="text-align:right">${fmt(m.price)}</td><td style="text-align:right">${fmt(c)}</td><td style="text-align:right">${fmt(m.price - c)}</td><td style="text-align:right">${pct(m.price - c, m.price)}</td></tr>`).join('');
     return `<div class="rs-card"><div class="rs-row"><label>From <input id="rs-rep-from" type="date" value="${r.from}"></label><label>To <input id="rs-rep-to" type="date" value="${r.to}"></label><button class="rs-btn pri" data-act="rep-run">Show</button></div></div>${out}
+        ${UI.p3 ? varianceHtml() : ''}
+        ${UI.p3 && r.waste ? wasteReportHtml(r.waste) : ''}
         <div class="rs-card" style="margin-top:10px"><b>Recipe cost and margin today</b><div class="rs-muted">Cost of the next serving, oldest stock first (FIFO).</div>
         ${recipeRows ? `<table class="rs-tbl"><tr><th>Item</th><th style="text-align:right">Price</th><th style="text-align:right">Cost</th><th style="text-align:right">Profit</th><th style="text-align:right">Margin</th></tr>${recipeRows}</table>` : '<div class="rs-muted">No recipes yet.</div>'}</div>`;
 }
@@ -1075,7 +1219,9 @@ async function runReport() {
             const row = by[key] = by[key] || { name: m ? m.name : x.name, category: m ? (m.category || 'General') : 'Other', qty: 0, rev: 0, cost: 0 };
             row.qty += x.qty; row.rev += x.qty * Number(x.unit_price); row.cost += cost[x.id] || 0;
         });
-        UI.rep = { from, to, rows: Object.values(by) };
+        let waste = null;
+        if (UI.p3) waste = await db(sb().from('rest_waste_log').select('*').eq('tenant_id', tid).gte('created_at', start).lt('created_at', end).range(0, 4999));
+        UI.rep = { from, to, rows: Object.values(by), waste };
         render();
     } catch (e) { }
 }
@@ -1223,7 +1369,8 @@ async function voidItem(id) {
     it.status = 'void'; it.voided_by = username(); it.void_reason = reason;
     render();
     try {
-        await db(sb().from('rest_tab_items').update({ status: 'void', voided_by: username(), void_reason: reason }).eq('id', id).neq('status', 'void'));
+        if (UI.p3) await db(sb().rpc('rest_void_item', { p_item: id, p_reason: reason || '', p_by: username() }));
+        else await db(sb().from('rest_tab_items').update({ status: 'void', voided_by: username(), void_reason: reason }).eq('id', id).neq('status', 'void'));
         scheduleLoad();
     } catch (e) { D.items = snap; await load(); render(); }
 }
@@ -1331,7 +1478,11 @@ async function payBill() {
 }
 
 const ACT = {
-    view: el => { UI.view = el.dataset.v; UI.sheet = null; UI.join = null; render(); },
+    view: el => {
+        UI.view = el.dataset.v; UI.sheet = null; UI.join = null; render();
+        if (UI.view === 'reports' && UI.p3 && canCosts()) loadCounts().then(() => render());
+        if (UI.view === 'stock' && UI.p3) { loadCounts(); loadWaste().then(() => render()); }
+    },
     cat: el => { UI.cat = el.dataset.c; render(); },
     add: el => {
         const m = menuById(el.dataset.id); if (!m) return;
@@ -1461,6 +1612,47 @@ const ACT = {
     undo: async () => { if (!UI.undo) return; const id = UI.undo.id; UI.undo = null; try { await db(sb().from('rest_tables').update({ active: true }).eq('id', id)); await load(); render(); } catch (e) { } },
     // menu management
     'rep-run': () => runReport(),
+    'var-open': el => { UI.varSel.open = el.value; },
+    'var-close': el => { UI.varSel.close = el.value; },
+    'var-run': () => runVariance(),
+    'count-save': async () => {
+        const lines = trackedItems().map(i => ({ id: i.id, qty: countQty(i.id) })).filter(l => l.qty !== null);
+        if (!lines.length) { toast('Enter at least one quantity.', true); return; }
+        const cid = uid();
+        try {
+            await db(sb().from('rest_counts').insert({ id: cid, tenant_id: ctx.tenantId, branch_id: branch(), location: (UI.count.loc || '').trim() || 'Bar', counted_by: username() }));
+            try { await db(sb().from('rest_count_lines').insert(lines.map(l => ({ id: uid(), count_id: cid, tenant_id: ctx.tenantId, stock_item_id: l.id, qty: l.qty })))); }
+            catch (e) { try { await sb().from('rest_counts').delete().eq('id', cid); } catch (x) { } throw e; }
+            UI.count.vals = {}; toast('Count saved (' + lines.length + ' items)');
+            await loadCounts(); render();
+        } catch (e) { }
+    },
+    'w-open': () => { UI.sheet = { type: 'waste', draft: { mode: 'stock', name: '', qty: '', unit: 'base', reason: 'spilled_broken', note: '' } }; render(); },
+    'w-mode': el => { UI.sheet.draft.mode = el.value; UI.sheet.draft.name = ''; UI.sheet.draft.unit = 'base'; render(); },
+    'w-reason': el => { UI.sheet.draft.reason = el.value; },
+    'w-unit': el => { UI.sheet.draft.unit = el.value; },
+    'w-save': async () => {
+        const d = UI.sheet.draft, qty = Number(d.qty);
+        if (!(qty > 0)) { toast('Enter a quantity.', true); return; }
+        let args;
+        if (d.mode === 'stock') {
+            const sid = matchStock(d.name);
+            if (!sid) { toast('Choose a stock item from the list.', true); return; }
+            let units = qty;
+            if (d.unit === 'pack') { const size = Number((unitRow(sid) || {}).pack_size) || 0; if (!size) { toast('This item has no pack size.', true); return; } units = qty * size; }
+            args = { p_stock_item: sid, p_qty: Math.round(units), p_menu_item: null, p_servings: 1 };
+        } else {
+            const m = D.menu.find(x => x.active && x.name.toLowerCase() === String(d.name).trim().toLowerCase());
+            if (!m) { toast('Choose a menu item from the list.', true); return; }
+            args = { p_stock_item: null, p_qty: null, p_menu_item: m.id, p_servings: Math.max(1, Math.round(qty)) };
+        }
+        try {
+            const res = await db(sb().rpc('rest_log_waste', { ...args, p_reason: d.reason, p_note: d.note || '', p_by: username(), p_branch: branch() }));
+            UI.sheet = null;
+            toast(canCosts() ? 'Waste logged, cost ' + fmt(res && res.cost) : 'Waste logged');
+            showShort(res); await loadWaste(); render();
+        } catch (e) { }
+    },
     'unit-edit': el => { UI.sheet = { type: 'unit', id: el.dataset.id }; render(); },
     'unit-save': async () => {
         const g = id => root.querySelector('#' + id);
@@ -1544,6 +1736,7 @@ function wireEvents() {
         if (el.dataset && el.dataset.f) { editField(el); return; }
         if (el.dataset && el.dataset.bind === 'chan') { UI.bill.chan = el.value; }
         if (el.dataset && (el.dataset.bind === 'rcpname' || el.dataset.bind === 'linkname')) { captureMenuForm(); render(); }
+        if (el.dataset && el.dataset.bind === 'wname') render();
         if (UI.dirty) { /* a refresh was held back while typing */ }
     });
     root.addEventListener('input', e => {
@@ -1552,6 +1745,15 @@ function wireEvents() {
         if (b === 'q') { UI.q = el.value; updateOrderParts(); }
         else if (b === 'pickq') { UI.pickq = el.value; const c = root.querySelector('#rs-pickchips'); if (c) c.innerHTML = pickChips(); }
         else if (b === 'svc') { UI.bill.svc = el.value; updateBillTotals(); }
+        else if (b === 'cloc') UI.count.loc = el.value;
+        else if (b === 'cq') { UI.count.q = el.value; const l = root.querySelector('#rs-countlist'); if (l) l.innerHTML = countRows(); }
+        else if (b === 'cpacks' || b === 'ctenths' || b === 'cqty') {
+            const id = el.dataset.id, v = UI.count.vals[id] = UI.count.vals[id] || {};
+            v[b === 'cpacks' ? 'packs' : b === 'ctenths' ? 'tenths' : 'qty'] = el.value;
+            const sp = root.querySelector('#rs-ct-' + id), q = countQty(id);
+            if (sp) sp.textContent = q === null ? '' : '= ' + q + ' ' + unitOf(id);
+        }
+        else if (b === 'wname' || b === 'wqty' || b === 'wnote') { UI.sheet.draft[b === 'wname' ? 'name' : b === 'wqty' ? 'qty' : 'note'] = el.value; }
         else if (b === 'rcpqty') { UI.sheet.draft.lines[+el.dataset.i].qty = el.value; updateCostLine(); }
         else if (b === 'mprice') updateCostLine();
         else if (b === 'linkname') { const d = UI.sheet.draft; d.linkName = el.value; d.link = matchStock(el.value); updateCostLine(); }
