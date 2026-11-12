@@ -7982,10 +7982,13 @@ a.sg-link{text-decoration:none}
             return currentBranchId === 'all' ? true : entryBranchId === currentBranchId;
         }
 
-        function runAbsoluteAccountBalances() {
+        // allTime = true ignores the "Ethiopian Accounting Period" dropdown. Money you
+        // actually hold (dashboard, channel breakdown, transfer checks) must always count
+        // every entry ever posted; only the accounting reports should follow that dropdown.
+        function runAbsoluteAccountBalances(allTime) {
             let sums = {}; CHART_OF_ACCOUNTS_MAP.forEach(a => sums[a.code] = 0);
             state.journal.forEach(en => { 
-                if (verifyEthiopianPeriod(en.date) && shouldCountInCurrentTotals(en.branchId)) {
+                if ((allTime || verifyEthiopianPeriod(en.date)) && shouldCountInCurrentTotals(en.branchId)) {
                     en.lines.forEach(li => { sums[li.account] += (li.dr - li.cr); }); 
                 }
             });
@@ -8016,7 +8019,7 @@ a.sg-link{text-decoration:none}
             if (window.scnVatEnsure) window.scnVatEnsure(false); // owners: fetch scanned receipts, then the box refreshes itself
             if (window.sceVatEnsure) window.sceVatEnsure(false); // same for scanned expense receipts
 
-            let absoluteBalances = runAbsoluteAccountBalances();
+            let absoluteBalances = runAbsoluteAccountBalances(true);
             let cashTotal = (absoluteBalances["1010"] || 0) + (absoluteBalances["1020"] || 0)
                 + (state.customAccounts || []).filter(a => a.isCustomChannel).reduce((sum, a) => sum + (absoluteBalances[a.code] || 0), 0);
             let invTotal = state.inventory.reduce((acc, item) => acc + item.lots.reduce((a,l)=>a+(l.qty*l.cost),0), 0);
@@ -8867,7 +8870,7 @@ a.sg-link{text-decoration:none}
             const mTitle = document.getElementById('modal-title');
             const mContent = document.getElementById('modal-body-content');
             mTitle.innerText = t('ft.vault_title');
-            const balances = runAbsoluteAccountBalances();
+            const balances = runAbsoluteAccountBalances(true);
             const channelAccounts = getChannelAccountsList();
             let total = 0;
             const rows = channelAccounts.map(c => {
@@ -8917,7 +8920,7 @@ a.sg-link{text-decoration:none}
         }
         function updateFundTransferAvailable() {
             const fromCode = document.getElementById('ft-from-channel').value;
-            const available = (runAbsoluteAccountBalances()[fromCode]) || 0;
+            const available = (runAbsoluteAccountBalances(true)[fromCode]) || 0;
             document.getElementById('ft-available-hint').innerText = `${t('ft.available')}: ETB ${available.money2()}`;
         }
         function closeFundTransferModal() { document.getElementById('fund-transfer-modal').style.display = 'none'; }
@@ -8935,7 +8938,7 @@ a.sg-link{text-decoration:none}
             if (isNaN(amount) || amount <= 0) { errBox.innerText = 'Enter a valid amount.'; errBox.style.display = 'block'; return; }
             if (!date) { errBox.innerText = 'Pick a date.'; errBox.style.display = 'block'; return; }
 
-            const availableBalance = (runAbsoluteAccountBalances()[fromCode]) || 0;
+            const availableBalance = (runAbsoluteAccountBalances(true)[fromCode]) || 0;
             if (amount > availableBalance + 0.001) {
                 errBox.innerText = `${t('ft.insufficient')} ETB ${availableBalance.money2()}.`;
                 errBox.style.display = 'block';
