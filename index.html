@@ -1737,6 +1737,16 @@ a.sg-link{text-decoration:none}
 <span class="switch"><input type="checkbox" id="push-switch" onchange="mlyPushToggle()"><span class="slider"></span></span>
 </label>
 <div style="margin-top:14px;"><button type="button" class="btn btn-outline btn-small" id="push-row-test" style="display:none;" onclick="mlyPushTest()">Send a test alert</button></div>
+<div id="summary-time-row" style="display:none; margin-top:18px; border-top:1px solid var(--border); padding-top:14px;">
+<b style="font-size:14px;">Daily closing report</b>
+<span class="sg-hint" style="display:block; margin:2px 0 10px;">Choose what time your daily closing report is sent. The time is in this phone's own clock.</span>
+<div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+<input type="time" id="summary-time-input" step="60" style="min-width:140px;">
+<button type="button" class="btn btn-small" id="summary-time-save" onclick="mlySaveSummaryTime()">Save</button>
+<button type="button" class="btn btn-outline btn-small" onclick="mlyResetSummaryTime()">Use default</button>
+</div>
+<div class="sg-hint" id="summary-time-hint" style="margin-top:8px;"></div>
+</div>
 </div>
 </div>
 <div class="sg-page" id="sg-page-security">
@@ -3677,6 +3687,7 @@ a.sg-link{text-decoration:none}
             _sgOpen = id; pg.scrollTop = 0; pg.style.transform = ''; pg.classList.remove('drag'); pg.classList.add('open');
             sgSyncHeader(pg);
             if (id === 'notifications' && typeof window.mlyPushPaint === 'function') window.mlyPushPaint();
+            if (id === 'notifications' && typeof window.mlySummaryPaint === 'function') window.mlySummaryPaint();
             if (id === 'security') { fillSecurityFields(); if (window.mlyLoadDevices) window.mlyLoadDevices(); }
             if (id === 'team' && typeof loadTeamView === 'function') Promise.resolve(loadTeamView()).catch(e => console.error('loadTeamView', e));
             if (!sgIsPhone()) window.scrollTo(0, 0);
@@ -9006,6 +9017,7 @@ a.sg-link{text-decoration:none}
 
                 let btns = `${hasPerm('inventory.edit_products') ? `<button class="btn btn-small" onclick="initiateEditProductDefinition(${index})">${t('common.edit')}</button>
                             <button class="btn btn-danger btn-small" onclick="executeVoidProductState(${index})">${t('common.delete')}</button>` : ''}
+                            ${(currentBusinessType === 'retail' && tQ > 0 && hasPerm('inventory.edit_products')) ? `<button class="btn btn-small" onclick="launchRetailWriteOff(${index})">Write Off</button>` : ''}
                             ${item.history&&item.history.length>0?`<button class="btn btn-warning btn-small" onclick="launchHistoryPopup(${index})">${t('misc.logs')}</button>`:''}`;
 
                 let priceCell = hasPerm('inventory.adjust_price')
@@ -10228,6 +10240,9 @@ a.sg-link{text-decoration:none}
             const lossAmount = qty * lot.cost;
             if (!(await uiConfirm(`Write off ${qty} unit(s) of "${item.desc}" (batch ${statusText})?\n\nThey will be removed from your stock and counted as a loss of ETB ${lossAmount.money2()}. This cannot be undone.`, { danger: true, yes: 'Yes, write off', no: 'No' }))) return;
 
+            // Kept so this write-off can be undone from Trash.
+            const lotSnapshot = { ...lot };
+            let rentalWoId = null, woJournal = null;
             const beforeLots = item.lots.map(l => ({...l}));
             if (partial) {
                 lot.qty -= qty; // rest of the batch stays in stock at the same unit cost
@@ -10247,7 +10262,8 @@ a.sg-link{text-decoration:none}
             // never in stock even on days before the write-off happened.
             if (currentBusinessType === 'rental') {
                 item.rentalWriteOffs = item.rentalWriteOffs || [];
-                item.rentalWriteOffs.push({ id: crypto.randomUUID(), date: new Date().toISOString().slice(0, 10), qty });
+                rentalWoId = crypto.randomUUID();
+                item.rentalWriteOffs.push({ id: rentalWoId, date: new Date().toISOString().slice(0, 10), qty });
                 queueWrite({ kind: 'update', table: 'inventory_items', id: item.id, patch: { rental_write_offs: item.rentalWriteOffs } });
             }
 
@@ -10262,8 +10278,14 @@ a.sg-link{text-decoration:none}
                     branchId: lot.branchId || writeBranchId
                 };
                 state.journal.push(newJournal);
+                woJournal = newJournal;
                 queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(newJournal) });
             }
+
+            // Trash entry = the "undo" for this write-off (same kind retail write-offs use).
+            const woTrash = { id: `WOT-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, type: 'writeoff', data: { itemId: item.id, itemDesc: item.desc, qty, reason: (currentBusinessType === 'rental' ? 'Rental write-off' : `Batch ${statusText}`), note: '', loss: lossAmount, lots: [{ lot: lotSnapshot, take: qty }], journals: woJournal ? [woJournal] : [], rentalWriteOffId: rentalWoId }, deletedAt: new Date().toISOString() };
+            state.trash.push(woTrash);
+            queueWrite({ kind: 'insert', table: 'trash', row: toDbTrash(woTrash) });
 
             cacheStateLocally();
             renderPerpetualInventoryTable();
@@ -10275,6 +10297,126 @@ a.sg-link{text-decoration:none}
                 document.getElementById('modal-title').innerText === `Batches: ${item.desc}`) {
                 launchBatchBreakdownPopup(itemIndex);
             }
+        }
+
+        // ---------------------------------------------------------------
+        // RETAIL WRITE-OFF — manual removal of stock that is damaged, lost
+        // or obsolete (retail shops only; pharmacy writes off by batch
+        // above, rental has its own flow). Takes stock from the OLDEST
+        // batches first, the same order sales use, so the loss is booked
+        // at what those units really cost. Posts debit 6060 Inventory
+        // Write-off (Loss) / credit 1200 Inventory, one entry per branch
+        // the stock came from. Same permission as editing products.
+        // ---------------------------------------------------------------
+        const RETAIL_WO_REASONS = ['Damaged', 'Lost / Stolen', 'Obsolete', 'Other'];
+
+        function retailWriteOffPlan(item, qty) {
+            // Returns { takes: [{lot, take}], loss, byBranch } for taking `qty` oldest-first.
+            let left = qty, loss = 0; const takes = [], byBranch = {};
+            orderLotsForSale(item.lots.filter(l => l.qty > 0)).forEach(lot => {
+                if (left <= 1e-9) return;
+                const take = Math.min(lot.qty, left);
+                takes.push({ lot, take });
+                const amt = take * lot.cost; loss += amt;
+                const b = lot.branchId || writeBranchId || '';
+                byBranch[b] = (byBranch[b] || 0) + amt;
+                left -= take;
+            });
+            return { takes, loss, byBranch };
+        }
+
+        function launchRetailWriteOff(idx) {
+            if (!hasPerm('inventory.edit_products')) return;
+            const item = state.inventory[idx];
+            if (!item) return;
+            const onHand = item.lots.reduce((a, l) => a + (l.qty > 0 ? l.qty : 0), 0);
+            if (onHand <= 0) return;
+            document.getElementById('modal-title').innerText = `Write Off: ${item.desc}`;
+            document.getElementById('modal-body-content').innerHTML = `
+                <p style="margin:0 0 14px; color:var(--text-light);">In stock: <strong style="color:var(--text);">${onHand}</strong>. Written-off stock is removed from your inventory and counted as a loss.</p>
+                <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
+                    <label>Quantity to write off</label>
+                    <input type="number" id="rwo-qty" min="0" max="${onHand}" step="any" inputmode="decimal" style="width:100%;" oninput="updateRetailWriteOffPreview(${idx})">
+                </div>
+                <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
+                    <label>Reason</label>
+                    <select id="rwo-reason" style="width:100%;">${RETAIL_WO_REASONS.map(r => `<option value="${r}">${r}</option>`).join('')}</select>
+                </div>
+                <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
+                    <label>Note (required if the reason is Other)</label>
+                    <input type="text" id="rwo-note" maxlength="200" style="width:100%;" placeholder="e.g. dropped in the store room">
+                </div>
+                <p id="rwo-preview" style="margin:0 0 14px; font-size:13px; color:var(--text-light);"></p>
+                <button class="btn btn-danger" onclick="confirmRetailWriteOff(${idx})">Write Off</button>`;
+            document.getElementById('audit-modal').style.display = 'flex';
+        }
+
+        function updateRetailWriteOffPreview(idx) {
+            const item = state.inventory[idx]; const el = document.getElementById('rwo-preview');
+            if (!item || !el) return;
+            const qty = parseFloat(document.getElementById('rwo-qty').value);
+            const onHand = item.lots.reduce((a, l) => a + (l.qty > 0 ? l.qty : 0), 0);
+            if (!(qty > 0) || qty > onHand + 1e-9 || !hasPerm('inventory.view_cost')) { el.innerHTML = ''; return; }
+            el.innerHTML = `Estimated loss: <strong style="color:var(--danger);">ETB ${retailWriteOffPlan(item, qty).loss.money2()}</strong>`;
+        }
+
+        async function confirmRetailWriteOff(idx) {
+            if (!hasPerm('inventory.edit_products')) return;
+            const item = state.inventory[idx];
+            if (!item) return;
+            const qty = parseFloat(document.getElementById('rwo-qty').value);
+            const reason = document.getElementById('rwo-reason').value;
+            const note = document.getElementById('rwo-note').value.trim();
+            const onHand = item.lots.reduce((a, l) => a + (l.qty > 0 ? l.qty : 0), 0);
+            if (!(qty > 0)) return alert('Type how many units to write off.');
+            if (qty > onHand + 1e-9) return alert(`You only have ${onHand} in stock, so you cannot write off ${qty}.`);
+            if (reason === 'Other' && !note) return alert('Please type a short note when the reason is Other.');
+
+            const plan = retailWriteOffPlan(item, qty);
+            const loss = Math.round(plan.loss * 100) / 100;
+            if (!(await uiConfirm(`Write off ${qty} unit(s) of "${item.desc}" (${reason})?\n\nThey will be removed from your stock and counted as a loss of ETB ${loss.money2()}. This cannot be undone.`, { danger: true, yes: 'Yes, write off', no: 'No' }))) return;
+
+            for (const b of Object.keys(plan.byBranch)) { if (b && blockIfBranchClosed(b, 'written off')) return; }
+            // Copy of every batch being touched, kept so the write-off can be undone from Trash.
+            const lotSnapshots = plan.takes.map(({ lot, take }) => ({ lot: { ...lot }, take }));
+            const beforeLots = item.lots.map(l => ({ ...l }));
+            plan.takes.forEach(({ lot, take }) => { lot.qty = Math.round((lot.qty - take) * 1e6) / 1e6; });
+            item.lots = item.lots.filter(l => l.qty > 1e-9);
+            const reasonText = note ? `${reason} — ${note}` : reason;
+            item.history = item.history || [];
+            item.history.push(`[${new Date().toLocaleString()}] Written off ${qty} unit(s) — ${reasonText} — ETB ${loss.money2()} loss recorded`);
+            syncItemLots(item, beforeLots);
+            queueWrite({ kind: 'update', table: 'inventory_items', id: item.id, patch: { history: item.history } });
+
+            // One journal entry per branch the stock came from, so each branch's books stay right.
+            const today = new Date().toISOString().slice(0, 10);
+            const journalsPosted = [];
+            Object.keys(plan.byBranch).forEach((b, n) => {
+                const amt = Math.round(plan.byBranch[b] * 100) / 100;
+                if (!(amt > 0)) return;
+                const j = {
+                    id: `WO-${Date.now().toString().slice(-8)}${n ? '-' + n : ''}`,
+                    date: today,
+                    desc: stampDesc(`Inventory write-off (${reason}): ${qty} x ${item.desc}${note ? ' — ' + note : ''}`),
+                    lines: [{ account: '6060', dr: amt, cr: 0 }, { account: '1200', dr: 0, cr: amt }],
+                    branchId: b || writeBranchId
+                };
+                state.journal.push(j);
+                journalsPosted.push(j);
+                queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(j) });
+            });
+
+            // Trash entry = the "undo" for this write-off. Everything needed to reverse it
+            // lives inside `data` (Trash only saves `data` to the database).
+            const woTrash = { id: `WOT-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, type: 'writeoff', data: { itemId: item.id, itemDesc: item.desc, qty, reason, note, loss, lots: lotSnapshots, journals: journalsPosted }, deletedAt: new Date().toISOString() };
+            state.trash.push(woTrash);
+            queueWrite({ kind: 'insert', table: 'trash', row: toDbTrash(woTrash) });
+
+            cacheStateLocally();
+            closeAuditModal();
+            renderPerpetualInventoryTable();
+            renderAnalyticalDashboards();
+            showToast(`Wrote off ${qty} x ${item.desc}. You can undo it from Trash.`, 'success');
         }
 
         async function executeVoidProductState(idx) {
@@ -10540,13 +10682,14 @@ a.sg-link{text-decoration:none}
                 else if (trashItem.type === 'sale') info = `Sale: ${trashItem.data.qty}x ${trashItem.data.desc} to ${trashItem.data.customer} for ETB ${trashItem.data.total.money2()} (${trashItem.data.channel})`;
                 else if (trashItem.type === 'purchase') info = `Purchase: ${trashItem.data.qty}x ${trashItem.data.desc} from ${trashItem.data.supplier} for ETB ${trashItem.data.total.money2()} (${trashItem.data.channel})`;
                 else if (trashItem.type === 'expense') info = `Expense: ETB ${trashItem.data.amount.money2()} for ${trashItem.data.memo} (${trashItem.data.source})`;
+                else if (trashItem.type === 'writeoff') info = `Write-off: ${trashItem.data.qty}x ${trashItem.data.itemDesc} (${trashItem.data.reason}${trashItem.data.note ? ' — ' + trashItem.data.note : ''}) — loss ETB ${Number(trashItem.data.loss || 0).money2()}`;
                 else if (trashItem.type === 'sale_group') { const rows = trashItem.data.rows; info = `Multi-Item Sale: ${rows.length} items to ${rows[0].customer} for ETB ${rows.reduce((s,r)=>s+r.total,0).money2()}`; }
                 else if (trashItem.type === 'purchase_group') { const rows = trashItem.data.rows; info = `Multi-Item Purchase: ${rows.length} items from ${rows[0].supplier} for ETB ${rows.reduce((s,r)=>s+r.total,0).money2()}`; }
 
                 tbody.innerHTML += `<tr>
-                    <td>${fmtDateTime(trashItem.deletedAt)}</td><td style="text-transform:uppercase;">${trashItem.type}</td>
+                    <td>${fmtDateTime(trashItem.deletedAt)}</td><td style="text-transform:uppercase;">${trashItem.type === 'writeoff' ? 'Write-off' : trashItem.type}</td>
                     <td>${escHtml(info)}</td>
-                    <td style="text-align:center;"><button class="btn btn-success btn-small" onclick="restoreTrash(${actualIndex})">${t('misc.restore_data')}</button></td>
+                    <td style="text-align:center;"><button class="btn btn-success btn-small" onclick="restoreTrash(${actualIndex})">${trashItem.type === 'writeoff' ? 'Undo Write-Off' : t('misc.restore_data')}</button></td>
                 </tr>`;
             });
         }
@@ -10638,6 +10781,36 @@ a.sg-link{text-decoration:none}
                 });
                 if (t.journal) { state.journal.push(t.journal); queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(t.journal) }); }
                 addNotification('Restored', `${t.data.rows.length}-item basket recovered.`);
+            }
+            if (t.type === 'writeoff') {
+                const d = t.data;
+                const item = state.inventory.find(i => i.id === d.itemId);
+                if (!item) return alert("Original inventory profile deleted. Cannot undo this write-off.");
+                for (const j of (d.journals || [])) { if (blockIfBranchClosed(j.branchId, 'changed')) return; }
+                // Put the stock back: add the quantity to its original batch, or
+                // bring the batch back if the write-off had used it up completely.
+                const beforeLots = item.lots.map(l => ({ ...l }));
+                d.lots.forEach(({ lot: snap, take }) => {
+                    const live = item.lots.find(l => l.id === snap.id);
+                    if (live) live.qty = Math.round((live.qty + take) * 1e6) / 1e6;
+                    else item.lots.push({ ...snap, qty: take });
+                });
+                syncItemLots(item, beforeLots);
+                // Take the loss out of the books again.
+                const gone = (d.journals || []).map(j => j.id);
+                state.journal = state.journal.filter(j => !gone.includes(j.id));
+                gone.forEach(jid => queueWrite({ kind: 'delete', table: 'journal_entries', id: jid }));
+                item.history = item.history || [];
+                item.history.push(`[${new Date().toLocaleString()}] Write-off of ${d.qty} unit(s) undone — stock returned`);
+                queueWrite({ kind: 'update', table: 'inventory_items', id: item.id, patch: { history: item.history } });
+                if (d.rentalWriteOffId && item.rentalWriteOffs) {
+                    item.rentalWriteOffs = item.rentalWriteOffs.filter(r => r.id !== d.rentalWriteOffId);
+                    queueWrite({ kind: 'update', table: 'inventory_items', id: item.id, patch: { rental_write_offs: item.rentalWriteOffs } });
+                }
+                addNotification('Restored', `Write-off undone: ${d.qty} x ${d.itemDesc} back in stock.`);
+                cacheStateLocally();
+                renderPerpetualInventoryTable();
+                renderAnalyticalDashboards();
             }
             if ((t.type === 'sale' || t.type === 'sale_group') && currentPlanPremium && window.scnSaleRestored) { try { window.scnSaleRestored(String(t.id)); } catch (e) { } } // its printed receipt copy comes back too
             state.trash.splice(idx, 1);
@@ -18490,6 +18663,86 @@ function buildSteps() {
             }).join('');
         } catch (e) { sum.textContent = 'Could not load devices. Please try again later.'; console.warn('Devices:', e); }
     };
+})();
+</script>
+
+<script>
+/* =====================================================================
+   DAILY CLOSING REPORT TIME (Settings > Notifications)
+   The shop's report time is kept on the server as a clock time plus the time zone of the
+   phone that chose it (default 20:30 Ethiopia time). This page shows it converted to THIS
+   phone's time zone, in this phone's 12/24-hour style. Needs closing-report-time.sql.
+   ===================================================================== */
+(function () {
+    const DEFAULT_TIME = '20:30', DEFAULT_TZ = 'Africa/Addis_Ababa';
+    const pad = n => String(n).padStart(2, '0');
+    const deviceTz = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { return ''; } };
+    // How far ahead of UTC a time zone is at a given moment, in milliseconds.
+    function tzOffsetMs(ms, tz) {
+        const p = {};
+        new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+            .formatToParts(new Date(ms)).forEach(x => { p[x.type] = x.value; });
+        return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second) - Math.floor(ms / 1000) * 1000;
+    }
+    // The real moment when the clock in time zone `tz` reads hh:mm on the given day.
+    function momentIn(tz, y, mo, d, hh, mm) {
+        const guess = Date.UTC(y, mo - 1, d, hh, mm);
+        let t = guess - tzOffsetMs(guess, tz);
+        t = guess - tzOffsetMs(t, tz);            // second pass keeps it right across daylight-saving changes
+        return t;
+    }
+    // "20:30" as kept in time zone `fromTz`  ->  what the clock on THIS phone reads at that moment ("HH:MM", 24h).
+    function toPhoneTime(hhmm, fromTz) {
+        const [hh, mm] = hhmm.split(':').map(Number), now = new Date();
+        let ms; try { ms = momentIn(fromTz, now.getFullYear(), now.getMonth() + 1, now.getDate(), hh, mm); } catch (e) { return hhmm; }
+        const t = new Date(ms); return pad(t.getHours()) + ':' + pad(t.getMinutes());
+    }
+    // "HH:MM" -> text in the phone's own style (8:30 PM or 20:30, whichever this phone uses).
+    function showTime(hhmm) {
+        const [hh, mm] = hhmm.split(':').map(Number);
+        return new Date(2000, 0, 1, hh, mm).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    }
+
+    let saved = null;   // { time, tz } as stored on the server
+
+    function paintHint() {
+        const el = document.getElementById('summary-time-hint'); if (!el || !saved) return;
+        el.textContent = 'Sent every day at ' + showTime(toPhoneTime(saved.time, saved.tz)) + (deviceTz() ? ' (' + deviceTz().replace(/_/g, ' ') + ' time).' : '.');
+    }
+
+    window.mlySummaryPaint = async function () {
+        const row = document.getElementById('summary-time-row'); if (!row) return;
+        row.style.display = 'none';
+        if (window.MLY_DEMO || typeof currentTenantId === 'undefined' || !currentTenantId || typeof currentIsOwner === 'undefined' || !currentIsOwner || !navigator.onLine) return;
+        try {
+            const { data, error } = await supabaseClient.rpc('get_summary_time', { p_tenant: String(currentTenantId) });
+            if (error) throw error;
+            const d = Array.isArray(data) ? data[0] : data;
+            if (!d || !d.out_time) throw new Error('no time returned');
+            saved = { time: d.out_time, tz: d.out_tz };
+            document.getElementById('summary-time-input').value = toPhoneTime(saved.time, saved.tz);
+            paintHint();
+            row.style.display = '';
+        } catch (e) { console.warn('Closing report time is not available yet', e); }   // stays hidden until closing-report-time.sql has been run
+    };
+
+    async function save(hhmm, doneText) {
+        if (!/^\d{2}:\d{2}$/.test(hhmm || '')) { showToast('Pick a time first.', 'info'); return; }
+        if (!navigator.onLine) { showToast('Connect to the internet to save the time.', 'info'); return; }
+        const tz = deviceTz() || DEFAULT_TZ, btn = document.getElementById('summary-time-save');
+        if (btn) btn.disabled = true;
+        try {
+            const { error } = await supabaseClient.rpc('set_summary_time', { p_tenant: String(currentTenantId), p_time: hhmm, p_tz: tz });
+            if (error) throw error;
+            saved = { time: hhmm, tz };
+            document.getElementById('summary-time-input').value = hhmm;
+            paintHint(); showToast(doneText, 'success');
+        } catch (e) { alert('Could not save the time: ' + ((e && (e.message || e.details)) || e)); }
+        if (btn) btn.disabled = false;
+    }
+    window.mlySaveSummaryTime = function () { return save(document.getElementById('summary-time-input').value, 'Closing report time saved.'); };
+    // Default = 20:30 Ethiopia time, shown on this phone as whatever that is here.
+    window.mlyResetSummaryTime = function () { return save(toPhoneTime(DEFAULT_TIME, DEFAULT_TZ), 'Back to the default time.'); };
 })();
 </script>
 
