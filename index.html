@@ -18076,6 +18076,95 @@ const iso = d => { const x = new Date(d); return x.getFullYear() + '-' + String(
 const T = { on: false, i: -1, steps: [], xp: 0, token: 0, cur: null, tgt: null, muted: false, fin: { x: -80, y: -80 } };
 window.MLY_DEMO = false;
 
+/* ---------- DEMO PROFILES: one per business type. To add a new type (rental, restaurant...) add one entry here, set ready:true and the picker shows it. ---------- */
+const addDays = n => { const d = new Date(); d.setDate(d.getDate() + n); return iso(d); };
+const PROFILES = {
+  retail: {
+    key: 'retail', biz: 'retail', ready: true, icon: '🛒',
+    name: { en: 'Retail shop', am: 'የችርቻሮ ሱቅ' }, desc: { en: 'Supermarket, mini-market, kiosk, boutique', am: 'ሱፐርማርኬት፣ ሚኒ ማርኬት፣ ኪዮስክ፣ የልብስ ሱቅ' },
+    shopName: 'DEMO SHOP', tenant: 'Demo Shop', kicker: 'WELCOME, SHOPKEEPER', welcome: 'Run a shop in 5 minutes', practice: 'practice shop', own: 'your own shop',
+    cats: ['Drinks', 'Groceries', 'Household'],
+    prods: [['Drinks', 'Mineral Water 1L', 18, 25, 'Abebe Traders'], ['Drinks', 'Coca-Cola 300ml', 14, 20, 'Abebe Traders'], ['Groceries', 'Sugar 1kg', 85, 100, 'Hawassa Wholesale'], ['Groceries', 'Cooking Oil 1L', 190, 220, 'Hawassa Wholesale'], ['Groceries', 'Pasta 500g', 42, 55, 'Hawassa Wholesale'], ['Household', 'Laundry Soap', 28, 38, 'Sidama Supplies']],
+    csv: () => 'Category,Product Name,Quantity,Cost Price,Supplier,Selling Price\nSnacks,Biscuit Pack,48,12,Sidama Supplies,18\nSnacks,Peanuts 200g,30,25,Abebe Traders,35\nDrinks,Orange Juice 1L,24,52,Abebe Traders,70\nDrinks,Bottled Water 500ml,60,8,Abebe Traders,12\nGroceries,Rice 5kg,15,420,Hawassa Wholesale,480\nGroceries,Teff Flour 1kg,20,95,Hawassa Wholesale,115\nGroceries,Tomato Paste,36,22,Hawassa Wholesale,30\nHousehold,Dish Soap 500ml,25,45,Sidama Supplies,60\nPersonal Care,Toothpaste,40,35,Sidama Supplies,50\nPersonal Care,Bath Soap,50,18,Sidama Supplies,25',
+    csvName: 'my-shop-stock.csv',
+    manual: { cls: ['bm-c', 'bm-d', 'bm-q', 'bm-p', 'bm-r', 'bm-s'], vals: () => ['Snacks', 'Chocolate Bar', '20', '8', '12', 'Sidama Supplies'] },
+    s1: '[Drinks] Mineral Water 1L', s1n: 'Mineral Water', s2: '[Groceries] Cooking Oil 1L', s3: '[Groceries] Sugar 1kg',
+    c1: '[Groceries] Sugar 1kg', c2: '[Household] Laundry Soap', c2n: 'Laundry Soap', f: 'Sugar', lesson1: ''
+  },
+  pharmacy: {
+    key: 'pharmacy', biz: 'pharmacy', ready: true, icon: '💊',
+    name: { en: 'Pharmacy', am: 'ፋርማሲ' }, desc: { en: 'Medicines with expiry dates and batch tracking', am: 'መድኃኒት፣ የጊዜ ማብቂያ ቀንና የባች ክትትል' },
+    shopName: 'DEMO PHARMACY', tenant: 'Demo Pharmacy', kicker: 'WELCOME, PHARMACIST', welcome: 'Run a pharmacy in 5 minutes', practice: 'practice pharmacy', own: 'your own pharmacy',
+    cats: ['Pain relief', 'Antibiotics', 'Cough & cold', 'Vitamins', 'First aid'],
+    prods: [['Pain relief', 'Paracetamol 500mg', 12, 18, 'Abebe Pharma Supply', 420], ['Pain relief', 'Ibuprofen 400mg', 22, 32, 'Abebe Pharma Supply', 55], ['Antibiotics', 'Amoxicillin 500mg', 95, 130, 'Hawassa Medical Wholesale', 300], ['Cough & cold', 'Cough Syrup 100ml', 48, 70, 'Hawassa Medical Wholesale', 18], ['Vitamins', 'Vitamin C 1000mg', 60, 85, 'Sidama Health Supplies', 520], ['First aid', 'Antiseptic 100ml', 28, 40, 'Sidama Health Supplies', 700]],
+    csv: () => 'Category,Product Name,Quantity,Cost Price,Supplier,Selling Price,Expiry Date\nPain relief,Diclofenac Gel 30g,24,55,Abebe Pharma Supply,80,' + addDays(25) + '\nPain relief,Aspirin 100mg,40,10,Abebe Pharma Supply,16,' + addDays(380) + '\nAntibiotics,Azithromycin 500mg,18,140,Hawassa Medical Wholesale,190,' + addDays(260) + '\nCough & cold,Cetirizine 10mg,50,15,Hawassa Medical Wholesale,24,' + addDays(45) + '\nCough & cold,Throat Lozenges,60,8,Hawassa Medical Wholesale,14,' + addDays(520) + '\nVitamins,Multivitamin (30 tablets),30,90,Sidama Health Supplies,125,' + addDays(600) + '\nVitamins,Zinc 20mg,35,38,Sidama Health Supplies,55,' + addDays(410) + '\nFirst aid,Cotton Wool 100g,45,16,Sidama Health Supplies,25,\nFirst aid,Surgical Gloves (box),20,120,Sidama Health Supplies,165,' + addDays(700) + '\nFirst aid,Digital Thermometer,12,85,Sidama Health Supplies,120,',
+    csvName: 'my-pharmacy-stock.csv',
+    manual: { cls: ['bm-c', 'bm-d', 'bm-q', 'bm-p', 'bm-r', 'bm-s', 'bm-e'], vals: () => ['First aid', 'Bandage Roll', '30', '6', '10', 'Sidama Health Supplies', addDays(900)] },
+    s1: '[Pain relief] Paracetamol 500mg', s1n: 'Paracetamol 500mg', s2: '[Antibiotics] Amoxicillin 500mg', s3: '[Vitamins] Vitamin C 1000mg',
+    c1: '[Pain relief] Ibuprofen 400mg', c2: '[First aid] Antiseptic 100ml', c2n: 'Antiseptic 100ml', f: 'Vitamin',
+    lesson1: ' <b>Pharmacy rule:</b> the app sells the batch that <b>expires first</b>, so old stock never gets forgotten.'
+  },
+  other: {
+    key: 'other', biz: 'retail', ready: true, icon: '🏪', alias: 'retail',
+    name: { en: 'Something else', am: 'ሌላ ንግድ' }, desc: { en: 'Any other business that sells products', am: 'ዕቃ የሚሸጥ ማንኛውም ሌላ ንግድ' }
+  },
+  rental: {
+    key: 'rental', biz: 'rental', ready: true, icon: '🔑',
+    name: { en: 'Rentals', am: 'ኪራይ' }, desc: { en: 'Equipment, vehicles, rooms and assets for rent', am: 'መሣሪያ፣ ተሽከርካሪ፣ ክፍልና ንብረት ማከራየት' },
+    shopName: 'DEMO RENTALS', tenant: 'Demo Rentals', kicker: 'WELCOME, RENTAL OWNER', welcome: 'Run a rental business in 5 minutes', practice: 'practice rental business', own: 'your own rental business',
+    cats: ['Camera', 'Sound', 'Event'], saleTypes: ['Rental'],
+    /* [category, asset, unit cost, daily, weekly, monthly, quantity, supplier] */
+    assets: [['Camera', 'Canon DSLR Camera', 45000, 800, 4800, 16000, 3, 'Hawassa Equipment Supply'], ['Camera', 'Tripod Stand', 2500, 150, 900, 3000, 4, 'Hawassa Equipment Supply'], ['Sound', 'PA Speaker 500W', 18000, 600, 3500, 11000, 4, 'Abebe Traders'], ['Sound', 'Wireless Microphone', 3500, 150, 900, 3000, 6, 'Abebe Traders'], ['Event', 'Plastic Chairs', 350, 15, 90, 300, 100, 'Sidama Supplies'], ['Event', 'Tent 6x6m', 22000, 1200, 7000, 22000, 3, 'Sidama Supplies']],
+    csv: () => 'Category,Asset Name,Quantity,Cost Price,Supplier,Daily Rate,Weekly Rate,Monthly Rate\nGenerator,Generator 5kVA,2,60000,Hawassa Equipment Supply,1500,9000,30000\nGenerator,Extension Cable 50m,6,1800,Hawassa Equipment Supply,100,600,2000\nTools,Concrete Mixer,2,30000,Sidama Supplies,900,5500,18000\nTools,Water Pump,3,12000,Sidama Supplies,500,3000,9500\nTools,Scaffolding Set,5,15000,Sidama Supplies,400,2400,8000\nEvent,Round Table,15,1500,Abebe Traders,60,360,1200\nEvent,Table Cloth,40,250,Abebe Traders,20,120,400\nLighting,LED Flood Light,10,2200,Abebe Traders,120,700,2300\nLighting,Disco Light Set,3,6500,Abebe Traders,350,2000,6500\nCamera,Camera Lens 50mm,3,18000,Hawassa Equipment Supply,350,2100,7000',
+    csvName: 'my-rental-assets.csv',
+    manual: { cls: ['bm-c', 'bm-d', 'bm-q', 'bm-p', 'bm-s', 'bm-dr', 'bm-wr', 'bm-mr'], vals: () => ['Lighting', 'Projector', '2', '25000', 'Hawassa Equipment Supply', '700', '4000', '13000'] }
+  },
+  restaurant: { key: 'restaurant', biz: 'restaurant', ready: false, icon: '🍽️', name: { en: 'Restaurant & Bar', am: 'ሬስቶራንት እና ባር' }, desc: { en: 'Tables, waiters, kitchen and bar screen', am: 'ጠረጴዛ፣ አስተናጋጅ፣ ወጥ ቤትና ባር' } }
+};
+PROFILES.other = Object.assign({}, PROFILES.retail, { key: 'other', biz: 'retail', icon: '🏪', name: PROFILES.other.name, desc: PROFILES.other.desc, ready: true });
+let P = PROFILES.retail;
+const isAm = () => { try { return currentLang === 'am'; } catch (e) { return false; } };
+
+/* ---------- the "what kind of business?" picker ---------- */
+const PICK = {
+  en: { title: 'What kind of business do you run?', sub: 'Pick the closest one and I will show you a demo made for it.', soon: 'Demo coming soon', signin: 'I already have an account — sign in', soonMsg: 'That demo is coming soon. Pick the closest type for now, or create your free account.' },
+  am: { title: 'ምን ዓይነት ንግድ ነው የሚሰሩት?', sub: 'ለንግድዎ የሚቀርበውን ይምረጡ፤ ለእሱ የተዘጋጀ ማሳያ አሳይዎታለሁ።', soon: 'ማሳያው በቅርቡ ይመጣል', signin: 'መለያ አለኝ — ግባ', soonMsg: 'ያ ማሳያ በቅርቡ ይመጣል። እስከዚያው ቅርብ የሆነውን ይምረጡ ወይም ነፃ መለያ ይክፈቱ።' }
+};
+function showPicker() {
+  if (document.getElementById('dm-pick')) return;
+  const L2 = PICK[isAm() ? 'am' : 'en'], lang = isAm() ? 'am' : 'en';
+  const st = document.createElement('style'); st.id = 'dm-pick-css';
+  st.textContent = `#dm-pick{position:fixed;inset:0;z-index:9000;background:linear-gradient(160deg,#1e1b4b,#3b2a8c 60%,#7c3aed);display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:28px 14px 40px;font-family:inherit}
+#dm-pick .pk-box{width:100%;max-width:560px;color:#fff}
+#dm-pick h2{margin:6px 0 4px;font-size:22px;line-height:1.25;text-align:center}
+#dm-pick .pk-sub{margin:0 0 18px;text-align:center;font-size:14px;color:#ddd6fe}
+#dm-pick .pk-owl{text-align:center;font-size:44px;animation:dmBob 1.6s ease-in-out infinite}
+#dm-pick .pk-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:420px){#dm-pick .pk-grid{grid-template-columns:1fr}}
+#dm-pick .pk-card{display:flex;gap:12px;align-items:center;text-align:left;width:100%;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.28);border-radius:16px;padding:14px;color:#fff;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);transition:transform .15s,background .15s,border-color .15s}
+#dm-pick .pk-card:hover,#dm-pick .pk-card:focus-visible{background:rgba(255,255,255,.2);border-color:#fbbf24;transform:translateY(-2px);outline:none}
+#dm-pick .pk-card .ic{font-size:32px;flex:0 0 auto}
+#dm-pick .pk-card b{display:block;font-size:15px}
+#dm-pick .pk-card span.d{display:block;font-size:12px;color:#ddd6fe;margin-top:2px;line-height:1.35}
+#dm-pick .pk-card.soon{opacity:.55;border-style:dashed}
+#dm-pick .pk-card.soon:hover{transform:none;border-color:rgba(255,255,255,.28)}
+#dm-pick .pk-tag{display:inline-block;margin-top:5px;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#fbbf24}
+#dm-pick .pk-msg{min-height:18px;margin:12px 0 0;text-align:center;font-size:12.5px;color:#fde68a}
+#dm-pick .pk-link{display:block;margin:10px auto 0;background:none;border:0;color:#c4b5fd;font-size:13px;text-decoration:underline;cursor:pointer;font-family:inherit}`;
+  document.head.appendChild(st);
+  const d = document.createElement('div'); d.id = 'dm-pick';
+  const cards = Object.keys(PROFILES).map(k => { const q = PROFILES[k]; return `<button type="button" class="pk-card${q.ready ? '' : ' soon'}" data-k="${k}"><span class="ic">${q.icon}</span><span><b>${q.name[lang]}</b><span class="d">${q.desc[lang]}</span>${q.ready ? '' : `<span class="pk-tag">${L2.soon}</span>`}</span></button>`; }).join('');
+  d.innerHTML = `<div class="pk-box"><div class="pk-owl">🦉</div><h2>${L2.title}</h2><p class="pk-sub">${L2.sub}</p><div class="pk-grid">${cards}</div><div class="pk-msg" id="pk-msg"></div><button type="button" class="pk-link" id="pk-signin">${L2.signin}</button></div>`;
+  document.body.appendChild(d);
+  d.querySelectorAll('.pk-card').forEach(b => b.onclick = () => {
+    const q = PROFILES[b.dataset.k];
+    if (!q.ready) { const m = $('#pk-msg'); if (m) m.textContent = L2.soonMsg; return; }
+    closePicker(); window.startMeleyaDemo(b.dataset.k);
+  });
+  $('#pk-signin').onclick = () => { try { localStorage.setItem('neba_seen_demo', '1'); } catch (e) { } closePicker(); };
+}
+function closePicker() { const e = document.getElementById('dm-pick'), c = document.getElementById('dm-pick-css'); if (e) e.remove(); if (c) c.remove(); }
+
 /* ---------- CSS ---------- */
 const css = document.createElement('style');
 css.textContent = `
@@ -18131,11 +18220,48 @@ const jingle = () => [523, 659, 784, 1047].forEach((f, k) => setTimeout(() => be
 function toast(m) { const t = document.createElement('div'); t.id = 'dm-toast'; t.textContent = String(m).replace(/<[^>]+>/g, ''); $('#dm-toast') && $('#dm-toast').remove(); document.body.appendChild(t); setTimeout(() => t.remove(), 3500); }
 
 /* ---------- sample shop data (same record shapes the real app builds) ---------- */
+/* ---------- rental demo data: assets, bookings (returned / out / overdue / reserved) and their journal entries ---------- */
+function seedRental() {
+  const B = 'demo-main'; let sd = 29; const rnd = () => { sd = (sd * 9301 + 49297) % 233280; return sd / 233280; };
+  const U = n => new Date(Date.now() + n * 864e5).toISOString().split('T')[0];   // same UTC day logic rental.js uses
+  const items = P.assets.map(a => ({ id: 'demo-' + a[1].replace(/\W/g, ''), category: a[0], desc: a[1], sellingPrice: 0, lots: [], history: [], dailyRate: a[3], weeklyRate: a[4], monthlyRate: a[5], rentalWriteOffs: [] }));
+  const byDesc = d => items.find(i => i.desc === d);
+  const journal = [], purchases = [], bookings = [], d0 = U(-85);
+  P.assets.forEach((a, k) => {
+    const it = items[k], qty = a[6], cost = a[2], lotId = 'PR-D' + k, total = qty * cost;
+    let lot = { id: lotId, qty, cost, branchId: B, expiry: null }; try { lot = stampLot(lot, d0) || lot; } catch (e) { }
+    it.lots.push(lot);
+    purchases.push({ id: lotId, date: d0, supplier: a[7], desc: `[${it.category}] ${it.desc}`, qty, cost, total, channel: 'Mobile banking', paid: true, paidChannel: 'Mobile banking', amountPaid: total, payments: [{ date: d0, amount: total, channel: 'Mobile banking' }], branchId: B });
+    journal.push({ id: lotId, date: d0, desc: `Purchase: ${qty}x ${it.desc} / Supp: ${a[7]}`, lines: [{ account: '1500', dr: total, cr: 0 }, { account: '1020', cr: total, dr: 0 }], branchId: B });
+    journal.push({ id: 'CAP-D' + k, date: d0, desc: 'Owner Capital Injection: New Asset Funding', lines: [{ account: '1020', dr: total, cr: 0 }, { account: '3010', cr: total, dr: 0 }], branchId: B });
+  });
+  let bn = 0;
+  const mk = (desc, qty, cust, phone, startOff, days, status, paidFrac, deposit, chan, madeOff) => {
+    const it = byDesc(desc), start = U(startOff), end = U(startOff + days), date = U(madeOff != null ? madeOff : startOff);
+    const amount = it.dailyRate * days * qty, paid = Math.round(amount * paidFrac);
+    const channel = chan || (rnd() < .6 ? 'Cash' : 'Mobile banking'), id = 'RB-D' + String(++bn).padStart(3, '0');
+    bookings.push({ id, itemId: it.id, branchId: B, date, groupId: null, customerName: cust, customerPhone: phone || '', customerAddress: '', qty, startDate: start, expectedReturnDate: end, actualReturnDate: status === 'returned' ? end : null, rateType: 'daily', amount, amountPaid: paid, depositAmount: deposit || 0, depositStatus: deposit ? 'held' : 'refunded', depositForfeitedAmount: 0, status, damageNotes: '', payments: paid > 0 ? [{ date, amount: paid, channel }] : [] });
+    const lines = []; if (paid > 0) lines.push({ account: CHANNEL_ACCOUNT_CODES[channel], dr: paid, cr: 0 }); if (amount - paid > 0) lines.push({ account: '1300', dr: amount - paid, cr: 0 }); lines.push({ account: '4020', cr: amount, dr: 0 });
+    journal.push({ id, date, desc: `Rental booked: ${qty}x ${it.desc} / Cust: ${cust}`, lines, branchId: B });
+    if (deposit) journal.push({ id: id + '-DEP', date, desc: `Deposit held: ${it.desc} / Cust: ${cust} (Booking ${id})`, lines: [{ account: CHANNEL_ACCOUNT_CODES[channel], dr: deposit, cr: 0 }, { account: '2030', cr: deposit, dr: 0 }], branchId: B });
+  };
+  const custs = ['Almaz', 'Kebede', 'Meron', 'Yonas', 'Bethel', 'Selamawit', 'Tadesse'], pool = items.map(i => i.desc);
+  for (let d = 80; d >= 8; d--) if (rnd() < .5) {
+    const desc = pool[Math.floor(rnd() * pool.length)], it = byDesc(desc), q = desc === 'Plastic Chairs' ? 10 + Math.floor(rnd() * 30) : 1 + Math.floor(rnd() * 2);
+    mk(desc, Math.min(q, it.lots[0].qty), custs[Math.floor(rnd() * custs.length)], '', -d, 1 + Math.floor(rnd() * 4), 'returned', rnd() < .9 ? 1 : .5);
+  }
+  mk('Tent 6x6m', 1, 'Samuel', '0911 223344', -1, 3, 'out', 1, 2000, 'Cash');                 // out, deposit held
+  mk('PA Speaker 500W', 2, 'Tigist', '0922 334455', -6, 4, 'out', 2000 / 4800, 0, 'Cash');     // overdue, still owes
+  mk('Plastic Chairs', 40, 'Almaz', '0933 445566', -2, 3, 'out', 1, 0, 'Mobile banking');        // out
+  mk('Canon DSLR Camera', 1, 'Kebede', '0944 556677', 2, 3, 'reserved', 0, 0, 'Cash', 0);        // reserved, due in 2 days, nothing paid
+  state = Object.assign({}, state, { currentFilter: 'all', customStart: '', customEnd: '', categories: P.cats.slice(), saleTypes: P.saleTypes.slice(), inventory: items, journal, salesLog: [], purchaseLog: purchases, expenseLog: [], trash: [], notifications: [], vatRegistered: false, hasEmployees: false, rentalBookings: bookings });
+}
 function seed() {
+  if (P.biz === 'rental') return seedRental();
   const B = 'demo-main', today = new Date();
-  const prods = [['Drinks', 'Mineral Water 1L', 18, 25, 'Abebe Traders'], ['Drinks', 'Coca-Cola 300ml', 14, 20, 'Abebe Traders'], ['Groceries', 'Sugar 1kg', 85, 100, 'Hawassa Wholesale'], ['Groceries', 'Cooking Oil 1L', 190, 220, 'Hawassa Wholesale'], ['Groceries', 'Pasta 500g', 42, 55, 'Hawassa Wholesale'], ['Household', 'Laundry Soap', 28, 38, 'Sidama Supplies']];
+  const prods = P.prods;
   let sd = 11; const rnd = () => { sd = (sd * 9301 + 49297) % 233280; return sd / 233280; };
-  const items = prods.map(p => ({ id: 'demo-' + p[1].replace(/\W/g, ''), category: p[0], desc: p[1], sellingPrice: p[3], lots: [], history: [], dailyRate: null, weeklyRate: null, monthlyRate: null, _c: p[2], _s: p[4], _sold: 0 }));
+  const items = prods.map(p => ({ id: 'demo-' + p[1].replace(/\W/g, ''), category: p[0], desc: p[1], sellingPrice: p[3], lots: [], history: [], dailyRate: null, weeklyRate: null, monthlyRate: null, _c: p[2], _s: p[4], _x: p[5], _sold: 0 }));
   const sales = [], journal = [], purchases = [], types = ['Retail', 'Wholesale'];
   for (let d = 80; d >= 0; d--) {
     const dt = new Date(today); dt.setDate(dt.getDate() - d); const date = iso(dt);
@@ -18157,57 +18283,79 @@ function seed() {
   const d0 = iso(new Date(today.getTime() - 85 * 864e5));
   items.forEach((it, k) => {
     const qty = it._sold + 40 + Math.floor(rnd() * 50), lotId = 'PR-D' + k, total = qty * it._c;
-    let lot = { id: lotId, qty: qty - it._sold, cost: it._c, branchId: B, expiry: null }; try { lot = stampLot(lot, d0) || lot; } catch (e) { }
+    let lot = { id: lotId, qty: qty - it._sold, cost: it._c, branchId: B, expiry: it._x != null ? addDays(it._x) : null }; try { lot = stampLot(lot, d0) || lot; } catch (e) { }
     it.lots.push(lot);
     purchases.push({ id: lotId, date: d0, supplier: it._s, desc: `[${it.category}] ${it.desc}`, qty, cost: it._c, total, channel: 'Mobile banking', paid: true, paidChannel: 'Mobile banking', amountPaid: total, payments: [{ date: d0, amount: total, channel: 'Mobile banking' }], branchId: B });
     journal.push({ id: lotId, date: d0, desc: `Purchase: ${qty}x ${it.desc} / Supp: ${it._s}`, lines: [{ account: '1200', dr: total, cr: 0 }, { account: '1020', cr: total, dr: 0 }], branchId: B });
     journal.push({ id: 'CAP-D' + k, date: d0, desc: 'Owner Capital Injection: New Stock Funding', lines: [{ account: '1020', dr: total, cr: 0 }, { account: '3010', cr: total, dr: 0 }], branchId: B });
-    delete it._c; delete it._s; delete it._sold;
+    delete it._c; delete it._s; delete it._x; delete it._sold;
   });
-  state = Object.assign({}, state, { currentFilter: 'all', customStart: '', customEnd: '', categories: ['Drinks', 'Groceries', 'Household'], saleTypes: types, inventory: items, journal, salesLog: sales, purchaseLog: purchases, expenseLog: [], trash: [], notifications: [], vatRegistered: false, hasEmployees: false });
+  state = Object.assign({}, state, { currentFilter: 'all', customStart: '', customEnd: '', categories: P.cats.slice(), saleTypes: types, rentalBookings: undefined, inventory: items, journal, salesLog: sales, purchaseLog: purchases, expenseLog: [], trash: [], notifications: [], vatRegistered: false, hasEmployees: false });
 }
 
 const safe = fn => { try { return fn(); } catch (e) { console.warn('demo:', e); } };
 function renderAll() {
   safe(syncCategoriesDatalist); safe(syncSaleTypesDropdown); safe(populateSaleTypeFilterDropdown); safe(syncChannelDropdowns);
   safe(renderPerpetualInventoryTable); safe(syncTransactionalProductDropdownOptions); safe(renderSalesLogTable); safe(renderAnalyticalDashboards);
+  if (P.biz === 'rental' && currentVerticalModule && typeof currentVerticalModule.refresh === 'function') safe(() => currentVerticalModule.refresh(rentalCtx()));
 }
+function rentalDbRows() {
+  return (state.rentalBookings || []).map(b => ({ id: b.id, item_id: b.itemId, branch_id: b.branchId, date: b.date, group_id: b.groupId, customer_name: b.customerName, customer_phone: b.customerPhone, customer_address: b.customerAddress, qty: b.qty, start_date: b.startDate, expected_return_date: b.expectedReturnDate, actual_return_date: b.actualReturnDate, rate_type: b.rateType, amount: b.amount, amount_paid: b.amountPaid, deposit_amount: b.depositAmount, deposit_status: b.depositStatus, deposit_forfeited_amount: b.depositForfeitedAmount, status: b.status, damage_notes: b.damageNotes, payments: b.payments }));
+}
+function rentalCtx() { return { state, tenantId: 'demo-shop', channelAccountCodes: CHANNEL_ACCOUNT_CODES, supabaseClient: { from: () => ({ select: () => ({ eq: () => Promise.resolve({ data: rentalDbRows() }) }) }) }, branchId: currentBranchId, calendarPref: (typeof currentCalendarPref !== 'undefined' ? currentCalendarPref : undefined), mountEl: document.getElementById('vertical-widgets') }; }
 
 /* ---------- start / stop the demo ---------- */
-window.startMeleyaDemo = function () {
-  if (T.on || document.documentElement.classList.contains('mly-existing-user')) return; T.on = true; window.MLY_DEMO = true;
+window.startMeleyaDemo = function (type) {
+  if (T.on || document.documentElement.classList.contains('mly-existing-user')) return;
+  if (!type || !PROFILES[type] || !PROFILES[type].ready) return showPicker();   // first ask which business type, then build the demo for it
+  try { localStorage.setItem('neba_seen_demo', '1'); } catch (e) { }
+  P = PROFILES[type]; try { sessionStorage.setItem('mly_demo_biz', P.biz); } catch (e) { }
+  T.on = true; window.MLY_DEMO = true;
   window.alert = toast; document.body.classList.add('dm-demo');
   queueWrite = () => Promise.resolve();            // NOTHING is ever saved or sent
   cacheStateLocally = () => { };                   // no local copy either
-  currentTenantId = 'demo-shop'; currentTenantName = 'Demo Shop'; currentBusinessType = 'retail';
+  currentTenantId = 'demo-shop'; currentTenantName = P.tenant; currentBusinessType = P.biz; try { currentVerticalModule = null; } catch (e) { }
   currentBranchId = 'demo-main'; writeBranchId = 'demo-main'; accessibleBranches = [{ id: 'demo-main', name: 'Main shop' }];
   currentPermissions = new Set(['*']); currentPlanFeatures = null; currentPlanPremium = false; currentPlanFeatureKeys = null;
   seed(); rebuildChartOfAccounts();
   $('#app-shell').style.display = 'flex'; const ao = $('#auth-overlay'); if (ao) ao.style.display = 'none';
   document.documentElement.classList.remove('mly-resume');
-  const sb = $('#shop-brand-name'); if (sb) sb.textContent = 'DEMO SHOP';
+  const sb = $('#shop-brand-name'); if (sb) sb.textContent = P.shopName;
   [populateEthiopianDropdowns, populateExpenseAccountDropdown, populateExpenseAccountFilterDropdown, initEthiopianDatePickers, applyBusinessTypeLabels, applyPermissionGating, applyPlanLocks, applyVatUIVisibility, applyEmployeeGatedUI, populateBranchSwitcher, updateBranchColumnVisibility].forEach(f => safe(f));
   ['sale-date', 'cart-sale-date'].forEach(id => { const e = document.getElementById(id); if (e && !e.value) e.value = iso(new Date()); });
   $('#sidebar').classList.remove('collapsed');
   const ft = $('.aside-footer .footer-buttons'); if (ft) ft.style.display = 'none';
   const eb = $('#btn-export-hub'); if (eb) eb.style.display = 'none';
   if (!$('#dm-demo-cta')) { const b = document.createElement('button'); b.id = 'dm-demo-cta'; b.className = 'dm-btn p'; b.textContent = '✨ Create my real account'; b.onclick = () => exit(true); $('.aside-footer').appendChild(b); }
+  if (!$('#dm-demo-switch')) { const b3 = document.createElement('button'); b3.id = 'dm-demo-switch'; b3.className = 'dm-btn g'; b3.style.cssText = 'margin-top:6px;width:100%'; b3.textContent = isAm() ? '🔄 ሌላ የንግድ ዓይነት ሞክር' : '🔄 Try another business type'; b3.onclick = () => { try { sessionStorage.setItem('mly_demo_repick', '1'); } catch (e) { } location.reload(); }; $('.aside-footer').appendChild(b3); }
   if (!$('#dm-demo-signin')) { const b2 = document.createElement('button'); b2.id = 'dm-demo-signin'; b2.className = 'dm-btn g'; b2.style.marginTop = '6px'; b2.textContent = 'I already have an account — sign in'; b2.onclick = () => exit(false); $('.aside-footer').appendChild(b2); }
   safe(() => switchView('dashboard')); renderAll(); buildHud(); safe(() => $('#cloud-sync-status').innerHTML = '🎮 Demo mode, nothing is saved');
-  setTimeout(startTour, 700);
+  if (P.biz === 'pharmacy' && typeof loadVerticalModule === 'function') safe(() => loadVerticalModule('pharmacy', { state, tenantId: 'demo-shop', channelAccountCodes: CHANNEL_ACCOUNT_CODES, supabaseClient: (typeof supabaseClient !== 'undefined' ? supabaseClient : null), mountEl: document.getElementById('vertical-widgets') }).then(m => { currentVerticalModule = m; safe(renderAnalyticalDashboards); }).catch(e => console.warn('demo vertical:', e)));
+  let vmReady = Promise.resolve();
+  if (P.biz === 'rental') {
+    window.confirm = () => true;   // the check-out / cancel questions must not block the guided tour
+    const ok = m => m && typeof m.renderInventorySection === 'function' && typeof m.renderBookingSection === 'function';
+    const viaApp = () => (typeof loadVerticalModule === 'function' ? Promise.resolve(loadVerticalModule('rental', rentalCtx())) : Promise.reject(new Error('no loader'))).then(m => ok(m) ? m : Promise.reject(new Error('loader returned no module')));
+    const direct = () => import('./verticals/rental.js').catch(() => import('/verticals/rental.js')).then(m => { m.refresh(rentalCtx()); return m; });
+    vmReady = viaApp().catch(() => direct()).then(mod => {
+      currentVerticalModule = mod; safe(renderAnalyticalDashboards);
+      const v = ['inventory', 'sales'].find(x => { const e = $('#view-' + x); return e && e.classList.contains('active'); }); if (v) safe(() => switchView(v));
+    }).catch(e => { console.error('demo rental module failed:', e); toast('The rental demo could not load verticals/rental.js. Check that the file is deployed at that path.'); });
+  }
+  vmReady.then(() => setTimeout(startTour, 700));
 };
 /* New visitors land on the demo shop once. Anyone who has a saved login, has used the app here before, or has already seen the demo goes straight to sign-in as usual. */
 window.mlyMaybeAutoDemo = function () {
   try {
     if (document.documentElement.classList.contains('mly-existing-user')) return;
+    if (sessionStorage.getItem('mly_demo_repick')) { sessionStorage.removeItem('mly_demo_repick'); showPicker(); return; }   // "Try another business type"
     if (localStorage.getItem('neba_seen_demo') || localStorage.getItem('neba_erp_last_identity')) return;
     if (sessionStorage.getItem('mly_demo_signup')) return;   // they just tapped "Create my real account"
-    localStorage.setItem('neba_seen_demo', '1');
-    window.startMeleyaDemo();
+    window.startMeleyaDemo();   // shows the business-type picker first
   } catch (e) { console.warn('auto demo:', e); }
 };
 function exit(signup) { if (signup) sessionStorage.setItem('mly_demo_signup', '1'); location.reload(); }
-window.addEventListener('load', () => { if (sessionStorage.getItem('mly_demo_signup')) { sessionStorage.removeItem('mly_demo_signup'); setTimeout(() => safe(() => showAuthView('signup')), 900); } });
+window.addEventListener('load', () => { if (sessionStorage.getItem('mly_demo_signup')) { sessionStorage.removeItem('mly_demo_signup'); setTimeout(() => safe(() => { showAuthView('signup'); const b = sessionStorage.getItem('mly_demo_biz'), sel = document.getElementById('auth-business-type'); if (b && sel && Array.from(sel.options).some(o => o.value === b)) { sel.value = b; fire(sel); } }), 900); } });
 
 /* ---------- HUD ---------- */
 function buildHud() {
@@ -18265,13 +18413,14 @@ function closeModals() { safe(closeBulkImport); safe(closeAuditModal); safe(clos
 const res = s => typeof s === 'function' ? s() : (s ? $(s) : null);
 function say(t) { const e = $('.dm-t', L.card); if (e) e.innerHTML = t; }
 async function go(i) {
-  const tk = ++T.token; T.i = i; const s = T.steps[i]; L.svg.innerHTML = ''; L.fin.classList.remove('press'); hud(); L.card.classList.add('dm-hide');
+  const tk = ++T.token; T.i = i; let s = T.steps[i]; L.svg.innerHTML = ''; L.fin.classList.remove('press'); hud(); L.card.classList.add('dm-hide');
   if (!s) return finish();
   if (s.v && !$('#view-' + s.v).classList.contains('active')) { closeModals(); safe(() => switchView(s.v)); await sleep(500); }
   if (!s.keepBulk) safe(closeBulkImport);
   if (s.nav) $('#sidebar').classList.remove('collapsed');
   if (s.pre) await s.pre(tk); if (tk !== T.token) return;
   let e = null; for (let k = 0; k < 30 && s.t && !(e = res(s.t)); k++) await sleep(100);
+  if (!e && s.t && ['click', 'until', 'change'].includes(s.wait)) s = Object.assign({}, s, { wait: 'next', still: true });   // target not on screen: never leave the visitor stuck
   if (e && s.t && s.scroll !== false) await bring(e, s.big);
   T.tgt = e; T.noRing = !!s.stage; if (!e) T.cur = null;
   { const quiet = s.stage ? 500 : 1400; if (!s.stage) { L.b.forEach(b => b.style.opacity = 0); L.ring.style.opacity = 0; } await sleep(quiet); if (tk !== T.token) return; L.b.forEach(b => b.style.opacity = ''); L.ring.style.opacity = ''; }
@@ -18314,8 +18463,7 @@ function stopTour() { T.token++; cleanup(); T.tgt = null; T.cur = null; T.i = -1
 function startTour() { layers(); L.b.forEach(b => b.style.display = 'block'); T.i = 0; T.over = false; T.xp = START_XP; T.lv = 0; hud(); setTimeout(() => { popup('🎉 Level 1 complete!  +' + START_XP + ' XP', true); jingle(); }, 1500); buildSteps(); go(0); window.__mlyDemo = { jump: i => go(i), n: () => T.steps.length, tgt: () => T.tgt, steps: () => T.steps.map(x => x.say || x.title) }; }
 
 /* ---------- the game script ---------- */
-const DEMO_CSV = 'Category,Product Name,Quantity,Cost Price,Supplier,Selling Price\nSnacks,Biscuit Pack,48,12,Sidama Supplies,18\nSnacks,Peanuts 200g,30,25,Abebe Traders,35\nDrinks,Orange Juice 1L,24,52,Abebe Traders,70\nDrinks,Bottled Water 500ml,60,8,Abebe Traders,12\nGroceries,Rice 5kg,15,420,Hawassa Wholesale,480\nGroceries,Teff Flour 1kg,20,95,Hawassa Wholesale,115\nGroceries,Tomato Paste,36,22,Hawassa Wholesale,30\nHousehold,Dish Soap 500ml,25,45,Sidama Supplies,60\nPersonal Care,Toothpaste,40,35,Sidama Supplies,50\nPersonal Care,Bath Soap,50,18,Sidama Supplies,25';
-async function loadDemoFile() { for (let k = 0; k < 50 && typeof XLSX === 'undefined'; k++) await sleep(100); await bulkLoadFile(new File([DEMO_CSV], 'my-shop-stock.csv', { type: 'text/csv' })); }
+async function loadDemoFile() { for (let k = 0; k < 50 && typeof XLSX === 'undefined'; k++) await sleep(100); await bulkLoadFile(new File([P.csv()], P.csvName, { type: 'text/csv' })); }
 const tableOf = id => () => { const e = $(id); return e && (e.closest('.table-scroll') || e.closest('table') || e); };
 const boxOf = id => () => { const e = $(id); return e && e.parentElement; };
 async function fill(tk, item, qty, paid, cust) {
@@ -18326,20 +18474,92 @@ async function fill(tk, item, qty, paid, cust) {
 async function setField(sel, val, tk) { const e = $(sel); if (!e) return; await tap(e, tk); await typeInto(e, val, tk); }
 async function cartAdd(tk, n, q) { await setField('#cart-sale-item', n, tk); await setField('#cart-sale-qty', q, tk); const add = $('[onclick="addToSaleCart()"]'); await tap(add, tk); if (tk === T.token) add.click(); await sleep(400); }
 const fire = e => { e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true })); };
+/* ---------- the rental tour: assets -> bookings -> dashboard ---------- */
+function buildRentalSteps() {
+  const st = T.steps = [], S = o => st.push(o);
+  const W1 = 'Stage 1 · Assets', W2 = 'Stage 2 · Bookings', W3 = 'Stage 3 · Dashboard';
+  const valid = v => state.inventory.some(i => `[${i.category}] ${i.desc}` === v);
+  const X = o => S(Object.assign({ v: 'sales', w: W2 }, o)), E = (t, say, big) => X({ t, wait: 'next', still: true, big, xp: 5, say });
+  const form = () => { const e = $('#rb-start'); return e && e.closest('.card'); };
+  const wrap = () => { const e = $('#bookings-table-wrap'); return e && (e.closest('.table-scroll') || e); };
+  const rowBtn = (cust, kind) => () => { const r = $$('#bookings-table-wrap tr').find(tr => tr.textContent.includes(cust) && $('[onclick*="' + kind + '"]', tr)); return r && $('[onclick*="' + kind + '"]', r); };
+  const filt = k => () => $('[data-filter-key="' + k + '"]');
+  const modalBox = () => $('#sales-rentals-modals .modal-box');
+  const rbAdd = async (tk, label, qty) => { await setField('#rb-add-item', label, tk); await setField('#rb-add-qty', qty, tk); const add = $('[onclick="rentalUI.addCartLine()"]'); await tap(add, tk); if (tk === T.token && add) add.click(); await sleep(450); };
+  const amt = () => parseFloat($('#rb-amount').value) || 0;
+  const submit = '[onclick="rentalUI.submitBookingForm()"]';
+  S({ stage: true, emoji: '🦉', kicker: P.kicker, title: P.welcome, say: 'I\'m <b>Meli</b>. Follow my glowing finger, tap the highlighted things and earn <b>XP</b>. This is a <b>' + P.practice + '</b>: nothing you do here is saved.', btn: 'Let\'s go! ▶', nostars: true, v: 'dashboard' });
+  /* STAGE 1 – assets */
+  S({ v: 'dashboard', nav: true, t: '#nav-inventory', wait: 'click', w: W1, say: 'This is your <b>dashboard</b> and the menu on the left. Tap <b>Inventory</b> to see the things you rent out.' });
+  S({ v: 'inventory', t: '#inv-bulk-btn', wait: 'click', w: W1, say: 'Typing every asset one by one is slow. Tap <b>Add in bulk</b>.', delay: 800 });
+  S({ v: 'inventory', keepBulk: true, t: '#bulk-file-section', wait: 'next', w: W1, say: 'One window, two ways. <b>On top:</b> upload an Excel or CSV list of your assets. <b>Below it:</b> type assets by hand.', still: true });
+  S({ v: 'inventory', keepBulk: true, t: '#bulk-file', wait: 'click', w: W1, say: 'Tap <b>Choose file</b>. I prepared one for you: <b>' + P.csvName + '</b>.', intercept: loadDemoFile, delay: 1200, pre: async () => { for (let k = 0; k < 30 && !$('#bulk-file'); k++) await sleep(100); } });
+  S({ v: 'inventory', keepBulk: true, t: '#bulk-body', wait: 'next', w: W1, say: 'The list is already <b>filled in</b>. Every asset has a <b>Daily Rate</b> (required) and optional weekly and monthly rates. Check it before anything is saved.', still: true });
+  S({ v: 'inventory', keepBulk: true, t: '#bulk-manual', wait: 'next', w: W1, still: true, say: '<b>Or type assets by hand, right below the upload.</b> I typed the first row: a projector with its three rates. <b>+ Add row</b> gives you more.', run: async tk => { const r = $('#bulk-man-body tr'); if (!r) return; const v = P.manual.vals(), c = P.manual.cls; for (let k = 0; k < v.length; k++) { const i = $('.' + c[k], r); if (!i) continue; await tap(i, tk); await typeInto(i, v[k], tk); } } });
+  S({ v: 'inventory', keepBulk: true, t: '#bulk-go', wait: 'click', w: W1, say: 'Tap <b>Import</b>. The assets in the file and the one you typed all join your business.', delay: 1000 });
+  S({ v: 'inventory', t: () => { const b = $('#rental-availability-body'); return b && (b.querySelector('.table-scroll') || b); }, wait: 'scroll', w: W1, say: 'This is the <b>Availability calendar</b>: every asset, every day. <b>Swipe left and right</b> 👆 to look into the coming days. The numbers show how many are still free.', run: async (tk, e) => { e.scrollBy({ left: 220, behavior: 'smooth' }); await swipe(e, -110, 0, tk); e.scrollBy({ left: -220, behavior: 'smooth' }); } });
+  S({ v: 'inventory', t: '[onclick="rentalUI.switchInventoryTab(\'assets\')"]', wait: 'click', w: W1, say: 'Tap <b>Assets</b> to see everything you own and what each one earns.', delay: 800 });
+  S({ v: 'inventory', t: () => $('#inventory-tab-content'), wait: 'next', w: W1, big: true, still: true, say: 'Each asset shows its <b>quantity</b> and its <b>daily, weekly and monthly rates</b>. If something is lost or broken you can <b>write it off</b> here.' });
+  S({ stage: true, v: 'inventory', emoji: '📦', title: 'Stage 1 clear!', say: 'Brilliant! You added a whole rental stock in seconds and met the availability calendar.', badge: 'Asset Master' });
+  /* STAGE 2 – bookings */
+  S({ v: 'inventory', nav: true, t: '#nav-sales', wait: 'click', w: W2, say: 'Time to rent something out! Tap <b>Sales</b>, where your bookings live.' });
+  E(form, '<b>Lesson 1: a booking with a deposit and a part payment.</b> A customer takes an asset for some days. You write who, what, when, and how much they pay now.', true);
+  X({ t: '#rb-cust-name', wait: 'until', big: true, say: 'Type the <b>customer name</b>.', until: e => e.value.trim() !== '', fill: tk => setField('#rb-cust-name', 'Hana Events', tk) });
+  X({ t: '#rb-add-item', wait: 'until', say: 'Tap <b>Add Asset</b> and pick or type <b>PA Speaker 500W</b>.', until: e => valid(e.value), fill: tk => setField('#rb-add-item', '[Sound] PA Speaker 500W', tk) });
+  X({ t: '[onclick="rentalUI.addCartLine()"]', wait: 'click', say: 'Tap <b>+ Add</b> to put it on the booking.', delay: 600 });
+  X({ t: () => { const e = $('#rb-start'); return e && e.closest('.form-group'); }, wait: 'next', still: true, say: 'The rental starts today and returns tomorrow. For longer rentals change the dates, and the <b>Rate Type</b> and amount follow (daily, weekly or monthly).' });
+  X({ t: '#rb-amount', wait: 'next', say: 'This is the <b>total price</b> for the days chosen. It is filled in from the asset\'s rate. Check it before you continue.', run: async (tk, e) => { await circle(e, tk); await sleep(900); } });
+  X({ t: '#rb-deposit', wait: 'until', say: 'Many owners hold a refundable <b>deposit</b>. Type <b>1000</b>. You give it back when the asset returns safely.', until: e => (parseFloat(e.value) || 0) > 0, fill: tk => setField('#rb-deposit', '1000', tk) });
+  X({ t: '#rb-paidnow', wait: 'until', say: 'The customer pays <b>only part</b> now. Type an amount <b>smaller than the total</b>. The rest is owed to you.', until: e => { const v = parseFloat(e.value) || 0; return v > 0 && v < amt(); }, fill: tk => setField('#rb-paidnow', Math.round(amt() / 2), tk) });
+  X({ t: submit, wait: 'click', say: 'Tap <b>Create Booking</b>.', delay: 1200 });
+  E(wrap, 'Your booking is in the list as <b>Reserved</b>. The asset is held for those dates, so nobody else can book it. <b>[Owes ETB …]</b> shows what Hana still has to pay.', true);
+  E(form, '<b>Lesson 2: many assets, one customer.</b> A wedding needs a tent and chairs. Add them all, then create <b>one booking</b> for the whole basket.', true);
+  X({ t: form, wait: 'auto', big: true, say: '<b>Basket.</b> I add the customer, a tent and 50 chairs…', run: async tk => { await setField('#rb-cust-name', 'Dawit and Selam Wedding', tk); await rbAdd(tk, '[Event] Tent 6x6m', '1'); await rbAdd(tk, '[Event] Plastic Chairs', '50'); await sleep(400); } });
+  X({ t: '#rb-paidnow', wait: 'until', say: 'This customer pays <b>everything now</b>. Type the full total.', until: e => { const v = parseFloat(e.value) || 0; return v > 0 && Math.abs(v - amt()) < 0.01; }, fill: tk => setField('#rb-paidnow', amt(), tk) });
+  X({ t: submit, wait: 'click', say: 'Tap <b>Create Booking</b>. All the assets go in as one basket.', delay: 1200 });
+  X({ t: rowBtn('Hana', 'checkOutBooking'), wait: 'click', say: '<b>Lesson 3: check out.</b> Hana comes to collect the speaker. Tap <b>Check Out</b> when it leaves with her.', delay: 900 });
+  X({ t: filt('overdue'), wait: 'click', say: '<b>Lesson 4: late returns.</b> Someone kept an asset past the return date. Tap <b>Overdue</b> to see who.', delay: 700 });
+  E(wrap, 'Tigist should have returned the speakers 2 days ago, so she is <b>Overdue</b>. She also still owes part of the price.', true);
+  X({ t: rowBtn('Tigist', 'openPaymentModal'), wait: 'click', say: 'First, collect what she owes. Tap <b>Record Payment</b>.', delay: 800 });
+  X({ t: modalBox, wait: 'next', still: true, say: 'It shows how much is <b>still owed</b> and fills in the full balance. Choose how she paid (cash or bank).' });
+  X({ t: '[onclick="rentalUI.submitPayment()"]', wait: 'click', say: 'Tap <b>Save Payment</b>. Her balance is now paid.', delay: 900 });
+  X({ t: rowBtn('Tigist', 'openCheckInModal'), wait: 'click', say: 'She brings the speakers back. Tap <b>Check In</b>.', delay: 800 });
+  X({ t: modalBox, wait: 'next', still: true, say: 'Enter <b>how many came back</b>. If a unit is missing it is written off for you. You can also write a note, such as a scratch.' });
+  X({ t: '[onclick="rentalUI.submitCheckIn()"]', wait: 'click', say: 'Tap <b>Confirm Return</b>. The speakers are free for the next customer.', delay: 900 });
+  X({ t: filt('active'), wait: 'click', say: '<b>Lesson 5: deposits.</b> Tap <b>Active</b> to see what is out or reserved now.', delay: 700 });
+  X({ t: rowBtn('Samuel', 'openCheckInModal'), wait: 'click', say: 'Samuel paid a <b>2,000 deposit</b> for the tent. He is returning it. Tap <b>Check In</b>.', delay: 800 });
+  X({ t: '#ci-deposit-action', wait: 'next', still: true, say: 'Give the deposit back <b>in full</b>, or keep <b>part or all</b> of it if something was damaged. The money moves in your books by itself.' });
+  X({ t: '[onclick="rentalUI.submitCheckIn()"]', wait: 'click', say: 'Tap <b>Confirm Return</b> to refund the deposit.', delay: 900 });
+  X({ t: filt('all'), wait: 'click', say: 'Tap <b>All</b> to see every booking, including the ones already returned.', delay: 700 });
+  S({ stage: true, v: 'sales', emoji: '🔑', title: 'Stage 2 clear!', say: 'Awesome! Bookings, baskets, deposits, late returns and part payments. You can now run a rental counter.', badge: 'Booking Pro' });
+  /* STAGE 3 – dashboard */
+  S({ v: 'sales', nav: true, t: '#nav-dashboard', wait: 'click', w: W3, say: 'Last stage: see how your rental business is doing. Tap <b>Dashboard</b>.' });
+  S({ v: 'dashboard', t: () => $('#vertical-widgets [onclick*="openStatusPopup"]') || $('#vertical-widgets'), wait: 'click', w: W3, big: true, say: 'Three boxes tell you what needs attention: <b>Out</b>, <b>Overdue</b> and <b>Due in 3 days</b>. Tap one to see the bookings.', delay: 900, pre: async () => closeModals() });
+  S({ v: 'dashboard', t: () => $('.modal-overlay.active .modal-box') || $('#view-dashboard'), wait: 'next', autoClose: true, w: W3, still: true, say: 'The list behind the box: who has what, and when it is due back.' });
+  S({ v: 'dashboard', t: '#f-month', wait: 'click', w: W3, say: 'Pick a <b>period</b>. Tap <b>Month</b> and every number changes.', delay: 900 });
+  S({ v: 'dashboard', t: '#f-all', wait: 'click', w: W3, say: 'Now tap <b>All</b> to see the whole story.', delay: 900 });
+  [['revenue', 'Revenue = everything you earned from rentals. Tap it to see where it comes from.'], ['net', 'Net profit = what is really left for you. Tap it.']].forEach(([k, t]) => { S({ v: 'dashboard', t: `[onclick="launchDrillDown('${k}')"]`, wait: 'click', w: W3, say: t, delay: 900, pre: async () => closeModals() }); S({ v: 'dashboard', t: () => ($('#audit-modal').style.display === 'flex' ? $('#audit-modal .modal-box') : null) || $('#view-dashboard'), wait: 'next', autoClose: true, w: W3, say: 'This is the <b>detail</b> behind the number. Every box opens a story like this.', still: true }); });
+  S({ v: 'dashboard', t: boxOf('#chart-top-items'), wait: 'click', w: 'Graphs · 1/2', big: true, say: '📊 <b>Most rented.</b> Your busiest assets. Tap a bar to see its exact number.', pre: async () => closeModals() });
+  S({ v: 'dashboard', t: '#container-revprof', wait: 'click', w: 'Graphs · 2/2', big: true, say: '📈 <b>Revenue over time.</b> Tap the chart.' });
+  S({ v: 'dashboard', t: tableOf('#item-performance-tbody'), wait: 'next', w: W3, big: true, say: 'The <b>performance table</b> ranks every asset by what it earned. Scroll it sideways to see all columns.', still: true });
+  S({ stage: true, final: true, v: 'dashboard', emoji: '🏆', kicker: 'ALL STAGES CLEAR', title: 'You are a MELEYA champion!', say: 'You added assets, took bookings with deposits, handled late returns and read your whole business. Ready to do it for <b>' + P.own + '</b>?', badge: 'Rental Hero', pre: async () => { closeModals(); } });
+}
 function buildSteps() {
+  if (P.biz === 'rental') return buildRentalSteps();
   const st = T.steps = [], S = o => st.push(o), post = '#sales-form button[type="submit"],#sales-form .btn[type="submit"]';
   const nav = (id, w, say) => S({ v: null, nav: true, t: '#nav-' + id, wait: 'click', w, say });
-  S({ stage: true, emoji: '🦉', kicker: 'WELCOME, SHOPKEEPER', title: 'Run a shop in 5 minutes', say: 'I\'m <b>Meli</b>. Follow my glowing finger, tap the highlighted things and earn <b>XP</b>. This is a <b>practice shop</b>: nothing you do here is saved.', btn: 'Let\'s go! ▶', nostars: true, v: 'dashboard' });
+  S({ stage: true, emoji: '🦉', kicker: P.kicker, title: P.welcome, say: 'I\'m <b>Meli</b>. Follow my glowing finger, tap the highlighted things and earn <b>XP</b>. This is a <b>' + P.practice + '</b>: nothing you do here is saved.', btn: 'Let\'s go! ▶', nostars: true, v: 'dashboard' });
   /* STAGE 1 – stock */
   S({ v: 'dashboard', nav: true, t: '#nav-inventory', wait: 'click', w: 'Stage 1 · Stock', say: 'This is your <b>dashboard</b> and the menu on the left. Tap <b>Inventory</b> to see your stock.' });
   S({ v: 'inventory', t: '#inv-bulk-btn', wait: 'click', w: 'Stage 1 · Stock', say: 'Typing 100 products one by one is slow. Tap <b>Add in bulk</b>.', delay: 800 });
   S({ v: 'inventory', keepBulk: true, t: '#bulk-file-section', wait: 'next', w: 'Stage 1 · Stock', say: 'One window, two ways. <b>On top:</b> upload an Excel or CSV list. <b>Below it:</b> type products by hand. Use one, or both together.', still: true });
   S({ v: 'inventory', keepBulk: true, t: '#bulk-guide-btn', wait: 'click', w: 'Stage 1 · Stock', say: 'Not sure how to make the Excel list? Tap <b>Watch how</b>.', delay: 700 });
   S({ v: 'inventory', keepBulk: true, t: '#tpl-guide .tg-card', wait: 'until', w: 'Stage 1 · Stock', say: 'A short guide: pick <b>PC, iPhone or Android</b> and watch how to <b>download</b> the template, <b>fill it</b> and <b>upload</b> it. Close it when you are done.', until: () => !document.getElementById('tpl-guide'), fill: async () => { const g = document.getElementById('tpl-guide'); if (g) g.remove(); } });
-  S({ v: 'inventory', keepBulk: true, t: '#bulk-file', wait: 'click', w: 'Stage 1 · Stock', say: 'Tap <b>Choose file</b> and pick your Excel or CSV. I prepared one for you: <b>my-shop-stock.csv</b>.', intercept: loadDemoFile, delay: 1200, pre: async () => { for (let k = 0; k < 30 && !$('#bulk-file'); k++) await sleep(100); } });
+  S({ v: 'inventory', keepBulk: true, t: '#bulk-file', wait: 'click', w: 'Stage 1 · Stock', say: 'Tap <b>Choose file</b> and pick your Excel or CSV. I prepared one for you: <b>' + P.csvName + '</b>.', intercept: loadDemoFile, delay: 1200, pre: async () => { for (let k = 0; k < 30 && !$('#bulk-file'); k++) await sleep(100); } });
   S({ v: 'inventory', keepBulk: true, t: '#bulk-body', wait: 'next', w: 'Stage 1 · Stock', say: 'Look! The list is already <b>filled in</b> and every column matched itself. You can check it before anything is saved.', still: true });
-  S({ v: 'inventory', keepBulk: true, t: '#bulk-manual', wait: 'next', w: 'Stage 1 · Stock', say: '<b>Or type products by hand, right below the upload.</b> One row per product: category, name, quantity, cost, selling price, supplier. I typed the first row. <b>+ Add row</b> gives you more.', still: true, run: async tk => { const r = $('#bulk-man-body tr'); if (!r) return; const v = ['Snacks', 'Chocolate Bar', '20', '8', '12', 'Sidama Supplies'], c = ['bm-c', 'bm-d', 'bm-q', 'bm-p', 'bm-r', 'bm-s']; for (let k = 0; k < 6; k++) { const i = $('.' + c[k], r); await tap(i, tk); await typeInto(i, v[k], tk); } } });
+  S({ v: 'inventory', keepBulk: true, t: '#bulk-manual', wait: 'next', w: 'Stage 1 · Stock', say: '<b>Or type products by hand, right below the upload.</b> One row per product: category, name, quantity, cost, selling price, supplier. I typed the first row. <b>+ Add row</b> gives you more.', still: true, run: async tk => { const r = $('#bulk-man-body tr'); if (!r) return; const v = P.manual.vals(), c = P.manual.cls; for (let k = 0; k < v.length; k++) { const i = $('.' + c[k], r); await tap(i, tk); await typeInto(i, v[k], tk); } } });
   S({ v: 'inventory', keepBulk: true, t: '#bulk-go', wait: 'click', w: 'Stage 1 · Stock', say: 'Happy? Tap <b>Import</b> and the file\'s 10 products and the one you typed all join your shop.', delay: 1000 });
+  if (P.key === 'pharmacy') S({ v: 'inventory', t: '#inv-expiry-col-header', wait: 'next', w: 'Stage 1 · Stock', still: true, say: 'Medicines expire, so every product has an <b>Expiry</b> column. A row turns <b>yellow</b> when a batch expires within 30 days and <b>red</b> once it is expired. Tap a date to see every <b>batch</b>.' });
   S({ v: 'inventory', t: tableOf('#inventory-table-body'), wait: 'scroll', w: 'Stage 1 · Stock', say: 'Your stock list is long. <b>Swipe up and down</b> 👆 to see every product. Try it!', run: async (tk, e) => { const sc = scroller(e); sc.scrollBy({ top: 120, behavior: 'smooth' }); await swipe(e, 0, -90, tk); sc.scrollBy({ top: -120, behavior: 'smooth' }); } });
   S({ v: 'inventory', t: tableOf('#inventory-table-body'), wait: 'scroll', w: 'Stage 1 · Stock', say: 'There are more columns (cost, price, value). <b>Swipe left and right</b> 👆 to see them. On a phone this is how you read wide tables.', run: async (tk, e) => { e.scrollBy({ left: 220, behavior: 'smooth' }); await swipe(e, -110, 0, tk); e.scrollBy({ left: -220, behavior: 'smooth' }); } });
   S({ stage: true, v: 'inventory', emoji: '📦', title: 'Stage 1 clear!', say: 'Brilliant! You imported a whole shop in seconds and learned to scroll like a pro.', badge: 'Stock Master' });
@@ -18355,29 +18575,29 @@ function buildSteps() {
   const only = c => async () => { const e = $('#sale-log-filter-customer'); e.value = c; fire(e); const h = $('#sale-log-filter-channel'); h.value = 'Accounts receivable'; fire(h); };
   const clr = say => X({ t: fp, wait: 'until', say, until: () => !$('#sale-log-filter-item').value && !$('#sale-log-filter-customer').value && $('#sale-log-filter-channel').selectedIndex === 0, fill: async () => { ['#sale-log-filter-item', '#sale-log-filter-customer'].forEach(q => { $(q).value = ''; fire($(q)); }); const c = $('#sale-log-filter-channel'); c.selectedIndex = 0; fire(c); } });
   const modalPay = '#record-payment-modal .btn-success', owedMax = () => parseFloat($('#record-payment-amount').max) || 0;
-  E('#sales-entry-card', '<b>Lesson 1: a normal sale, paid in full.</b> Pick the item, type how many, then post. The customer pays everything now. Tap <b>Next</b>.', true);
-  X({ t: '#sale-item', wait: 'until', big: true, say: '<b>Single item sale.</b> Tap <b>Item</b> and pick or type <b>Mineral Water</b>.', until: e => valid(e.value), fill: tk => setField('#sale-item', '[Drinks] Mineral Water 1L', tk) });
+  E('#sales-entry-card', '<b>Lesson 1: a normal sale, paid in full.</b> Pick the item, type how many, then post. The customer pays everything now.' + P.lesson1 + ' Tap <b>Next</b>.', true);
+  X({ t: '#sale-item', wait: 'until', big: true, say: '<b>Single item sale.</b> Tap <b>Item</b> and pick or type <b>' + P.s1n + '</b>.', until: e => valid(e.value), fill: tk => setField('#sale-item', P.s1, tk) });
   X({ t: '#sale-qty', wait: 'until', say: 'How many? Type a <b>quantity</b>. The price is already filled in.', until: (e, v0) => e.value !== '' && e.value !== v0, fill: tk => setField('#sale-qty', '6', tk) });
   X({ t: post, wait: 'click', say: 'Customer paid in full. Tap <b>Post sale</b>!', delay: 900 });
   E('#sales-entry-card', '<b>Lesson 2: a half-paid sale.</b> The customer takes the goods and pays <b>only part</b> now. The rest becomes <b>money owed to you</b>. I will fill the item, quantity and the <b>customer name</b> (always write the name, so you know who owes you).', true);
-  X({ t: '#sales-entry-card', wait: 'auto', big: true, say: '<b>Half payment.</b> I fill the item and quantity…', run: async tk => { await fill(tk, '[Groceries] Cooking Oil 1L', '2', null, 'Hana'); await sleep(400); } });
+  X({ t: '#sales-entry-card', wait: 'auto', big: true, say: '<b>Half payment.</b> I fill the item and quantity…', run: async tk => { await fill(tk, P.s2, '2', null, 'Hana'); await sleep(400); } });
   X({ t: '#sale-amount-paid', wait: 'until', say: 'The customer pays only part now. In <b>Amount paid now</b> type <b>less than the total</b> (half is fine). The rest is owed to you.', until: e => { const v = parseFloat(e.value); return e.value !== '' && v > 0 && v < tot(); }, fill: tk => setField('#sale-amount-paid', Math.round(tot() / 2), tk) });
   X({ t: post, wait: 'click', say: 'Tap <b>Post sale</b>. Half is paid, half is owed.', delay: 900 });
   E('#sales-entry-card', '<b>Lesson 3: a credit sale (0 payment).</b> A trusted customer takes the goods and pays <b>nothing</b> today. The whole amount is owed to you. Again I fill in the customer name first.', true);
-  X({ t: '#sales-entry-card', wait: 'auto', big: true, say: '<b>No payment.</b> A trusted customer takes goods and pays later. I fill the item…', run: async tk => { await fill(tk, '[Groceries] Sugar 1kg', '1', null, 'Dawit'); await sleep(400); } });
+  X({ t: '#sales-entry-card', wait: 'auto', big: true, say: '<b>No payment.</b> A trusted customer takes goods and pays later. I fill the item…', run: async tk => { await fill(tk, P.s3, '1', null, 'Dawit'); await sleep(400); } });
   X({ t: '#sale-amount-paid', wait: 'until', say: 'Type <b>0</b> in <b>Amount paid now</b>.', until: e => e.value !== '' && parseFloat(e.value) === 0, fill: tk => setField('#sale-amount-paid', '0', tk) });
   X({ t: post, wait: 'click', say: 'Tap <b>Post sale</b> once more.', delay: 900 });
   E('#sales-entry-card', '<b>Lesson 4: many items, one customer.</b> Instead of posting one item at a time, put them all in a <b>basket</b> and post once. The customer gets one total.', true);
   X({ t: '#sales-entry-card [onclick*="toggleSaleCartMode"]', wait: 'click', big: true, say: 'Many items for one customer? Tap to switch to the <b>multi-item basket</b>.', delay: 700 });
-  X({ t: '#sale-cart-card', wait: 'auto', big: true, say: 'Basket mode. I add the first item…', run: async tk => { await cartAdd(tk, '[Groceries] Sugar 1kg', '2'); } });
-  X({ t: '#cart-sale-item', wait: 'until', say: 'Now <b>you</b> add another item. Pick or type <b>Laundry Soap</b>.', until: e => valid(e.value), fill: tk => setField('#cart-sale-item', '[Household] Laundry Soap', tk) });
+  X({ t: '#sale-cart-card', wait: 'auto', big: true, say: 'Basket mode. I add the first item…', run: async tk => { await cartAdd(tk, P.c1, '2'); } });
+  X({ t: '#cart-sale-item', wait: 'until', say: 'Now <b>you</b> add another item. Pick or type <b>' + P.c2n + '</b>.', until: e => valid(e.value), fill: tk => setField('#cart-sale-item', P.c2, tk) });
   X({ t: '#cart-sale-qty', wait: 'until', say: 'Type a quantity.', until: (e, v0) => e.value !== '' && e.value !== v0, fill: tk => setField('#cart-sale-qty', '3', tk) });
   X({ t: '[onclick="addToSaleCart()"]', wait: 'click', say: 'Tap <b>Add</b> to put it in the basket.', delay: 600 });
   X({ t: '#sale-cart-total', wait: 'next', say: 'This is the <b>basket total</b>. Always check it before charging.', run: async (tk, e) => { await circle(e, tk); await sleep(900); } });
   X({ t: '[onclick="submitSaleCart()"]', wait: 'click', say: 'Tap to <b>post the whole basket</b>.', delay: 1000 });
   X({ t: '#sale-log-total-display', wait: 'next', say: 'This <b>total</b> adds up whatever the table shows right now.', run: async (tk, e) => { await circle(e, tk); await sleep(3500); } });
   E(fp, '<b>Lesson 5: filters.</b> Your sales list keeps growing. Filters find things fast, and they work <b>together</b>: each one you add narrows the list more. The total above the table always matches what you see.', true);
-  X({ t: grp('#sale-log-filter-item'), wait: 'until', say: 'Type <b>Sugar</b> in the <b>Product</b> box and watch the total change.', until: () => $('#sale-log-filter-item').value.trim() !== '', fill: async tk => { const e = $('#sale-log-filter-item'); await tap(e, tk); e.value = 'Sugar'; fire(e); } });
+  X({ t: grp('#sale-log-filter-item'), wait: 'until', say: 'Type <b>' + P.f + '</b> in the <b>Product</b> box and watch the total change.', until: () => $('#sale-log-filter-item').value.trim() !== '', fill: async tk => { const e = $('#sale-log-filter-item'); await tap(e, tk); e.value = P.f; fire(e); } });
   X({ t: grp('#sale-log-filter-customer'), wait: 'until', say: 'Now <b>add</b> a customer on top of it. Type <b>Walk</b> in the <b>Customer</b> box. Both filters are working together.', until: () => $('#sale-log-filter-customer').value.trim() !== '', fill: async tk => { const e = $('#sale-log-filter-customer'); await tap(e, tk); e.value = 'Walk'; fire(e); } });
   X({ t: grp('#sale-log-filter-channel'), wait: 'until', say: 'One more: pick a <b>Channel</b> (how it was paid), for example <b>Cash</b>.', until: () => $('#sale-log-filter-channel').selectedIndex > 0, fill: async tk => { const e = $('#sale-log-filter-channel'); await tap(e, tk); e.selectedIndex = 1; fire(e); } });
   clr('Now <b>clear</b> all three filters (empty the boxes, set Channel back to All) to see everything again.');
@@ -18402,6 +18622,7 @@ function buildSteps() {
   S({ v: 'dashboard', t: () => ($('#audit-modal').style.display === 'flex' ? $('#audit-modal .modal-box') : null) || $('#view-dashboard'), wait: 'next', autoClose: true, w: 'Stage 3 · Dashboard', say: 'This window splits your money by <b>channel</b>: how much is in cash and how much is in each bank or mobile-money account.', still: true });
  
   S({ v: 'dashboard', t: '#dash-stock-box', wait: 'click', w: 'Stage 3 · Dashboard', delay: 900, say: 'And the <b>value of the stock</b> on your shelves, with the amount. Tap it too.', pre: async () => closeModals() });
+  if (P.key === 'pharmacy') S({ v: 'dashboard', t: () => $('#vertical-widgets'), wait: 'next', big: true, still: true, w: 'Stage 3 · Dashboard', say: '💊 <b>Expiring soon.</b> Your pharmacy dashboard lists the batches that expire next, so you can sell or return them before they are wasted.' });
   S({ v: 'dashboard', t: boxOf('#chart-top-items'), wait: 'click', w: 'Graphs · 1/4', big: true, say: '📊 <b>Best sellers.</b> Tap a bar to see its exact number.', pre: async () => closeModals() });
   S({ v: 'dashboard', t: boxOf('#chart-bottom-items'), wait: 'click', w: 'Graphs · 2/4', big: true, say: '🐌 <b>Slow movers.</b> Items that sit on your shelf. Tap the chart.' });
   S({ v: 'dashboard', t: '#container-revprof', wait: 'click', w: 'Graphs · 3/4', big: true, say: '📈 <b>Revenue vs profit</b> over time. Tap the chart.' });
@@ -18410,7 +18631,7 @@ function buildSteps() {
   S({ v: 'dashboard', t: tableOf('#item-performance-tbody'), wait: 'next', w: 'Stage 3 · Dashboard', big: true, say: 'The <b>performance table</b> ranks every product. Scroll it sideways to see all columns.', still: true });
   S({ v: 'dashboard', t: '[onclick="sortAnalysisTable(\'profit\')"]', wait: 'click', w: 'Stage 3 · Dashboard', say: 'Tap <b>Profit</b> to sort. Your most profitable products jump to the top.' });
   S({ v: 'dashboard', t: '[onclick="sortAnalysisTable(\'margin\')"]', wait: 'click', w: 'Stage 3 · Dashboard', say: 'Now tap <b>Margin</b>: which products earn the most per sale.' });
-  S({ stage: true, final: true, v: 'dashboard', emoji: '🏆', kicker: 'ALL STAGES CLEAR', title: 'You are a MELEYA champion!', say: 'You imported stock, sold in every way and read your whole business. Ready to do it for <b>your own shop</b>?', badge: 'Data Detective', pre: async () => { closeModals(); } });
+  S({ stage: true, final: true, v: 'dashboard', emoji: '🏆', kicker: 'ALL STAGES CLEAR', title: 'You are a MELEYA champion!', say: 'You imported stock, sold in every way and read your whole business. Ready to do it for <b>' + P.own + '</b>?', badge: 'Data Detective', pre: async () => { closeModals(); } });
 }
 })();
 
