@@ -18286,7 +18286,6 @@ css2.textContent = `#dm-card{background:var(--surface)!important;color:var(--tex
 @media(prefers-reduced-motion:reduce){#dm-pick .pk-o{animation-name:pkFade}#dm-pick .pk-m,#dm-pick .pk-dots i,#dm-card .dm-m,.mel .lid,.mel .iris{animation:none!important}}`;
 document.head.appendChild(css2);
 const GOAL_SHORT = { fraud: 'Stop fraud', organized: 'Stay organized', analytics: 'Know your business', money: 'Control your money', paper: 'No more handwriting', expiry: 'Expiry control', late: 'Late returns' };
-const GOAL_RECAP = { fraud: 'every sale stays on record, deleted ones wait in Trash for 30 days, and the cash and stock boxes show what you should have.', organized: 'filters find any sale in seconds and everything lives in one place.', analytics: 'your dashboard shows profit, best sellers and trends.', money: 'see who still owes you and where your cash and bank money is.', paper: 'import your whole stock from Excel in seconds.', expiry: 'every medicine has an Expiry column and the dashboard lists what expires soon.', late: 'the Overdue filter shows who kept an asset too long.' };
 function goalCtx(st) {
   let A = window.MLY_ANS; if (!A) { try { A = JSON.parse(sessionStorage.getItem('mly_demo_ans')); } catch (e) { } }
   const G = (A && A.goals) || [];
@@ -18295,8 +18294,6 @@ function goalCtx(st) {
     tag: (g, from) => { if (!G.includes(g)) return; for (let k = from; k < st.length; k++) if (!st[k].goal && !st[k].stage) st[k].goal = g; },
     finish: () => {
       st.forEach(x => { if (x.goal && !x.stage) x.w = '🎯 Your goal · ' + GOAL_SHORT[x.goal]; });
-      const f = st.find(x => x.final); if (!f || !G.length) return; const seen = new Set(st.map(x => x.goal));
-      f.say += '<div style="text-align:left;margin-top:10px;font-size:12.5px;line-height:1.5"><b>Your goals</b><br>' + G.map(g => (seen.has(g) ? '✅' : '➡️') + ' <b>' + GOAL_SHORT[g] + ':</b> ' + GOAL_RECAP[g]).join('<br>') + '</div>';
     }
   };
 }
@@ -18561,7 +18558,7 @@ async function bring(e, big) {
   r = e.getBoundingClientRect(); if (r.bottom < 40 || r.top > vh - 40) e.scrollIntoView({ block: 'center', behavior: 'auto' });
 }
 function cleanup() { if (T.off) T.off(); T.off = null; }
-function stageHtml(s) { return `<div style="text-align:center"><div style="font-size:36px">${s.emoji}</div><div style="font-size:12px;letter-spacing:.1em;color:#fbbf24;font-weight:800">${s.kicker || 'STAGE CLEAR'}</div><div style="font-size:15px;font-weight:800;margin:2px 0">${s.title}</div><div id="dm-stars" style="margin:6px 0;${s.nostars?'display:none':''}">${[0, 1, 2].map(k => `<span class="dm-star" style="animation-delay:${.3 + k * .3}s">⭐</span>`).join('')}</div><div class="dm-t">${s.say}</div>${s.badge ? `<div style="margin:4px 0 10px;font-weight:700;color:#fde68a">🏅 Badge unlocked: ${s.badge}</div>` : ''}<div class="dm-r" style="justify-content:center;gap:10px">${s.final ? '<button class="dm-btn p" id="dm-signup2">Create my free account</button>' : `<button class="dm-btn" id="dm-go">${s.btn||'Next stage ▶'}</button>`}</div></div>`; }
+function stageHtml(s) { return `<div style="text-align:center"><div style="font-size:36px">${s.emoji}</div><div style="font-size:12px;letter-spacing:.1em;color:#fbbf24;font-weight:800">${s.kicker || 'STAGE CLEAR'}</div><div style="font-size:15px;font-weight:800;margin:2px 0">${s.title}</div><div id="dm-stars" style="margin:6px 0;${s.nostars?'display:none':''}">${[0, 1, 2].map(k => `<span class="dm-star" style="animation-delay:${.3 + k * .3}s">⭐</span>`).join('')}</div><div class="dm-t">${s.say}</div>${s.badge ? `<div style="margin:4px 0 10px;font-weight:700;color:#fde68a">🏅 Badge unlocked: ${s.badge}</div>` : ''}<div class="dm-r" style="justify-content:center;gap:10px">${s.final ? '<button class="dm-btn p" id="dm-signup2">Claim my free account</button>' : `<button class="dm-btn" id="dm-go">${s.btn||'Next stage ▶'}</button>`}</div></div>`; }
 function confetti() { const cs = ['#fbbf24', '#f472b6', '#60a5fa', '#34d399', '#a78bfa']; for (let k = 0; k < 60; k++) { const d = document.createElement('div'); d.className = 'dm-cf'; d.style.left = Math.random() * 100 + 'vw'; d.style.background = cs[k % 5]; d.style.animationDuration = (1.6 + Math.random() * 1.8) + 's'; d.style.animationDelay = Math.random() * .5 + 's'; document.body.appendChild(d); setTimeout(() => d.remove(), 4200); } }
 function finish() { stopTour(false); }
 function stopTour() { T.token++; cleanup(); T.tgt = null; T.cur = null; T.i = -1; closeModals(); if (L) { L.card.style.display = 'none'; L.svg.innerHTML = ''; L.fin.style.left = '-80px'; L.b.forEach(b => b.style.cssText = 'display:none'); L.ring.style.display = 'none'; L.b.forEach(b => b.style.display = 'none'); } T.over = true; }
@@ -18653,7 +18650,7 @@ function buildRentalSteps() {
   S({ v: 'dashboard', t: '#container-revprof', wait: 'click', w: 'Graphs · 2/2', big: true, say: '📈 <b>Revenue over time.</b> Tap the chart.' });
   S({ v: 'dashboard', t: tableOf('#item-performance-tbody'), wait: 'next', w: W3, big: true, say: 'The <b>performance table</b> ranks every asset by what it earned. Scroll it sideways to see all columns.', still: true });
   tag('analytics', mA);
-  S({ stage: true, final: true, v: 'dashboard', emoji: '🏆', kicker: 'ALL STAGES CLEAR', title: 'You are a MELEYA champion!', say: 'You added assets, took bookings with deposits, handled late returns and read your whole business. Ready to do it for <b>' + P.own + '</b>?', badge: 'Rental Hero', pre: async () => { closeModals(); } });
+  S({ stage: true, final: true, v: 'dashboard', emoji: '🏆', kicker: 'ALL STAGES CLEAR', title: 'You are a MELEYA champion!', say: 'You nailed it! You have <b>earned your free account</b>. Let\'s set up <b>' + P.own + '</b> for real.', badge: 'Rental Hero', pre: async () => { closeModals(); } });
   gc.finish();
 }
 function buildSteps() {
@@ -18761,7 +18758,7 @@ function buildSteps() {
   S({ v: 'dashboard', t: '[onclick="sortAnalysisTable(\'profit\')"]', wait: 'click', w: 'Stage 3 · Dashboard', say: 'Tap <b>Profit</b> to sort. Your most profitable products jump to the top.' });
   S({ v: 'dashboard', t: '[onclick="sortAnalysisTable(\'margin\')"]', wait: 'click', w: 'Stage 3 · Dashboard', say: 'Now tap <b>Margin</b>: which products earn the most per sale.' });
   tag('analytics', mG);
-  S({ stage: true, final: true, v: 'dashboard', emoji: '🏆', kicker: 'ALL STAGES CLEAR', title: 'You are a MELEYA champion!', say: 'You imported stock, sold in every way and read your whole business. Ready to do it for <b>' + P.own + '</b>?', badge: 'Data Detective', pre: async () => { closeModals(); } });
+  S({ stage: true, final: true, v: 'dashboard', emoji: '🏆', kicker: 'ALL STAGES CLEAR', title: 'You are a MELEYA champion!', say: 'You nailed it! You have <b>earned your free account</b>. Let\'s set up <b>' + P.own + '</b> for real.', badge: 'Data Detective', pre: async () => { closeModals(); } });
   gc.finish();
 }
 })();
