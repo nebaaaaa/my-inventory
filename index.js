@@ -8,7 +8,7 @@
 // "a new version is ready".
 // =====================================================================
 
-const CACHE_NAME = 'meleya-shell-v60';
+const CACHE_NAME = 'meleya-shell-v61';
 
 // MUST all download successfully, or this version does NOT install and the
 // phone keeps running the previous working version (retrying later).
@@ -73,6 +73,7 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
   if (req.url.includes('supabase.co')) return; // shop data: always live
   if (req.url.includes('/api/')) return;       // serverless functions: always live
+  if (req.url.includes('posthog.com')) return; // analytics: always live, never saved (a saved copy would never update)
 
   // Opening the app: ALWAYS the saved copy, instantly. No background
   // re-download of the 1.3 MB page on every launch (that fights for a weak
