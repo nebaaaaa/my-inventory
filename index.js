@@ -5,7 +5,7 @@
 //
 // Whenever you replace index.html (or any file listed below), bump
 // CACHE_NAME ('v32' -> 'v33'). That is what tells every installed copy
-// "a new version is ready".
+// "a new version is readyy".
 // =====================================================================
 
 const CACHE_NAME = 'meleya-shell-v61';
