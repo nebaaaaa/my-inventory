@@ -758,6 +758,25 @@ window.MLY_PH_CONFIG = {
             thead th { position: sticky; top: 0; z-index: 2; background: var(--bg); }
             .table-scroll table { display: table; max-width: none; max-height: none; overflow: visible; }
         }
+
+        /* ---- Recent Fund Transfers table (Liquid Vault pop-up) ---- */
+        .ft-recent th, .ft-recent td { padding: 10px 10px; }
+        .ft-recent td.ft-move { min-width: 150px; max-width: 260px; white-space: normal; }
+        .ft-recent .ft-from-to { font-weight: 600; overflow-wrap: anywhere; }
+        .ft-recent .ft-note { margin-top: 3px; font-size: 12px; color: var(--text-light); white-space: normal; overflow-wrap: anywhere; }
+        @media (max-width: 768px) {
+            /* Phones: each transfer becomes a small card, so nothing is cut off or needs sideways scrolling.
+               Left: from → to with the note directly underneath it, then the date. Right: the amount, with Delete under it. */
+            .table-scroll table.ft-recent, .ft-recent tbody { display: block; width: 100%; max-width: 100%; max-height: none; overflow: visible; }
+            .ft-recent thead { display: none; }
+            .ft-recent tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "move amt" "date del"; gap: 4px 10px; padding: 10px 2px; border-bottom: 1px solid var(--border); }
+            .ft-recent td { display: block; padding: 0; border: 0; white-space: normal; min-width: 0; }
+            .ft-recent td:nth-child(1) { grid-area: date; align-self: center; font-size: 11px; color: var(--text-light); }
+            .ft-recent td.ft-move { grid-area: move; max-width: none; }
+            .ft-recent .ft-from-to { font-size: 13px; }
+            .ft-recent td:nth-child(3) { grid-area: amt; text-align: right; font-weight: 600; font-size: 13px; }
+            .ft-recent td:nth-child(4) { grid-area: del; align-self: center; text-align: right; }
+        }
     </style>
 </head>
 <body onclick="closeNotifPanelOutside(event)">
@@ -1710,6 +1729,7 @@ a.sg-link{text-decoration:none}
 .sg-page.open{display:block}
 @media (min-width:721px){#view-settings:has(.sg-page.open) #settings-menu{display:none}}
 .sg-head{display:flex;align-items:center;gap:10px;padding:10px 0 12px;font-size:19px;font-weight:700}
+#accountant-search-input{min-width:0;width:auto}
 .sg-back{width:38px;height:38px;border-radius:12px;border:0;background:var(--surface);color:var(--text);font-size:26px;line-height:1;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0 0 3px}
 @media (max-width:720px){
 .sg-page{position:fixed;top:var(--sg-top,0px);left:0;right:0;bottom:0;z-index:1900;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;display:block;padding:12px 14px calc(28px + env(safe-area-inset-bottom));box-sizing:border-box;transform:translateX(100%);visibility:hidden;transition:transform .3s cubic-bezier(.2,.8,.2,1),visibility 0s linear .3s}
@@ -1872,13 +1892,11 @@ a.sg-link{text-decoration:none}
 <label style="font-weight:600; font-size:13px;">Email</label>
 <div class="sg-hint" style="margin:4px 0 8px;">We send a confirmation link to the new address. Your email changes once you open it.</div>
 <div class="form-group" style="margin-bottom:10px;"><input type="email" id="sec-email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="you@example.com"></div>
-<button type="button" class="btn" onclick="changeMyEmail()">Save email</button>
 <div id="sec-email-msg" style="font-size:13px; margin-top:8px;"></div>
 <div style="margin-top:18px; border-top:1px solid var(--border); padding-top:14px;">
 <label style="font-weight:600; font-size:13px;">Username</label>
 <div class="sg-hint" style="margin:4px 0 8px;">You can type this instead of your email when you sign in.</div>
 <div class="form-group" style="margin-bottom:10px;"><input type="text" id="sec-username" maxlength="40" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Your username"></div>
-<button type="button" class="btn" onclick="changeMyUsername()">Save username</button>
 <div id="sec-username-msg" style="font-size:13px; margin-top:8px;"></div>
 </div>
 <div style="margin-top:18px; border-top:1px solid var(--border); padding-top:14px;">
@@ -1887,8 +1905,12 @@ a.sg-link{text-decoration:none}
 <div class="form-group"><input type="password" id="sec-pw1" placeholder="New password" autocomplete="new-password"></div>
 <div class="form-group"><input type="password" id="sec-pw2" placeholder="Confirm new password" autocomplete="new-password"></div>
 </div>
-<button type="button" class="btn" onclick="changeMyPassword()">Change password</button>
+<div class="sg-hint" style="margin:0;">Leave blank to keep your current password.</div>
 <div id="sec-pw-msg" style="font-size:13px; margin-top:8px;"></div>
+</div>
+<div style="margin-top:18px; border-top:1px solid var(--border); padding-top:14px;">
+<button type="button" class="btn" id="sec-save-btn" onclick="saveSecurityAccount()">Save changes</button>
+<div id="sec-save-msg" style="font-size:13px; margin-top:8px;"></div>
 </div>
 <div style="margin-top:18px; border-top:1px solid var(--border); padding-top:14px;">
 <label style="font-weight:600; font-size:13px;" id="sec-devices-title">Your devices</label>
@@ -2632,6 +2654,8 @@ a.sg-link{text-decoration:none}
                 ["Plan & billing", "ፕላን እና ክፍያ"],
                 ["Your plan and payment history", "ፕላንዎ እና የክፍያ ታሪክ"],
                 ["Security & account", "ደህንነት እና መለያ"],
+                ["Save changes", "ለውጦችን አስቀምጥ"], ["Changes saved.", "ለውጦች ተቀምጠዋል።"], ["Some changes were not saved. Check the messages above.", "አንዳንድ ለውጦች አልተቀመጡም። ከላይ ያሉትን መልዕክቶች ይመልከቱ።"], ["No changes to save.", "ምንም የሚቀመጥ ለውጥ የለም።"],
+                ["Connect to the internet to save your changes.", "ለውጦችን ለማስቀመጥ ከኢንተርኔት ጋር ይገናኙ።"], ["Leave blank to keep your current password.", "የአሁኑን የይለፍ ቃል ለማቆየት ባዶ ይተዉት።"],
                 ["Email, username and password", "ኢሜይል፣ የተጠቃሚ ስም እና የይለፍ ቃል"],
                 ["Preferences", "ምርጫዎች"],
                 ["Notifications", "ማሳወቂያዎች"],
@@ -3953,52 +3977,75 @@ a.sg-link{text-decoration:none}
         }
         function syncSaleTypeLists() { syncSaleTypesDropdown(); populateSaleTypeFilterDropdown(); syncCartSaleTypeDropdown(); syncChannelDropdowns(); }
         // ---- Security & account
-        async function changeMyPassword() {
-            const a = sgEl('sec-pw1').value, b = sgEl('sec-pw2').value, msg = sgEl('sec-pw-msg');
-            msg.style.color = 'var(--danger,#c0392b)';
-            if (!navigator.onLine) { msg.textContent = 'Connect to the internet to change your password.'; return; }
-            if (!a || a.length < 6) { msg.textContent = 'The password must be at least 6 characters.'; return; }
-            if (a !== b) { msg.textContent = 'The two passwords do not match.'; return; }
-            const { error } = await supabaseClient.auth.updateUser({ password: a });
-            if (error) { msg.textContent = error.message; return; }
-            sgEl('sec-pw1').value = ''; sgEl('sec-pw2').value = '';
-            msg.style.color = 'var(--success,#2e7d32)'; msg.textContent = 'Password changed.';
-        }
         async function fillSecurityFields() {
             const u = sgEl('sec-username'), e = sgEl('sec-email'); if (!u || !e) return;
-            u.value = currentUsername || '';
-            ['sec-username-msg', 'sec-email-msg', 'sec-pw-msg'].forEach(id => { const m = sgEl(id); if (m) m.textContent = ''; });
+            u.value = currentUsername || ''; secEmailRequested = '';
+            ['sec-username-msg', 'sec-email-msg', 'sec-pw-msg', 'sec-save-msg'].forEach(id => { const m = sgEl(id); if (m) m.textContent = ''; });
             try { const { data } = await supabaseClient.auth.getSession(); e.value = (data && data.session && data.session.user && data.session.user.email) || ''; } catch (err) { }
         }
         function secMsg(id, text, good) {
             const m = sgEl(id); if (!m) return;
             m.style.color = good ? 'var(--success,#2e7d32)' : 'var(--danger,#c0392b)'; m.textContent = text;
         }
-        async function changeMyUsername() {
-            const v = (sgEl('sec-username').value || '').trim(), id = 'sec-username-msg';
-            if (!navigator.onLine) return secMsg(id, 'Connect to the internet to change your username.');
-            if (v.length < 3) return secMsg(id, 'The username must be at least 3 characters.');
-            if (/[\s@]/.test(v)) return secMsg(id, 'The username cannot contain spaces or the @ sign.');
-            if (v === currentUsername) return secMsg(id, 'That is already your username.', true);
-            if (!currentMemberId) return secMsg(id, 'Could not find your account. Please sign in again.');
-            const { data, error } = await supabaseClient.from('business_members').update({ username: v }).eq('id', currentMemberId).select('id');
-            if (error) return secMsg(id, (error.code === '23505' || /duplicate|unique/i.test(error.message || '')) ? 'That username is already taken. Try another one.' : (error.message || 'Could not save the username.'));
-            if (!data || !data.length) return secMsg(id, 'Could not save the username. Please try again.');
-            currentUsername = v;
-            try { cacheStateLocally(); } catch (e) { }
-            try { renderSettingsHome(); } catch (e) { }
-            secMsg(id, 'Username changed. Use it the next time you sign in.', true);
-        }
-        async function changeMyEmail() {
-            const v = (sgEl('sec-email').value || '').trim().toLowerCase(), id = 'sec-email-msg';
-            if (!navigator.onLine) return secMsg(id, 'Connect to the internet to change your email.');
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return secMsg(id, 'Please enter a valid email address.');
-            let cur = '';
-            try { const { data } = await supabaseClient.auth.getSession(); cur = ((data && data.session && data.session.user && data.session.user.email) || '').toLowerCase(); } catch (e) { }
-            if (v === cur) return secMsg(id, 'That is already your email.', true);
-            const { error } = await supabaseClient.auth.updateUser({ email: v });
-            if (error) return secMsg(id, error.message || 'Could not change the email.');
-            secMsg(id, 'We sent a confirmation link to ' + v + '. Open it to finish. Until then you keep signing in with your old email.', true);
+        // One Save button for the whole page: it saves whichever of email / username / password you changed.
+        // Everything is checked first, so a mistake in one field never leaves the others half-saved.
+        let secEmailRequested = ''; // the new email we already sent a confirmation link to, so Save doesn't send it twice
+        async function saveSecurityAccount() {
+            const btn = sgEl('sec-save-btn');
+            ['sec-email-msg', 'sec-username-msg', 'sec-pw-msg', 'sec-save-msg'].forEach(id => { const m = sgEl(id); if (m) m.textContent = ''; });
+            const newEmail = (sgEl('sec-email').value || '').trim().toLowerCase();
+            const newUsername = (sgEl('sec-username').value || '').trim();
+            const pw1 = sgEl('sec-pw1').value, pw2 = sgEl('sec-pw2').value;
+            let curEmail = '';
+            try { const { data } = await supabaseClient.auth.getSession(); curEmail = ((data && data.session && data.session.user && data.session.user.email) || '').toLowerCase(); } catch (e) { }
+            const emailChanged = newEmail !== curEmail && newEmail !== secEmailRequested;
+            const usernameChanged = newUsername !== (currentUsername || '');
+            const pwChanged = !!(pw1 || pw2);
+            if (!emailChanged && !usernameChanged && !pwChanged) return secMsg('sec-save-msg', 'No changes to save.', true);
+            if (!navigator.onLine) return secMsg('sec-save-msg', 'Connect to the internet to save your changes.');
+
+            let bad = false;
+            const fail = (id, text) => { secMsg(id, text); bad = true; };
+            if (usernameChanged) {
+                if (newUsername.length < 3) fail('sec-username-msg', 'The username must be at least 3 characters.');
+                else if (/[\s@]/.test(newUsername)) fail('sec-username-msg', 'The username cannot contain spaces or the @ sign.');
+                else if (!currentMemberId) fail('sec-username-msg', 'Could not find your account. Please sign in again.');
+            }
+            if (emailChanged && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) fail('sec-email-msg', 'Please enter a valid email address.');
+            if (pwChanged) {
+                if (!pw1 || pw1.length < 6) fail('sec-pw-msg', 'The password must be at least 6 characters.');
+                else if (pw1 !== pw2) fail('sec-pw-msg', 'The two passwords do not match.');
+            }
+            if (bad) return;
+
+            if (btn) btn.disabled = true;
+            let failed = false;
+            try {
+                if (usernameChanged) {
+                    const id = 'sec-username-msg';
+                    const { data, error } = await supabaseClient.from('business_members').update({ username: newUsername }).eq('id', currentMemberId).select('id');
+                    if (error) { failed = true; secMsg(id, (error.code === '23505' || /duplicate|unique/i.test(error.message || '')) ? 'That username is already taken. Try another one.' : (error.message || 'Could not save the username.')); }
+                    else if (!data || !data.length) { failed = true; secMsg(id, 'Could not save the username. Please try again.'); }
+                    else {
+                        currentUsername = newUsername;
+                        try { cacheStateLocally(); } catch (e) { }
+                        try { renderSettingsHome(); } catch (e) { }
+                        secMsg(id, 'Username changed. Use it the next time you sign in.', true);
+                    }
+                }
+                if (emailChanged) {
+                    const { error } = await supabaseClient.auth.updateUser({ email: newEmail });
+                    if (error) { failed = true; secMsg('sec-email-msg', error.message || 'Could not change the email.'); }
+                    else { secEmailRequested = newEmail; secMsg('sec-email-msg', 'We sent a confirmation link to ' + newEmail + '. Open it to finish. Until then you keep signing in with your old email.', true); }
+                }
+                if (pwChanged) {
+                    const { error } = await supabaseClient.auth.updateUser({ password: pw1 });
+                    if (error) { failed = true; secMsg('sec-pw-msg', error.message); }
+                    else { sgEl('sec-pw1').value = ''; sgEl('sec-pw2').value = ''; secMsg('sec-pw-msg', 'Password changed.', true); }
+                }
+            } finally { if (btn) btn.disabled = false; }
+            if (failed) secMsg('sec-save-msg', 'Some changes were not saved. Check the messages above.');
+            else secMsg('sec-save-msg', 'Changes saved.', true);
         }
         async function settingsSignOut() {
             if (await uiConfirm('Sign out of this device?', { title: 'Sign out', yes: 'Sign out', no: 'Stay signed in' })) handleSignOut(true);
@@ -4225,7 +4272,7 @@ a.sg-link{text-decoration:none}
                 'auth.vat_tin': 'TIN Number', 'auth.vat_reg_no': 'VAT Registration No.', 'auth.owner_full_name': "Owner's Full Name (with grandfather's name)",
                 'auth.vat_city': 'City', 'auth.vat_sub_city': 'Sub City', 'auth.vat_kebele': 'Kebele', 'auth.vat_tel': 'Tel', 'auth.vat_address': 'Address',
 
-                'misc.restore_data': 'Restore Data', 'misc.delete_role': 'Delete Role', 'misc.clear_all': 'Clear All',
+                'misc.restore_data': 'Restore Data', 'misc.delete_role': 'Delete Role', 'misc.clear_all': 'Clear All', 'notif.none': 'No new alerts',
                 'misc.logs': 'Logs', 'misc.record_customer_payment': 'Record Customer Payment', 'misc.record_supplier_payment': 'Record Supplier Payment',
                 'misc.welcome': 'Welcome', 'misc.selling_price_optional': 'Selling Price (Optional)', 'misc.selling_price': 'Selling Price',
                 'misc.dismiss': 'Dismiss Frame', 'misc.approve': 'Approve', 'misc.reject': 'Reject',
@@ -4235,7 +4282,7 @@ a.sg-link{text-decoration:none}
                 'ft.title': 'Transfer Between Channels', 'ft.vault_title': 'Liquid Vault Balance — By Channel',
                 'ft.from_channel': 'From Channel', 'ft.to_channel': 'To Channel', 'ft.amount': 'Amount (ETB)',
                 'ft.submit': 'Transfer Funds', 'ft.channel': 'Channel', 'ft.balance': 'Balance',
-                'ft.recent': 'Recent Fund Transfers', 'ft.movement': 'Movement',
+                'ft.recent': 'Recent Fund Transfers', 'ft.movement': 'Movement', 'ft.note': 'Note',
                 'ft.insufficient': 'Not enough balance in that channel. Available:', 'ft.available': 'Available',
                 'ft.deposit': 'Deposit', 'ft.withdraw': 'Withdraw', 'ft.loan': 'Loan',
                 'ft.opt_deposit': 'Deposit (money you put in)', 'ft.opt_withdraw': 'Withdraw (money you take out)',
@@ -4595,7 +4642,7 @@ a.sg-link{text-decoration:none}
                 'auth.vat_tin': 'የቲን ቁጥር', 'auth.vat_reg_no': 'የቫት ምዝገባ ቁጥር', 'auth.owner_full_name': 'የባለቤት ሙሉ ስም (የአያት ስም ጨምሮ)',
                 'auth.vat_city': 'ከተማ', 'auth.vat_sub_city': 'ክፍለ ከተማ', 'auth.vat_kebele': 'ቀበሌ', 'auth.vat_tel': 'ስልክ', 'auth.vat_address': 'አድራሻ',
 
-                'misc.restore_data': 'ውሂብ መልስ', 'misc.delete_role': 'ሚና አጥፋ', 'misc.clear_all': 'ሁሉንም አጽዳ',
+                'misc.restore_data': 'ውሂብ መልስ', 'misc.delete_role': 'ሚና አጥፋ', 'misc.clear_all': 'ሁሉንም አጽዳ', 'notif.none': 'ምንም አዲስ ማሳወቂያ የለም',
                 'misc.logs': 'ታሪክ', 'misc.record_customer_payment': 'የደንበኛ ክፍያ መዝግብ', 'misc.record_supplier_payment': 'የአቅራቢ ክፍያ መዝግብ',
                 'misc.welcome': 'እንኳን ደህና መጡ', 'misc.selling_price_optional': 'የሽያጭ ዋጋ (አማራጭ)', 'misc.selling_price': 'የሽያጭ ዋጋ',
                 'misc.dismiss': 'ዝጋ', 'misc.approve': 'አጽድቅ', 'misc.reject': 'ውድቅ አድርግ',
@@ -4605,7 +4652,7 @@ a.sg-link{text-decoration:none}
                 'ft.title': 'በመንገዶች መካከል አዛውር', 'ft.vault_title': 'የካሽ ቀሪ ሂሳብ — በመንገድ',
                 'ft.from_channel': 'ከየትኛው መንገድ', 'ft.to_channel': 'ወደየትኛው መንገድ', 'ft.amount': 'መጠን (ETB)',
                 'ft.submit': 'ገንዘብ አዛውር', 'ft.channel': 'መንገድ', 'ft.balance': 'ቀሪ ሂሳብ',
-                'ft.recent': 'የቅርብ ጊዜ ገንዘብ ዝውውሮች', 'ft.movement': 'እንቅስቃሴ',
+                'ft.recent': 'የቅርብ ጊዜ ገንዘብ ዝውውሮች', 'ft.movement': 'እንቅስቃሴ', 'ft.note': 'ማስታወሻ',
                 'ft.insufficient': 'በዚያ መንገድ በቂ ቀሪ ሂሳብ የለም። ያለው:', 'ft.available': 'ያለው',
                 'ft.deposit': 'ተቀማጭ', 'ft.withdraw': 'ወጪ (ማውጣት)', 'ft.loan': 'ብድር',
                 'ft.opt_deposit': 'ተቀማጭ (የሚያስገቡት ገንዘብ)', 'ft.opt_withdraw': 'ማውጣት (የሚያወጡት ገንዘብ)',
@@ -4922,6 +4969,7 @@ a.sg-link{text-decoration:none}
             if (typeof renderSalesLogTable === 'function' && document.getElementById('view-sales')?.classList.contains('active')) renderSalesLogTable();
             if (typeof renderPurchaseLogTable === 'function' && document.getElementById('view-purchase')?.classList.contains('active')) renderPurchaseLogTable();
             if (window.scnRenderReceipts) window.scnRenderReceipts();
+            try { if (typeof renderNotifications === 'function' && typeof state !== 'undefined' && state.notifications) renderNotifications(); } catch (e) { }
             if (typeof renderStockTransferHistoryRows === 'function') renderStockTransferHistoryRows(lastTransferRows);
             if (typeof renderExpenseLogTable === 'function' && document.getElementById('view-expenses')?.classList.contains('active')) renderExpenseLogTable();
             if (typeof renderTrashTable === 'function' && document.getElementById('view-trash')?.classList.contains('active')) renderTrashTable();
@@ -4948,9 +4996,9 @@ a.sg-link{text-decoration:none}
             if (currentCalendarPref === 'ethiopian') {
                 const eth = gregorianToEthiopian(getLocalYMD(now));
                 date = `${eth.d} ${ethMonthName(eth.m)} ${eth.y}`;
-                time = now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                time = fmtTimeOfDay(now, true);
             } else {
-                date = now.toLocaleDateString(); time = now.toLocaleTimeString();
+                date = now.toLocaleDateString(); time = fmtTimeOfDay(now, true);
             }
             const html = `<span class="clk-d">${date}</span><span class="clk-sep">, </span><span class="clk-t">${time}</span>`;
             if (c.dataset.h !== html) { c.dataset.h = html; c.innerHTML = html; }
@@ -4974,6 +5022,7 @@ a.sg-link{text-decoration:none}
             if (typeof renderSalesLogTable === 'function' && document.getElementById('view-sales')?.classList.contains('active')) renderSalesLogTable();
             if (typeof renderPurchaseLogTable === 'function' && document.getElementById('view-purchase')?.classList.contains('active')) renderPurchaseLogTable();
             if (window.scnRenderReceipts) window.scnRenderReceipts();
+            try { if (typeof renderNotifications === 'function' && typeof state !== 'undefined' && state.notifications) renderNotifications(); } catch (e) { }
             if (typeof renderStockTransferHistoryRows === 'function') renderStockTransferHistoryRows(lastTransferRows);
             if (typeof renderExpenseLogTable === 'function' && document.getElementById('view-expenses')?.classList.contains('active')) renderExpenseLogTable();
             if (typeof renderTrashTable === 'function' && document.getElementById('view-trash')?.classList.contains('active')) renderTrashTable();
@@ -6042,7 +6091,7 @@ a.sg-link{text-decoration:none}
             writeBranchId = targetBranchId;
 
             document.getElementById('initial-inventory-loading').style.display = 'block';
-            const date = new Date().toISOString().slice(0, 10);
+            const date = todayISO();
             const groupId = `GRP-${Date.now().toString().slice(-6)}`;
             const newRows = [];
             const total = initialInventoryCart.reduce((sum, c) => sum + c.qty * c.cost, 0);
@@ -6693,7 +6742,7 @@ a.sg-link{text-decoration:none}
             return lots.map((l, i) => ({ l, i })).sort((a, b) => { const x = lotRank(a.l), y = lotRank(b.l); return x < y ? -1 : x > y ? 1 : a.i - b.i; }).map(o => o.l);
         }
         function stampLot(lot, dateStr) {
-            lot.acquiredOn = /^\d{4}-\d{2}-\d{2}/.test(String(dateStr || '')) ? String(dateStr).slice(0, 10) : new Date().toISOString().slice(0, 10);
+            lot.acquiredOn = /^\d{4}-\d{2}-\d{2}/.test(String(dateStr || '')) ? String(dateStr).slice(0, 10) : todayISO();
             lot.createdAt = new Date().toISOString();
             return lot;
         }
@@ -7198,7 +7247,7 @@ a.sg-link{text-decoration:none}
                     const wb = XLSX.utils.book_new();
                     XLSX.utils.book_append_sheet(wb, ws, "Report Data");
                     
-                    const timestamp = new Date().toISOString().slice(0,10);
+                    const timestamp = todayISO();
                     const safeBizName = (currentTenantName || 'Shop').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
                     XLSX.writeFile(wb, `${safeBizName}_${mod.toUpperCase()}_Report_${timestamp}.xlsx`);
                     
@@ -7215,8 +7264,9 @@ a.sg-link{text-decoration:none}
         // --- NOTIFICATION ENGINE ---
         function addNotification(title, msg, details = "") {
             try { mlyUI.noteToast(title, msg); } catch (e) { }
-            const stampedMsg = currentLang === 'am' ? `${mlyUI.am(msg)} (በ${currentUsername || 'ያልታወቀ'})` : `${msg} (by ${currentUsername || 'unknown'})`;
-            const notif = { id: Date.now(), title: mlyUI.am(title), msg: stampedMsg, details, date: new Date().toLocaleString(), read: false };
+            // Saved in English with an exact timestamp; renderNotifications() shows it in the app's current language and calendar.
+            const stampedMsg = `${msg} (by ${currentUsername || 'unknown'})`;
+            const notif = { id: Date.now(), title: title, msg: stampedMsg, details, date: new Date().toISOString(), read: false };
             state.notifications.unshift(notif);
             queueWrite({ kind: 'insert', table: 'notifications', row: toDbNotification(notif) });
             updateNotifBadge(); renderNotifications();
@@ -7245,14 +7295,26 @@ a.sg-link{text-decoration:none}
             badge.innerText = unread; badge.style.display = unread > 0 ? 'block' : 'none';
         }
 
+        // "Message text (by Name)" -> in the app's language. Handles alerts saved in English or in Amharic.
+        function notifMsgForLang(raw) {
+            const s = raw == null ? '' : String(raw);
+            const m = s.match(/^([\s\S]*?)\s*\((?:by|\u1260) ([^)]+)\)$/);
+            const isAm = currentLang === 'am';
+            if (!m) return isAm ? mlyUI.am(s) : s;
+            const body = m[1], who = m[2];
+            const unknown = who === 'unknown' || who === '\u12eb\u120d\u1273\u12c8\u1240';
+            if (isAm) return `${mlyUI.am(body)} (\u1260${unknown ? '\u12eb\u120d\u1273\u12c8\u1240' : who})`;
+            return `${body} (by ${unknown ? 'unknown' : who})`;
+        }
+
         function renderNotifications() {
             const list = document.getElementById('notif-list'); list.innerHTML = '';
             if(state.notifications.length === 0) {
-                list.innerHTML = `<div style="padding:16px; text-align:center; color:var(--text-light); font-size:12px;">No new alerts</div>`; return;
+                list.innerHTML = `<div style="padding:16px; text-align:center; color:var(--text-light); font-size:12px;">${escHtml(t('notif.none'))}</div>`; return;
             }
             state.notifications.slice(0, 30).forEach(n => {
                 let det = n.details ? `<div class="notif-details">${escHtml(n.details)}</div>` : '';
-                list.innerHTML += `<div class="notif-item ${n.read?'':'unread'}"><div class="notif-title">${escHtml(n.title)}</div><div class="notif-time">${n.date}</div><div class="notif-msg">${escHtml(n.msg)}</div>${det}</div>`;
+                list.innerHTML += `<div class="notif-item ${n.read?'':'unread'}"><div class="notif-title">${escHtml(mlyUI.am(n.title))}</div><div class="notif-time">${escHtml(fmtNotifDate(n.date))}</div><div class="notif-msg">${escHtml(notifMsgForLang(n.msg))}</div>${det}</div>`;
             });
         }
 
@@ -8009,9 +8071,37 @@ a.sg-link{text-decoration:none}
             if (!isoTimestampStr) return '';
             const d = new Date(isoTimestampStr);
             if (isNaN(d.getTime())) return isoTimestampStr;
-            const isoDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-            const timePart = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-            return `${fmtDate(isoDate)} ${timePart}`;
+            return `${fmtDate(getLocalYMD(d))} ${fmtTimeOfDay(d)}`;
+        }
+
+        // ---- The phone's own clock ----
+        // Time zone and 12-hour / 24-hour style are read from the phone (browser) every time they are needed,
+        // so the whole app follows the phone, and keeps following it if the phone changes zone or setting.
+        function mlyDeviceClock() {
+            let timeZone, is12 = true;
+            try {
+                const o = new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions();
+                timeZone = o.timeZone;
+                is12 = o.hourCycle ? (o.hourCycle === 'h11' || o.hourCycle === 'h12') : !!o.hour12;
+            } catch (e) { }
+            return { timeZone: timeZone, is12: is12 };
+        }
+        // Time of day only (e.g. "3:07 PM" or "15:07"), in the phone's zone and style.
+        function fmtTimeOfDay(dateOrIso, withSeconds) {
+            const d = (dateOrIso instanceof Date) ? dateOrIso : new Date(dateOrIso);
+            if (isNaN(d.getTime())) return '';
+            const c = mlyDeviceClock();
+            const o = { hour: c.is12 ? 'numeric' : '2-digit', minute: '2-digit' };
+            if (withSeconds) o.second = '2-digit';
+            if (c.is12) o.hour12 = true; else o.hourCycle = 'h23';
+            if (c.timeZone) o.timeZone = c.timeZone;
+            try { return d.toLocaleTimeString(undefined, o); } catch (e) { return d.toLocaleTimeString(); }
+        }
+        // Bell alerts: new ones are saved as an exact moment, so they are shown in the app's calendar (EC / GC)
+        // plus the phone's time zone and clock style. Older ones were saved as plain text and keep that text.
+        function fmtNotifDate(v) {
+            const s = v == null ? '' : String(v);
+            return /^\d{4}-\d{2}-\d{2}T/.test(s) ? fmtDateTime(s) : s;
         }
 
         // ===================================================================
@@ -9114,6 +9204,27 @@ a.sg-link{text-decoration:none}
             ];
         }
 
+        // The note typed in the Transfer form is saved inside the journal description as
+        // "<what happened> (<note>) (by <user>)". This pulls the note back out for the Recent Fund Transfers table.
+        function fundTransferNote(j, fromLine, toLine) {
+            const d = stripAuthorStamp(j.desc || '').trim();
+            const chs = getChannelAccountsList();
+            const outside = { '3020': 'Deposit', '3030': 'Withdraw', '2020': 'Loan' };
+            const nm = c => (chs.find(x => x.code === c) || {}).name || outside[c] || c;
+            const fromCode = fromLine?.account, toCode = toLine?.account;
+            const fromName = nm(fromCode), toName = nm(toCode);
+            let what; // same wording submitFundTransfer() writes
+            if (fromCode === '3020') what = `Deposit: ${toName}`;
+            else if (toCode === '3030') what = `Withdrawal: ${fromName}`;
+            else if (fromCode === '2020') what = `Loan received: ${toName}`;
+            else if (toCode === '2020') what = `Loan repayment: ${fromName}`;
+            else what = `Fund transfer: ${fromName} → ${toName}`;
+            if (d === what) return '';
+            if (d.startsWith(what + ' (') && d.endsWith(')')) return d.slice(what.length + 2, -1).trim();
+            const m = d.match(/\s\(([^()]*)\)$/); // fallback, e.g. a channel was renamed after the transfer
+            return m ? m[1].trim() : '';
+        }
+
         function launchLiquidVaultDrillDown() {
             const mTitle = document.getElementById('modal-title');
             const mContent = document.getElementById('modal-body-content');
@@ -9133,8 +9244,8 @@ a.sg-link{text-decoration:none}
                 const fromLine = j.lines.find(l => l.cr > 0);
                 const toLine = j.lines.find(l => l.dr > 0);
                 const ftName = c => (channelAccounts.find(x => x.code === c) || {}).name || (c === '3020' ? t('ft.deposit') : c === '3030' ? t('ft.withdraw') : c === '2020' ? t('ft.loan') : '—');
-                const ftTag = fromLine?.account === '3020' ? t('ft.deposit') : toLine?.account === '3030' ? t('ft.withdraw') : (fromLine?.account === '2020' || toLine?.account === '2020') ? t('ft.loan') : '';
-                return `<tr><td>${fmtDate(j.date)}</td><td>${ftTag ? '<strong>' + escHtml(ftTag) + '</strong> · ' : ''}${escHtml(ftName(fromLine?.account))} → ${escHtml(ftName(toLine?.account))}</td><td class="num">${(fromLine?.cr || 0).money2()}</td><td style="text-align:center;"><button class="btn btn-danger btn-small" onclick="deleteFundTransfer('${j.id}')">${t('common.delete')}</button></td></tr>`;
+                const ftNote = fundTransferNote(j, fromLine, toLine);
+                return `<tr><td>${fmtDate(j.date)}</td><td class="ft-move"><div class="ft-from-to">${escHtml(ftName(fromLine?.account))} → ${escHtml(ftName(toLine?.account))}</div>${ftNote ? `<div class="ft-note">${escHtml(ftNote)}</div>` : ''}</td><td class="num">${(fromLine?.cr || 0).money2()}</td><td style="text-align:center;"><button class="btn btn-danger btn-small" onclick="deleteFundTransfer('${j.id}')">${t('common.delete')}</button></td></tr>`;
             }).join('');
 
             mContent.innerHTML = `<table>
@@ -9144,10 +9255,10 @@ a.sg-link{text-decoration:none}
             </table>
             ${canTransferFunds ? `<div style="margin-top:16px; text-align:right;"><button class="btn" onclick="openFundTransferModal()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> ${t('ft.title')}</button></div>` : ''}
             ${canTransferFunds && recentTransfers.length ? `<h4 style="margin-top:18px; margin-bottom:8px; font-size:13px; color:var(--text-light);">${t('ft.recent')}</h4>
-            <table>
-                <thead><tr><th>${t('sale.date')}</th><th>${t('ft.movement')}</th><th class="num">${t('ft.amount')}</th><th style="text-align:center;">${t('inv.actions')}</th></tr></thead>
+            <div class="table-scroll"><table class="ft-recent">
+                <thead><tr><th>${t('sale.date')}</th><th>${t('ft.movement')} / ${t('ft.note')}</th><th class="num">${t('ft.amount')}</th><th style="text-align:center;">${t('inv.actions')}</th></tr></thead>
                 <tbody>${transferRows}</tbody>
-            </table>` : ''}`;
+            </table></div>` : ''}`;
             document.getElementById('audit-modal').style.display = "flex";
         }
 
@@ -9422,7 +9533,7 @@ a.sg-link{text-decoration:none}
                 const { error: transferInsertErr } = await supabaseClient.from('stock_transfers').insert({
                     id: transferId, tenant_id: currentTenantId, from_branch_id: fromBranchId, to_branch_id: toBranchId,
                     item_id: item.id, item_desc: item.desc, qty, notes: notes || null,
-                    date: new Date().toISOString().split('T')[0], created_by_username: currentUsername
+                    date: todayISO(), created_by_username: currentUsername
                 });
                 if (transferInsertErr) {
                     // The stock itself already moved (writes above succeeded) —
@@ -9869,7 +9980,7 @@ a.sg-link{text-decoration:none}
             const branchId = await resolveTransactionBranch();
             if (!branchId) return false;
             writeBranchId = branchId;
-            const date = new Date().toISOString().slice(0, 10);
+            const date = todayISO();
             const invAcc = currentBusinessType === 'rental' ? '1500' : '1200';
             let catsChanged = false;
             list.forEach(c => { if (!state.categories.includes(c.category)) { state.categories.push(c.category); catsChanged = true; } });
@@ -10254,7 +10365,7 @@ a.sg-link{text-decoration:none}
             const manMap = {}; mcols.forEach((c, i) => { manMap[c.k] = i; });
             const manData = Array.from(document.querySelectorAll('#bulk-man-body tr')).map(tr => mcols.map(c => { const el = tr.querySelector('.' + c.cls); return el ? el.value.trim() : ''; })).filter(r => r.some(c => c !== ''));
             const seen = new Set(); bulkValid = [];
-            const todayIso = new Date().toISOString().slice(0, 10);
+            const todayIso = todayISO();
             const extraHead = kind === 'pharmacy' ? '<th>Expiry</th>' : kind === 'rental' ? '<th class="num">Daily</th><th class="num">Weekly</th><th class="num">Monthly</th>' : '';
             // The file rows and the typed rows are checked together and imported together.
             const run = (data, map, manual, boxId) => {
@@ -10519,7 +10630,7 @@ a.sg-link{text-decoration:none}
             if (currentBusinessType === 'rental') {
                 item.rentalWriteOffs = item.rentalWriteOffs || [];
                 rentalWoId = crypto.randomUUID();
-                item.rentalWriteOffs.push({ id: rentalWoId, date: new Date().toISOString().slice(0, 10), qty });
+                item.rentalWriteOffs.push({ id: rentalWoId, date: todayISO(), qty });
                 queueWrite({ kind: 'update', table: 'inventory_items', id: item.id, patch: { rental_write_offs: item.rentalWriteOffs } });
             }
 
@@ -10528,7 +10639,7 @@ a.sg-link{text-decoration:none}
                 const jDesc = stampDesc(`Inventory write-off: ${qty} x ${item.desc} (batch ${statusText})`);
                 const newJournal = {
                     id: jId,
-                    date: new Date().toISOString().slice(0, 10),
+                    date: todayISO(),
                     desc: jDesc,
                     lines: [ { account: (currentBusinessType === 'rental' ? '6070' : '6060'), dr: lossAmount, cr: 0 }, { account: (currentBusinessType === 'rental' ? '1500' : '1200'), dr: 0, cr: lossAmount } ],
                     branchId: lot.branchId || writeBranchId
@@ -10645,7 +10756,7 @@ a.sg-link{text-decoration:none}
             queueWrite({ kind: 'update', table: 'inventory_items', id: item.id, patch: { history: item.history } });
 
             // One journal entry per branch the stock came from, so each branch's books stay right.
-            const today = new Date().toISOString().slice(0, 10);
+            const today = todayISO();
             const journalsPosted = [];
             Object.keys(plan.byBranch).forEach((b, n) => {
                 const amt = Math.round(plan.byBranch[b] * 100) / 100;
@@ -11082,7 +11193,7 @@ a.sg-link{text-decoration:none}
                 let opt = `<option value="[${escHtml(i.category)}] ${escHtml(i.desc)}"></option>`;
                 sList.innerHTML += opt; pList.innerHTML += opt;
             });
-            const today = new Date().toISOString().split('T')[0];
+            const today = todayISO();
             document.getElementById('sale-date').value = today; document.getElementById('pur-date').value = today; document.getElementById('exp-date').value = today;
             syncAllEthiopianDatePickers();
             autoPopulateSalePrice();
@@ -11271,7 +11382,7 @@ a.sg-link{text-decoration:none}
             document.getElementById('sales-entry-card').style.display = showCart ? 'none' : 'block';
             document.getElementById('sale-cart-card').style.display = showCart ? 'block' : 'none';
             if (showCart) {
-                const today = new Date().toISOString().split('T')[0];
+                const today = todayISO();
                 document.getElementById('cart-sale-date').value = today;
                 syncAllEthiopianDatePickers();
                 syncChannelDropdownEl('cart-sale-channel', BASE_SALE_CHANNELS);
@@ -11631,7 +11742,7 @@ a.sg-link{text-decoration:none}
             if (isNaN(amount) || amount <= 0) { errEl.innerText = 'Enter a valid amount.'; errEl.style.display = 'block'; return; }
             if (amount > remaining + 0.001) { errEl.innerText = `Can't be more than the ETB ${remaining.money2()} owed.`; errEl.style.display = 'block'; return; }
 
-            const date = new Date().toISOString().split('T')[0];
+            const date = todayISO();
             record.payments = record.payments || [];
             record.payments.push({ date, amount, channel });
             record.amountPaid = (record.amountPaid || 0) + amount;
@@ -12001,7 +12112,7 @@ a.sg-link{text-decoration:none}
             const fsNo = escHtml(data.fsNo || 'PLACEHOLDER');
             const etSerial = escHtml(data.etSerial || 'PLACEHOLDER');
             const now = new Date();
-            const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            const timeStr = fmtTimeOfDay(now);
             return `<!doctype html><html><head><meta charset="utf-8"><title>${escHtml(data.docLabel)}</title><style>${sharedStyle}</style></head><body>
                 ${headerLines.map(l => `<div class="center">${escHtml(l)}</div>`).join('')}
                 <div>FS No. ${fsNo}</div>
@@ -12041,7 +12152,7 @@ a.sg-link{text-decoration:none}
             const vatAmt = vatOn ? data.total - taxable : 0;
             const balance = Math.max(0, data.total - (data.amountPaid || 0));
             const now = new Date();
-            const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            const timeStr = fmtTimeOfDay(now);
             const dateStr = fmtDateGregorian(data.date);
             const showUom = data.lines.some(l => l.uom);
             const pre = v => (vatOn && v != null) ? v / 1.15 : v;
@@ -12747,8 +12858,8 @@ a.sg-link{text-decoration:none}
             if (!rows.length) { body.innerHTML = ''; return; }
             const w = draftWord(kind), see = draftSeeAmounts(kind), groups = new Map(), isP = kind === 'purchase';
             rows.forEach(d => { if (!groups.has(d.partyKey)) groups.set(d.partyKey, []); groups.get(d.partyKey).push(d); });
-            const day = iso => { try { return new Date(iso).toISOString().slice(0, 10); } catch (e) { return ''; } };
-            const when = iso => { try { return new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return ''; } };
+            const day = iso => { try { return getLocalYMD(new Date(iso)); } catch (e) { return ''; } };
+            const when = iso => { try { const d = new Date(iso); return d.toLocaleDateString([], { dateStyle: 'medium' }) + ' ' + fmtTimeOfDay(d); } catch (e) { return ''; } };
             const lock = planLockSvg;
             const list = Array.from(groups.entries()).map(([key, ls]) => {
                 ls.sort((a, b) => String(a.savedAt).localeCompare(String(b.savedAt)));
@@ -12979,7 +13090,7 @@ a.sg-link{text-decoration:none}
             const c = draftPrintCtx, cv = draftPrintCanvas();
             if (!cv) return alert('Tick at least one item first.');
             const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
-            const name = (draftWord(c.kind).short.toLowerCase() + '-list-' + (c.party || 'basket') + '-' + new Date().toISOString().slice(0, 10)).replace(/[^\p{L}\p{N}\-]+/gu, '_') + '.png';
+            const name = (draftWord(c.kind).short.toLowerCase() + '-list-' + (c.party || 'basket') + '-' + todayISO()).replace(/[^\p{L}\p{N}\-]+/gu, '_') + '.png';
             const n = c.lines.filter((l, i) => !c.off.has(i)).length, withP = c.withPrices && c.canPrice;
             let done = false;
             let viaSheet = share;
@@ -13503,7 +13614,7 @@ a.sg-link{text-decoration:none}
             document.getElementById('purchase-cart-card').style.display = showCart ? 'block' : 'none';
             applyPurchaseCostFieldPermissionUI();
             if (showCart) {
-                const today = new Date().toISOString().split('T')[0];
+                const today = todayISO();
                 document.getElementById('cart-pur-date').value = today;
                 syncAllEthiopianDatePickers();
                 syncChannelDropdownEl('cart-pur-channel', BASE_PURCHASE_CHANNELS);
@@ -13892,7 +14003,7 @@ a.sg-link{text-decoration:none}
             queueWrite({ kind: 'insert', table: 'expense_log', row: toDbExpense(newExpense) });
             queueWrite({ kind: 'insert', table: 'journal_entries', row: toDbJournal(newJournal) });
 
-            e.target.reset(); document.getElementById('exp-date').value = new Date().toISOString().split('T')[0]; syncAllEthiopianDatePickers(); try { applyDefaultChannel('expenses', true); } catch (e) { } renderExpenseLogTable();
+            e.target.reset(); document.getElementById('exp-date').value = todayISO(); syncAllEthiopianDatePickers(); try { applyDefaultChannel('expenses', true); } catch (e) { } renderExpenseLogTable();
             const scopeNote = isWholeBusiness ? ` — recorded as a Whole Business expense` : '';
             addNotification('Expense Logged', `ETB ${amt.money2()} booked for ${memo}${scopeNote}`, `Source: ${src}`);
         }
@@ -13975,7 +14086,7 @@ a.sg-link{text-decoration:none}
         function prepVoucherInputTargetDropdowns() {
             const dr = document.getElementById('jv-dr-acc'), cr = document.getElementById('jv-cr-acc'); dr.innerHTML = ''; cr.innerHTML = '';
             CHART_OF_ACCOUNTS_MAP.forEach(a => { let s = `<option value="${escHtml(a.code)}">${escHtml(a.code)} - ${escHtml(a.name)}</option>`; dr.innerHTML += s; cr.innerHTML += s; });
-            document.getElementById('jv-date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('jv-date').value = todayISO();
             syncAllEthiopianDatePickers();
         }
 
@@ -14264,7 +14375,7 @@ a.sg-link{text-decoration:none}
                 const encrypted = await encryptBackupObject(fullBackup);
                 let blob = URL.createObjectURL(new Blob([encrypted], { type: 'application/octet-stream' }));
                 const safeBizName = (currentTenantName || 'Shop').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-                let a = document.createElement('a'); a.setAttribute("href", blob); a.setAttribute("download", `${safeBizName}_Meleya_backup_${new Date().toISOString().split('T')[0]}.meleya`); a.click(); setTimeout(() => URL.revokeObjectURL(blob), 5000);
+                let a = document.createElement('a'); a.setAttribute("href", blob); a.setAttribute("download", `${safeBizName}_Meleya_backup_${todayISO()}.meleya`); a.click(); setTimeout(() => URL.revokeObjectURL(blob), 5000);
                 if (fromDevice) alert('Backup saved from the copy on this device (you are offline). It may not include changes made on other devices. Please make a normal backup again once you are online.');
             } catch (err) {
                 console.error('Backup failed:', err); alert('The backup was not created. Reason: ' + (err && err.message ? err.message : String(err)));
@@ -14444,13 +14555,13 @@ a.sg-link{text-decoration:none}
                     actions = `<button class="btn" style="padding:6px 12px; font-size:12px;" onclick="syncAccountantReceipts()">Sync receipts now</button>
                                <button class="btn btn-danger" style="padding:6px 12px; font-size:12px;" onclick="respondToBusinessLink('${l.id}','revoked')">Revoke access</button>`;
                 }
-                return `<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-top:1px solid var(--border);">
-                    <div>
+                return `<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; padding:10px 0; border-top:1px solid var(--border);">
+                    <div style="flex:1 1 180px; min-width:0;">
                         <strong>${escapeAccHtml(l.full_name)}</strong>
                         <div style="font-size:12px; color:var(--text-light);">${escapeAccHtml(l.phone || '')} · ${direction} · <span style="color:${badgeColor};">${l.status}</span></div>
                         ${l.status === 'approved' ? `<div style="font-size:11.5px; color:var(--text-light); margin-top:2px;">Receipts are shared both ways while this link is active. Receipts your accountant logs add their items to your Scanned Stock.</div>` : ''}
                     </div>
-                    <div style="display:flex; gap:6px;">${actions}</div>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;">${actions}</div>
                 </div>`;
             }).join('');
         }
@@ -14567,8 +14678,8 @@ a.sg-link{text-decoration:none}
                 // action button -- records that person's actual name to
                 // search history (the button click bubbles up to this too).
                 return `
-                <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; border-top:1px solid var(--border); cursor:pointer;" onclick="addSearchHistoryTerm('accountant','${escForJsString(r.full_name)}')">
-                    <div><strong>${escapeAccHtml(r.full_name)}</strong><div style="font-size:12px; color:var(--text-light);">${escapeAccHtml(r.phone || '')}</div></div>
+                <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; padding:8px 0; border-top:1px solid var(--border); cursor:pointer;" onclick="addSearchHistoryTerm('accountant','${escForJsString(r.full_name)}')">
+                    <div style="flex:1 1 160px; min-width:0;"><strong>${escapeAccHtml(r.full_name)}</strong><div style="font-size:12px; color:var(--text-light);">${escapeAccHtml(r.phone || '')}</div></div>
                     ${action}
                 </div>`;
             }).join('');
@@ -16842,7 +16953,7 @@ a.sg-link{text-decoration:none}
         const d = draft;
         let total = num(d.total); if (!total && d.before !== '') total = r2(num(d.before) + num(d.vat));
         if (!(total > 0)) return alert('Enter the total amount of the receipt.');
-        const date = d.date || new Date().toISOString().slice(0, 10);
+        const date = d.date || todayISO();
         const dup = rows.concat(pendingRows().map(x => x.row)).find(r => d.no && String(r.receipt_no || '').replace(/^FS/i, '') === String(d.no).replace(/^FS/i, '') && merchKey(r.merchant) === merchKey(d.merchant) && r2(num(r.total)) === r2(total));
         if (dup && !confirm('This looks like a receipt you already saved (same shop, receipt number and total).\n\nSave it again?')) return;
         const acc = accounts().find(a => a.code === d.account);
