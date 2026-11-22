@@ -2010,12 +2010,12 @@ a.sg-link{text-decoration:none}
             </div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                 <label data-i18n="ft.from_channel">From Channel</label>
-                <select id="ft-from-channel" style="width:100%;" onchange="updateFundTransferAvailable()"></select>
+                <select id="ft-from-channel" style="width:100%;" onchange="ftChannelChanged(this)"></select>
                 <div id="ft-available-hint" style="font-size:12px; color:var(--text-light); margin-top:4px;"></div>
             </div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                 <label data-i18n="ft.to_channel">To Channel</label>
-                <select id="ft-to-channel" style="width:100%;"></select>
+                <select id="ft-to-channel" style="width:100%;" onchange="ftChannelChanged(this)"></select>
             </div>
             <div class="form-group" style="display:block; width:100%; margin-bottom:14px;">
                 <label data-i18n="ft.amount">Amount (ETB)</label>
@@ -9265,11 +9265,7 @@ a.sg-link{text-decoration:none}
         function openFundTransferModal() {
             if (currentBranchId === 'all' || !currentBranchId) return alert('Pick a specific branch from the branch switcher first — fund transfers belong to one branch.');
             const channelAccounts = getChannelAccountsList();
-            const opts = channelAccounts.map(c => `<option value="${escHtml(c.code)}">${escHtml(c.name)}</option>`).join('');
-            // Same two fields as before; besides the channels, From also offers money coming in
-            // from outside (Deposit, Loan) and To offers money going out (Withdraw, Loan paid back).
-            document.getElementById('ft-from-channel').innerHTML = opts + `<option value="3020">${escHtml(t('ft.opt_deposit'))}</option><option value="2020">${escHtml(t('ft.opt_loan_in'))}</option>`;
-            document.getElementById('ft-to-channel').innerHTML = opts + `<option value="3030">${escHtml(t('ft.opt_withdraw'))}</option><option value="2020">${escHtml(t('ft.opt_loan_out'))}</option>`;
+            ftFillChannelOptions();
             if (channelAccounts.length > 1) document.getElementById('ft-to-channel').value = channelAccounts[1].code;
             document.getElementById('ft-date').value = getLocalYMD(new Date());
             document.getElementById('ft-amount').value = '';
@@ -9278,6 +9274,45 @@ a.sg-link{text-decoration:none}
             document.getElementById('fund-transfer-error').style.display = 'none';
             document.getElementById('fund-transfer-modal').style.display = 'flex';
             updateFundTransferAvailable();
+        }
+        // Fills both dropdowns. Besides the channels, From also offers money coming in from outside (Deposit, Loan)
+        // and To offers money going out (Withdraw, Loan paid back). Both end with "+ Add new channel..." like the other pages.
+        function ftFillChannelOptions() {
+            const fromSel = document.getElementById('ft-from-channel'), toSel = document.getElementById('ft-to-channel');
+            const keepFrom = fromSel.value, keepTo = toSel.value;
+            const opts = getChannelAccountsList().map(c => `<option value="${escHtml(c.code)}">${escHtml(c.name)}</option>`).join('');
+            const addNew = `<option value="__add_new__">+ Add new channel...</option>`;
+            fromSel.innerHTML = opts + `<option value="3020">${escHtml(t('ft.opt_deposit'))}</option><option value="2020">${escHtml(t('ft.opt_loan_in'))}</option>` + addNew;
+            toSel.innerHTML = opts + `<option value="3030">${escHtml(t('ft.opt_withdraw'))}</option><option value="2020">${escHtml(t('ft.opt_loan_out'))}</option>` + addNew;
+            [[fromSel, keepFrom], [toSel, keepTo]].forEach(([s, v]) => { if (v && [...s.options].some(o => o.value === v)) s.value = v; s.dataset.prevValue = s.value; });
+        }
+        async function ftChannelChanged(sel) {
+            if (sel.value === '__add_new__') await ftAddNewChannel(sel);
+            else sel.dataset.prevValue = sel.value;
+            updateFundTransferAvailable();
+        }
+        // Same flow as "+ Add new channel" on Sales / Purchases / Expenses (new payment type + its ledger account),
+        // then the new channel is picked in the dropdown that was used.
+        async function ftAddNewChannel(sel) {
+            const fallback = sel.dataset.prevValue || sel.options[0].value;
+            const val = await uiPrompt('Type a name for the new payment type. For example: Telebirr, CBE Birr.', { title: 'New payment type', yes: 'Add' });
+            if (!val || !val.trim()) { sel.value = fallback; return; }
+            const trimmed = val.trim();
+            let code = CHANNEL_ACCOUNT_CODES[trimmed];
+            if (!code) {
+                code = nextCustomAccountCode();
+                state.customAccounts.push({ main: "Assets", sub: "Current Assets", stmt: "balance sheet", code, name: trimmed, normal: "Debit", isCustomChannel: true });
+                rebuildChartOfAccounts();
+                queueWrite({ kind: 'tenant_update', patch: { custom_accounts: state.customAccounts } });
+                syncChannelDropdowns();
+                addNotification('Payment Channel Added', `"${trimmed}" is now available wherever you record a channel.`);
+            }
+            const other = sel.id === 'ft-from-channel' ? document.getElementById('ft-to-channel') : document.getElementById('ft-from-channel');
+            const otherVal = other.value;
+            ftFillChannelOptions();
+            if (otherVal && otherVal !== '__add_new__') other.value = otherVal;
+            if ([...sel.options].some(o => o.value === code)) sel.value = code; else sel.value = fallback;
+            sel.dataset.prevValue = sel.value;
         }
         function updateFundTransferAvailable() {
             const fromCode = document.getElementById('ft-from-channel').value;
