@@ -19634,14 +19634,7 @@ mark.nsp-mark{background:none;color:var(--accent,#A9752F);font-weight:700}
         });
         return u.done();
     }
-    // any other field that still had a browser <datalist> (Buyer's TIN / Trade Name in the Print window, ...)
-    function datalistOptions(id) {
-        var u = uniqueList(), dl = document.getElementById(id);
-        if (dl) Array.prototype.forEach.call(dl.options, function (o) { u.add(o.value); });
-        return u.done();
-    }
     function buildOptions(cfg) {
-        if (cfg.kind === 'datalist') return datalistOptions(cfg.list);
         if (cfg.kind === 'names') return nameOptions(cfg.src);
         if (cfg.kind === 'item') return itemOptions();
         if (cfg.kind === 'category') return categoryOptions();
@@ -19754,7 +19747,6 @@ mark.nsp-mark{background:none;color:var(--accent,#A9752F);font-weight:700}
         if (list === 'category-list') return { kind: 'category' };
         if (list === 'customer-list') return { kind: 'names', src: 'customers' };
         if (list === 'supplier-list') return { kind: 'names', src: 'suppliers' };
-        if (list && document.getElementById(list)) return { kind: 'datalist', list: list };
         switch (el.id) {
             case 'inv-filter-category': case 'bulk-defcat': return { kind: 'category' };
             case 'inv-filter-name': return { kind: 'product', scope: 'inventory' };
@@ -19793,112 +19785,44 @@ mark.nsp-mark{background:none;color:var(--accent,#A9752F);font-weight:700}
         document.body.appendChild(box);
         return box;
     }
-    function unmount() {
-        if (cur && cur.par && cur.parSet) { try { cur.par.style.position = cur.parPos; } catch (e) { } }
-        if (cur) { cur.par = null; cur.parSet = false; }
-    }
     function hide() {
         if (box) box.style.display = 'none';
-        unmount();
         if (cur) { cur.open = false; try { cur.el.setAttribute('aria-expanded', 'false'); } catch (e) { } }
     }
-    // keep the list glued to the field: re-measure every frame while it is open, because on phones the keyboard
-    // moves the field without always firing a resize/scroll event
-    var trackOn = false, trackSig = '';
-    function sigNow() {
-        if (!cur || !cur.el) return '';
-        var r = cur.el.getBoundingClientRect(), v = window.visualViewport;
-        return [r.top, r.bottom, r.left, r.width, v ? v.offsetTop : 0, v ? v.height : window.innerHeight, v ? v.offsetLeft : 0, v ? v.width : window.innerWidth, box ? box.scrollHeight : 0].join('|');
-    }
-    function track() {
-        if (!cur || !cur.open || !box) { trackOn = false; return; }
-        var sg = sigNow();
-        if (sg !== trackSig) place();
-        requestAnimationFrame(track);
-    }
-    // Phones (iOS Safari especially) report wrong screen positions while the keyboard is open, so on touch screens
-    // the list is NOT placed by screen coordinates: it is attached to the field's own container and positioned
-    // relative to the field, so it moves with the field and can never land on top of it.
-    function useFlow(el) {
-        var coarse = false; try { coarse = window.matchMedia('(pointer:coarse)').matches; } catch (e) { }
-        return coarse && !(el.closest && el.closest('.table-scroll'));
-    }
-    function mount(flow, el) {
-        if (flow) {
-            var par = el.parentNode;
-            if (box.parentNode !== par || box.previousSibling !== el) par.insertBefore(box, el.nextSibling);
-            if (cur.par !== par) {
-                unmount();
-                cur.par = par; cur.parPos = par.style.position; cur.parSet = false;
-                var cs = window.getComputedStyle(par);
-                if (cs.position === 'static') { par.style.position = 'relative'; cur.parSet = true; }
-            }
-            box.style.position = 'absolute';
-        } else {
-            unmount();
-            if (box.parentNode !== document.body) document.body.appendChild(box);
-            box.style.position = 'fixed';
-        }
-    }
-    var trackOn = false, trackSig = '';
-    function sigNow() {
-        if (!cur || !cur.el) return '';
-        var r = cur.el.getBoundingClientRect(), v = window.visualViewport;
-        return [r.top, r.bottom, r.left, r.width, v ? v.offsetTop : 0, v ? v.height : window.innerHeight, v ? v.offsetLeft : 0, v ? v.width : window.innerWidth, box ? box.scrollHeight : 0].join('|');
-    }
-    function track() {
-        if (!cur || !cur.open || !box) { trackOn = false; return; }
-        if (sigNow() !== trackSig) place();
-        requestAnimationFrame(track);
-    }
+    // The box is glued to the field's edge: straight under it, or straight above it when there is more room there
+    // (typical on a phone with the keyboard open). Its height is always limited to the room on that side,
+    // so it can never reach over the field itself.
     function place() {
         if (!cur || !cur.open || !box) return;
         var el = cur.el, r = el.getBoundingClientRect(), vv = window.visualViewport;
-        var vTop = vv ? vv.offsetTop : 0, vLeft = vv ? vv.offsetLeft : 0;
         var vw = vv ? vv.width : window.innerWidth;
-        var vh = vv ? vv.height : (window.innerHeight || document.documentElement.clientHeight);
-        var vBottom = vTop + vh;
-        var GAP = 4, EDGE = 6, MINH = 120, MAXH = 300;
-        var flow = useFlow(el);
-        mount(flow, el);
-        var below = vBottom - r.bottom - GAP - EDGE;
-        var above = r.top - vTop - GAP - EDGE;
-        // phone / little room: bring the field to the top of its scroll area once, so the list has the whole space under it
-        if (!cur.scrolled && (flow || Math.max(below, above) < MINH)) {
-            cur.scrolled = true;
-            try { el.style.scrollMarginTop = '14px'; el.scrollIntoView({ block: 'start', inline: 'nearest' }); } catch (e) { }
-            requestAnimationFrame(function () { setTimeout(place, 80); });
-        }
+        var vtop = vv ? vv.offsetTop : 0, vleft = vv ? vv.offsetLeft : 0;
+        var vbot = vtop + (vv ? vv.height : (document.documentElement.clientHeight || window.innerHeight));
+        cur.posKey = posKey(r, vv);
+        var below = vbot - r.bottom - 6, above = r.top - vtop - 6;
+        var useBelow = below >= 160 || below >= above;
+        var room = Math.min(300, Math.max(0, useBelow ? below : above));
+        if (r.bottom < vtop || r.top > vbot || room < 40) { box.style.visibility = 'hidden'; return; }   // field scrolled away / no room
         var w = Math.min(Math.max(r.width, 260), vw - 16);
+        box.style.visibility = 'visible';
         box.style.width = w + 'px';
-        box.style.maxHeight = 'none';
-        var natural = box.scrollHeight + 2;
-        var openUp = below < Math.min(natural, MINH) && above > below;
-        var room = Math.max(40, openUp ? above : below);
-        var h = Math.min(natural, MAXH, room);
-        if (flow) {
-            var par = cur.par || el.parentNode, pr = par.getBoundingClientRect();
-            var overshoot = Math.max(0, r.left + w - (vLeft + vw - 8));
-            var lx = (r.left - overshoot) - pr.left - (par.clientLeft || 0);
-            var ty = (openUp ? r.top - GAP - h : r.bottom + GAP) - pr.top - (par.clientTop || 0);
-            box.style.left = lx + 'px'; box.style.top = ty + 'px'; box.style.bottom = 'auto';
-            box.style.maxHeight = h + 'px'; box.style.visibility = 'visible';
-        } else {
-            if (r.bottom < vTop || r.top > vBottom) { box.style.visibility = 'hidden'; }
-            else {
-                var left = Math.max(vLeft + 8, Math.min(r.left, vLeft + vw - w - 8));
-                box.style.left = left + 'px'; box.style.bottom = 'auto'; box.style.maxHeight = h + 'px';
-                box.style.top = (openUp ? r.top - GAP - h : r.bottom + GAP) + 'px';
-                box.style.visibility = 'visible';
-            }
+        box.style.left = Math.max(vleft + 8, Math.min(r.left, vleft + vw - w - 8)) + 'px';
+        box.style.bottom = 'auto'; box.style.maxHeight = room + 'px';
+        if (useBelow) box.style.top = (r.bottom + 2) + 'px';
+        else {
+            box.style.top = '0px';
+            var h = Math.min(box.offsetHeight, room);
+            box.style.top = (r.top - 2 - h) + 'px';
         }
-        // hard guarantee: if the list still touches the field, move it clear of the field; if that is impossible, hide it
-        var br = box.getBoundingClientRect();
-        if (box.style.visibility !== 'hidden' && br.bottom > r.top + 1 && br.top < r.bottom - 1 && br.right > r.left && br.left < r.right) {
-            box.style.visibility = 'hidden';
-        }
-        trackSig = sigNow();
-        if (!trackOn) { trackOn = true; requestAnimationFrame(track); }
+    }
+    function posKey(r, vv) { return [r.top, r.bottom, r.left, r.width, vv ? vv.offsetTop + ':' + vv.offsetLeft + ':' + vv.height + ':' + vv.width : window.innerHeight].join('|'); }
+    // While the list is open, keep it glued to the field even as the phone keyboard slides up or the page scrolls
+    var rafId = 0;
+    function track() {
+        if (!cur || !cur.open) { rafId = 0; return; }
+        var k = posKey(cur.el.getBoundingClientRect(), window.visualViewport);
+        if (k !== cur.posKey) place();
+        rafId = window.requestAnimationFrame(track);
     }
     function stockLabel() { return isAm() ? 'ክምችት' : 'Stock'; }
     function money(n) { n = Number(n) || 0; return typeof n.money2 === 'function' ? n.money2() : n.toFixed(2); }
@@ -19934,6 +19858,7 @@ mark.nsp-mark{background:none;color:var(--accent,#A9752F);font-weight:700}
         cur.open = true; cur.el.setAttribute('aria-expanded', 'true');
         setActive(cur.active, false);
         place();
+        if (!rafId && window.requestAnimationFrame) rafId = window.requestAnimationFrame(track);
     }
     function setActive(n, scroll) {
         if (!cur || !box) return;
@@ -19967,7 +19892,7 @@ mark.nsp-mark{background:none;color:var(--accent,#A9752F);font-weight:700}
         clearTimeout(hideTimer);
         if (cur) hide();
         prepare(el);
-        cur = { el: el, cfg: cfg, opts: null, built: 0, rows: [], active: -1, pristine: true, open: false, suppress: false, scrolled: false };
+        cur = { el: el, cfg: cfg, opts: null, built: 0, rows: [], active: -1, pristine: true, open: false, suppress: false };
         if (cfg.selectOnFocus) { try { el.select(); } catch (x) { } }
         render();
     }, true);
@@ -20013,7 +19938,7 @@ mark.nsp-mark{background:none;color:var(--accent,#A9752F);font-weight:700}
     }, true);
 
     window.addEventListener('resize', place);
-    window.addEventListener('scroll', function (e) { if (box && e.target === box) return; place(); }, true);
+    window.addEventListener('scroll', place, true);
     if (window.visualViewport) { window.visualViewport.addEventListener('resize', place); window.visualViewport.addEventListener('scroll', place); }
 
     // fields that are already on the page: switch off the browser's own list now
