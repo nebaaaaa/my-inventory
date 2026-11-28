@@ -19552,5 +19552,383 @@ function buildSteps() {
 })();
 </script>
 
+<style id="nsp-style">
+#nsp-box{position:fixed;z-index:7000;display:none;box-sizing:border-box;background:var(--surface,#fff);color:var(--text,#23263A);border:1px solid var(--border,#e3e4ea);border-radius:10px;box-shadow:var(--shadow-lg,0 12px 32px rgba(23,27,52,.14));overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;font-family:inherit;font-size:14px;line-height:1.3;text-align:left}
+.nsp-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;cursor:pointer;border-top:1px solid transparent}
+.nsp-row.nsp-on{background:rgba(169,117,47,.14)}
+.nsp-row.nsp-fz{border-top:1px dashed var(--border,#d8dae3)}
+.nsp-main{min-width:0;flex:1 1 auto;overflow-wrap:anywhere}
+.nsp-tag{margin-left:6px;font-size:11px;color:var(--text-light,#6b6f81)}
+.nsp-meta{flex:0 0 auto;font-size:12px;color:var(--text-light,#6b6f81);text-align:right;white-space:nowrap}
+.nsp-low{color:var(--danger,#c0392b);font-weight:600}
+mark.nsp-mark{background:none;color:var(--accent,#A9752F);font-weight:700}
+@media (pointer:coarse){.nsp-row{padding:12px}}
+</style>
+<script id="nsp-script">
+/* Search-style suggestion boxes: item, category, product, customer and supplier fields */
+(function () {
+    'use strict';
+    if (window.nebaSmartPick) return;
+
+    var MAX = 20;       // most suggestions shown at once
+    var Z = 7000;       // above the app's windows (6000), below the guide tooltip (99999)
+
+    /* ---------- small helpers ---------- */
+    function S() { try { return typeof state !== 'undefined' ? state : null; } catch (e) { return null; } }
+    function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    function low(s) { return String(s == null ? '' : s).toLowerCase(); }
+    var SEP = /[\s\[\]()\/\\,;:_\-+*"'|]+/;
+    var SEP1 = /[\s\[\]()\/\\,;:_\-+*"'|]/;
+    var DIGIT = /[0-9]/;
+    function words(s) { return s.split(SEP).filter(Boolean); }
+    function byName(a, b) { return a.nl < b.nl ? -1 : a.nl > b.nl ? 1 : 0; }
+    function isAm() { try { return typeof currentLang !== 'undefined' && currentLang === 'am'; } catch (e) { return false; } }
+
+    /* ---------- the suggestion lists ---------- */
+    function mk(value, name, tag, item) {
+        return { value: value, name: name, tag: tag || '', item: item || null, nl: low(name), l: low(value), w: null, st: 0 };
+    }
+    // Sales / Purchase / Transfer item fields. The value keeps the exact "[Category] Name" text the app already looks up.
+    function itemOptions() {
+        var s = S(), inv = (s && s.inventory) || [], out = [];
+        for (var k = 0; k < inv.length; k++) {
+            var it = inv[k]; if (!it) continue;
+            var cat = it.category == null ? '' : String(it.category), desc = it.desc == null ? '' : String(it.desc);
+            out.push(mk('[' + cat + '] ' + desc, desc, cat, it));
+        }
+        return out;
+    }
+    function uniqueList(add) {
+        var seen = {}, out = [];
+        return {
+            add: function (v) {
+                if (v == null) return; v = String(v).trim(); if (!v) return;
+                var k = low(v); if (seen[k]) return; seen[k] = 1; out.push(mk(v, v, '', null));
+            },
+            done: function () { out.sort(byName); return out; }
+        };
+    }
+    function categoryOptions() {
+        var s = S(), u = uniqueList();
+        ((s && s.categories) || []).forEach(u.add);
+        ((s && s.inventory) || []).forEach(function (i) { u.add(i && i.category); });
+        return u.done();
+    }
+    function productOptions(kind) {
+        var s = S(), u = uniqueList();
+        ((s && s.inventory) || []).forEach(function (i) { u.add(i && i.desc); });
+        var log = !s ? null : kind === 'sales' ? s.salesLog : kind === 'purchases' ? s.purchaseLog : null;
+        (log || []).forEach(function (r) { u.add(r && r.desc); });
+        return u.done();
+    }
+    // Customer / Supplier names come from past sales / purchases (same source the old lists used)
+    function nameOptions(src) {
+        var s = S(), u = uniqueList(), log = !s ? null : src === 'customers' ? s.salesLog : s.purchaseLog;
+        (log || []).forEach(function (r) {
+            var v = r && (src === 'customers' ? r.customer : r.supplier);
+            if (src === 'customers' && v === 'Walk-in') return;
+            u.add(v);
+        });
+        return u.done();
+    }
+    function buildOptions(cfg) {
+        if (cfg.kind === 'names') return nameOptions(cfg.src);
+        if (cfg.kind === 'item') return itemOptions();
+        if (cfg.kind === 'category') return categoryOptions();
+        return productOptions(cfg.scope);
+    }
+
+    /* ---------- spelling-tolerant matching ---------- */
+    // Edit distance that counts a swapped pair of letters as one mistake.
+    function osa(a, b, max) {
+        var la = a.length, lb = b.length;
+        if (Math.abs(la - lb) > max) return max + 1;
+        var p2 = null, p = [], c, i, j;
+        for (j = 0; j <= lb; j++) p[j] = j;
+        for (i = 1; i <= la; i++) {
+            c = [i];
+            for (j = 1; j <= lb; j++) {
+                var v = Math.min(p[j] + 1, c[j - 1] + 1, p[j - 1] + (a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1));
+                if (i > 1 && j > 1 && a.charCodeAt(i - 1) === b.charCodeAt(j - 2) && a.charCodeAt(i - 2) === b.charCodeAt(j - 1)) v = Math.min(v, p2[j - 2] + 1);
+                c[j] = v;
+            }
+            p2 = p; p = c;
+        }
+        return p[lb];
+    }
+    // short words get no forgiveness (LED, MCB, PVC...); numbers never do (1.5 must not match 2.5)
+    function tol(len) { return len <= 3 ? 0 : len <= 6 ? 1 : 2; }
+
+    // -1 = no match, 0 = typed text is inside the name, n = needs n spelling fixes
+    function tokenCost(t, o) {
+        if (o.l.indexOf(t) >= 0) return 0;
+        var m = tol(t.length);
+        if (!m || DIGIT.test(t)) return -1;
+        if (!o.w) o.w = words(o.l);
+        var best = m + 1;
+        for (var i = 0; i < o.w.length; i++) {
+            var w = o.w[i];
+            if (DIGIT.test(w)) continue;
+            var c = osa(t, w, m);
+            if (c > m && w.length > t.length) c = Math.min(c, osa(t, w.slice(0, t.length), m)); // still typing the word
+            if (c < best) { best = c; if (best <= 1) break; }
+        }
+        return best <= m ? best : -1;
+    }
+
+    var runId = 0;
+    function rank(opts, query) {
+        var toks = low(query).split(/\s+/).filter(Boolean), i, t;
+        if (!toks.length) {
+            if (!opts._sorted) { opts._sorted = opts.slice().sort(byName); }
+            return { rows: opts._sorted.slice(0, MAX), nExact: Math.min(opts.length, MAX), toks: toks };
+        }
+        runId++;
+        var exact = [];
+        for (i = 0; i < opts.length; i++) {
+            var o = opts[i], score = 0, ok = true;
+            for (t = 0; t < toks.length; t++) {
+                var tk = toks[t], base = o.nl, p = base.indexOf(tk), pen = 0;
+                if (p < 0) { base = o.l; p = base.indexOf(tk); pen = 300; if (p < 0) { ok = false; break; } }
+                var ws = p === 0 || SEP1.test(base.charAt(p - 1));
+                score += pen + (ws ? 0 : 100) + Math.min(p, 99);
+            }
+            if (ok) { o.st = runId; exact.push({ o: o, s: score + o.nl.length / 100 }); }
+        }
+        exact.sort(function (a, b) { return a.s - b.s || byName(a.o, b.o); });
+        var rows = exact.slice(0, MAX).map(function (x) { return x.o; }), nExact = rows.length;
+        if (rows.length < MAX) {
+            var canFuzz = toks.some(function (x) { return tol(x.length) > 0 && !DIGIT.test(x); });
+            if (canFuzz) {
+                var fz = [];
+                for (i = 0; i < opts.length; i++) {
+                    var q = opts[i]; if (q.st === runId) continue;
+                    var tot = 0, ok2 = true;
+                    for (t = 0; t < toks.length; t++) {
+                        var c = tokenCost(toks[t], q);
+                        if (c < 0) { ok2 = false; break; } tot += c;
+                    }
+                    if (ok2) fz.push({ o: q, s: tot * 10 + q.nl.length / 100 });
+                }
+                fz.sort(function (a, b) { return a.s - b.s || byName(a.o, b.o); });
+                for (i = 0; i < fz.length && rows.length < MAX; i++) rows.push(fz[i].o);
+            }
+        }
+        return { rows: rows, nExact: nExact, toks: toks };
+    }
+
+    // bold the part of the text that was typed
+    function hl(text, toks) {
+        var l = low(text);
+        if (!toks.length || l.length !== text.length) return esc(text);
+        var r = [], k, p;
+        for (k = 0; k < toks.length; k++) { p = l.indexOf(toks[k]); if (p >= 0) r.push([p, p + toks[k].length]); }
+        if (!r.length) return esc(text);
+        r.sort(function (a, b) { return a[0] - b[0]; });
+        var m = [r[0]];
+        for (k = 1; k < r.length; k++) { var z = m[m.length - 1]; if (r[k][0] <= z[1]) z[1] = Math.max(z[1], r[k][1]); else m.push(r[k]); }
+        var h = '', at = 0;
+        m.forEach(function (x) { h += esc(text.slice(at, x[0])) + '<mark class="nsp-mark">' + esc(text.slice(x[0], x[1])) + '</mark>'; at = x[1]; });
+        return h + esc(text.slice(at));
+    }
+
+    /* ---------- which fields get the search box ---------- */
+    var ITEM_LISTS = { 'sale-item-list': true, 'pur-item-list': false, 'transfer-item-list': false }; // true = also show selling price
+    function cfgFor(el) {
+        if (!el || el.tagName !== 'INPUT') return null;
+        var ty = (el.getAttribute('type') || 'text').toLowerCase();
+        if (ty !== 'text' && ty !== 'search') return null;
+        if (el.readOnly || el.disabled) return null;
+        var list = el.getAttribute('list') || el.getAttribute('data-sp-list');
+        if (list && Object.prototype.hasOwnProperty.call(ITEM_LISTS, list)) return { kind: 'item', price: ITEM_LISTS[list], autoFirst: true, selectOnFocus: true };
+        if (list === 'category-list') return { kind: 'category' };
+        if (list === 'customer-list') return { kind: 'names', src: 'customers' };
+        if (list === 'supplier-list') return { kind: 'names', src: 'suppliers' };
+        switch (el.id) {
+            case 'inv-filter-category': case 'bulk-defcat': return { kind: 'category' };
+            case 'inv-filter-name': return { kind: 'product', scope: 'inventory' };
+            case 'sale-log-filter-customer': return { kind: 'names', src: 'customers' };
+            case 'pur-log-filter-supplier': return { kind: 'names', src: 'suppliers' };
+            case 'sale-log-filter-item': return { kind: 'product', scope: 'sales' };
+            case 'pur-log-filter-item': return { kind: 'product', scope: 'purchases' };
+        }
+        return null;
+    }
+    // switch off the browser's own plain suggestion list on this field, so only one list ever shows
+    function prepare(el) {
+        var l = el.getAttribute('list');
+        if (l) { el.setAttribute('data-sp-list', l); el.removeAttribute('list'); }
+        el.setAttribute('autocomplete', 'off');
+        el.setAttribute('role', 'combobox');
+        el.setAttribute('aria-autocomplete', 'list');
+    }
+
+    /* ---------- the dropdown ---------- */
+    var box = null, cur = null, hideTimer = null;
+    function ensureBox() {
+        if (box) return box;
+        box = document.createElement('div');
+        box.id = 'nsp-box'; box.setAttribute('role', 'listbox');
+        box.addEventListener('mousedown', function (e) { e.preventDefault(); });   // keep the cursor in the field
+        box.addEventListener('pointerdown', function () { box._down = Date.now(); });
+        box.addEventListener('mouseover', function (e) {
+            var r = e.target.closest ? e.target.closest('.nsp-row') : null;
+            if (r && cur) setActive(+r.getAttribute('data-i'), false);
+        });
+        box.addEventListener('click', function (e) {
+            var r = e.target.closest ? e.target.closest('.nsp-row') : null;
+            if (r) pick(+r.getAttribute('data-i'));
+        });
+        document.body.appendChild(box);
+        return box;
+    }
+    function hide() {
+        if (box) box.style.display = 'none';
+        if (cur) { cur.open = false; try { cur.el.setAttribute('aria-expanded', 'false'); } catch (e) { } }
+    }
+    function place() {
+        if (!cur || !cur.open || !box) return;
+        var el = cur.el, r = el.getBoundingClientRect(), vv = window.visualViewport;
+        var vw = vv ? vv.width : window.innerWidth;
+        var docH = document.documentElement.clientHeight || window.innerHeight;
+        var visBottom = vv ? vv.offsetTop + vv.height : docH;         // keyboard-aware bottom edge
+        var below = visBottom - r.bottom - 8, above = r.top - (vv ? vv.offsetTop : 0) - 8;
+        var w = Math.min(Math.max(r.width, 260), vw - 16);
+        var left = Math.max(8, Math.min(r.left, (vv ? vv.offsetLeft : 0) + vw - w - 8));
+        box.style.width = w + 'px'; box.style.left = left + 'px';
+        if (below < 150 && above > below) {                           // not enough room under the field: open upward
+            box.style.top = 'auto'; box.style.bottom = (docH - r.top + 2) + 'px';
+            box.style.maxHeight = Math.max(110, Math.min(300, above)) + 'px';
+        } else {
+            box.style.bottom = 'auto'; box.style.top = (r.bottom + 2) + 'px';
+            box.style.maxHeight = Math.max(110, Math.min(300, below)) + 'px';
+        }
+    }
+    function stockLabel() { return isAm() ? 'ክምችት' : 'Stock'; }
+    function money(n) { n = Number(n) || 0; return typeof n.money2 === 'function' ? n.money2() : n.toFixed(2); }
+    function rowHtml(o, i, r, cfg) {
+        var h = '<div class="nsp-row' + (i === r.nExact && i > 0 ? ' nsp-fz' : '') + '" role="option" data-i="' + i + '"><div class="nsp-main">' + hl(o.name, r.toks);
+        if (cfg.kind === 'item' && o.tag) h += '<span class="nsp-tag">' + hl(o.tag, r.toks) + '</span>';
+        h += '</div>';
+        if (cfg.kind === 'item' && o.item) {
+            var it = o.item, meta = [];
+            if (Array.isArray(it.lots)) {
+                var q = 0; for (var k = 0; k < it.lots.length; k++) q += Number(it.lots[k] && it.lots[k].qty) || 0;
+                q = Math.round(q * 1000) / 1000;
+                meta.push('<span' + (q <= 0 ? ' class="nsp-low"' : '') + '>' + stockLabel() + ' ' + esc(q) + '</span>');
+            }
+            if (cfg.price && Number(it.sellingPrice) > 0) meta.push(esc(money(it.sellingPrice)));
+            if (meta.length) h += '<div class="nsp-meta">' + meta.join(' &middot; ') + '</div>';
+        }
+        return h + '</div>';
+    }
+    function render() {
+        if (!cur) return;
+        var now = Date.now();
+        if (!cur.opts || now - cur.built > 1500) { cur.opts = buildOptions(cur.cfg); cur.built = now; }
+        var q = cur.pristine ? '' : cur.el.value;
+        var r = rank(cur.opts, q);
+        cur.rows = r.rows;
+        if (!r.rows.length) { hide(); return; }
+        cur.active = (cur.cfg.autoFirst && !cur.pristine && r.toks.length) ? 0 : -1;
+        ensureBox();
+        var h = '';
+        for (var i = 0; i < r.rows.length; i++) h += rowHtml(r.rows[i], i, r, cur.cfg);
+        box.innerHTML = h; box.scrollTop = 0; box.style.display = 'block'; box.style.zIndex = Z;
+        cur.open = true; cur.el.setAttribute('aria-expanded', 'true');
+        setActive(cur.active, false);
+        place();
+    }
+    function setActive(n, scroll) {
+        if (!cur || !box) return;
+        var kids = box.children;
+        if (cur.active >= 0 && kids[cur.active]) kids[cur.active].classList.remove('nsp-on');
+        cur.active = n;
+        if (n >= 0 && kids[n]) {
+            kids[n].classList.add('nsp-on');
+            if (scroll) {
+                var t = kids[n].offsetTop, b = t + kids[n].offsetHeight;
+                if (t < box.scrollTop) box.scrollTop = t; else if (b > box.scrollTop + box.clientHeight) box.scrollTop = b - box.clientHeight;
+            }
+        }
+    }
+    function fire(el, type) { el.dispatchEvent(new Event(type, { bubbles: true })); }
+    function pick(i) {
+        if (!cur || !cur.rows || !cur.rows[i]) return;
+        var el = cur.el;
+        cur.suppress = true;
+        try { el.value = cur.rows[i].value; fire(el, 'input'); fire(el, 'change'); } finally { cur.suppress = false; }
+        cur.pristine = false;
+        hide();
+    }
+
+    /* ---------- wiring (works for fields that appear later, e.g. bulk rows) ---------- */
+    document.addEventListener('focusin', function (e) {
+        var el = e.target;
+        if (cur && cur.el === el) return;
+        var cfg = cfgFor(el);
+        if (!cfg) { if (cur) { hide(); cur = null; } return; }
+        clearTimeout(hideTimer);
+        if (cur) hide();
+        prepare(el);
+        cur = { el: el, cfg: cfg, opts: null, built: 0, rows: [], active: -1, pristine: true, open: false, suppress: false };
+        if (cfg.selectOnFocus) { try { el.select(); } catch (x) { } }
+        render();
+    }, true);
+
+    document.addEventListener('focusout', function (e) {
+        if (!cur || e.target !== cur.el) return;
+        var el = cur.el;
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(function () {
+            if (!cur || cur.el !== el || document.activeElement === el) return;
+            if (box && box._down && Date.now() - box._down < 500) return;      // finger is still on the list
+            hide(); cur = null;
+        }, 180);
+    }, true);
+
+    document.addEventListener('input', function (e) {
+        if (!cur || e.target !== cur.el || cur.suppress) return;
+        cur.pristine = false;
+        render();
+    }, true);
+
+    // clicking a field that is already focused (after picking, or after Esc) opens the list again
+    document.addEventListener('click', function (e) {
+        if (!cur || e.target !== cur.el || cur.open) return;
+        cur.pristine = true;
+        if (cur.cfg.selectOnFocus) { try { cur.el.select(); } catch (x) { } }
+        render();
+    }, true);
+
+    document.addEventListener('keydown', function (e) {
+        if (!cur || e.target !== cur.el || e.isComposing) return;
+        var k = e.key, n = cur.rows ? cur.rows.length : 0;
+        if (k === 'ArrowDown' || k === 'ArrowUp') {
+            if (!cur.open) { render(); if (!cur.open) return; e.preventDefault(); return; }
+            e.preventDefault();
+            var next = k === 'ArrowDown' ? (cur.active + 1) % n : (cur.active <= 0 ? n - 1 : cur.active - 1);
+            setActive(next, true);
+        } else if (k === 'Enter') {
+            if (cur.open && cur.active >= 0) { e.preventDefault(); e.stopImmediatePropagation(); pick(cur.active); }
+        } else if (k === 'Escape') {
+            if (cur.open) { e.preventDefault(); e.stopImmediatePropagation(); hide(); }
+        }
+    }, true);
+
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    if (window.visualViewport) { window.visualViewport.addEventListener('resize', place); window.visualViewport.addEventListener('scroll', place); }
+
+    // fields that are already on the page: switch off the browser's own list now
+    try {
+        var sel = 'input[list="sale-item-list"],input[list="pur-item-list"],input[list="transfer-item-list"],input[list="category-list"],input[list="customer-list"],input[list="supplier-list"]';
+        Array.prototype.forEach.call(document.querySelectorAll(sel), prepare);
+    } catch (e) { }
+
+    window.nebaSmartPick = { rank: rank, osa: osa, cfgFor: cfgFor };
+})();
+</script>
+
 </body>
 </html>
