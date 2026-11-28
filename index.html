@@ -19634,7 +19634,14 @@ mark.nsp-mark{background:none;color:var(--accent,#A9752F);font-weight:700}
         });
         return u.done();
     }
+    // any other field that still had a browser <datalist> (Buyer's TIN / Trade Name in the Print window, ...)
+    function datalistOptions(id) {
+        var u = uniqueList(), dl = document.getElementById(id);
+        if (dl) Array.prototype.forEach.call(dl.options, function (o) { u.add(o.value); });
+        return u.done();
+    }
     function buildOptions(cfg) {
+        if (cfg.kind === 'datalist') return datalistOptions(cfg.list);
         if (cfg.kind === 'names') return nameOptions(cfg.src);
         if (cfg.kind === 'item') return itemOptions();
         if (cfg.kind === 'category') return categoryOptions();
@@ -19747,6 +19754,7 @@ mark.nsp-mark{background:none;color:var(--accent,#A9752F);font-weight:700}
         if (list === 'category-list') return { kind: 'category' };
         if (list === 'customer-list') return { kind: 'names', src: 'customers' };
         if (list === 'supplier-list') return { kind: 'names', src: 'suppliers' };
+        if (list && document.getElementById(list)) return { kind: 'datalist', list: list };
         switch (el.id) {
             case 'inv-filter-category': case 'bulk-defcat': return { kind: 'category' };
             case 'inv-filter-name': return { kind: 'product', scope: 'inventory' };
@@ -19789,6 +19797,20 @@ mark.nsp-mark{background:none;color:var(--accent,#A9752F);font-weight:700}
         if (box) box.style.display = 'none';
         if (cur) { cur.open = false; try { cur.el.setAttribute('aria-expanded', 'false'); } catch (e) { } }
     }
+    // keep the list glued to the field: re-measure every frame while it is open, because on phones the keyboard
+    // moves the field without always firing a resize/scroll event
+    var trackOn = false, trackSig = '';
+    function sigNow() {
+        if (!cur || !cur.el) return '';
+        var r = cur.el.getBoundingClientRect(), v = window.visualViewport;
+        return [r.top, r.bottom, r.left, r.width, v ? v.offsetTop : 0, v ? v.height : window.innerHeight, v ? v.offsetLeft : 0, v ? v.width : window.innerWidth, box ? box.scrollHeight : 0].join('|');
+    }
+    function track() {
+        if (!cur || !cur.open || !box) { trackOn = false; return; }
+        var sg = sigNow();
+        if (sg !== trackSig) place();
+        requestAnimationFrame(track);
+    }
     function place() {
         if (!cur || !cur.open || !box) return;
         var el = cur.el, r = el.getBoundingClientRect(), vv = window.visualViewport;
@@ -19798,15 +19820,15 @@ mark.nsp-mark{background:none;color:var(--accent,#A9752F);font-weight:700}
         var vBottom = vv ? vv.offsetTop + vv.height : (window.innerHeight || document.documentElement.clientHeight);
         var GAP = 4, EDGE = 6, MINH = 120, MAXH = 300;
         // field scrolled out of view: hide the list instead of floating it over something else
-        if (r.bottom < vTop || r.top > vBottom) { box.style.visibility = 'hidden'; return; }
-        box.style.visibility = 'visible';
+        if (r.bottom < vTop || r.top > vBottom) { box.style.visibility = 'hidden'; if (!trackOn) { trackOn = true; requestAnimationFrame(track); } trackSig = sigNow(); return; }
         var below = vBottom - r.bottom - GAP - EDGE;
         var above = r.top - vTop - GAP - EDGE;
-        // little room on both sides (phone keyboard open): scroll the field up once to make room
-        if (Math.max(below, above) < MINH && !cur.scrolled) {
+        // phone / little room: bring the field to the top of its scroll area once, so the list has the whole space under it
+        var touch = false; try { touch = window.matchMedia('(pointer:coarse)').matches; } catch (e) { }
+        if (!cur.scrolled && (touch || Math.max(below, above) < MINH)) {
             cur.scrolled = true;
-            try { el.scrollIntoView({ block: 'start', inline: 'nearest' }); } catch (e) { }
-            requestAnimationFrame(function () { setTimeout(place, 60); });
+            try { el.style.scrollMarginTop = '14px'; el.scrollIntoView({ block: 'start', inline: 'nearest' }); } catch (e) { }
+            requestAnimationFrame(function () { setTimeout(place, 80); });
         }
         var w = Math.min(Math.max(r.width, 260), vw - 16);
         var left = Math.max(vLeft + 8, Math.min(r.left, vLeft + vw - w - 8));
@@ -19820,6 +19842,17 @@ mark.nsp-mark{background:none;color:var(--accent,#A9752F);font-weight:700}
         box.style.bottom = 'auto';
         box.style.maxHeight = h + 'px';
         box.style.top = (openUp ? r.top - GAP - h : r.bottom + GAP) + 'px';
+        box.style.visibility = 'visible';
+        // hard guarantee: if the list would still touch the field, shrink it away from the field; if that is impossible, hide it
+        var br = box.getBoundingClientRect();
+        if (br.bottom > r.top && br.top < r.bottom && br.right > r.left && br.left < r.right) {
+            if (openUp) { box.style.maxHeight = Math.max(0, r.top - GAP - br.top) + 'px'; }
+            else { box.style.top = (r.bottom + GAP) + 'px'; }
+            br = box.getBoundingClientRect();
+            if (br.bottom > r.top && br.top < r.bottom && br.right > r.left && br.left < r.right) box.style.visibility = 'hidden';
+        }
+        trackSig = sigNow();
+        if (!trackOn) { trackOn = true; requestAnimationFrame(track); }
     }
     function stockLabel() { return isAm() ? 'ክምችት' : 'Stock'; }
     function money(n) { n = Number(n) || 0; return typeof n.money2 === 'function' ? n.money2() : n.toFixed(2); }
@@ -19934,7 +19967,7 @@ mark.nsp-mark{background:none;color:var(--accent,#A9752F);font-weight:700}
     }, true);
 
     window.addEventListener('resize', place);
-    window.addEventListener('scroll', place, true);
+    window.addEventListener('scroll', function (e) { if (box && e.target === box) return; place(); }, true);
     if (window.visualViewport) { window.visualViewport.addEventListener('resize', place); window.visualViewport.addEventListener('scroll', place); }
 
     // fields that are already on the page: switch off the browser's own list now
