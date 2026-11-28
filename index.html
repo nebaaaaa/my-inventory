@@ -19793,8 +19793,13 @@ mark.nsp-mark{background:none;color:var(--accent,#A9752F);font-weight:700}
         document.body.appendChild(box);
         return box;
     }
+    function unmount() {
+        if (cur && cur.par && cur.parSet) { try { cur.par.style.position = cur.parPos; } catch (e) { } }
+        if (cur) { cur.par = null; cur.parSet = false; }
+    }
     function hide() {
         if (box) box.style.display = 'none';
+        unmount();
         if (cur) { cur.open = false; try { cur.el.setAttribute('aria-expanded', 'false'); } catch (e) { } }
     }
     // keep the list glued to the field: re-measure every frame while it is open, because on phones the keyboard
@@ -19811,45 +19816,86 @@ mark.nsp-mark{background:none;color:var(--accent,#A9752F);font-weight:700}
         if (sg !== trackSig) place();
         requestAnimationFrame(track);
     }
+    // Phones (iOS Safari especially) report wrong screen positions while the keyboard is open, so on touch screens
+    // the list is NOT placed by screen coordinates: it is attached to the field's own container and positioned
+    // relative to the field, so it moves with the field and can never land on top of it.
+    function useFlow(el) {
+        var coarse = false; try { coarse = window.matchMedia('(pointer:coarse)').matches; } catch (e) { }
+        return coarse && !(el.closest && el.closest('.table-scroll'));
+    }
+    function mount(flow, el) {
+        if (flow) {
+            var par = el.parentNode;
+            if (box.parentNode !== par || box.previousSibling !== el) par.insertBefore(box, el.nextSibling);
+            if (cur.par !== par) {
+                unmount();
+                cur.par = par; cur.parPos = par.style.position; cur.parSet = false;
+                var cs = window.getComputedStyle(par);
+                if (cs.position === 'static') { par.style.position = 'relative'; cur.parSet = true; }
+            }
+            box.style.position = 'absolute';
+        } else {
+            unmount();
+            if (box.parentNode !== document.body) document.body.appendChild(box);
+            box.style.position = 'fixed';
+        }
+    }
+    var trackOn = false, trackSig = '';
+    function sigNow() {
+        if (!cur || !cur.el) return '';
+        var r = cur.el.getBoundingClientRect(), v = window.visualViewport;
+        return [r.top, r.bottom, r.left, r.width, v ? v.offsetTop : 0, v ? v.height : window.innerHeight, v ? v.offsetLeft : 0, v ? v.width : window.innerWidth, box ? box.scrollHeight : 0].join('|');
+    }
+    function track() {
+        if (!cur || !cur.open || !box) { trackOn = false; return; }
+        if (sigNow() !== trackSig) place();
+        requestAnimationFrame(track);
+    }
     function place() {
         if (!cur || !cur.open || !box) return;
         var el = cur.el, r = el.getBoundingClientRect(), vv = window.visualViewport;
-        // visible area (keyboard-aware), all in the same coordinate space as getBoundingClientRect()
         var vTop = vv ? vv.offsetTop : 0, vLeft = vv ? vv.offsetLeft : 0;
         var vw = vv ? vv.width : window.innerWidth;
-        var vBottom = vv ? vv.offsetTop + vv.height : (window.innerHeight || document.documentElement.clientHeight);
+        var vh = vv ? vv.height : (window.innerHeight || document.documentElement.clientHeight);
+        var vBottom = vTop + vh;
         var GAP = 4, EDGE = 6, MINH = 120, MAXH = 300;
-        // field scrolled out of view: hide the list instead of floating it over something else
-        if (r.bottom < vTop || r.top > vBottom) { box.style.visibility = 'hidden'; if (!trackOn) { trackOn = true; requestAnimationFrame(track); } trackSig = sigNow(); return; }
+        var flow = useFlow(el);
+        mount(flow, el);
         var below = vBottom - r.bottom - GAP - EDGE;
         var above = r.top - vTop - GAP - EDGE;
         // phone / little room: bring the field to the top of its scroll area once, so the list has the whole space under it
-        var touch = false; try { touch = window.matchMedia('(pointer:coarse)').matches; } catch (e) { }
-        if (!cur.scrolled && (touch || Math.max(below, above) < MINH)) {
+        if (!cur.scrolled && (flow || Math.max(below, above) < MINH)) {
             cur.scrolled = true;
             try { el.style.scrollMarginTop = '14px'; el.scrollIntoView({ block: 'start', inline: 'nearest' }); } catch (e) { }
             requestAnimationFrame(function () { setTimeout(place, 80); });
         }
         var w = Math.min(Math.max(r.width, 260), vw - 16);
-        var left = Math.max(vLeft + 8, Math.min(r.left, vLeft + vw - w - 8));
-        box.style.width = w + 'px'; box.style.left = left + 'px';
-        // open on whichever side has more room, and never taller than that room, so it can't reach the field
+        box.style.width = w + 'px';
         box.style.maxHeight = 'none';
         var natural = box.scrollHeight + 2;
         var openUp = below < Math.min(natural, MINH) && above > below;
         var room = Math.max(40, openUp ? above : below);
         var h = Math.min(natural, MAXH, room);
-        box.style.bottom = 'auto';
-        box.style.maxHeight = h + 'px';
-        box.style.top = (openUp ? r.top - GAP - h : r.bottom + GAP) + 'px';
-        box.style.visibility = 'visible';
-        // hard guarantee: if the list would still touch the field, shrink it away from the field; if that is impossible, hide it
+        if (flow) {
+            var par = cur.par || el.parentNode, pr = par.getBoundingClientRect();
+            var overshoot = Math.max(0, r.left + w - (vLeft + vw - 8));
+            var lx = (r.left - overshoot) - pr.left - (par.clientLeft || 0);
+            var ty = (openUp ? r.top - GAP - h : r.bottom + GAP) - pr.top - (par.clientTop || 0);
+            box.style.left = lx + 'px'; box.style.top = ty + 'px'; box.style.bottom = 'auto';
+            box.style.maxHeight = h + 'px'; box.style.visibility = 'visible';
+        } else {
+            if (r.bottom < vTop || r.top > vBottom) { box.style.visibility = 'hidden'; }
+            else {
+                var left = Math.max(vLeft + 8, Math.min(r.left, vLeft + vw - w - 8));
+                box.style.left = left + 'px'; box.style.bottom = 'auto'; box.style.maxHeight = h + 'px';
+                box.style.top = (openUp ? r.top - GAP - h : r.bottom + GAP) + 'px';
+                box.style.visibility = 'visible';
+            }
+        }
+        // hard guarantee: if the list still touches the field, move it clear of the field; if that is impossible, hide it
         var br = box.getBoundingClientRect();
-        if (br.bottom > r.top && br.top < r.bottom && br.right > r.left && br.left < r.right) {
-            if (openUp) { box.style.maxHeight = Math.max(0, r.top - GAP - br.top) + 'px'; }
-            else { box.style.top = (r.bottom + GAP) + 'px'; }
-            br = box.getBoundingClientRect();
-            if (br.bottom > r.top && br.top < r.bottom && br.right > r.left && br.left < r.right) box.style.visibility = 'hidden';
+        if (box.style.visibility !== 'hidden' && br.bottom > r.top + 1 && br.top < r.bottom - 1 && br.right > r.left && br.left < r.right) {
+            box.style.visibility = 'hidden';
         }
         trackSig = sigNow();
         if (!trackOn) { trackOn = true; requestAnimationFrame(track); }
